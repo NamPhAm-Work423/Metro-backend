@@ -1,0 +1,40 @@
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:12:59","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:12:59","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:12:59","userId":"ebc4ac29-7a2c-4aae-a2d8-71d0a1562db0"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:12:59","userId":"ebc4ac29-7a2c-4aae-a2d8-71d0a1562db0"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:13:26","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:13:26","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:13:26","userId":"3b2c65f5-f1b3-4303-a598-e9e2243a6f33"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:13:26","userId":"3b2c65f5-f1b3-4303-a598-e9e2243a6f33"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:35:22","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:35:22","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:35:23","userId":"4934a3e3-ffde-4001-ba23-253eec13e67a"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:35:23","userId":"4934a3e3-ffde-4001-ba23-253eec13e67a"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:00","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:01","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:01","userId":"4be891a1-4e18-4c44-8621-1882754fe7fa"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:01","userId":"4be891a1-4e18-4c44-8621-1882754fe7fa"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:26","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:26","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:26","userId":"8acff609-a22e-41d8-8b2d-ed5d4fd61e52"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 15:37:26","userId":"8acff609-a22e-41d8-8b2d-ed5d4fd61e52"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:07:23","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:07:23","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:07:23","userId":"1c04ea93-4ea7-4095-998c-93f89b042d4c"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:07:23","userId":"1c04ea93-4ea7-4095-998c-93f89b042d4c"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:27:32","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:27:32","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:27:32","userId":"c37b0eb0-6151-4af7-8ad1-9efff1c5f346"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:27:32","userId":"c37b0eb0-6151-4af7-8ad1-9efff1c5f346"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:30:49","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:30:49","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:30:49","userId":"83b6d480-34cd-4498-aba7-9f722655598d"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:30:49","userId":"83b6d480-34cd-4498-aba7-9f722655598d"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:34:41","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:34:41","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:34:42","userId":"c2235945-5dc5-4208-92c2-18d97bb182a9"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:34:42","userId":"c2235945-5dc5-4208-92c2-18d97bb182a9"}
+{"email":"john@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"123e4567-e89b-12d3-a456-426614174000"}
+{"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"06360b06-ca74-4a21-bb55-bed153c83084"}
+{"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"06360b06-ca74-4a21-bb55-bed153c83084"}

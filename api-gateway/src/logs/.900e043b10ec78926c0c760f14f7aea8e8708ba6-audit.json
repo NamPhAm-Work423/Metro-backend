@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\nam42\\OneDrive\\Máy tính\\Specialized_Project\\backend\\api-gateway\\src\\logs\\.900e043b10ec78926c0c760f14f7aea8e8708ba6-audit.json",
+    "files": [
+        {
+            "date": 1750303654113,
+            "name": "C:\\Users\\nam42\\OneDrive\\Máy tính\\Specialized_Project\\backend\\api-gateway\\src\\logs\\application-2025-06-19.log",
+            "hash": "140bf794b046d34615c4e59e383ff9d8073c05155b521f89607917b0d180baad"
+        },
+        {
+            "date": 1750579979271,
+            "name": "C:\\Users\\nam42\\OneDrive\\Máy tính\\Specialized_Project\\backend\\api-gateway\\src\\logs\\application-2025-06-22.log",
+            "hash": "ada8da70498e1e6482c9485d2a2e19cc64acb2174726bbbf97e528b749f9eebe"
+        }
+    ],
+    "hashType": "sha256"
+}
