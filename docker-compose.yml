@@ -23,6 +23,7 @@ services:
       - JWT_REFRESH_SECRET=your_refresh_secret_key
     volumes:
       - ./api-gateway:/app
+      - /app/node_modules 
     depends_on:
       - postgres
       - redis
@@ -73,17 +74,6 @@ services:
       retries: 5
     command: ["redis-server", "--requirepass", "redispass123"]
 
-  # MailHog for email testing
-  # mailhog:
-  #   image: mailhog/mailhog:latest
-  #   ports:
-  #     - "1025:1025"  # SMTP server
-  #     - "8025:8025"  # Web UI
-  #   networks:
-  #     - backend-network
-  #   restart: unless-stopped
-
-  # Redis Commander (Optional - for Redis management UI)
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander

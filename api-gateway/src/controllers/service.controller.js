@@ -73,7 +73,7 @@ const serviceController = {
     createBulkInstances: async (instances) => {
         const results = [];
         for (const instanceData of instances) {
-            const instance = await serviceService.registerInstance(instanceData.ServiceId, instanceData);
+            const instance = await serviceService.registerInstance(instanceData.serviceId, instanceData);
             results.push(instance);
         }
         return results;

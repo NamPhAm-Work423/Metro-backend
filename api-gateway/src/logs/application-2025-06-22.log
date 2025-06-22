@@ -38,3 +38,6 @@
 {"email":"john@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"123e4567-e89b-12d3-a456-426614174000"}
 {"email":"int@example.com","level":"info","message":"User registered successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"06360b06-ca74-4a21-bb55-bed153c83084"}
 {"email":"int@example.com","level":"info","message":"User logged in successfully","service":"api-gateway","timestamp":"2025-06-22 16:35:12","userId":"06360b06-ca74-4a21-bb55-bed153c83084"}
+{"level":"info","message":"Service sample-service registered successfully","service":"api-gateway","timestamp":"2025-06-22 12:57:46"}
+{"level":"error","message":"Error registering instance: WHERE parameter \"serviceId\" has invalid \"undefined\" value","service":"api-gateway","timestamp":"2025-06-22 12:57:46"}
+{"level":"error","message":"Error registering instance: WHERE parameter \"serviceId\" has invalid \"undefined\" value","service":"api-gateway","timestamp":"2025-06-22 12:57:46"}
