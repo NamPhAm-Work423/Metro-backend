@@ -5,11 +5,11 @@
     },
     "services": [
         {
-            "name": "sample-service",
-            "endPoint": "/api/v1/sample",
+            "name": "passenger-service",
+            "endPoint": "/api/v1/passenger",
             "instances": [
                 {
-                    "host": "localhost",
+                    "host": "passenger-service",
                     "port": 3001,
                     "weight": 1
                 }

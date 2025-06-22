@@ -8,25 +8,16 @@ services:
     container_name: api-gateway
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=auth_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redispass123
-      - JWT_ACCESS_SECRET=your_access_secret_key
-      - JWT_REFRESH_SECRET=your_refresh_secret_key
+    env_file:
+      - ./api-gateway/.env
     volumes:
       - ./api-gateway:/app
       - /app/node_modules 
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend-network
     healthcheck:
@@ -37,6 +28,25 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Passenger Service - handles passenger users
+  passenger-service:
+    build:
+      context: ./passenger-service
+    container_name: passenger-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./passenger-service/.env
+    volumes:
+      - ./passenger-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -44,11 +54,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=auth_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
     healthcheck:

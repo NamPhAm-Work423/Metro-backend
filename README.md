@@ -64,17 +64,14 @@ flowchart LR
     browser{{Client}}
     browser --HTTP--> gateway(API Gateway)
     subgraph microservices
-        auth(Auth Service)
         user(User Service)
         product(Product Service)
         etCetera(...)
     end
-    gateway --proxy--> auth & user & product & etCetera
+    gateway --proxy--> user & product & etCetera
     postgres[(PostgreSQL)]
     redis[(Redis)]
-    auth -- DB --> postgres
     user -- DB --> postgres
-    auth -- Cache --> redis
     gateway -- Cache --> redis
 ```
 
@@ -82,6 +79,159 @@ flowchart LR
 * **Microservices** – isolated domains (Auth, User, Product, …).  Each exposes a REST API and registers itself with the gateway (or is declared in config).
 * **PostgreSQL** – shared relational database (for demo; in production every service should own its own schema or database).
 * **Redis** – caching, session store, distributed locks.
+
+---
+
+## 🗄️ Database Design
+
+The following ERD shows the core entities and their relationships across the Metro platform:
+
+```mermaid
+erDiagram
+    USER ||--|| PASSENGER : is
+    USER ||--|| METROSTAFF : is
+    USER ||--|| ADMIN : is
+
+    USER ||--o{ TICKET : books
+    USER ||--o{ PAYMENT : has
+    USER ||--o{ SUPPORTREQUEST : has
+    USER ||--o{ USERGUIDE : uses
+    USER ||--o{ CHATSESSION : has
+
+    PASSENGER ||--o{ TICKET : books
+    PASSENGER ||--o{ PAYMENT : has
+
+    METROSTAFF ||--o{ TICKET : manages
+    METROSTAFF ||--o{ REPORT : generates
+    METROSTAFF ||--o{ CUSTOMERSUPPORT : does
+
+    ADMIN ||--o{ REPORT : generates
+    ADMIN ||--o{ TICKET : configures
+    ADMIN ||--o{ PROMOTION : configures
+
+    TICKET ||--o{ FARE : has
+    TICKET ||--o{ ROUTE : for
+    TICKET ||--o{ SCHEDULE : for
+    TICKET ||--o{ PAYMENT : has
+
+    FARE }o--|| ROUTE : manages
+    REPORT }o--|| PROMOTION : sets
+    ROUTE ||--o{ SCHEDULE : includes
+    ROUTE ||--o{ STATION : has
+    SCHEDULE ||--o{ STATION : at
+    PAYMENT ||--o{ PAYMENTGATEWAY : uses
+    CUSTOMERSUPPORT ||--o{ SUPPORTREQUEST : has
+    SUPPORTREQUEST ||--o{ CHATSESSION : has
+
+    USER {
+        string userID PK
+        string username
+        string password
+        string email
+        string phoneNumber
+        string role
+    }
+
+    PASSENGER {
+        string userID PK
+    }
+
+    METROSTAFF {
+        string userID PK
+    }
+
+    ADMIN {
+        string userID PK
+    }
+
+    TICKET {
+        string ticketID PK
+        string status
+        string seatNumber
+        date date
+        time time
+    }
+
+    FARE {
+        string fareID PK
+        decimal price
+    }
+
+    REPORT {
+        string reportID PK
+        date startDate
+        date endDate
+        decimal totalRevenue
+        int totalPassengers
+    }
+
+    ROUTE {
+        string routeID PK
+        string routeName
+        string origin
+        string destination
+    }
+
+    SCHEDULE {
+        string scheduleID PK
+        time departureTime
+        time arrivalTime
+    }
+
+    PROMOTION {
+        string promotionID PK
+        decimal discountPercentage
+        date startDate
+        date endDate
+    }
+
+    PAYMENT {
+        string paymentID PK
+        decimal amount
+        string paymentMethod
+        string paymentStatus
+    }
+
+    PAYMENTGATEWAY {
+        string gatewayID PK
+    }
+
+    USERGUIDE {
+        string guideID PK
+        string title
+        string content
+    }
+
+    SUPPORTREQUEST {
+        string supportID PK
+        string supportType
+    }
+
+    CUSTOMERSUPPORT {
+        string supportID PK
+    }
+
+    CHATSESSION {
+        string sessionID PK
+        string passengerID
+        time startTime
+        time endTime
+    }
+
+    STATION {
+        string stationID PK
+        string stationName
+        string location
+    }
+```
+
+This design supports:
+- **User Management** – Multi-role system (Passenger, Staff, Admin)
+- **Ticketing** – Ticket booking with fares, routes, and schedules
+- **Payment Processing** – Integration with payment gateways
+- **Support System** – Customer support with chat sessions
+- **Operations** – Staff reporting and admin promotion management
+- **Infrastructure** – Station and route management
 
 ---
 

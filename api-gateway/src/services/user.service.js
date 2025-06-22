@@ -1,12 +1,24 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const config = require('..');
+const getConfig = require('../config');
+const axios = require('axios');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
 const ACCESS_TOKEN_EXPIRES_IN = '1h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
+
+const gatewayConfig = getConfig();
+
+function resolveUserServiceBaseUrl() {
+    // Find user-service definition in config.json
+    const svc = gatewayConfig.services.find((s) => s.name === 'user-service');
+    if (svc && Array.isArray(svc.instances) && svc.instances.length > 0) {
+        const inst = svc.instances[0]; // simple: pick first (could add LB later)
+        return `http://${inst.host}:${inst.port}`;
+    }
+}
 
 class UserService {
     /**
@@ -56,6 +68,23 @@ class UserService {
             isVerified: true,
             roles: ['user']
         });
+
+        // Notify user-service to create domain profile (passenger by default)
+        try {
+            await axios.post(
+                `${resolveUserServiceBaseUrl()}/api/v1/passenger`,
+                { firstName, lastName, username, email },
+                {
+                    headers: {
+                        'x-user-id': user.id,
+                        'x-user-role': 'passenger',
+                    },
+                    timeout: 5000,
+                }
+            );
+        } catch (err) {
+            console.error('Failed to create passenger profile in user-service', err.message);
+        }
 
         // Generate tokens
         const tokens = await this.createToken(user.id, user.username);
@@ -164,7 +193,7 @@ class UserService {
         // Generate reset token
         const resetToken = jwt.sign(
             { userId: user.id },
-            config.getJwt().resetSecret,
+            getConfig.getJwt().resetSecret,
             { expiresIn: '1h' }
         );
 
@@ -185,7 +214,7 @@ class UserService {
      */
     resetPassword = async (token, newPassword) => {
         // Verify reset token
-        const decoded = jwt.verify(token, config.getJwt().resetSecret);
+        const decoded = jwt.verify(token, getConfig.getJwt().resetSecret);
         
         // Find user
         const user = await User.findByPk(decoded.userId);

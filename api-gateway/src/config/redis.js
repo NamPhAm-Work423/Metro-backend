@@ -43,6 +43,14 @@ async function setupRedisClient() {
     });
 
     await redisClient.connect();
+
+    // Backwards-compatibility shim for legacy code using setex (node-redis v3)
+    if (typeof redisClient.setex !== 'function') {
+        redisClient.setex = async (key, seconds, value) => {
+            return redisClient.set(key, value, { EX: seconds });
+        };
+    }
+
     client = redisClient;
 }
 
