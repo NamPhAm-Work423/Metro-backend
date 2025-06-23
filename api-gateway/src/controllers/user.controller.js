@@ -27,10 +27,11 @@ const userController = {
       roles: ['passenger'] //always passenger
     });
 
+
+
     // Remove password from response
     const { password: _, ...userResponse } = user.toJSON();
 
-    logger.info('User registered successfully', { userId: user.id, email });
 
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,

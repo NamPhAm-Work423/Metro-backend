@@ -30,7 +30,7 @@ const logger = winston.createLogger({
     }),
     // Rotate file for all logs
     new DailyRotateFile({
-      filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
+      filename: path.join(__dirname, '..', 'logs', 'application-%DATE%-all.log'),
       datePattern: 'YYYY-MM-DD',
       maxSize: '20m',
       maxFiles: '14d',

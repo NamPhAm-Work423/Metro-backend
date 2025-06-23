@@ -9,7 +9,24 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
+const admin = kafka.admin();
 let connected = false;
+const ensuredTopics = new Set();
+
+async function ensureTopicExists(topic) {
+    if (ensuredTopics.has(topic)) return;
+    await admin.connect();
+    const topics = await admin.listTopics();
+    if (!topics.includes(topic)) {
+        const replication = parseInt(process.env.KAFKA_REPLICATION_FACTOR || '1', 10);
+        await admin.createTopics({
+            topics: [{ topic, numPartitions: 1, replicationFactor: replication }],
+            waitForLeaders: true
+        });
+    }
+    await admin.disconnect();
+    ensuredTopics.add(topic);
+}
 
 async function connectIfNeeded() {
     if (!connected) {
@@ -25,6 +42,8 @@ async function connectIfNeeded() {
  * @param {object} message - Payload object (will be JSON.stringified)
  */
 async function publish(topic, key, message) {
+    // Ensure topic exists to prevent leader election errors
+    await ensureTopicExists(topic);
     await connectIfNeeded();
     await producer.send({
         topic,

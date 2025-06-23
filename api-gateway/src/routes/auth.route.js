@@ -30,7 +30,7 @@ const router = express.Router();
  *           example: Doe
  *         phoneNumber:
  *           type: string
- *           example: 0909090909
+ *           example: 09090909090
  *         dateOfBirth:
  *           type: string
  *           format: date

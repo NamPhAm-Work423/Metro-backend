@@ -312,7 +312,7 @@ class ServiceService {
     async cacheInstance(instance) {
         try {
             const key = `service:${instance.serviceId}:instance`;
-            await redis.setex(key, 300, JSON.stringify(instance)); // Cache for 5 minutes
+            await redis.setWithExpiry(key, JSON.stringify(instance), 300); // Cache for 5 minutes
         } catch (error) {
             logger.error(`Error caching instance: ${error.message}`);
         }

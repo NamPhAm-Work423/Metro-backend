@@ -1,82 +1,176 @@
 const { Kafka } = require('kafkajs');
-const { Passenger } = require('../models/index.model');
+const passengerService = require('../services/passenger.service');
 require('dotenv').config();
+const { logger } = require('../config/logger');
 
 const kafka = new Kafka({
     clientId: process.env.KAFKA_CLIENT_ID || 'passenger-service',
-    brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(',')
+    brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
+    // Add connection retry and timeout configurations
+    connectionTimeout: 30000,
+    requestTimeout: 25000,
+    retry: {
+        initialRetryTime: 100,
+        retries: 8
+    }
 });
 
-const consumer = kafka.consumer({ groupId: process.env.KAFKA_GROUP_ID || 'passenger-service-group' });
+// Use a dedicated consumer group
+const consumer = kafka.consumer({ 
+    groupId: process.env.KAFKA_GROUP_ID || 'passenger-service-group',
+    // Add consumer configurations for better reliability
+    sessionTimeout: 30000,
+    rebalanceTimeout: 60000,
+    heartbeatInterval: 3000,
+    maxWaitTimeInMs: 5000,
+    retry: {
+        initialRetryTime: 100,
+        retries: 8
+    }
+});
 
-async function handleUserCreated(eventPayload) {
+/**
+ * Handle user.created events
+ * @param {Object} payload - The event payload
+ */
+async function handleUserCreatedEvent(payload) {
     try {
-        const {
-            userId,
-            username,
-            firstName,
-            lastName,
-            phoneNumber,
-            dateOfBirth,
-            gender,
-            address,
-            roles
-        } = eventPayload;
-
-        // Only process if role includes 'passenger'
-        if (!roles || !roles.includes('passenger')) {
-            return; // Ignore non-passenger users
+        logger.info('Processing user.created event', { userId: payload.userId, roles: payload.roles });
+        
+        // Only process passenger role
+        if (!payload.roles || !payload.roles.includes('passenger')) {
+            logger.debug('Ignored user.created without passenger role', { userId: payload.userId });
+            return;
         }
 
-        // Check if passenger profile already exists
-        const existing = await Passenger.findOne({ where: { userId } });
-        if (existing) {
-            return; // Already exists
-        }
-
-        // Create passenger with minimal info (others can be updated later)
-        await Passenger.create({
-            userId,
-            username,
-            firstName,
-            lastName,
-            phoneNumber: phoneNumber || '0000000000', // placeholder if absent
-            dateOfBirth: dateOfBirth || null,
-            gender: gender || null,
-            address: address || null,
-            isActive: true
-        });
-        console.log(`[Kafka] Passenger profile created for user ${userId}`);
+        // Call the business service to handle passenger creation
+        await passengerService.createPassengerFromUserEvent(payload);
+        
     } catch (err) {
-        console.error('[Kafka] Error processing user.created event:', err.message);
+        logger.error('Error handling user.created event', { 
+            error: err.message, 
+            stack: err.stack,
+            payload: JSON.stringify(payload)
+        });
     }
 }
 
-async function start() {
-    await consumer.connect();
-    await consumer.subscribe({ topic: process.env.USER_CREATED_TOPIC || 'user.created', fromBeginning: false });
+/**
+ * Process incoming Kafka messages
+ * @param {Object} messageData - Raw message data from Kafka
+ */
+async function processMessage(messageData) {
+    const { topic, partition, message } = messageData;
+    
+    if (!message.value) {
+        logger.warn('Received empty message', { topic, partition });
+        return;
+    }
+    
+    let data;
+    try {
+        data = JSON.parse(message.value.toString());
+        logger.debug('Received Kafka message', { topic, messageData: data });
+    } catch (e) {
+        logger.error('JSON parse error for Kafka message', { 
+            error: e.message,
+            messageValue: message.value.toString()
+        });
+        return;
+    }
+    
+    const payload = data.payload || data; // unwrap if necessary
+    
+    // Route to appropriate handler based on topic
+    if (topic === (process.env.USER_CREATED_TOPIC || 'user.created')) {
+        await handleUserCreatedEvent(payload);
+    } else {
+        logger.warn('Unhandled topic', { topic });
+    }
+}
 
-    await consumer.run({
-        eachMessage: async ({ topic, partition, message }) => {
-            try {
-                if (!message.value) return;
-                const payloadStr = message.value.toString();
-                const event = JSON.parse(payloadStr);
-                // When using producer util, message might be wrapped with payload OR be payload itself
-                if (event) {
-                    if (event.payload) {
-                        await handleUserCreated(event.payload);
-                    } else {
-                        await handleUserCreated(event);
-                    }
-                }
-            } catch (err) {
-                console.error('[Kafka] Failed to handle message:', err.message);
+/**
+ * Start the Kafka consumer
+ */
+async function start() {
+    let retryCount = 0;
+    const maxRetries = 10;
+    const retryDelay = 5000;
+
+    while (retryCount < maxRetries) {
+        try {
+            await consumer.connect();
+            logger.info('Kafka consumer connected successfully');
+            
+            await consumer.subscribe({ 
+                topic: process.env.USER_CREATED_TOPIC || 'user.created', 
+                fromBeginning: false 
+            });
+            logger.info('Subscribed to topic successfully', { 
+                topic: process.env.USER_CREATED_TOPIC || 'user.created' 
+            });
+
+            await consumer.run({
+                eachMessage: processMessage
+            });
+
+            logger.info('Kafka consumer is now running successfully');
+            break; // Exit retry loop on success
+
+        } catch (error) {
+            retryCount++;
+            logger.error('Kafka consumer connection failed', { 
+                error: error.message,
+                retryCount,
+                maxRetries,
+                stack: error.stack
+            });
+
+            if (retryCount >= maxRetries) {
+                logger.error('Max retries reached for Kafka consumer, giving up');
+                throw error;
             }
+
+            logger.info('Retrying Kafka connection', { 
+                retryCount,
+                delayMs: retryDelay 
+            });
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
+    }
+
+    // Add error event handlers for ongoing connection issues
+    consumer.on('consumer.crash', (error) => {
+        logger.error('Kafka consumer crashed', { error: error.message, stack: error.stack });
+        // Attempt to restart after a delay
+        setTimeout(() => {
+            logger.info('Attempting to restart crashed Kafka consumer');
+            start().catch(err => logger.error('Failed to restart consumer', { error: err.message }));
+        }, 10000);
+    });
+
+    consumer.on('consumer.disconnect', () => {
+        logger.warn('Kafka consumer disconnected');
+    });
+
+    consumer.on('consumer.connect', () => {
+        logger.info('Kafka consumer reconnected');
     });
 }
 
+/**
+ * Stop the Kafka consumer gracefully
+ */
+async function stop() {
+    try {
+        await consumer.disconnect();
+        logger.info('Kafka consumer disconnected successfully');
+    } catch (error) {
+        logger.error('Error disconnecting Kafka consumer', { error: error.message });
+    }
+}
+
 module.exports = {
-    start
+    start,
+    stop
 }; 

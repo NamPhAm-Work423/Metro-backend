@@ -71,27 +71,15 @@ class UserService {
             lastName,
             email,
             username,
+            phoneNumber,
+            dateOfBirth,
+            gender,
+            address,
             password: passwordHash,
             isVerified: true,
             roles: ['passenger']
         });
 
-        // Notify user-service to create domain profile (passenger by default)
-        try {
-            await axios.post(
-                `${resolveUserServiceBaseUrl()}/api/v1/passenger`,
-                { firstName, lastName, username, email, phoneNumber, dateOfBirth, gender, address },
-                {
-                    headers: {
-                        'x-user-id': user.id,
-                        'x-user-role': 'passenger',
-                    },
-                    timeout: 5000,
-                }
-            );
-        } catch (err) {
-            logger.error('Failed to create passenger profile in user-service', { error: err.message });
-        }
 
         // After user creation and before token generation
         try {
@@ -108,9 +96,9 @@ class UserService {
                 address: user.address,
                 isActive: user.isActive || true
             });
-            logger.info('Published user.created event', { userId: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber, dateOfBirth: user.dateOfBirth, gender: user.gender, address: user.address, isActive: user.isActive || true });
+            logger.info('User registered passenger event driven successfully', { userId: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber, dateOfBirth: user.dateOfBirth, gender: user.gender, address: user.address, isActive: user.isActive || true });
         } catch (err) {
-            logger.error('Failed to publish user.created event', { error: err.message });
+            logger.error('Failed to publish passenger event driven', { error: err.message });
         }
 
         // Generate tokens

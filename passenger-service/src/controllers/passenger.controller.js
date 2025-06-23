@@ -3,9 +3,9 @@ const { Passenger } = require('../models/index.model');
 // POST /v1/passengers
 const createPassenger = async (req, res, next) => {
     try {
-        const { firstName, lastName, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
-        const userId = req.user.id;
-        
+        const { firstName, lastName, username, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
+        const userId = req.headers['x-user-id'] || req.user?.id;
+
         // Ensure not existing
         const existing = await Passenger.findOne({ where: { userId } });
         if (existing) {
@@ -17,13 +17,14 @@ const createPassenger = async (req, res, next) => {
         
         const passenger = await Passenger.create({ 
             userId, 
+            username: username || `user_${userId.slice(-8)}`, // fallback username
             firstName, 
             lastName, 
-            phoneNumber,
-            dateOfBirth,
-            gender,
-            address,
-            emergencyContact
+            phoneNumber: phoneNumber || null,
+            dateOfBirth: dateOfBirth || null,
+            gender: gender || null,
+            address: address || null,
+            emergencyContact: emergencyContact || null
         });
         
         res.status(201).json({ 
