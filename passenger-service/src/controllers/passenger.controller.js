@@ -3,16 +3,42 @@ const { Passenger } = require('../models/index.model');
 // POST /v1/passengers
 const createPassenger = async (req, res, next) => {
     try {
-        const { firstName, lastName, phone } = req.body;
+        const { firstName, lastName, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
         const userId = req.user.id;
+        
         // Ensure not existing
         const existing = await Passenger.findOne({ where: { userId } });
         if (existing) {
-            return res.status(409).json({ message: 'Passenger profile already exists' });
+            return res.status(409).json({ 
+                success: false,
+                message: 'Passenger profile already exists' 
+            });
         }
-        const passenger = await Passenger.create({ userId, firstName, lastName, phone });
-        res.status(201).json({ success: true, data: passenger });
+        
+        const passenger = await Passenger.create({ 
+            userId, 
+            firstName, 
+            lastName, 
+            phoneNumber,
+            dateOfBirth,
+            gender,
+            address,
+            emergencyContact
+        });
+        
+        res.status(201).json({ 
+            success: true, 
+            message: 'Passenger profile created successfully',
+            data: passenger 
+        });
     } catch (err) {
+        if (err.name === 'SequelizeValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                errors: err.errors.map(e => ({ field: e.path, message: e.message }))
+            });
+        }
         next(err);
     }
 };
@@ -22,12 +48,83 @@ const getMe = async (req, res, next) => {
     try {
         const passenger = await Passenger.findOne({ where: { userId: req.user.id } });
         if (!passenger) {
-            return res.status(404).json({ message: 'Passenger profile not found' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'Passenger profile not found' 
+            });
         }
-        res.json({ success: true, data: passenger });
+        res.json({ 
+            success: true, 
+            data: passenger 
+        });
     } catch (err) {
         next(err);
     }
 };
 
-module.exports = { createPassenger, getMe }; 
+// PUT /v1/passengers/me
+const updateMe = async (req, res, next) => {
+    try {
+        const { firstName, lastName, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
+        const userId = req.user.id;
+        
+        const passenger = await Passenger.findOne({ where: { userId } });
+        if (!passenger) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Passenger profile not found' 
+            });
+        }
+        
+        await passenger.update({ 
+            firstName, 
+            lastName, 
+            phoneNumber,
+            dateOfBirth,
+            gender,
+            address,
+            emergencyContact
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'Passenger profile updated successfully',
+            data: passenger 
+        });
+    } catch (err) {
+        if (err.name === 'SequelizeValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                errors: err.errors.map(e => ({ field: e.path, message: e.message }))
+            });
+        }
+        next(err);
+    }
+};
+
+// DELETE /v1/passengers/me
+const deleteMe = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        
+        const passenger = await Passenger.findOne({ where: { userId } });
+        if (!passenger) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Passenger profile not found' 
+            });
+        }
+        
+        await passenger.update({ isActive: false });
+        
+        res.json({ 
+            success: true,
+            message: 'Passenger profile deactivated successfully'
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { createPassenger, getMe, updateMe, deleteMe }; 

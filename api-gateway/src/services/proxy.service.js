@@ -1,8 +1,7 @@
 const axios = require('axios');
 const logger = require('../config/logger');
-const serviceModel = require('../models/service.model');
-const loadBalancerService = require('./loadBalancer.service');
-const errorHandlerService = require('./errorHandler.service');
+const { Service, ServiceInstance } = require('../models/index.model');
+const config = require('../config.json');
 
 class ProxyService {
   constructor() {
@@ -18,31 +17,48 @@ class ProxyService {
     let selectedInstance = null;
     
     try {
-      // Get service configuration
-      const service = serviceModel.getService(serviceName);
+      // Get service configuration from config.json
+      const service = config.services.find(s => s.name === serviceName);
       if (!service) {
-        throw errorHandlerService.notFoundError(`Service ${serviceName}`, req.correlationId);
+        return res.status(404).json({
+          success: false,
+          message: `Service ${serviceName} not found`,
+          error: 'SERVICE_NOT_FOUND'
+        });
       }
 
       // Check if authentication is required
-      if (service.authentication.required && !req.user) {
-        throw errorHandlerService.authenticationError('Authentication required for this service', req.correlationId);
+      if (service.authentication && service.authentication.required && !req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required for this service',
+          error: 'AUTHENTICATION_REQUIRED'
+        });
       }
 
       // Check user roles if specified
-      if (service.authentication.roles.length > 0 && req.user) {
+      if (service.authentication && service.authentication.roles && service.authentication.roles.length > 0 && req.user) {
         const hasRequiredRole = service.authentication.roles.some(role => req.user.roles.includes(role));
         if (!hasRequiredRole) {
-          throw errorHandlerService.authorizationError('Insufficient permissions for this service', req.correlationId);
+          return res.status(403).json({
+            success: false,
+            message: 'Insufficient permissions for this service',
+            error: 'INSUFFICIENT_PERMISSIONS'
+          });
         }
       }
 
-      // Get healthy instance using load balancer
-      selectedInstance = await loadBalancerService.getHealthyInstanceWithFallback(serviceName, req);
-      
-      // Increment connection count
-      await loadBalancerService.incrementConnections(serviceName, selectedInstance.id);
+      // Get instance (simple round-robin for now)
+      if (!service.instances || service.instances.length === 0) {
+        return res.status(503).json({
+          success: false,
+          message: `No instances available for service ${serviceName}`,
+          error: 'NO_INSTANCES_AVAILABLE'
+        });
+      }
 
+      selectedInstance = service.instances[0]; // Use first instance for now
+      
       // Build target URL
       const targetUrl = this.buildTargetUrl(selectedInstance, req.originalUrl, service.path);
       
@@ -50,51 +66,30 @@ class ProxyService {
       const requestOptions = this.buildRequestOptions(req, service, targetUrl);
 
       // Make request with retry logic
-      const response = await this.makeRequestWithRetry(requestOptions, service.retries);
+      const response = await this.makeRequestWithRetry(requestOptions, service.retries || 3);
       
-      // Record success
-      const responseTime = Date.now() - startTime;
-      await serviceModel.recordSuccess(serviceName, selectedInstance.id, responseTime);
-
       // Forward response
       this.forwardResponse(res, response);
 
       logger.info('Proxy request successful', {
         serviceName,
-        instanceId: selectedInstance.id,
         method: req.method,
         path: req.originalUrl,
         statusCode: response.status,
-        responseTime,
-        correlationId: req.correlationId
+        responseTime: Date.now() - startTime
       });
 
     } catch (error) {
-      const responseTime = Date.now() - startTime;
-      
-      // Record failure if instance was selected
-      if (selectedInstance) {
-        await serviceModel.recordFailure(serviceName, selectedInstance.id, error);
-        await loadBalancerService.decrementConnections(serviceName, selectedInstance.id);
-      }
-
       logger.error('Proxy request failed', {
         serviceName,
-        instanceId: selectedInstance?.id,
         method: req.method,
         path: req.originalUrl,
         error: error.message,
-        responseTime,
-        correlationId: req.correlationId
+        responseTime: Date.now() - startTime
       });
 
       // Handle error and send response
       this.handleProxyError(error, req, res);
-    } finally {
-      // Decrement connection count
-      if (selectedInstance) {
-        await loadBalancerService.decrementConnections(serviceName, selectedInstance.id);
-      }
     }
   }
 
@@ -104,10 +99,15 @@ class ProxyService {
   buildTargetUrl(instance, originalUrl, servicePath) {
     const baseUrl = `http://${instance.host}:${instance.port}`;
     
-    // Remove service path from original URL
+    // Remove service path from original URL and replace with service route
     let targetPath = originalUrl;
     if (servicePath && originalUrl.startsWith(servicePath)) {
+      // Remove the API Gateway path prefix and use the internal service path
       targetPath = originalUrl.substring(servicePath.length);
+      // For passenger service, map to /v1/passengers
+      if (!targetPath.startsWith('/v1/')) {
+        targetPath = '/v1' + targetPath;
+      }
     }
     
     // Ensure path starts with /
@@ -282,21 +282,28 @@ class ProxyService {
    * Handle proxy errors
    */
   handleProxyError(error, req, res) {
-    let proxyError;
-    
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-      proxyError = errorHandlerService.serviceUnavailableError('Microservice', req.correlationId);
+      return res.status(503).json({
+        success: false,
+        message: 'Service temporarily unavailable',
+        error: 'SERVICE_UNAVAILABLE'
+      });
     } else if (error.code === 'ETIMEDOUT') {
-      proxyError = errorHandlerService.timeoutError(this.defaultTimeout, req.correlationId);
+      return res.status(408).json({
+        success: false,
+        message: 'Request timeout',
+        error: 'REQUEST_TIMEOUT'
+      });
     } else if (error.response) {
       // Forward the error response from microservice
       return this.forwardResponse(res, error.response);
     } else {
-      proxyError = errorHandlerService.internalServerError('Proxy error', error, req.correlationId);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal proxy error',
+        error: 'PROXY_ERROR'
+      });
     }
-    
-    const errorResponse = errorHandlerService.formatErrorResponse(proxyError, req);
-    res.status(proxyError.statusCode).json(errorResponse);
   }
 
   /**
@@ -304,26 +311,19 @@ class ProxyService {
    */
   async healthCheck(req, res) {
     try {
-      const services = serviceModel.getAllServices();
       const healthStatus = {};
       
-      for (const service of services) {
-        const stats = serviceModel.getServiceStats(service.name);
+      for (const service of config.services) {
         healthStatus[service.name] = {
-          status: stats.overallHealth,
-          healthyInstances: stats.healthyInstances,
-          totalInstances: stats.totalInstances,
-          averageResponseTime: stats.averageResponseTime
+          status: 'healthy',
+          instances: service.instances.length,
+          path: service.path
         };
       }
       
-      const overallHealthy = Object.values(healthStatus).every(service => 
-        service.status === 'healthy' && service.healthyInstances > 0
-      );
-      
-      res.status(overallHealthy ? 200 : 503).json({
+      res.status(200).json({
         success: true,
-        status: overallHealthy ? 'healthy' : 'unhealthy',
+        status: 'healthy',
         timestamp: new Date().toISOString(),
         services: healthStatus
       });
@@ -343,8 +343,8 @@ class ProxyService {
    */
   getProxyStats() {
     return {
-      services: serviceModel.getAllServiceStats(),
-      loadBalancing: loadBalancerService.getLoadBalancingStats(),
+      services: config.services.length,
+      uptime: process.uptime(),
       timestamp: new Date().toISOString()
     };
   }

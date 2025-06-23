@@ -6,7 +6,7 @@ async function storeInstances(endPoint, instances) {
         const client = getClient();
         const multi = client.multi();
         for (const instance of instances) {
-            const instanceKey = `${endPoint}:instances:${instance.id}`;
+            const instanceKey = `${endPoint}:instances:${instance.id || instance.host + ':' + instance.port}`;
 
             multi.hSet(
                 instanceKey,

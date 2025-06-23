@@ -27,9 +27,14 @@ class UserService {
      * @param {string} username - The user username
      * @returns {Object} - The token and refresh token
      */
-    createToken = async (userId, username) => {
+    createToken = async (userId, username, roles) => {
         const accessToken = jwt.sign(
-            { userId, username},
+            { 
+                id: userId,
+                userId, 
+                username,
+                roles: roles || ['user']
+            },
             ACCESS_TOKEN_SECRET,
             { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
         );
@@ -87,7 +92,7 @@ class UserService {
         }
 
         // Generate tokens
-        const tokens = await this.createToken(user.id, user.username);
+        const tokens = await this.createToken(user.id, user.username, user.roles);
 
         return { user, tokens };
     }
@@ -125,7 +130,7 @@ class UserService {
         await user.update({ lastLoginAt: new Date() });
 
         // Generate tokens
-        const tokens = await this.createToken(user.id, user.username);
+        const tokens = await this.createToken(user.id, user.username, user.roles);
 
         return { user, tokens };
     }
@@ -157,7 +162,12 @@ class UserService {
 
         // Generate new access token
         const accessToken = jwt.sign(
-            { userId: user.id, username: user.username },
+            { 
+                id: user.id,
+                userId: user.id, 
+                username: user.username,
+                roles: user.roles
+            },
             ACCESS_TOKEN_SECRET,
             { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
         );

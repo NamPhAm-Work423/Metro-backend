@@ -5,9 +5,78 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
         },
+        userId: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            unique: true,
+            validate: {
+                notEmpty: true,
+                isUUID: 4
+            }
+        },
+        firstName: {
+            type: DataTypes.STRING(50),
+            allowNull: false,
+            validate: {
+                notEmpty: true,
+                len: [2, 50]
+            }
+        },
+        lastName: {
+            type: DataTypes.STRING(50),
+            allowNull: false,
+            validate: {
+                notEmpty: true,
+                len: [2, 50]
+            }
+        },
+        phoneNumber: {
+            type: DataTypes.STRING(15),
+            allowNull: false,
+            validate: {
+                notEmpty: true,
+                len: [10, 15]
+            }
+        },
+        dateOfBirth: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
+            validate: {
+                isDate: true,
+                isBefore: new Date().toISOString().split('T')[0] // Must be before today
+            }
+        },
+        gender: {
+            type: DataTypes.ENUM('male', 'female', 'other'),
+            allowNull: true
+        },
+        address: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        isActive: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true
+        }
     }, {
         tableName: 'passengers',
         timestamps: true,
+        indexes: [
+            {
+                unique: true,
+                fields: ['userId']
+            },
+            {
+                fields: ['phoneNumber']
+            }
+        ]
     });
+
+    // Instance methods
+    Passenger.prototype.toJSON = function() {
+        const values = { ...this.get() };
+        return values;
+    };
+
     return Passenger;
 };

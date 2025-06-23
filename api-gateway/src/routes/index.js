@@ -4,6 +4,8 @@ const router = express.Router();
 // Import route modules
 const authRoutes = require('./auth.route');
 const serviceRoutes = require('./service.routes');
+const authMiddleware = require('../middlewares/auth.middleware');
+const proxyService = require('../services/proxy.service');
 
 /**
  * Mount routes with their respective prefixes
@@ -14,6 +16,15 @@ router.use('/v1/auth', authRoutes);
 
 // Service management routes - mounted at /api/services
 router.use('/api/services', serviceRoutes);
+
+// Passenger service proxy routes - mounted at /api/v1/passengers
+router.use('/api/v1/passengers*', authMiddleware.authenticate, async (req, res, next) => {
+    try {
+        await proxyService.proxyRequest(req, res, 'passenger-service');
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Health check endpoint
 router.get('/health', (req, res) => {

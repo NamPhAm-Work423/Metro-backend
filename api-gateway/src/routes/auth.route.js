@@ -12,6 +12,10 @@ const router = express.Router();
  *       required:
  *         - firstName
  *         - lastName
+ *         - phoneNumber
+ *         - dateOfBirth
+ *         - gender
+ *         - address
  *         - username
  *         - email
  *         - password
@@ -24,6 +28,20 @@ const router = express.Router();
  *           type: string
  *           minLength: 2
  *           example: Doe
+ *         phoneNumber:
+ *           type: string
+ *           example: 0909090909
+ *         dateOfBirth:
+ *           type: string
+ *           format: date
+ *           example: 1990-01-01
+ *         gender:
+ *           type: string
+ *           enum: [male, female]
+ *           example: male
+ *         address:
+ *           type: string
+ *           example: 123 Main St, Anytown, USA
  *         username:
  *           type: string
  *           minLength: 2

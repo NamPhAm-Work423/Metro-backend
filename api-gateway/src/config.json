@@ -6,12 +6,36 @@
     "services": [
         {
             "name": "passenger-service",
-            "endPoint": "/api/v1/passenger",
+            "endPoint": "/api/v1/passengers",
+            "path": "/api/v1/passengers",
+            "version": "1.0.0",
+            "timeout": 5000,
+            "retries": 3,
+            "authentication": {
+                "required": true,
+                "type": "jwt",
+                "roles": ["user", "passenger"]
+            },
+            "circuitBreaker": {
+                "enabled": true,
+                "threshold": 5,
+                "resetTimeout": 30000
+            },
+            "loadBalancer": {
+                "strategy": "round-robin"
+            },
+            "rateLimit": {
+                "enabled": true,
+                "windowMs": 900000,
+                "max": 100
+            },
+            "status": "active",
             "instances": [
                 {
                     "host": "passenger-service",
                     "port": 3001,
-                    "weight": 1
+                    "weight": 1,
+                    "region": "default"
                 }
             ]
         }
