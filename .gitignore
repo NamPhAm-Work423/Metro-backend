@@ -10,6 +10,13 @@ logs
 *.log.*.*.*.*.*.*.*
 *.log.*.*.*.*.*.*.*.*
 *.log.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -77,6 +84,13 @@ web_modules/
 # dotenv environment variable files
 .env
 .env.*
+.env.local
+.env.development
+.env.production
+.env.test
+.env.test.local
+.env.test.local.example
+
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)

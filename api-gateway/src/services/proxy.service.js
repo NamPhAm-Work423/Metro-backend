@@ -58,7 +58,7 @@ class ProxyService {
       }
 
       selectedInstance = service.instances[0]; // Use first instance for now
-      
+
       // Build target URL
       const targetUrl = this.buildTargetUrl(selectedInstance, req.originalUrl, service.path);
       
@@ -67,7 +67,7 @@ class ProxyService {
 
       // Make request with retry logic
       const response = await this.makeRequestWithRetry(requestOptions, service.retries || 3);
-      
+
       // Forward response
       this.forwardResponse(res, response);
 

@@ -1,0 +1,26 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "API Gateway DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "auth_db",
+      "Username": "auth_user",
+      "SSLMode": "prefer",
+      "Password": "authpass",
+      "SavePassword": true
+    },
+    "2": {
+      "Name": "Passenger DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "passenger_db",
+      "Username": "passenger_service",
+      "SSLMode": "prefer",
+      "Password": "passengerpass",
+      "SavePassword": true
+    }
+  }
+} 
