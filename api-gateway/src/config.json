@@ -14,7 +14,7 @@
             "authentication": {
                 "required": true,
                 "type": "jwt",
-                "roles": ["user", "passenger"]
+                "roles": ["passenger"]
             },
             "circuitBreaker": {
                 "enabled": true,

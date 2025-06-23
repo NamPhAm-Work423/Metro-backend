@@ -12,14 +12,19 @@ const userController = {
    * @returns {Object} - User registration response
    */
   signup: asyncErrorHandler(async (req, res) => {
-    const { firstName, lastName, email, password, username } = req.body;
+    const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address } = req.body;
 
     const { user, tokens } = await userService.signup({
       firstName,
       lastName,
       email,
       password,
-      username
+      username,
+      phoneNumber,
+      dateOfBirth,
+      gender,
+      address,
+      roles: ['passenger'] //always passenger
     });
 
     // Remove password from response

@@ -15,7 +15,7 @@ const gatewayConfig = getConfig();
 
 function resolveUserServiceBaseUrl() {
     // Find user-service definition in config.json
-    const svc = gatewayConfig.services.find((s) => s.name === 'user-service');
+    const svc = gatewayConfig.services.find((s) => s.name === 'passenger-service');
     if (svc && Array.isArray(svc.instances) && svc.instances.length > 0) {
         const inst = svc.instances[0]; // simple: pick first (could add LB later)
         return `http://${inst.host}:${inst.port}`;
@@ -35,7 +35,7 @@ class UserService {
                 id: userId,
                 userId, 
                 username,
-                roles: roles || ['user']
+                roles: roles || ['passenger']
             },
             ACCESS_TOKEN_SECRET,
             { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
@@ -54,7 +54,7 @@ class UserService {
      * @returns {Object} - Created user and tokens
      */
     signup = async (userData) => {
-        const { firstName, lastName, email, password, username } = userData;
+        const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address } = userData;
         
         // Check if user already exists
         const existingUser = await User.findOne({ where: { email } });
@@ -73,14 +73,14 @@ class UserService {
             username,
             password: passwordHash,
             isVerified: true,
-            roles: ['user']
+            roles: ['passenger']
         });
 
         // Notify user-service to create domain profile (passenger by default)
         try {
             await axios.post(
                 `${resolveUserServiceBaseUrl()}/api/v1/passenger`,
-                { firstName, lastName, username, email },
+                { firstName, lastName, username, email, phoneNumber, dateOfBirth, gender, address },
                 {
                     headers: {
                         'x-user-id': user.id,
@@ -108,7 +108,7 @@ class UserService {
                 address: user.address,
                 isActive: user.isActive || true
             });
-            logger.info('Published user.created event', { userId: user.id });
+            logger.info('Published user.created event', { userId: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber, dateOfBirth: user.dateOfBirth, gender: user.gender, address: user.address, isActive: user.isActive || true });
         } catch (err) {
             logger.error('Failed to publish user.created event', { error: err.message });
         }

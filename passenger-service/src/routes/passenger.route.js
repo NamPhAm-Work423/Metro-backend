@@ -11,9 +11,9 @@ const { authorizeRoles } = require('../middlewares/authorization');
  *     summary: Create a new passenger profile
  *     description: Creates a new passenger profile for the authenticated user
  */
-router.post('/', authorizeRoles('user', 'passenger'), passengerController.createPassenger);
-router.get('/me', authorizeRoles('user', 'passenger'), passengerController.getMe);
-router.put('/me', authorizeRoles('user', 'passenger'), passengerController.updateMe);
-router.delete('/me', authorizeRoles('user', 'passenger'), passengerController.deleteMe);
+router.post('/', authorizeRoles('passenger'), passengerController.createPassenger);
+router.get('/me', authorizeRoles('passenger'), passengerController.getMe);
+router.put('/me', authorizeRoles('passenger'), passengerController.updateMe);
+router.delete('/me', authorizeRoles('passenger'), passengerController.deleteMe);
 
 module.exports = router; 
