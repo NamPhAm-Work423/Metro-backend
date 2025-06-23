@@ -4,6 +4,7 @@ const User = require('../models/user.model');
 const getConfig = require('../config');
 const axios = require('axios');
 const kafkaProducer = require('../events/kafkaProducer');
+const { logger } = require('../config/logger');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -89,23 +90,28 @@ class UserService {
                 }
             );
         } catch (err) {
-            console.error('Failed to create passenger profile in user-service', err.message);
+            logger.error('Failed to create passenger profile in user-service', { error: err.message });
         }
 
         // After user creation and before token generation
-        await kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
-            userId: user.id,
-            email: user.email,
-            roles: user.roles,
-            username: user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            phoneNumber: user.phoneNumber,
-            dateOfBirth: user.dateOfBirth,
-            gender: user.gender,
-            address: user.address,
-            isActive: user.isActive || true
-        });
+        try {
+            await kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
+                userId: user.id,
+                email: user.email,
+                roles: user.roles,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                phoneNumber: user.phoneNumber,
+                dateOfBirth: user.dateOfBirth,
+                gender: user.gender,
+                address: user.address,
+                isActive: user.isActive || true
+            });
+            logger.info('Published user.created event', { userId: user.id });
+        } catch (err) {
+            logger.error('Failed to publish user.created event', { error: err.message });
+        }
 
         // Generate tokens
         const tokens = await this.createToken(user.id, user.username, user.roles);

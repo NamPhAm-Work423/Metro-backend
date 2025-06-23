@@ -10,6 +10,10 @@ services:
       - "3000:3000"
     env_file:
       - ./api-gateway/.env
+    environment:
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+      - KAFKA_CLIENT_ID=api-gateway
+      - USER_CREATED_TOPIC=user.created
     volumes:
       - ./api-gateway:/app
       - /app/node_modules 
@@ -43,6 +47,11 @@ services:
       - "3001:3001"
     env_file:
       - ./passenger-service/.env
+    environment:
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+      - KAFKA_CLIENT_ID=passenger-service
+      - KAFKA_GROUP_ID=passenger-service-group
+      - USER_CREATED_TOPIC=user.created
     volumes:
       - ./passenger-service:/app
       - /app/node_modules

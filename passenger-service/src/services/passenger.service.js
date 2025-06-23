@@ -1,6 +1,7 @@
 const { Kafka } = require('kafkajs');
 const { Passenger } = require('../models/index.model');
 require('dotenv').config();
+const { logger } = require('../config/logger');
 
 const kafka = new Kafka({
     clientId: process.env.KAFKA_CLIENT_ID || 'passenger-service',
@@ -25,7 +26,10 @@ async function handleUserCreated(payload) {
         } = payload;
 
         // Only process passenger role
-        if (!roles || !roles.includes('passenger')) return;
+        if (!roles || !roles.includes('passenger')) {
+            logger.debug('Ignored user.created without passenger role', { userId });
+            return;
+        }
 
         const exists = await Passenger.findOne({ where: { userId } });
         if (exists) return;
@@ -41,15 +45,17 @@ async function handleUserCreated(payload) {
             address: address || null,
             isActive: true
         });
-        console.log(`[Kafka] Passenger created for user ${userId}`);
+        logger.info('Passenger profile created', { userId, username });
     } catch (err) {
-        console.error('[Kafka] handleUserCreated error:', err.message);
+        logger.error('Passenger handleUserCreated error', { error: err.message, stack: err.stack });
     }
 }
 
 async function start() {
     await consumer.connect();
+    logger.info('Kafka consumer connected');
     await consumer.subscribe({ topic: process.env.USER_CREATED_TOPIC || 'user.created', fromBeginning: false });
+    logger.info('Subscribed to topic', { topic: process.env.USER_CREATED_TOPIC || 'user.created' });
 
     await consumer.run({
         eachMessage: async ({ message }) => {
