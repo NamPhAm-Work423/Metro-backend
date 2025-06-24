@@ -1,24 +1,37 @@
 const nodemailer = require('nodemailer');
-const config = require('../config');
-const logger = require('../config/logger');
+const { logger } = require('../config/logger');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
-      host: config.email.host,
-      port: config.email.port,
-      secure: config.email.secure,
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      logger.warn('Email service not configured - EMAIL_USER and EMAIL_PASS environment variables are required');
+      this.isConfigured = false;
+      this.transporter = null;
+      return;
+    }
+
+    this.isConfigured = true;
+    this.transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: process.env.EMAIL_SECURE === 'true',
       auth: {
-        user: config.email.user,
-        pass: config.email.pass
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       }
     });
   }
 
   async sendEmail(to, subject, html, text) {
+    if (!this.isConfigured) {
+      logger.warn(`Email service not configured - would send email to ${to} with subject: ${subject}`);
+      return { messageId: 'not-configured', info: 'Email service not configured' };
+    }
+
     try {
       const mailOptions = {
-        from: `"${config.email.fromName}" <${config.email.from}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'Metro System'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
         to,
         subject,
         html,
@@ -71,7 +84,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, token) {
-    const resetUrl = `${config.app.frontendUrl}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
     
     const subject = 'Password Reset Request';
     const html = `
@@ -122,7 +135,7 @@ class EmailService {
         <p>Welcome to our platform! We're excited to have you on board.</p>
         <p>Your account has been successfully created and verified. You can now enjoy all the features we offer.</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${config.app.frontendUrl}/dashboard" 
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
              style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
             Get Started
           </a>
@@ -145,7 +158,7 @@ class EmailService {
       
       Your account has been successfully created and verified. You can now enjoy all the features we offer.
       
-      Visit ${config.app.frontendUrl}/dashboard to get started.
+      Visit ${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard to get started.
       
       If you have any questions or need assistance, feel free to contact our support team.
       
@@ -157,6 +170,11 @@ class EmailService {
   }
 
   async testConnection() {
+    if (!this.isConfigured) {
+      logger.warn('Email service not configured - cannot test connection');
+      return false;
+    }
+
     try {
       await this.transporter.verify();
       logger.info('Email service connection verified successfully');

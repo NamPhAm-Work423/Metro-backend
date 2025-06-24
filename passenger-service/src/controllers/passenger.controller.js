@@ -1,32 +1,84 @@
-const { Passenger } = require('../models/index.model');
+const passengerService = require('../services/passenger.service');
+const asyncErrorHandler = require('../helpers/errorHandler.helper');
 
-// GET /v1/passengers
-const getAllPassengers = async (req, res, next) => {
-    try {
-        const passengers = await Passenger.findAll({
-            where: { isActive: true },
-            attributes: ['passengerId', 'userId', 'username', 'firstName', 'lastName', 'phoneNumber', 'isActive', 'createdAt']
+// GET /v1/passengers/getallPassengers
+const getAllPassengers = asyncErrorHandler(async (req, res, next) => {
+    const passengers = await passengerService.getAllPassengers();
+    res.status(200).json({ 
+        success: true,
+        message: 'Passengers retrieved successfully', 
+        data: passengers,
+        count: passengers.length
+    });
+});
+
+// GET /v1/passengers/getPassengerById/:id
+const getPassengerById = asyncErrorHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const passenger = await passengerService.getPassengerById(id);
+    
+    if (!passenger) {
+        return res.status(404).json({
+            success: false,
+            message: 'Passenger not found'
         });
-        
-        res.json({ 
-            success: true,
-            message: 'Passengers retrieved successfully',
-            data: passengers,
-            count: passengers.length
-        });
-    } catch (err) {
-        next(err);
     }
-};
+    
+    res.status(200).json({
+        success: true,
+        message: 'Passenger retrieved successfully',
+        data: passenger
+    });
+});
 
-// POST /v1/passengers
+// PUT /v1/passengers/updatePassenger/:id
+const updatePassenger = asyncErrorHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    const passenger = await passengerService.updatePassengerById(id, updateData);
+    
+    if (!passenger) {
+        return res.status(404).json({
+            success: false,
+            message: 'Passenger not found'
+        });
+    }
+    
+    res.status(200).json({
+        success: true,
+        message: 'Passenger updated successfully',
+        data: passenger
+    });
+});
+
+// DELETE /v1/passengers/deletePassenger/:id
+const deletePassenger = asyncErrorHandler(async (req, res, next) => {
+    const { id } = req.params;
+    
+    const result = await passengerService.deletePassengerById(id);
+    
+    if (!result) {
+        return res.status(404).json({
+            success: false,
+            message: 'Passenger not found'
+        });
+    }
+    
+    res.status(200).json({
+        success: true,
+        message: 'Passenger deleted successfully'
+    });
+});
+
+// POST /v1/passengers/createPassenger
 const createPassenger = async (req, res, next) => {
     try {
         const { firstName, lastName, username, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
         const userId = req.headers['x-user-id'] || req.user?.id;
 
-        // Ensure not existing
-        const existing = await Passenger.findOne({ where: { userId } });
+        // Check if passenger already exists
+        const existing = await passengerService.getPassengerByUserId(userId);
         if (existing) {
             return res.status(409).json({ 
                 success: false,
@@ -34,17 +86,19 @@ const createPassenger = async (req, res, next) => {
             });
         }
         
-        const passenger = await Passenger.create({ 
-            userId, 
-            username: username || `user_${userId.slice(-8)}`, // fallback username
-            firstName, 
-            lastName, 
+        const passengerData = {
+            userId,
+            username: username || `user_${userId.slice(-8)}`,
+            firstName,
+            lastName,
             phoneNumber: phoneNumber || null,
             dateOfBirth: dateOfBirth || null,
             gender: gender || null,
             address: address || null,
             emergencyContact: emergencyContact || null
-        });
+        };
+        
+        const passenger = await passengerService.createPassenger(passengerData);
         
         res.status(201).json({ 
             success: true, 
@@ -66,7 +120,7 @@ const createPassenger = async (req, res, next) => {
 // GET /v1/passengers/me
 const getMe = async (req, res, next) => {
     try {
-        const passenger = await Passenger.findOne({ where: { userId: req.user.id } });
+        const passenger = await passengerService.getPassengerByUserId(req.user.id);
         if (!passenger) {
             return res.status(404).json({ 
                 success: false,
@@ -88,23 +142,24 @@ const updateMe = async (req, res, next) => {
         const { firstName, lastName, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
         const userId = req.user.id;
         
-        const passenger = await Passenger.findOne({ where: { userId } });
+        const updateData = {
+            firstName,
+            lastName,
+            phoneNumber,
+            dateOfBirth,
+            gender,
+            address,
+            emergencyContact
+        };
+        
+        const passenger = await passengerService.updatePassenger(userId, updateData);
+        
         if (!passenger) {
             return res.status(404).json({ 
                 success: false,
                 message: 'Passenger profile not found' 
             });
         }
-        
-        await passenger.update({ 
-            firstName, 
-            lastName, 
-            phoneNumber,
-            dateOfBirth,
-            gender,
-            address,
-            emergencyContact
-        });
         
         res.json({ 
             success: true,
@@ -128,15 +183,14 @@ const deleteMe = async (req, res, next) => {
     try {
         const userId = req.user.id;
         
-        const passenger = await Passenger.findOne({ where: { userId } });
-        if (!passenger) {
+        const result = await passengerService.deactivatePassenger(userId);
+        
+        if (!result) {
             return res.status(404).json({ 
                 success: false,
                 message: 'Passenger profile not found' 
             });
         }
-        
-        await passenger.update({ isActive: false });
         
         res.json({ 
             success: true,
@@ -147,4 +201,13 @@ const deleteMe = async (req, res, next) => {
     }
 };
 
-module.exports = { getAllPassengers, createPassenger, getMe, updateMe, deleteMe }; 
+module.exports = { 
+    getAllPassengers, 
+    getPassengerById,
+    updatePassenger,
+    deletePassenger,
+    createPassenger, 
+    getMe, 
+    updateMe, 
+    deleteMe 
+}; 

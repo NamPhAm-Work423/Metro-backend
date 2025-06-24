@@ -1,0 +1,29 @@
+{
+  "name": "admin-service",
+  "version": "1.0.0",
+  "description": "Admin microservice handling admin users",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sequelize": "^6.37.1",
+    "pg": "^8.11.3",
+    "pg-hstore": "^2.3.4",
+    "helmet": "^7.1.0",
+    "express-validator": "^7.0.1",
+    "dotenv": "^16.4.5",
+    "kafkajs": "^2.2.4",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^6.3.4"
+  }
+} 

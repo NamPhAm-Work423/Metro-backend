@@ -5,6 +5,7 @@ const getConfig = require('../config');
 const axios = require('axios');
 const kafkaProducer = require('../events/kafkaProducer');
 const { logger } = require('../config/logger');
+const emailService = require('./email.service');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -54,7 +55,7 @@ class UserService {
      * @returns {Object} - Created user and tokens
      */
     signup = async (userData) => {
-        const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address } = userData;
+        const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles } = userData;
         
         // Check if user already exists
         const existingUser = await User.findOne({ where: { email } });
@@ -71,7 +72,7 @@ class UserService {
             username,
             password: passwordHash,
             isVerified: true,
-            roles: ['passenger']
+            roles: roles || ['passenger']
         });
 
 
@@ -89,7 +90,8 @@ class UserService {
                 dateOfBirth: dateOfBirth,
                 gender: gender,
                 address: address,
-                isActive: true
+                isActive: true,
+                roles: roles || ['passenger']
             });
             logger.info('User.created event published successfully', { 
                 userId: user.id, 
@@ -202,18 +204,31 @@ class UserService {
             return true;
         }
 
-        // Generate reset token
+        // Generate reset token using the same secret as refresh tokens
         const resetToken = jwt.sign(
-            { userId: user.id },
-            getConfig.getJwt().resetSecret,
+            { userId: user.id, type: 'password_reset' },
+            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
             { expiresIn: '1h' }
         );
 
         // Store reset token in user record
-        await user.update({ resetToken });
+        await user.update({ 
+            passwordResetToken: resetToken,
+            passwordResetExpiry: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
+        });
 
-        // TODO: Send reset email with token
-        // This would typically involve calling an email service
+        // Send reset email
+        try {
+            await emailService.sendPasswordResetEmail(user.email, resetToken);
+            logger.info('Password reset email sent successfully', { userId: user.id, email });
+        } catch (emailError) {
+            logger.error('Failed to send password reset email', { 
+                userId: user.id, 
+                email, 
+                error: emailError.message 
+            });
+            // Continue without throwing error to prevent exposing email service issues
+        }
 
         return true;
     }
@@ -226,7 +241,12 @@ class UserService {
      */
     resetPassword = async (token, newPassword) => {
         // Verify reset token
-        const decoded = jwt.verify(token, getConfig.getJwt().resetSecret);
+        const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+        
+        // Check token type
+        if (decoded.type !== 'password_reset') {
+            throw new Error('Invalid reset token');
+        }
         
         // Find user
         const user = await User.findByPk(decoded.userId);
@@ -234,14 +254,25 @@ class UserService {
             throw new Error('Invalid reset token');
         }
 
+        // Check if token matches stored token and hasn't expired
+        if (user.passwordResetToken !== token || new Date() > user.passwordResetExpiry) {
+            throw new Error('Invalid or expired reset token');
+        }
+
         // Hash new password
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const passwordHash = await bcrypt.hash(newPassword, 12);
 
         // Update password and clear reset token
         await user.update({
             password: passwordHash,
-            resetToken: null
+            passwordResetToken: null,
+            passwordResetExpiry: null,
+            loginAttempts: 0, // Reset login attempts
+            lockUntil: null,  // Unlock account if locked
+            accountLocked: false
         });
+
+        logger.info('Password reset successful', { userId: user.id, email: user.email });
 
         return true;
     }

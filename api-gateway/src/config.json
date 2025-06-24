@@ -40,6 +40,76 @@
                     "region": "default"
                 }
             ]
+        },
+        {
+            "name": "staff-service",
+            "endPoint": "staffs",
+            "description": "Staff profile and management service",
+            "version": "1.0.0",
+            "timeout": 5000,
+            "retries": 3,
+            "authentication": {
+                "required": true,
+                "type": "jwt",
+                "roles": ["staff", "admin"]
+            },
+            "circuitBreaker": {
+                "enabled": true,
+                "threshold": 5,
+                "resetTimeout": 30000
+            },
+            "loadBalancer": {
+                "strategy": "round-robin"
+            },
+            "rateLimit": {
+                "enabled": true,
+                "windowMs": 900000,
+                "max": 100
+            },
+            "status": "active",
+            "instances": [
+                {
+                    "host": "staff-service",
+                    "port": 3002,
+                    "weight": 1,
+                    "region": "default"
+                }
+            ]
+        },
+        {
+            "name": "admin-service",
+            "endPoint": "admins",
+            "description": "Admin profile and management service",
+            "version": "1.0.0",
+            "timeout": 5000,
+            "retries": 3,
+            "authentication": {
+                "required": true,
+                "type": "jwt",
+                "roles": ["admin"]
+            },
+            "circuitBreaker": {
+                "enabled": true,
+                "threshold": 5,
+                "resetTimeout": 30000
+            },
+            "loadBalancer": {
+                "strategy": "round-robin"
+            },
+            "rateLimit": {
+                "enabled": true,
+                "windowMs": 900000,
+                "max": 100
+            },
+            "status": "active",
+            "instances": [
+                {
+                    "host": "admin-service",
+                    "port": 3003,
+                    "weight": 1,
+                    "region": "default"
+                }
+            ]
         }
     ]
 }
