@@ -65,40 +65,43 @@ class UserService {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Create user
+        // Create user (API Gateway only stores auth data)
         const user = await User.create({
-            firstName,
-            lastName,
             email,
             username,
-            phoneNumber,
-            dateOfBirth,
-            gender,
-            address,
             password: passwordHash,
             isVerified: true,
             roles: ['passenger']
         });
 
 
-        // After user creation and before token generation
+        // Publish user.created event with profile data for Passenger Service
         try {
             await kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
                 userId: user.id,
                 email: user.email,
                 roles: user.roles,
                 username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                phoneNumber: user.phoneNumber,
-                dateOfBirth: user.dateOfBirth,
-                gender: user.gender,
-                address: user.address,
-                isActive: user.isActive || true
+                // Profile data from registration form (not stored in API Gateway)
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                dateOfBirth: dateOfBirth,
+                gender: gender,
+                address: address,
+                isActive: true
             });
-            logger.info('User registered passenger event driven successfully', { userId: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber, dateOfBirth: user.dateOfBirth, gender: user.gender, address: user.address, isActive: user.isActive || true });
+            logger.info('User.created event published successfully', { 
+                userId: user.id, 
+                username: user.username,
+                email: user.email,
+                roles: user.roles 
+            });
         } catch (err) {
-            logger.error('Failed to publish passenger event driven', { error: err.message });
+            logger.error('Failed to publish user.created event', { error: err.message });
+            // Consider rolling back user creation if event publishing fails
+            // await user.destroy();
+            // throw new Error('Registration failed - please try again');
         }
 
         return { user };
