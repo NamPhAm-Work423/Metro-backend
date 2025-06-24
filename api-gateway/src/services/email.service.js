@@ -3,6 +3,35 @@ const { logger } = require('../config/logger');
 
 class EmailService {
   constructor() {
+    this.isConfigured = false;
+    this.isTestMode = false;
+    this.transporter = null;
+    this.initializeTransporter();
+  }
+
+  async initializeTransporter() {
+    // If using test mode, create Ethereal test account
+    if (process.env.EMAIL_TEST_MODE === 'true') {
+      try {
+        const testAccount = await nodemailer.createTestAccount();
+        this.transporter = nodemailer.createTransport({
+          host: 'smtp.ethereal.email',
+          port: 587,
+          secure: false,
+          auth: {
+            user: testAccount.user,
+            pass: testAccount.pass
+          }
+        });
+        this.isConfigured = true;
+        this.isTestMode = true;
+        logger.info('Email service initialized in TEST mode with Ethereal Email');
+        return;
+      } catch (error) {
+        logger.error('Failed to create test email account:', error);
+      }
+    }
+
     // Check if email credentials are configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       logger.warn('Email service not configured - EMAIL_USER and EMAIL_PASS environment variables are required');
@@ -12,6 +41,7 @@ class EmailService {
     }
 
     this.isConfigured = true;
+    this.isTestMode = false;
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT) || 587,
@@ -19,11 +49,21 @@ class EmailService {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      debug: process.env.NODE_ENV === 'development',
+      logger: process.env.NODE_ENV === 'development'
     });
   }
 
   async sendEmail(to, subject, html, text) {
+    // Wait for initialization if not done yet
+    if (!this.isConfigured && !this.transporter) {
+      await this.initializeTransporter();
+    }
+
     if (!this.isConfigured) {
       logger.warn(`Email service not configured - would send email to ${to} with subject: ${subject}`);
       return { messageId: 'not-configured', info: 'Email service not configured' };
@@ -39,7 +79,14 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      logger.info(`Email sent successfully to ${to}: ${result.messageId}`);
+      
+      if (this.isTestMode) {
+        logger.info(`TEST EMAIL sent successfully to ${to}: ${result.messageId}`);
+        logger.info(`Preview URL: ${nodemailer.getTestMessageUrl(result)}`);
+      } else {
+        logger.info(`Email sent successfully to ${to}: ${result.messageId}`);
+      }
+      
       return result;
     } catch (error) {
       logger.error(`Failed to send email to ${to}:`, error);
@@ -48,16 +95,21 @@ class EmailService {
   }
 
   async sendVerificationEmail(email, token) {
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+    
     const subject = 'Email Verification';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #333; text-align: center;">Email Verification</h1>
         <p>Hello,</p>
-        <p>Thank you for registering with us. Please use the verification code below to verify your email address:</p>
-        <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-          <h2 style="color: #007bff; letter-spacing: 5px; margin: 0;">${token}</h2>
+        <p>Thank you for registering with us. Please click the button below to verify your email address:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verifyUrl}" 
+             style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Verify Email
+          </a>
         </div>
-        <p>This code will expire in 24 hours.</p>
+        <p>This link will expire in 24 hours.</p>
         <p>If you didn't register for an account, please ignore this email.</p>
         <hr>
         <p style="font-size: 12px; color: #666;">
@@ -71,11 +123,12 @@ class EmailService {
       
       Hello,
       
-      Thank you for registering with us. Please use the verification code below to verify your email address:
+      Thank you for registering with us. Please use the link below to verify your email address:
       
-      ${token}
+      ${verifyUrl}
       
-      This code will expire in 24 hours.
+      
+      This link will expire in 24 hours.
       
       If you didn't register for an account, please ignore this email.
     `;
@@ -84,7 +137,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, token) {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     
     const subject = 'Password Reset Request';
     const html = `
@@ -135,7 +188,7 @@ class EmailService {
         <p>Welcome to our platform! We're excited to have you on board.</p>
         <p>Your account has been successfully created and verified. You can now enjoy all the features we offer.</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
+          <a href="${process.env.FRONTEND_URL}/dashboard" 
              style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
             Get Started
           </a>
@@ -180,9 +233,28 @@ class EmailService {
       logger.info('Email service connection verified successfully');
       return true;
     } catch (error) {
-      logger.error('Email service connection failed:', error);
+      logger.error('Email service connection failed:', {
+        error: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response
+      });
       return false;
     }
+  }
+
+  // Alternative configuration for Gmail with OAuth2 (if app passwords don't work)
+  static createGmailOAuth2Transport(user, clientId, clientSecret, refreshToken) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: user,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken
+      }
+    });
   }
 }
 

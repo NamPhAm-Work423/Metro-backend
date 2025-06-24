@@ -71,9 +71,32 @@ class UserService {
             email,
             username,
             password: passwordHash,
-            isVerified: true,
+            isVerified: true, // Require email verification
             roles: roles || ['passenger']
         });
+
+        // Generate verification token
+        const verificationToken = jwt.sign(
+            { userId: user.id },
+            ACCESS_TOKEN_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        // Send verification email
+        try {
+            await emailService.sendVerificationEmail(email, verificationToken);
+            logger.info('Verification email sent successfully', { 
+                userId: user.id, 
+                email: user.email 
+            });
+        } catch (err) {
+            logger.error('Failed to send verification email', { 
+                error: err.message,
+                userId: user.id,
+                email: user.email 
+            });
+            // Don't fail registration if email fails - user can request resend
+        }
 
 
         // Publish user.created event with profile data for Passenger Service

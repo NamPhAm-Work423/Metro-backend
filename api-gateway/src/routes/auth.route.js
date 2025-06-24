@@ -405,8 +405,8 @@ router.post('/reset-password', userController.resetPassword);
  * @swagger
  * /v1/auth/verify/{token}:
  *   get:
- *     summary: ✉️ Verify email address
- *     description: Verify user email using token from verification email.
+ *     summary: ✉️ Verify email address (URL path)
+ *     description: Verify user email using token from verification email (legacy format).
  *     tags: [Authentication]
  *     parameters:
  *       - in: path
@@ -422,6 +422,28 @@ router.post('/reset-password', userController.resetPassword);
  *         description: ❌ Invalid or expired token
  */
 router.get('/verify/:token', userController.verifyEmail);
+
+/**
+ * @swagger
+ * /v1/auth/verify-email:
+ *   get:
+ *     summary: ✉️ Verify email address (clickable link)
+ *     description: Verify user email using token from verification email link.
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Email verification token
+ *     responses:
+ *       200:
+ *         description: ✅ Email verified successfully
+ *       400:
+ *         description: ❌ Invalid or expired token
+ */
+router.get('/verify-email', userController.verifyEmailFromQuery);
 
 /**
  * @swagger
