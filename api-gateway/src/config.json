@@ -34,7 +34,7 @@
             "status": "active",
             "instances": [
                 {
-                    "host": "localhost",
+                    "host": "passenger-service",
                     "port": 3001,
                     "weight": 1,
                     "region": "default"
