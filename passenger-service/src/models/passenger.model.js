@@ -70,17 +70,7 @@ module.exports = (sequelize, DataTypes) => {
         ticketList: {
             type: DataTypes.ARRAY(DataTypes.UUID),
             allowNull: true,
-            defaultValue: [
-                {
-                    ticketId: DataTypes.UUID,
-                    ticketNumber: DataTypes.STRING,
-                    ticketType: DataTypes.STRING,
-                    ticketPrice: DataTypes.FLOAT,
-                    ticketStatus: DataTypes.STRING,
-                    ticketDate: DataTypes.DATE,
-                    ticketTime: DataTypes.TIME,
-                }
-            ]
+            defaultValue: []
         }
     }, {
         tableName: 'passengers',

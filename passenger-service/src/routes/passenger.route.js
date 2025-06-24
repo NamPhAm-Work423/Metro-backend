@@ -15,7 +15,7 @@ const { authorizeRoles } = require('../middlewares/authorization');
  *       200:
  *         description: Passengers retrieved successfully
  */
-router.get('/getallPassengers', authorizeRoles('staff','admin'), passengerController.getAllPassengers);
+router.get('/getallPassengers', ...authorizeRoles('staff','admin'), passengerController.getAllPassengers);
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ router.get('/getallPassengers', authorizeRoles('staff','admin'), passengerContro
  *       404:
  *         description: Passenger not found
  */
-router.get('/getPassengerById/:id', authorizeRoles('staff','admin'), passengerController.getPassengerById);
+router.get('/getPassengerById/:id', ...authorizeRoles('staff','admin'), passengerController.getPassengerById);
 
 /**
  * @swagger
@@ -76,7 +76,7 @@ router.get('/getPassengerById/:id', authorizeRoles('staff','admin'), passengerCo
  *       409:
  *         description: Passenger already exists
  */
-router.post('/createPassenger', authorizeRoles('staff','admin'), passengerController.createPassenger);
+router.post('/createPassenger', ...authorizeRoles('staff','admin'), passengerController.createPassenger);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ router.post('/createPassenger', authorizeRoles('staff','admin'), passengerContro
  *       404:
  *         description: Passenger not found
  */
-router.put('/updatePassenger/:id', authorizeRoles('staff','admin'), passengerController.updatePassenger);
+router.put('/updatePassenger/:id', ...authorizeRoles('staff','admin'), passengerController.updatePassenger);
 
 /**
  * @swagger
@@ -120,7 +120,7 @@ router.put('/updatePassenger/:id', authorizeRoles('staff','admin'), passengerCon
  *       404:
  *         description: Passenger not found
  */
-router.delete('/deletePassenger/:id', authorizeRoles('staff','admin'), passengerController.deletePassenger);
+router.delete('/deletePassenger/:id', ...authorizeRoles('staff','admin'), passengerController.deletePassenger);
 
 // Passenger self-service routes
 /**
@@ -137,7 +137,7 @@ router.delete('/deletePassenger/:id', authorizeRoles('staff','admin'), passenger
  *       404:
  *         description: Passenger profile not found
  */
-router.get('/me', authorizeRoles('passenger'), passengerController.getMe);
+router.get('/me', ...authorizeRoles('passenger'), passengerController.getMe);
 
 /**
  * @swagger
@@ -153,7 +153,7 @@ router.get('/me', authorizeRoles('passenger'), passengerController.getMe);
  *       404:
  *         description: Passenger profile not found
  */
-router.put('/me', authorizeRoles('passenger'), passengerController.updateMe);
+router.put('/me', ...authorizeRoles('passenger'), passengerController.updateMe);
 
 /**
  * @swagger
@@ -169,6 +169,66 @@ router.put('/me', authorizeRoles('passenger'), passengerController.updateMe);
  *       404:
  *         description: Passenger profile not found
  */
-router.delete('/me', authorizeRoles('passenger'), passengerController.deleteMe);
+router.delete('/me', ...authorizeRoles('passenger'), passengerController.deleteMe);
+
+// Ticket management routes
+/**
+ * @swagger
+ * /passengers/me/tickets:
+ *   get:
+ *     summary: Get my tickets
+ *     description: Get all ticket IDs for the authenticated passenger
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Tickets retrieved successfully
+ */
+router.get('/me/tickets', ...authorizeRoles('passenger'), passengerController.getMyTickets);
+
+/**
+ * @swagger
+ * /passengers/me/tickets:
+ *   post:
+ *     summary: Add a ticket
+ *     description: Add a ticket ID to the authenticated passenger's ticket list
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ticketId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Ticket added successfully
+ */
+router.post('/me/tickets', ...authorizeRoles('passenger'), passengerController.addTicket);
+
+/**
+ * @swagger
+ * /passengers/me/tickets/{ticketId}:
+ *   delete:
+ *     summary: Remove a ticket
+ *     description: Remove a ticket ID from the authenticated passenger's ticket list
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ticketId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Ticket removed successfully
+ */
+router.delete('/me/tickets/:ticketId', ...authorizeRoles('passenger'), passengerController.removeTicket);
 
 module.exports = router; 

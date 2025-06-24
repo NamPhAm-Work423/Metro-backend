@@ -8,8 +8,24 @@ const routingController = {
      * Route request to appropriate service
      */
     useService: asyncErrorHandler(async (req, res, next) => {
-        const endPoint = req.params.endPoint;
-        const proxyEndpoint = req.params[0];
+        // Decode URL-encoded endpoint parameter
+        let endPoint = decodeURIComponent(req.params.endPoint);
+        let proxyEndpoint = req.params[0];
+        
+        // Handle URL-encoded paths like "passengers%2Fme" -> "passengers/me"
+        // Split on the first slash to separate service endpoint from path
+        if (endPoint.includes('/')) {
+            const parts = endPoint.split('/');
+            endPoint = parts[0]; // e.g., "passengers"
+            const remainingPath = parts.slice(1).join('/');
+            
+            // Combine with existing proxyEndpoint if any
+            if (proxyEndpoint) {
+                proxyEndpoint = `${remainingPath}/${proxyEndpoint}`;
+            } else {
+                proxyEndpoint = remainingPath;
+            }
+        }
 
         try {
             logger.info('Routing request', {

@@ -10,16 +10,22 @@ class AuthMiddleware {
     let decoded = null;
     
     try {
-      const authHeader = req.headers.authorization;
+      // Check for token in cookies first, then in Authorization header
+      let token = req.cookies.accessToken;
       
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.split(' ')[1];
+        }
+      }
+      
+      if (!token) {
         return res.status(401).json({
           success: false,
           message: 'Access token is required'
         });
       }
-
-      const token = authHeader.split(' ')[1];
       
       // Verify token
       decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
@@ -113,13 +119,41 @@ class AuthMiddleware {
       }
 
       // Validate API key using key service
-      const isValid = await keyService.validateAPIKey(apiKey);
+      const keyData = await keyService.validateAPIKey(apiKey);
       
-      if (!isValid) {
+      if (!keyData) {
         return res.status(401).json({
           success: false,
           message: 'Invalid API key'
         });
+      }
+
+      // Get user information if userId is available
+      if (keyData.userId) {
+        try {
+          const user = await User.findByPk(keyData.userId);
+          if (user && user.isVerified && !user.accountLocked && !user.isLocked()) {
+            // Add user context headers for downstream services
+            req.headers['x-user-id'] = user.id.toString();
+            req.headers['x-user-email'] = user.email;
+            req.headers['x-user-roles'] = JSON.stringify(user.roles);
+            
+            // Also add to request object for potential use
+            req.user = user;
+            
+            logger.info('User context added to request', {
+              userId: user.id,
+              email: user.email,
+              roles: user.roles
+            });
+          }
+        } catch (userError) {
+          logger.warn('Could not fetch user for API key', {
+            userId: keyData.userId,
+            error: userError.message
+          });
+          // Continue anyway - API key is valid even if user fetch fails
+        }
       }
 
       // API key is valid, proceed to next middleware

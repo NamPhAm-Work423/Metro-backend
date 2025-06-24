@@ -493,7 +493,9 @@ const authMiddleware = require('../middlewares/auth.middleware');
  */
 
 // Dynamic routing - all HTTP methods supported
-router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+// More specific routes first - catches paths with additional segments
 router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+// Less specific routes last - catches exact endpoint matches
+router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
 
 module.exports = router;

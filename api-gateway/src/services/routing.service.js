@@ -75,10 +75,9 @@ class RoutingService {
      */
     async proxyServiceRequest(req, res, serviceInstance, endPoint, proxyEndpoint) {
         return new Promise((resolve, reject) => {
+            // Base path without the proxyEndpoint - let proxyReqPathResolver handle the path construction
             let path = `http://${serviceInstance.host}:${serviceInstance.port}`;
-            if (proxyEndpoint) {
-                path = `${path}/${proxyEndpoint.replace(/^\/+|\/+$/g, '')}`;
-            }
+            // Don't append proxyEndpoint here - it will be handled by proxyReqPathResolver
 
             const proxyMiddleware = httpProxy(path, {
                 proxyTimeout: 10000,
@@ -90,25 +89,19 @@ class RoutingService {
                     const [pathPart, queryPart] = originalPath.split('?');
                     const queryString = queryPart ? `?${queryPart}` : '';
                     
-                    // Reconstruct the target service path
-                    // pathPart is likely to be just the remaining part after Express route matching
-                    // We need to construct /v1/{endPoint}{pathPart}
+                    // Construct the target service path: /v1/{endPoint}/{proxyEndpoint}
                     let newPathPart;
-                    if (pathPart === `/${endPoint}` || pathPart === `/${endPoint}/`) {
-                        // Root endpoint: /passengers -> /v1/passengers
-                        newPathPart = `/v1/${endPoint}`;
-                    } else if (pathPart.startsWith(`/${endPoint}/`)) {
-                        // Sub-path: /passengers/123 -> /v1/passengers/123
-                        newPathPart = `/v1${pathPart}`;
-                    } else if (pathPart === '/' || pathPart === '') {
-                        // Root path: / -> /v1/passengers
-                        newPathPart = `/v1/${endPoint}`;
+                    
+                    if (proxyEndpoint) {
+                        // We have a sub-path: /v1/passengers/me
+                        newPathPart = `/v1/${endPoint}/${proxyEndpoint}`;
                     } else {
-                        // Default case: prepend /v1/endPoint to path
-                        newPathPart = `/v1/${endPoint}${pathPart}`;
+                        // Root endpoint: /v1/passengers
+                        newPathPart = `/v1/${endPoint}`;
                     }
                     
                     const newPath = newPathPart + queryString;
+                    console.log(`Proxying: ${originalPath} -> ${newPath}`);
                     return newPath;
                 },
                 proxyReqOptDecorator: function(proxyReqOpts, srcReq) {

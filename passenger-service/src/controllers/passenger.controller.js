@@ -178,14 +178,48 @@ const updateMe = async (req, res, next) => {
     }
 };
 
-// DELETE /v1/passengers/me
-const deleteMe = async (req, res, next) => {
+/**
+ * Delete current passenger (soft delete)
+ * @param {Object} req - Express request object 
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const deleteMe = asyncErrorHandler(async (req, res, next) => {
+    // Try both userId formats for compatibility
+    const userId = req.user.userId || req.user.id;
+    
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            message: 'User ID not found in request'
+        });
+    }
+
+    const result = await passengerService.deletePassengerByUserId(userId);
+
+    res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result
+    });
+});
+
+// POST /v1/passengers/me/tickets
+const addTicket = async (req, res, next) => {
     try {
+        const { ticketId } = req.body;
         const userId = req.user.id;
         
-        const result = await passengerService.deactivatePassenger(userId);
+        if (!ticketId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Ticket ID is required'
+            });
+        }
         
-        if (!result) {
+        const passenger = await passengerService.addTicketToPassenger(userId, ticketId);
+        
+        if (!passenger) {
             return res.status(404).json({ 
                 success: false,
                 message: 'Passenger profile not found' 
@@ -194,7 +228,51 @@ const deleteMe = async (req, res, next) => {
         
         res.json({ 
             success: true,
-            message: 'Passenger profile deactivated successfully'
+            message: 'Ticket added successfully',
+            data: passenger 
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// DELETE /v1/passengers/me/tickets/:ticketId
+const removeTicket = async (req, res, next) => {
+    try {
+        const { ticketId } = req.params;
+        const userId = req.user.id;
+        
+        const passenger = await passengerService.removeTicketFromPassenger(userId, ticketId);
+        
+        if (!passenger) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Passenger profile not found' 
+            });
+        }
+        
+        res.json({ 
+            success: true,
+            message: 'Ticket removed successfully',
+            data: passenger 
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// GET /v1/passengers/me/tickets
+const getMyTickets = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        
+        const tickets = await passengerService.getPassengerTickets(userId);
+        
+        res.json({ 
+            success: true,
+            message: 'Tickets retrieved successfully',
+            data: tickets,
+            count: tickets.length
         });
     } catch (err) {
         next(err);
@@ -209,5 +287,8 @@ module.exports = {
     createPassenger, 
     getMe, 
     updateMe, 
-    deleteMe 
+    deleteMe,
+    addTicket,
+    removeTicket,
+    getMyTickets
 }; 

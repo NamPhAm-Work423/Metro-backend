@@ -1,6 +1,7 @@
 const { getClient, withRedisClient, setWithExpiry } = require('../config/redis');
 const { hashToken } = require('../helpers/crypto.helper');
 const { logger } = require('../config/logger');
+const Key = require('../models/key.model');
 
 const KEY_PREFIX = {
     API_KEY: 'api_key:',
@@ -46,7 +47,7 @@ async function storeAPIKey(apiKey, metadata = {}, expirySeconds = 24 * 3600) {
 /**
  * Validate API key by checking if it exists in Redis
  * @param {string} apiKey - The API key to validate
- * @returns {boolean} - True if valid, false otherwise
+ * @returns {Object|null} - User metadata if valid, null otherwise
  */
 async function validateAPIKey(apiKey) {
     try {
@@ -61,7 +62,7 @@ async function validateAPIKey(apiKey) {
             logger.warn('API key not found in Redis', { 
                 redisKey: redisKey.substring(0, 20) + '...' 
             });
-            return false;
+            return null;
         }
         
         logger.info('API key validated successfully from Redis', { 
@@ -69,15 +70,55 @@ async function validateAPIKey(apiKey) {
             createdAt: data.createdAt 
         });
         
-        return true;
+        // Parse and return metadata
+        const metadata = data.metadata ? JSON.parse(data.metadata) : {};
+        return {
+            ...metadata,
+            createdAt: data.createdAt
+        };
         
     } catch (error) {
         logger.error('Error validating API key in Redis:', {
             error: error.message,
             stack: error.stack
         });
-        return false;
+        return null;
     }
 }
 
-module.exports = { storeAPIKey, validateAPIKey };
+/**
+ * Revoke all API keys for a user (for event-driven deletion)
+ * @param {string} userId - User ID
+ * @returns {number} Number of keys revoked
+ */
+async function revokeAllUserKeys(userId) {
+    try {
+        const result = await Key.update(
+            { 
+                status: 'expired'
+            },
+            { 
+                where: { 
+                    userId,
+                    status: 'activated'
+                }
+            }
+        );
+
+        logger.info('All API keys revoked for user', { 
+            userId, 
+            keysRevoked: result[0] 
+        });
+        
+        return result[0];
+
+    } catch (error) {
+        logger.error('Error revoking user API keys', {
+            error: error.message,
+            userId
+        });
+        throw error;
+    }
+}
+
+module.exports = { storeAPIKey, validateAPIKey, revokeAllUserKeys };

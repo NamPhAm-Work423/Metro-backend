@@ -1,4 +1,6 @@
 const { Passenger } = require('../models/index.model');
+const { Op } = require('sequelize');
+const kafkaProducer = require('../events/kafkaProducer');
 const { logger } = require('../config/logger');
 
 /**
@@ -232,38 +234,75 @@ async function deactivatePassenger(userId) {
 }
 
 /**
- * Delete passenger profile by passenger ID
- * @param {string} id - Passenger ID
- * @returns {Object|null} - Deleted passenger profile or null if not found
+ * Delete passenger account and related data
+ * @param {string} userId - User ID
+ * @returns {Object} Deletion result
  */
-async function deletePassengerById(id) {
+async function deletePassengerByUserId(userId) {
+    const transaction = await Passenger.sequelize.transaction();
+    
     try {
-        const passenger = await Passenger.findOne({ 
-            where: { 
-                id, 
-                isActive: true 
-            } 
+        // Find the passenger data first for the event
+        const passenger = await Passenger.findOne({
+            where: { userId },
+            transaction
         });
-        
+
         if (!passenger) {
-            logger.error('Passenger profile not found', { id });
-            return null;
+            throw new Error('Passenger not found');
         }
 
-        await passenger.update({ isActive: false });
-        
-        logger.info('Passenger profile deleted successfully', { 
-            passengerId: id 
+        // Prepare event data before deletion
+        const eventData = {
+            passengerId: passenger.passengerId,
+            userId: passenger.userId,
+            email: passenger.email,
+            username: passenger.username || passenger.email,
+            firstName: passenger.firstName,
+            lastName: passenger.lastName
+        };
+
+        // Delete the passenger record (this will cascade to related data)
+        await Passenger.destroy({
+            where: { userId },
+            transaction
         });
 
-        return passenger;
 
-    } catch (err) {
-        logger.error('Error deleting passenger profile by ID', { 
-            error: err.message, 
-            id 
+        await transaction.commit();
+
+        // Publish deletion events after successful deletion
+        try {
+            await kafkaProducer.publishUserDeleted(eventData);
+        } catch (eventError) {
+            // Log event publishing error but don't rollback deletion
+            logger.error('Failed to publish deletion events', {
+                error: eventError.message,
+                userId,
+                service: 'passenger-service'
+            });
+        }
+
+        logger.info('Passenger deleted successfully', {
+            userId,
+            passengerId: eventData.passengerId,
+            service: 'passenger-service'
         });
-        throw err;
+
+        return {
+            success: true,
+            message: 'Passenger account deleted successfully',
+            deletedAt: new Date().toISOString()
+        };
+
+    } catch (error) {
+        await transaction.rollback();
+        logger.error('Error deleting passenger', {
+            error: error.message,
+            userId,
+            service: 'passenger-service'
+        });
+        throw error;
     }
 }
 
@@ -285,6 +324,107 @@ async function getAllPassengers(options = {}) {
     }
 }
 
+/**
+ * Add a ticket to passenger's ticket list
+ * @param {string} userId - User ID
+ * @param {string} ticketId - Ticket UUID to add
+ * @returns {Object|null} - Updated passenger profile or null if not found
+ */
+async function addTicketToPassenger(userId, ticketId) {
+    try {
+        const passenger = await Passenger.findOne({ where: { userId } });
+        if (!passenger) {
+            logger.error('Passenger profile not found', { userId });
+            return null;
+        }
+
+        // Add ticket ID to the list if it doesn't already exist
+        const currentTickets = passenger.ticketList || [];
+        if (!currentTickets.includes(ticketId)) {
+            const updatedTickets = [...currentTickets, ticketId];
+            await passenger.update({ ticketList: updatedTickets });
+            
+            logger.info('Ticket added to passenger profile', { 
+                userId, 
+                ticketId,
+                totalTickets: updatedTickets.length
+            });
+        }
+
+        return passenger;
+
+    } catch (err) {
+        logger.error('Error adding ticket to passenger', { 
+            error: err.message, 
+            userId,
+            ticketId
+        });
+        throw err;
+    }
+}
+
+/**
+ * Remove a ticket from passenger's ticket list
+ * @param {string} userId - User ID
+ * @param {string} ticketId - Ticket UUID to remove
+ * @returns {Object|null} - Updated passenger profile or null if not found
+ */
+async function removeTicketFromPassenger(userId, ticketId) {
+    try {
+        const passenger = await Passenger.findOne({ where: { userId } });
+        if (!passenger) {
+            logger.error('Passenger profile not found', { userId });
+            return null;
+        }
+
+        // Remove ticket ID from the list
+        const currentTickets = passenger.ticketList || [];
+        const updatedTickets = currentTickets.filter(id => id !== ticketId);
+        
+        await passenger.update({ ticketList: updatedTickets });
+        
+        logger.info('Ticket removed from passenger profile', { 
+            userId, 
+            ticketId,
+            totalTickets: updatedTickets.length
+        });
+
+        return passenger;
+
+    } catch (err) {
+        logger.error('Error removing ticket from passenger', { 
+            error: err.message, 
+            userId,
+            ticketId
+        });
+        throw err;
+    }
+}
+
+/**
+ * Get passenger's tickets
+ * @param {string} userId - User ID
+ * @returns {Array} - Array of ticket UUIDs
+ */
+async function getPassengerTickets(userId) {
+    try {
+        const passenger = await Passenger.findOne({ where: { userId } });
+        if (!passenger) {
+            logger.error('Passenger profile not found', { userId });
+            return [];
+        }
+
+        return passenger.ticketList || [];
+
+    } catch (err) {
+        logger.error('Error getting passenger tickets', { 
+            error: err.message, 
+            userId
+        });
+        throw err;
+    }
+}
+
 module.exports = {
     createPassengerFromUserEvent,
     createPassenger,
@@ -293,6 +433,9 @@ module.exports = {
     updatePassenger,
     updatePassengerById,
     deactivatePassenger,
-    deletePassengerById,
-    getAllPassengers
+    deletePassengerByUserId,
+    getAllPassengers,
+    addTicketToPassenger,
+    removeTicketFromPassenger,
+    getPassengerTickets
 }; 
