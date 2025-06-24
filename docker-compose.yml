@@ -14,6 +14,7 @@ services:
       - KAFKA_BROKERS=kafka-1:19092
       - KAFKA_CLIENT_ID=api-gateway
       - USER_CREATED_TOPIC=user.created
+      - NEED_EMAIL_VERIFICATION=false  #turn on to require email verification
     volumes:
       - ./api-gateway:/app
       - /app/node_modules 

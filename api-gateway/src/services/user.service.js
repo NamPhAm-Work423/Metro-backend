@@ -71,7 +71,7 @@ class UserService {
             email,
             username,
             password: passwordHash,
-            isVerified: true, // Require email verification
+            isVerified: process.env.NEED_EMAIL_VERIFICATION, // Require email verification
             roles: roles || ['passenger']
         });
 
