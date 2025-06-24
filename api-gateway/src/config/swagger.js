@@ -14,10 +14,20 @@ const swaggerDefinition = {
     ],
     components: {
         securitySchemes: {
-            bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
+            bearerAuth: { 
+                type: 'http', 
+                scheme: 'bearer', 
+                bearerFormat: 'JWT',
+                description: 'JWT token obtained from login endpoint. Format: Bearer <token>'
+            },
+            ApiKeyAuth: {
+                type: 'apiKey',
+                in: 'header',
+                name: 'x-api-key',
+                description: 'API key for routing endpoints. Get from /v1/auth/key/{userId}'
+            }
         }
-    },
-    security: [ { bearerAuth: [] } ]
+    }
 }
 
 const options = {

@@ -168,17 +168,17 @@ User.prototype.incLoginAttempts = async function() {
     });
   }
 
-  const updates = { $inc: { loginAttempts: 1 } };
+  const newLoginAttempts = this.loginAttempts + 1;
+  const updateData = {
+    loginAttempts: newLoginAttempts
+  };
 
   // If we hit max attempts and are not locked yet, lock account
-  if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked()) {
-    updates.lockUntil = new Date(Date.now() + lockTime);
+  if (newLoginAttempts >= maxAttempts && !this.isLocked()) {
+    updateData.lockUntil = new Date(Date.now() + lockTime);
   }
 
-  return this.update({
-    loginAttempts: this.loginAttempts + 1,
-    ...(updates.lockUntil && { lockUntil: updates.lockUntil })
-  });
+  return this.update(updateData);
 };
 
 User.prototype.resetLoginAttempts = async function() {

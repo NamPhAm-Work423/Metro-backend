@@ -83,10 +83,33 @@ class RoutingService {
             const proxyMiddleware = httpProxy(path, {
                 proxyTimeout: 10000,
                 timeout: 10000,
-                proxyReqPathResolver: function (req) {
+                                proxyReqPathResolver: function (req) {
                     const originalPath = req.url;
-                    const newPath = originalPath.replace(`/route/${endPoint}`, '');
-                    return newPath || '/';
+                    
+                    // Split path and query parameters
+                    const [pathPart, queryPart] = originalPath.split('?');
+                    const queryString = queryPart ? `?${queryPart}` : '';
+                    
+                    // Reconstruct the target service path
+                    // pathPart is likely to be just the remaining part after Express route matching
+                    // We need to construct /v1/{endPoint}{pathPart}
+                    let newPathPart;
+                    if (pathPart === `/${endPoint}` || pathPart === `/${endPoint}/`) {
+                        // Root endpoint: /passengers -> /v1/passengers
+                        newPathPart = `/v1/${endPoint}`;
+                    } else if (pathPart.startsWith(`/${endPoint}/`)) {
+                        // Sub-path: /passengers/123 -> /v1/passengers/123
+                        newPathPart = `/v1${pathPart}`;
+                    } else if (pathPart === '/' || pathPart === '') {
+                        // Root path: / -> /v1/passengers
+                        newPathPart = `/v1/${endPoint}`;
+                    } else {
+                        // Default case: prepend /v1/endPoint to path
+                        newPathPart = `/v1/${endPoint}${pathPart}`;
+                    }
+                    
+                    const newPath = newPathPart + queryString;
+                    return newPath;
                 },
                 proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
                     // Add headers for tracing

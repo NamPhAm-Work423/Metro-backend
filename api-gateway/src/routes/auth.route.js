@@ -175,7 +175,7 @@ const router = express.Router();
  * tags:
  *   - name: Authentication
  *     description: |
- *       ## Authentication Flow Guide
+ *       ## 🔐 Authentication Flow Guide
  *       
  *       ### Step 1: Register User
  *       Use `/v1/auth/register` to create a new user account.
@@ -188,6 +188,19 @@ const router = express.Router();
  *       
  *       ### Step 4: Use API Key for Routing
  *       Use the API key in `x-api-key` header for `/v1/route/*` endpoints.
+ *       
+ *       ### 🚨 How to Authenticate in Swagger UI:
+ *       1. **For JWT endpoints** (service management, key generation):
+ *          - Login first, copy `accessToken`
+ *          - Click **🔒 Authorize** button at top of page
+ *          - Enter: `Bearer YOUR_ACCESS_TOKEN`
+ *          - Click **Authorize** then **Close**
+ *       
+ *       2. **For API Key endpoints** (routing):
+ *          - Generate API key first (requires JWT)
+ *          - Click **🔒 Authorize** button at top of page  
+ *          - Enter your API key in the **ApiKeyAuth** field
+ *          - Click **Authorize** then **Close**
  *       
  *       ### Authentication Types:
  *       - **JWT Bearer Token**: For service management endpoints (`/v1/service/*`, `/v1/auth/*`)
@@ -418,9 +431,17 @@ router.get('/verify/:token', userController.verifyEmail);
  *     description: |
  *       Generate an API key for accessing routing endpoints (`/v1/route/*`).
  *       
+ *       **🚨 IMPORTANT - How to use this endpoint in Swagger UI:**
+ *       1. First, login using `/v1/auth/login` endpoint
+ *       2. Copy the `accessToken` from the login response  
+ *       3. Click the **🔒 Authorize** button at the top of this page
+ *       4. Paste your token in the format: `Bearer YOUR_ACCESS_TOKEN`
+ *       5. Click **Authorize**, then **Close**
+ *       6. Now you can use this endpoint!
+ *       
  *       **Prerequisites**: 
- *       1. You must be logged in 
- *       2. Use the `accessToken` from login response in Authorization header
+ *       - You must be logged in 
+ *       - Use the `accessToken` from login response in Authorization header
  *       
  *       **Usage**: 
  *       1. Copy the generated API key from response

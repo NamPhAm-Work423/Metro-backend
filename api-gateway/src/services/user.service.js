@@ -117,10 +117,9 @@ class UserService {
             throw new Error('Invalid email or password');
         }
 
-        // Check password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            throw new Error('Invalid email or password');
+        // Check if account is locked BEFORE password check
+        if (user.isLocked()) {
+            throw new Error('Account is temporarily locked due to multiple failed login attempts');
         }
 
         // Check if user is verified
@@ -128,10 +127,16 @@ class UserService {
             throw new Error('Please verify your email address');
         }
 
-        // Check if account is locked
-        if (user.isLocked()) {
-            throw new Error('Account is temporarily locked');
+        // Check password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            // Increment login attempts on failed password
+            await user.incLoginAttempts();
+            throw new Error('Invalid email or password');
         }
+
+        // Reset login attempts on successful login
+        await user.resetLoginAttempts();
 
         // Update last login
         await user.update({ lastLoginAt: new Date() });

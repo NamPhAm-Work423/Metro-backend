@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const routingController = require('../controllers/routing.controller');
-const { validateAPIKeyMiddleware } = require('../middlewares/auth.middleware');
+const authMiddleware = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -87,12 +87,19 @@ const { validateAPIKeyMiddleware } = require('../middlewares/auth.middleware');
  *         description: Target service endpoint name
  *         example: passengers
  *       - in: query
- *         name: "*"
+ *         name: page
  *         required: false
  *         schema:
- *           type: string
- *         description: Any query parameters will be forwarded to the target service
- *         example: "?page=1&limit=10"
+ *           type: integer
+ *         description: Page number for pagination
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Number of items per page
+ *         example: 10
  *     responses:
  *       200:
  *         description: ✅ Request successfully forwarded to service
@@ -486,7 +493,7 @@ const { validateAPIKeyMiddleware } = require('../middlewares/auth.middleware');
  */
 
 // Dynamic routing - all HTTP methods supported
-router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.routeToService);
-router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingController.routeToService);
+router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
 
 module.exports = router;

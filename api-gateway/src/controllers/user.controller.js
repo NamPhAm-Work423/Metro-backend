@@ -244,6 +244,62 @@ const userController = {
       }
     });
   }),
+
+  /**
+   * @description: Unlock user account (Admin only)
+   * @param {Object} req - Request object
+   * @param {Object} res - Response object
+   * @returns {Object} - Unlock account response
+   */
+  unlockAccount: asyncErrorHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+        error: 'INVALID_REQUEST'
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        error: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Reset login attempts and unlock account (both fields)
+    await user.update({
+      loginAttempts: 0,
+      lockUntil: null,
+      accountLocked: false
+    });
+
+    logger.info('User account unlocked by admin', { 
+      userId: user.id, 
+      userEmail: user.email,
+      adminId: req.user?.id 
+    });
+
+    res.json({
+      success: true,
+      message: 'Account unlocked successfully',
+      data: {
+        userId: user.id,
+        email: user.email,
+        unlockedAt: new Date(),
+        previousLockInfo: {
+          accountLocked: user.accountLocked,
+          lockUntil: user.lockUntil,
+          loginAttempts: user.loginAttempts
+        }
+      }
+    });
+  }),
 };
 
 module.exports = userController;

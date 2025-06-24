@@ -1,5 +1,24 @@
 const { Passenger } = require('../models/index.model');
 
+// GET /v1/passengers
+const getAllPassengers = async (req, res, next) => {
+    try {
+        const passengers = await Passenger.findAll({
+            where: { isActive: true },
+            attributes: ['passengerId', 'userId', 'username', 'firstName', 'lastName', 'phoneNumber', 'isActive', 'createdAt']
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'Passengers retrieved successfully',
+            data: passengers,
+            count: passengers.length
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // POST /v1/passengers
 const createPassenger = async (req, res, next) => {
     try {
@@ -128,4 +147,4 @@ const deleteMe = async (req, res, next) => {
     }
 };
 
-module.exports = { createPassenger, getMe, updateMe, deleteMe }; 
+module.exports = { getAllPassengers, createPassenger, getMe, updateMe, deleteMe }; 

@@ -2,8 +2,7 @@ const { getClient, withRedisClient } = require('../config/redis');
 const axios = require('axios');
 
 async function storeInstances(endPoint, instances) {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const multi = client.multi();
         for (const instance of instances) {
             const instanceKey = `${endPoint}:instances:${instance.id || instance.host + ':' + instance.port}`;
@@ -33,8 +32,7 @@ async function storeInstances(endPoint, instances) {
 }
 
 async function getLeastConnectionsInstance(endPoint) {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
 
         // Fetch all instances sorted by least connections
@@ -66,8 +64,7 @@ async function getLeastConnectionsInstance(endPoint) {
 }
 
 async function incrementConnection(endPoint, instanceId) {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
         await client.zIncrBy(connectionsKey, 1, instanceId);
     });
@@ -75,16 +72,14 @@ async function incrementConnection(endPoint, instanceId) {
 
 async function decrementConnection(endPoint, instanceId) {
     // console.log("Decreasing...")
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
         await client.zIncrBy(connectionsKey, -1, instanceId);
     });
 }
 
 async function deleteServiceFromRedis(endPoint) {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const multi = client.multi();
 
         // Remove the sorted set for the given endpoint
@@ -103,8 +98,7 @@ async function deleteServiceFromRedis(endPoint) {
 }
 
 async function deleteInstanceFromRedis(endPoint, instanceId) {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const multi = client.multi();
 
         const instanceKey = `${endPoint}:instances:${instanceId}`;
@@ -118,8 +112,7 @@ async function deleteInstanceFromRedis(endPoint, instanceId) {
 }
 
 async function updateAllInstancesStatus() {
-    return withRedisClient(async () => {
-        const client = getClient();
+    return withRedisClient(async (client) => {
         const multi = client.multi();
 
         const allInstanceKeys = await client.keys('*:instances:*');

@@ -17,8 +17,8 @@ router.use('/v1/auth', authRoutes);
 // Service management routes - mounted at /v1/service
 router.use('/v1/', serviceRoutes);
 
-// Dynamic service routing - mounted at /v1
-router.use('/v1', routingRoutes);
+// Dynamic service routing - mounted at /v1/route
+router.use('/v1/route', routingRoutes);
 
 /**
  * @swagger

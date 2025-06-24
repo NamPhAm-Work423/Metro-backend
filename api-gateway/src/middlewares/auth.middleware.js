@@ -1,11 +1,14 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models/index.model');
-const config = require('..');
-const logger = require('../config/logger');
+const { User, Key } = require('../models/index.model');
+const config = require('../config');
+const { logger } = require('../config/logger');
+const keyService = require('../services/key.service');
 
 class AuthMiddleware {
   // Authenticate token
   async authenticate(req, res, next) {
+    let decoded = null;
+    
     try {
       const authHeader = req.headers.authorization;
       
@@ -19,7 +22,7 @@ class AuthMiddleware {
       const token = authHeader.split(' ')[1];
       
       // Verify token
-      const decoded = jwt.verify(token, config.jwt.secret);
+      decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       
       // Get user from database
       const user = await User.findByPk(decoded.userId);
@@ -38,11 +41,25 @@ class AuthMiddleware {
         });
       }
 
-      // Check if account is locked
-      if (user.isLocked) {
+      // Check if account is locked (both permanent and temporary locks)
+      if (user.accountLocked || user.isLocked()) {
+        logger.warn('Blocked login attempt for locked account', {
+          userId: user.id,
+          email: user.email,
+          accountLocked: user.accountLocked,
+          lockUntil: user.lockUntil,
+          loginAttempts: user.loginAttempts
+        });
+        
         return res.status(423).json({
           success: false,
-          message: 'Account is temporarily locked'
+          message: 'Account is locked. Please contact support to unlock your account.',
+          lockInfo: {
+            accountLocked: user.accountLocked,
+            lockUntil: user.lockUntil,
+            loginAttempts: user.loginAttempts,
+            lockType: user.accountLocked ? 'permanent' : 'temporary'
+          }
         });
       }
 
@@ -70,7 +87,13 @@ class AuthMiddleware {
         });
       }
 
-      logger.error('Authentication error:', error);
+      logger.error('Authentication error:', {
+        error: error.message,
+        stack: error.stack,
+        userId: decoded?.userId || 'unknown',
+        hasAuthHeader: !!req.headers.authorization
+      });
+      
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -81,34 +104,34 @@ class AuthMiddleware {
   validateAPIKeyMiddleware = async (req, res, next) => {
     try {
       const apiKey = req.headers['x-api-key'];
+      
       if (!apiKey) {
         return res.status(401).json({
           success: false,
           message: 'API key is required'
         });
       }
-      const redisData = await validateAPIKey(apiKey);
-      if (redisData) {
-        return next();
-      }
-      const hashKey = hashToken(apiKey);
-      const key = await Key.findOne({ 
-        where: { 
-          value: hashKey,
-          isActive: true
-        }
-      });
-      if (!key) {
+
+      // Validate API key using key service
+      const isValid = await keyService.validateAPIKey(apiKey);
+      
+      if (!isValid) {
         return res.status(401).json({
           success: false,
           message: 'Invalid API key'
         });
-        
-        await storeAPIKey(apiKey);
-        next();
       }
+
+      // API key is valid, proceed to next middleware
+      next();
+      
     } catch (error) {
-      logger.error('API key validation error:', error);
+      logger.error('API key validation error:', {
+        error: error.message,
+        stack: error.stack,
+        apiKeyProvided: !!req.headers['x-api-key']
+      });
+      
       return res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -191,7 +214,11 @@ class AuthMiddleware {
       await redis.incr(key);
       next();
     } catch (error) {
-      logger.error('Rate limit check error:', error);
+      logger.error('Rate limit check error:', {
+        error: error.message,
+        stack: error.stack,
+        userId: req.user?.id || 'unknown'
+      });
       // Continue on error to not block requests
       next();
     }

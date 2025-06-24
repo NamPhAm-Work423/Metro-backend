@@ -60,7 +60,9 @@ async function tryConnect() {
             console.log('Trying to connect to redis...');
             await setupRedisClient();
         }
+        return !!client;
     } catch (error) {
+        console.error('Redis connection failed:', error.message);
         return false;
     }
 }
@@ -78,8 +80,14 @@ async function initializeRedis() {
 
 async function withRedisClient(operation) {
     await tryConnect();
+    
+    if (!client) {
+        console.error('Redis client is not available');
+        return null;
+    }
+    
     try {
-        return await operation();
+        return await operation(client);
     } catch (error) {
         console.warn('Redis operation failed:', error.message);
         return null;
@@ -109,7 +117,7 @@ process.on('SIGTERM', async () => {
 });
 
 async function setWithExpiry(key, value, expirySeconds = 3600) {
-    return await withRedisClient(async () => {
+    return await withRedisClient(async (client) => {
         // Using built-in SET with EX option
         await client.set(key, value, { EX: expirySeconds });
     });
