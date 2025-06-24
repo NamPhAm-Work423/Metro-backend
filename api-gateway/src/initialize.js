@@ -2,6 +2,7 @@ const { initializeRedis } = require('./config/redis');
 const { logger } = require('./config/logger');
 const Service = require('./models/service.model');
 const ServiceInstance = require('./models/serviceInstance.model');
+const { storeInstances } = require('./services/loadBalancer.service');
 const config = require('./config.json');
 
 async function initializeServices() {
@@ -69,6 +70,18 @@ async function initializeServices() {
                     });
                 }
                 logger.info(`${serviceConfig.instances.length} instances registered for service '${serviceConfig.name}'`);
+                
+                // Sync instances to Redis for load balancing
+                const redisInstances = serviceConfig.instances.map((instance, index) => ({
+                    id: `${instance.host}:${instance.port}`,
+                    host: instance.host,
+                    port: instance.port,
+                    status: true, // Mark as active initially
+                    endpoint: serviceConfig.endPoint
+                }));
+                
+                await storeInstances(serviceConfig.endPoint, redisInstances);
+                logger.info(`${redisInstances.length} instances synced to Redis for service '${serviceConfig.name}'`);
             }
         }
 

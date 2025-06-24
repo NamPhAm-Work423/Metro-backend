@@ -53,6 +53,7 @@ services:
       - KAFKA_CLIENT_ID=passenger-service
       - KAFKA_GROUP_ID=passenger-service-group
       - USER_CREATED_TOPIC=user.created
+      - KAFKA_STARTUP_DELAY=15000
     volumes:
       - ./passenger-service:/app
       - /app/node_modules
@@ -175,10 +176,10 @@ services:
       - backend-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 10s
+      interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 8
+      start_period: 60s
 
   # Kafka Broker 2
   # kafka-2:

@@ -131,7 +131,7 @@ Body: {
 // Xử lý:
 // 1. Validate input data
 // 2. Hash password với bcrypt
-// 3. Tạo User trong PostgreSQL
+// 3. Tạo User login information trong PostgreSQL
 // 4. Publish user.created event qua Kafka
 // 5. Passenger service nhận event và tạo passenger record
 

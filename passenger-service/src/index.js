@@ -12,11 +12,19 @@ sequelize.sync({ force: false })
         const server = http.createServer(app);
         server.listen(PORT, async () => {
             console.log(`Passenger Service listening on port ${PORT}`);
+            
+            // Add startup delay for Kafka to be fully ready
+            const kafkaStartupDelay = process.env.KAFKA_STARTUP_DELAY || 10000;
+            console.log(`Waiting ${kafkaStartupDelay}ms for Kafka to be ready...`);
+            await new Promise(resolve => setTimeout(resolve, kafkaStartupDelay));
+            
             try {
                 await kafkaConsumer.start();
                 console.log('Kafka consumer running');
             } catch (err) {
                 console.error('Kafka consumer error', err.message);
+                // Continue running service even if Kafka fails
+                console.log('Service will continue running without Kafka consumer');
             }
         });
     })
