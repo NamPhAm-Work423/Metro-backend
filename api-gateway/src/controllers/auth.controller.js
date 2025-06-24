@@ -1,5 +1,5 @@
-const { createAPIToken, hash } = require('../helpers/crypto');
-const asyncErrorHandler = require('../services/errorHandling');
+const { createAPIToken, hash } = require('../helpers/crypto.helper');
+const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const CustomError = require('../utils/CustomError');
 const { Key } = require('../models/index.model');
 

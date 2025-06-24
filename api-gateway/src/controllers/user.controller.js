@@ -14,7 +14,7 @@ const userController = {
   signup: asyncErrorHandler(async (req, res) => {
     const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address } = req.body;
 
-    const { user, tokens } = await userService.signup({
+    const { user } = await userService.signup({
       firstName,
       lastName,
       email,
@@ -27,34 +27,14 @@ const userController = {
       roles: ['passenger'] //always passenger
     });
 
-
-
     // Remove password from response
     const { password: _, ...userResponse } = user.toJSON();
 
-
-    res.cookie('accessToken', tokens.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 60 * 60 * 1000 // 1h
-    });
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7d
-    });
-
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please verify your email to activate your account.',
       data: {
-        user: userResponse,
-        tokens: {
-          ...tokens,
-          expiresIn: '1h'
-        }
+        user: userResponse
       }
     });
   }),
@@ -161,25 +141,7 @@ const userController = {
     });
   }),
 
-  /**
-   * @description: Get current user profile
-   * @param {Object} req - Request object
-   * @param {Object} res - Response object
-   * @returns {Object} - Current user profile response
-   */
-  getMe: asyncErrorHandler(async (req, res) => {
-    const user = await userService.getProfile(req.user.id);
 
-    // Remove password from response
-    const { password: _, ...userResponse } = user.toJSON();
-
-    res.json({
-      success: true,
-      data: {
-        user: userResponse
-      }
-    });
-  }),
 
   /**
    * @description: Request password reset
@@ -281,7 +243,7 @@ const userController = {
         user: req.user
       }
     });
-  })
+  }),
 };
 
 module.exports = userController;

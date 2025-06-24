@@ -101,10 +101,7 @@ class UserService {
             logger.error('Failed to publish passenger event driven', { error: err.message });
         }
 
-        // Generate tokens
-        const tokens = await this.createToken(user.id, user.username, user.roles);
-
-        return { user, tokens };
+        return { user };
     }
 
     /**
@@ -183,19 +180,6 @@ class UserService {
         );
 
         return { accessToken };
-    }
-
-    /**
-     * @description: Get current user profile
-     * @param {string} userId - User ID
-     * @returns {Object} - User profile
-     */
-    getProfile = async (userId) => {
-        const user = await User.findByPk(userId);
-        if (!user) {
-            throw new Error('User not found');
-        }
-        return user;
     }
 
     /**

@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, HSTORE } = require('sequelize');
 const sequelize = require('../config/database');
 
 const ServiceInstance = sequelize.define('ServiceInstance', {
@@ -26,12 +26,26 @@ const ServiceInstance = sequelize.define('ServiceInstance', {
     weight: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        defaultValue: 1
+        defaultValue: 1,
+        validate: {
+            min: 1,
+            max: 10
+        }
+    },
+    region: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'default'
     },
     status: {
         type: DataTypes.ENUM('active', 'inactive', 'unhealthy'),
         allowNull: false,
         defaultValue: 'active',
+    },
+    isHealthy: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
     },
     lastHealthCheck: {
         type: DataTypes.DATE,
@@ -61,6 +75,9 @@ const ServiceInstance = sequelize.define('ServiceInstance', {
         },
         {
             fields: ['status']
+        },
+        {
+            fields: ['isHealthy']
         },
         {
             unique: true,

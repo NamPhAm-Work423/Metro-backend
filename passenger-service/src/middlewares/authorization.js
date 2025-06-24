@@ -7,16 +7,16 @@ const extractUser = (req, res, next) => {
     if (!id) {
         return res.status(401).json({ 
             success: false,
-            message: 'User authentication required' 
+            message: 'Passenger authentication required' 
         });
     }
 
-    let roles = ['user']; // default role
+    let roles = ['passenger']; // default role
     if (rolesHeader) {
         try {
             roles = JSON.parse(rolesHeader);
         } catch (error) {
-            console.error('Failed to parse user roles:', error);
+            console.error('Failed to parse passenger roles:', error);
         }
     }
 

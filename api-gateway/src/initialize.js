@@ -1,61 +1,85 @@
-const config = require('./config')();
-const serviceController = require('./controllers/service.controller');
-const { storeInstances } = require('./services/loadBalancer.service');
 const { initializeRedis } = require('./config/redis');
-const { ServiceInstance } = require('./models/index.model');
+const { logger } = require('./config/logger');
+const Service = require('./models/service.model');
+const ServiceInstance = require('./models/serviceInstance.model');
+const config = require('./config.json');
 
-const initialize = async () => {
-    console.log('Inittialzing gateway...');
-    await initializeRedis();
-    let services = config.services;
-    if (services) {
-        for (const service of services) {
-            let name = service['name'];
-            let endPoint = service['endPoint'];
-            let foundService = await serviceController.findServiceByEndPoint(endPoint);
-            if (foundService) {
-                let instances = service['instances'];
-                if (instances) {
-                    instances = service['instances'];
-                    instances.forEach((instance) => {
-                        instance['status'] = 'active';
-                    });
-                    instances.forEach((instance) => {
-                        instance['serviceId'] = foundService.id;
-                    });
-                    for (const i of instances) {
-                        console.log('Async instances...');
-                        const exist = await ServiceInstance.findOne({
-                            where: {
-                                serviceId: foundService.id,
-                                host: i['host'],
-                                port: i['port']
-                            },
-                        });
-                        if (!exist) {
-                            await ServiceInstance.create(i);
-                        }
-                    }
-                }
-                instances = service['instances'];
-                instances.forEach((instance) => {
-                    instance['status'] = 'active';
+async function initializeServices() {
+    try {
+        logger.info('Initializing services from config...');
+        
+        for (const serviceConfig of config.services) {
+            // Check if service already exists
+            let service = await Service.findOne({
+                where: { name: serviceConfig.name }
+            });
+
+            if (!service) {
+                // Create new service
+                service = await Service.create({
+                    name: serviceConfig.name,
+                    endPoint: serviceConfig.endPoint,
+                    description: serviceConfig.description,
+                    version: serviceConfig.version || '1.0.0',
+                    timeout: serviceConfig.timeout || 5000,
+                    retries: serviceConfig.retries || 3,
+                    authentication: serviceConfig.authentication || {},
+                    circuitBreaker: serviceConfig.circuitBreaker || {},
+                    loadBalancer: serviceConfig.loadBalancer || {},
+                    rateLimit: serviceConfig.rateLimit || {},
+                    status: serviceConfig.status || 'active'
                 });
-                await storeInstances(endPoint, instances);
+                logger.info(`Service '${serviceConfig.name}' created`, { serviceId: service.id });
             } else {
-                let instances = service['instances'];
-                instances.forEach((instance) => {
-                    instance['status'] = 'active';
+                // Update existing service
+                await service.update({
+                    endPoint: serviceConfig.endPoint,
+                    description: serviceConfig.description,
+                    version: serviceConfig.version || '1.0.0',
+                    timeout: serviceConfig.timeout || 5000,
+                    retries: serviceConfig.retries || 3,
+                    authentication: serviceConfig.authentication || {},
+                    circuitBreaker: serviceConfig.circuitBreaker || {},
+                    loadBalancer: serviceConfig.loadBalancer || {},
+                    rateLimit: serviceConfig.rateLimit || {},
+                    status: serviceConfig.status || 'active'
                 });
-                await storeInstances(endPoint, instances);
-                let newService = await serviceController.create(name, endPoint);
-                instances.forEach((instance) => {
-                    instance['serviceId'] = newService.id;
+                logger.info(`Service '${serviceConfig.name}' updated`, { serviceId: service.id });
+            }
+
+            // Register instances
+            if (serviceConfig.instances && serviceConfig.instances.length > 0) {
+                // Remove existing instances
+                await ServiceInstance.destroy({
+                    where: { serviceId: service.id }
                 });
-                await serviceController.createBulkInstances(instances);
+
+                // Create new instances
+                for (let i = 0; i < serviceConfig.instances.length; i++) {
+                    const instanceConfig = serviceConfig.instances[i];
+                    await ServiceInstance.create({
+                        serviceId: service.id,
+                        host: instanceConfig.host,
+                        port: instanceConfig.port,
+                        weight: instanceConfig.weight || 1,
+                        region: instanceConfig.region || 'default',
+                        metadata: instanceConfig.metadata || {},
+                        status: 'active',
+                        isHealthy: true
+                    });
+                }
+                logger.info(`${serviceConfig.instances.length} instances registered for service '${serviceConfig.name}'`);
             }
         }
-    }
-};
 
-module.exports = initialize;
+        logger.info('Services initialization completed');
+    } catch (error) {
+        logger.error('Error initializing services:', error);
+        throw error;
+    }
+}
+
+module.exports = async function initialize() {
+    await initializeRedis();
+    await initializeServices();
+};

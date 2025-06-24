@@ -1,144 +1,111 @@
 const express = require('express');
 const router = express.Router();
 const serviceController = require('../controllers/service.controller');
-const { authenticate, authorize } = require('../middlewares/auth.middleware');
-// const { validateService, validateInstance } = require('../middlewares/validation.middleware');
+const { authenticate } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     Service:
+ *     ServiceRequest:
  *       type: object
  *       required:
  *         - name
- *         - path
- *         - version
+ *         - endPoint
  *       properties:
  *         name:
  *           type: string
- *           description: Unique name of the service
- *           minLength: 3
- *           maxLength: 50
+ *           description: Unique service name
+ *           example: passenger-service
+ *         endPoint:
+ *           type: string
+ *           description: Service endpoint path
+ *           example: passengers
  *         description:
  *           type: string
  *           description: Service description
- *           maxLength: 500
- *         path:
- *           type: string
- *           description: Base path for the service
+ *           example: Passenger management service
  *         version:
  *           type: string
- *           description: Service version (semantic versioning)
- *           pattern: '^\d+\.\d+\.\d+$'
+ *           description: Service version
+ *           example: 1.0.0
  *         timeout:
  *           type: integer
  *           description: Request timeout in milliseconds
- *           minimum: 1000
- *           maximum: 30000
- *           default: 5000
+ *           example: 5000
  *         retries:
  *           type: integer
  *           description: Number of retry attempts
- *           minimum: 0
- *           maximum: 5
- *           default: 3
- *         circuitBreaker:
- *           type: object
- *           properties:
- *             enabled:
- *               type: boolean
- *               default: true
- *             threshold:
- *               type: integer
- *               minimum: 1
- *               maximum: 100
- *               default: 5
- *             resetTimeout:
- *               type: integer
- *               minimum: 1000
- *               maximum: 60000
- *               default: 30000
- *         loadBalancer:
- *           type: object
- *           properties:
- *             strategy:
- *               type: string
- *               enum: [round-robin, weighted-round-robin]
- *               default: round-robin
- *             weights:
- *               type: object
- *               additionalProperties:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 10
- *         authentication:
- *           type: object
- *           properties:
- *             required:
- *               type: boolean
- *               default: true
- *             type:
- *               type: string
- *               enum: [jwt, api-key, none]
- *               default: jwt
- *         rateLimit:
- *           type: object
- *           properties:
- *             enabled:
- *               type: boolean
- *               default: true
- *             windowMs:
- *               type: integer
- *               minimum: 1000
- *               maximum: 3600000
- *               default: 900000
- *             max:
- *               type: integer
- *               minimum: 1
- *               maximum: 1000
- *               default: 100
- *         status:
- *           type: string
- *           enum: [active, inactive, maintenance]
- *           default: active
- *     ServiceInstance:
+ *           example: 3
+ *     ServiceInstanceRequest:
  *       type: object
  *       required:
+ *         - id
  *         - host
  *         - port
  *       properties:
+ *         id:
+ *           type: string
+ *           description: Instance identifier
+ *           example: passenger-service-instance-1
  *         host:
  *           type: string
- *           description: Host address of the instance
+ *           description: Instance host address
+ *           example: passenger-service
  *         port:
  *           type: integer
- *           description: Port number
- *           minimum: 1
- *           maximum: 65535
+ *           description: Instance port number
+ *           example: 3001
  *         weight:
  *           type: integer
  *           description: Load balancing weight
- *           minimum: 1
- *           maximum: 10
- *           default: 1
+ *           example: 1
  *         region:
  *           type: string
- *           description: Region identifier
- *           maxLength: 50
- *           default: default
- *         metadata:
+ *           description: Instance region
+ *           example: default
+ *     ServiceResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: success
+ *         data:
  *           type: object
- *           description: Additional instance metadata
- *           default: {}
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             name:
+ *               type: string
+ *             endPoint:
+ *               type: string
+ *             status:
+ *               type: string
+ *             instances:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   host:
+ *                     type: string
+ *                   port:
+ *                     type: integer
+ *                   status:
+ *                     type: string
+ *                   isHealthy:
+ *                     type: boolean
  */
 
 /**
  * @swagger
- * /api/services:
+ * /v1/service:
  *   post:
- *     summary: Register a new service
- *     tags: [Services]
+ *     summary: Create a new service
+ *     description: Register a new service in the API gateway
+ *     tags: [Service Management]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -146,59 +113,52 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Service'
+ *             $ref: '#/components/schemas/ServiceRequest'
  *     responses:
- *       201:
- *         description: Service registered successfully
+ *       200:
+ *         description: Service created successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Service registered successfully
- *                 data:
- *                   $ref: '#/components/schemas/Service'
+ *               $ref: '#/components/schemas/ServiceResponse'
  *       400:
- *         description: Invalid service data
+ *         description: Invalid request data
  *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
+ *         description: Unauthorized - JWT token required
+ *       409:
+ *         description: Service already exists
  *   get:
  *     summary: Get all services
- *     tags: [Services]
+ *     description: Retrieve a list of all registered services
+ *     tags: [Service Management]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of services
+ *         description: List of services retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: success
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Service'
+ *                     $ref: '#/components/schemas/ServiceResponse/properties/data'
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - JWT token required
  */
 
 /**
  * @swagger
- * /api/services/{name}:
+ * /v1/service/{name}:
  *   get:
  *     summary: Get service by name
- *     tags: [Services]
+ *     description: Retrieve a specific service by its name
+ *     tags: [Service Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -208,332 +168,148 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
  *         schema:
  *           type: string
  *         description: Service name
+ *         example: passenger-service
  *     responses:
  *       200:
- *         description: Service details
+ *         description: Service retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Service'
+ *               $ref: '#/components/schemas/ServiceResponse'
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - JWT token required
  *       404:
  *         description: Service not found
- */
-
-/**
- * @swagger
- * /api/services/{serviceId}:
- *   put:
- *     summary: Update service configuration
- *     tags: [Services]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Service ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Service'
- *     responses:
- *       200:
- *         description: Service updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Service updated successfully
- *                 data:
- *                   $ref: '#/components/schemas/Service'
- *       400:
- *         description: Invalid service data
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Service not found
- */
-
-/**
- * @swagger
- * /api/services/{serviceId}/instances:
- *   post:
- *     summary: Register a new service instance
- *     tags: [Service Instances]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Service ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ServiceInstance'
- *     responses:
- *       201:
- *         description: Instance registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Service instance registered successfully
- *                 data:
- *                   $ref: '#/components/schemas/ServiceInstance'
- *       400:
- *         description: Invalid instance data
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Service not found
- */
-
-/**
- * @swagger
- * /api/services/{serviceId}/instances/{instanceId}:
  *   delete:
- *     summary: Remove a service instance
- *     tags: [Service Instances]
+ *     summary: Delete a service
+ *     description: Delete a service and all its instances
+ *     tags: [Service Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: serviceId
+ *         name: name
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Service ID
- *       - in: path
- *         name: instanceId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Instance ID
+ *         description: Service name
+ *         example: passenger-service
  *     responses:
  *       200:
- *         description: Instance removed successfully
+ *         description: Service deleted successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
  *                 message:
  *                   type: string
- *                   example: Service instance removed successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Instance not found
- */
-
-/**
- * @swagger
- * /api/services/{serviceId}/health:
- *   get:
- *     summary: Perform health check on service instances
- *     tags: [Service Health]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Service ID
- *     responses:
- *       200:
- *         description: Health check results
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
+ *                   example: success
  *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       instanceId:
- *                         type: string
- *                         format: uuid
- *                       status:
- *                         type: string
- *                         enum: [healthy, unhealthy]
- *                       responseTime:
- *                         type: number
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: Service deleted successfully
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - JWT token required
  *       404:
  *         description: Service not found
  */
 
 /**
  * @swagger
- * /api/services/{serviceId}/next-instance:
- *   get:
- *     summary: Get next available instance for load balancing
- *     tags: [Service Load Balancing]
+ * /v1/service-instance:
+ *   post:
+ *     summary: Create a new service instance
+ *     description: Register a new instance for an existing service
+ *     tags: [Service Management]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Service ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ServiceInstanceRequest'
  *     responses:
  *       200:
- *         description: Next available instance
+ *         description: Service instance created successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: success
  *                 data:
- *                   $ref: '#/components/schemas/ServiceInstance'
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     host:
+ *                       type: string
+ *                     port:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                     isHealthy:
+ *                       type: boolean
+ *       400:
+ *         description: Invalid request data
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - JWT token required
  *       404:
- *         description: No available instances found
+ *         description: Service not found
  */
 
 /**
- * @route POST /api/services
- * @desc Register a new service (Only admin)
+ * @swagger
+ * /v1/service-instance/{id}:
+ *   delete:
+ *     summary: Delete a service instance
+ *     description: Remove a service instance from the system
+ *     tags: [Service Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Service instance ID
+ *         example: passenger-service-instance-1
+ *     responses:
+ *       200:
+ *         description: Service instance deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: Instance deleted successfully
+ *       401:
+ *         description: Unauthorized - JWT token required
+ *       404:
+ *         description: Service instance not found
  */
-router.post(
-    '/',
-    authenticate,
-    authorize(['admin']),
-    // validateService,
-    serviceController.registerService
-);
 
-/**
- * @route GET /api/services
- * @desc Get all services
- */
-router.get(
-    '/',
-    authenticate,
-    serviceController.getAllServices
-);
+router.post('/service', authenticate, serviceController.createService);
+router.delete('/service/:name', authenticate, serviceController.deleteService);
+router.get('/service', authenticate, serviceController.getAllService);
+router.get('/service/:name', authenticate, serviceController.getServiceByName);
 
-/**
- * @route GET /api/services/:name
- * @desc Get service by name
- */
-router.get(
-    '/:name',
-    authenticate,
-    serviceController.getServiceByName
-);
+router.post('/service-instance', authenticate, serviceController.createNewInstance);
+router.delete('/service-instance/:id', authenticate, serviceController.deleteInstance);
 
-/**
- * @route PUT /api/services/:serviceId
- * @desc Update service (Only admin)
- */
-router.put(
-    '/:serviceId',
-    authenticate,
-    authorize(['admin']),
-    // validateService,
-    serviceController.updateService
-);
-
-/**
- * @route POST /api/services/:serviceId/instances
- * @desc Register a new instance for service (Only admin)
- */
-router.post(
-    '/:serviceId/instances',
-    authenticate,
-    authorize(['admin']),
-    // validateInstance,
-    serviceController.registerInstance
-);
-
-/**
- * @route DELETE /api/services/:serviceId/instances/:instanceId
- * @desc Remove instance from service (Only admin)
- */
-router.delete(
-    '/:serviceId/instances/:instanceId',
-    authenticate,
-    authorize(['admin']),
-    serviceController.removeInstance
-);
-
-/**
- * @route GET /api/services/:serviceId/health
- * @desc Check health of all instances of service
- */
-router.get(
-    '/:serviceId/health',
-    authenticate,
-    serviceController.healthCheck
-);
-
-/**
- * @route GET /api/services/:serviceId/next-instance
- * @desc Get next instance for load balancing
- */
-router.get(
-    '/:serviceId/next-instance',
-    authenticate,
-    serviceController.getNextInstance
-);
-
-module.exports = router; 
+module.exports = router;

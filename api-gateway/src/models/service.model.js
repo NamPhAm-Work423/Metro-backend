@@ -12,9 +12,18 @@ const Service = sequelize.define('Service', {
         allowNull: false,
         unique: true,
     },
-    path: {
+    endPoint: {
         type: DataTypes.STRING,
         allowNull: false,
+    },
+    description: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    version: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: '1.0.0'
     },
     timeout: {
         type: DataTypes.INTEGER,
@@ -81,6 +90,9 @@ const Service = sequelize.define('Service', {
         {
             unique: true,
             fields: ['name']
+        },
+        {
+            fields: ['endPoint']
         }
     ]
 });

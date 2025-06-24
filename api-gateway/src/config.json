@@ -1,20 +1,22 @@
 {
     "gateway": {
         "port": 3000,
-        "secure": false
+        "secure": false,
+        "version": "1.0.0",
+        "name": "Metro API Gateway"
     },
     "services": [
         {
             "name": "passenger-service",
-            "endPoint": "/api/v1/passengers",
-            "path": "/api/v1/passengers",
+            "endPoint": "passengers",
+            "description": "Passenger profile and management service",
             "version": "1.0.0",
             "timeout": 5000,
             "retries": 3,
             "authentication": {
                 "required": true,
                 "type": "jwt",
-                "roles": ["passenger"]
+                "roles": ["passenger", "admin"]
             },
             "circuitBreaker": {
                 "enabled": true,
