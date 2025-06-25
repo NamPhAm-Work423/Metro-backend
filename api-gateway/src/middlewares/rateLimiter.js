@@ -10,7 +10,11 @@ class RedisStore {
     this.keyPrefix = options.prefix || 'rl:';
     this.windowMs = options.windowMs || 60000;
   }
-
+  /**
+   * Increment the rate limiter
+   * @param {string} key - The key to increment
+   * @returns {Promise<{totalHits: number, resetTime: Date}>} - The total hits and reset time
+   */
   async increment(key) {
     try {
       const fullKey = this.keyPrefix + key;
@@ -34,6 +38,10 @@ class RedisStore {
     }
   }
 
+  /**
+   * Decrement the rate limiter
+   * @param {string} key - The key to decrement
+   */
   async decrement(key) {
     try {
       const fullKey = this.keyPrefix + key;
@@ -43,6 +51,10 @@ class RedisStore {
     }
   }
 
+  /**
+   * Reset the rate limiter
+   * @param {string} key - The key to reset
+   */
   async resetKey(key) {
     try {
       const fullKey = this.keyPrefix + key;
@@ -54,6 +66,11 @@ class RedisStore {
 }
 
 // Key generator function
+/**
+ * Generate a key for the rate limiter
+ * @param {Request} req - The request object
+ * @returns {string} - The key
+ */
 const keyGenerator = (req) => {
   const forwarded = req.headers['x-forwarded-for'];
   const ip = forwarded ? forwarded.split(',')[0] : req.connection.remoteAddress;
@@ -62,9 +79,19 @@ const keyGenerator = (req) => {
 };
 
 // Skip function for successful requests
+/**
+ * Skip function for successful requests
+ * @param {Request} req - The request object
+ * @param {Response} res - The response object
+ * @returns {boolean} - Whether to skip the request
+ */
 const skipSuccessfulRequests = (req, res) => res.statusCode < 400;
 
 // Default rate limiter
+/**
+ * Default rate limiter
+ * @type {rateLimit}
+ */
 const defaultRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
@@ -92,6 +119,10 @@ const defaultRateLimiter = rateLimit({
 });
 
 // Authentication rate limiter (stricter for auth endpoints)
+/**
+ * Authentication rate limiter (stricter for auth endpoints)
+ * @type {rateLimit}
+ */
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each IP to 10 auth requests per windowMs
@@ -119,6 +150,10 @@ const authRateLimiter = rateLimit({
 });
 
 // Sensitive operations rate limiter (password reset, etc.)
+/**
+ * Sensitive operations rate limiter (password reset, etc.)
+ * @type {rateLimit}
+ */
 const sensitiveRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // Limit each IP to 5 sensitive requests per hour
@@ -145,7 +180,10 @@ const sensitiveRateLimiter = rateLimit({
   }
 });
 
-// API rate limiter (for external APIs)
+/**
+ * API rate limiter (for external APIs)
+ * @type {rateLimit}
+ */
 const apiRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 1000, // Limit each IP to 1000 API requests per hour
@@ -172,7 +210,12 @@ const apiRateLimiter = rateLimit({
   }
 });
 
-// Per-user rate limiter
+/**
+ * Create a user rate limiter
+ * @param {number} windowMs - The window in milliseconds
+ * @param {number} max - The maximum number of requests
+ * @returns {rateLimit} - The rate limiter
+ */
 const createUserRateLimiter = (windowMs = 60 * 1000, max = 60) => {
   return rateLimit({
     windowMs,
@@ -200,7 +243,10 @@ const createUserRateLimiter = (windowMs = 60 * 1000, max = 60) => {
   });
 };
 
-// Burst protection (very short window, high limit)
+/**
+ * Burst protection (very short window, high limit)
+ * @type {rateLimit}
+ */
 const burstProtection = rateLimit({
   windowMs: 1000, // 1 second
   max: 10, // 10 requests per second
@@ -218,7 +264,12 @@ const burstProtection = rateLimit({
   }
 });
 
-// Progressive rate limiter (increases penalty for repeated violations)
+/**
+ * Progressive rate limiter (increases penalty for repeated violations)
+ * @param {number} baseWindowMs - The base window in milliseconds
+ * @param {number} baseMax - The base maximum number of requests
+ * @returns {rateLimit} - The rate limiter
+ */
 const createProgressiveRateLimiter = (baseWindowMs = 15 * 60 * 1000, baseMax = 100) => {
   return async (req, res, next) => {
     try {

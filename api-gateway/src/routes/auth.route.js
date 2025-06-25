@@ -175,50 +175,52 @@ const router = express.Router();
  * tags:
  *   - name: Authentication
  *     description: |
- *       ## 🔐 Authentication Flow Guide
+ *       ## 🔐 Authentication System
  *       
- *       ### Step 1: Register User
- *       Use `/v1/auth/register` to create a new user account.
+ *       ### Simple 2-Step Process:
  *       
- *       ### Step 2: Login 
- *       Use `/v1/auth/login` to get JWT tokens (accessToken & refreshToken).
+ *       1. **Register/Login** → Get JWT tokens only
+ *       2. **Use JWT everywhere** → Works for all endpoints (auth + routing)
  *       
- *       ### Step 3: Generate API Key
- *       Use `/v1/auth/key/{userId}` with JWT token to generate API key.
+ *       ### How It Works:
+ *       - API keys are automatically managed by the backend
+ *       - Users only interact with JWT tokens
+ *       - Zero API key management required
  *       
- *       ### Step 4: Use API Key for Routing
- *       Use the API key in `x-api-key` header for `/v1/route/*` endpoints.
+ *       ### Quick Start:
+ *       ```bash
+ *       # 1. Login
+ *       curl -X POST /v1/auth/login \\
+ *         -H "Content-Type: application/json" \\
+ *         -d '{"email":"user@example.com","password":"password"}'
  *       
- *       ### 🚨 How to Authenticate in Swagger UI:
- *       1. **For JWT endpoints** (service management, key generation):
- *          - Login first, copy `accessToken`
- *          - Click **🔒 Authorize** button at top of page
- *          - Enter: `Bearer YOUR_ACCESS_TOKEN`
- *          - Click **Authorize** then **Close**
+ *       # 2. Use JWT for everything
+ *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+ *         /v1/route/passengers
+ *       ```
  *       
- *       2. **For API Key endpoints** (routing):
- *          - Generate API key first (requires JWT)
- *          - Click **🔒 Authorize** button at top of page  
- *          - Enter your API key in the **ApiKeyAuth** field
- *          - Click **Authorize** then **Close**
+ *       ### Swagger UI Authentication:
+ *       1. Login to get `accessToken`
+ *       2. Click **🔒 Authorize** → Enter: `Bearer YOUR_ACCESS_TOKEN`
+ *       3. Use any endpoint with the same token
  *       
- *       ### Authentication Types:
- *       - **JWT Bearer Token**: For service management endpoints (`/v1/service/*`, `/v1/auth/*`)
- *       - **API Key**: For routing endpoints (`/v1/route/*`)
+ *       ### Advanced Features:
+ *       - Manual API key management endpoints available for integrations
+ *       - Rate limiting per user
+ *       - Automatic token refresh
  */
 
 /**
  * @swagger
  * /v1/auth/register:
  *   post:
- *     summary: 🔐 Step 1 - Register a new user
+ *     summary: Register a new user
  *     description: |
- *       Register a new user account with passenger role.
+ *       Create a new user account with passenger role.
  *       
- *       **Note**: Registration does NOT provide tokens immediately. 
- *       You need to login after registration to get access tokens.
- *       
- *       **Next Step**: Use `/v1/auth/login` with the same credentials.
+ *       - API key is automatically generated and stored internally
+ *       - Email verification may be required
+ *       - Use `/v1/auth/login` after registration to get JWT tokens
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -241,7 +243,7 @@ const router = express.Router();
  *                 password: password123
  *     responses:
  *       201:
- *         description: ✅ User registered successfully
+ *         description: User registered successfully
  *         content:
  *           application/json:
  *             schema:
@@ -259,9 +261,9 @@ const router = express.Router();
  *                     user:
  *                       $ref: '#/components/schemas/User'
  *       400:
- *         description: ❌ Bad request - validation errors
+ *         description: Bad request - validation errors
  *       409:
- *         description: ❌ User already exists
+ *         description: User already exists
  */
 router.post('/register', userController.signup);
 
@@ -269,13 +271,13 @@ router.post('/register', userController.signup);
  * @swagger
  * /v1/auth/login:
  *   post:
- *     summary: 🔑 Step 2 - Login user and get JWT tokens
+ *     summary: Login user
  *     description: |
- *       Login with email and password to get access tokens.
+ *       Authenticate user and get JWT tokens for API access.
  *       
- *       **Important**: Save the `accessToken` from response - you'll need it to generate API keys.
- *       
- *       **Next Step**: Use `accessToken` with `/v1/auth/key/{userId}` to generate API key.
+ *       - API key is automatically refreshed internally
+ *       - Use the returned JWT token for all subsequent requests
+ *       - Token expires in 1 hour, use refresh token to renew
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -291,15 +293,39 @@ router.post('/register', userController.signup);
  *                 password: password123
  *     responses:
  *       200:
- *         description: ✅ Login successful - Save the accessToken for next step!
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Login successful"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     tokens:
+ *                       type: object
+ *                       properties:
+ *                         accessToken:
+ *                           type: string
+ *                           description: JWT token for API authentication
+ *                         refreshToken:
+ *                           type: string
+ *                           description: Token to refresh access token (expires in 7 days)
+ *                         expiresIn:
+ *                           type: string
+ *                           example: 1h
  *       401:
- *         description: ❌ Invalid credentials
+ *         description: Invalid credentials
  *       423:
- *         description: ❌ Account locked
+ *         description: Account locked
  */
 router.post('/login', userController.login);
 
@@ -449,36 +475,15 @@ router.get('/verify-email', userController.verifyEmailFromQuery);
  * @swagger
  * /v1/auth/key/{userId}:
  *   get:
- *     summary: 🔐 Step 3 - Generate API key for routing endpoints
+ *     summary: Generate additional API key (Advanced)
  *     description: |
- *       Generate an API key for accessing routing endpoints (`/v1/route/*`).
+ *       Generate an additional API key for accessing routing endpoints.
  *       
- *       **🚨 IMPORTANT - How to use this endpoint in Swagger UI:**
- *       1. First, login using `/v1/auth/login` endpoint
- *       2. Copy the `accessToken` from the login response  
- *       3. Click the **🔒 Authorize** button at the top of this page
- *       4. Paste your token in the format: `Bearer YOUR_ACCESS_TOKEN`
- *       5. Click **Authorize**, then **Close**
- *       6. Now you can use this endpoint!
- *       
- *       **Prerequisites**: 
- *       - You must be logged in 
- *       - Use the `accessToken` from login response in Authorization header
- *       
- *       **Usage**: 
- *       1. Copy the generated API key from response
- *       2. Use it in `x-api-key` header for all `/v1/route/*` endpoints
- *       
- *       **Example**:
- *       ```bash
- *       # Generate API key
- *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
- *            http://localhost:3000/v1/auth/key/USER_ID
- *       
- *       # Use API key for routing
- *       curl -H "x-api-key: YOUR_API_KEY" \\
- *            http://localhost:3000/v1/route/passengers
- *       ```
+ *       **Note**: This is optional since API keys are auto-generated during login.
+ *       Mainly used for:
+ *       - Creating additional keys for the same user
+ *       - System integrations
+ *       - Advanced key management
  *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
@@ -493,13 +498,13 @@ router.get('/verify-email', userController.verifyEmailFromQuery);
  *         example: "0aca0654-1ea3-425b-9cd0-151e0996412a"
  *     responses:
  *       200:
- *         description: ✅ API key generated successfully - Copy this key for routing endpoints!
+ *         description: API key generated successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/APIKeyResponse'
  *       401:
- *         description: ❌ Unauthorized - Invalid or missing JWT token
+ *         description: Unauthorized - Invalid or missing JWT token
  */
 router.get('/key/:id', authMiddleware.authenticate, authController.generateAPIToken);
 

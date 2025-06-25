@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/user.model');
 const { logger } = require('../config/logger');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const userService = require('../services/user.service');
@@ -12,7 +11,7 @@ const userController = {
    * @returns {Object} - User registration response
    */
   signup: asyncErrorHandler(async (req, res) => {
-    const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles } = req.body;
+    const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles, isVerified } = req.body;
 
     const { user } = await userService.signup({
       firstName,
@@ -27,10 +26,14 @@ const userController = {
       roles: roles || ['passenger']
     });
 
-    // Remove password from response
-    const { password: _, ...userResponse } = user.toJSON();
+    // Remove all fields from response except email, username, and roles
+    const userResponse = {
+      email: user.email,
+      username: user.username,
+      roles: user.roles
+    };
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'User registered successfully. Please verify your email to activate your account.',
       data: {
@@ -50,8 +53,11 @@ const userController = {
 
     const { user, tokens } = await userService.login(email, password);
 
-    // Remove password from response
-    const { password: _, ...userResponse } = user.toJSON();
+    // Remove all fields from response except email, username, and roles
+    const userResponse = {
+      email: user.email,
+      username: user.username
+    };
 
     logger.info('User logged in successfully', { userId: user.id, email });
 
@@ -73,10 +79,6 @@ const userController = {
       message: 'Login successful',
       data: {
         user: userResponse,
-        tokens: {
-          ...tokens,
-          expiresIn: '1h'
-        }
       }
     });
   }),
@@ -141,8 +143,6 @@ const userController = {
     });
   }),
 
-
-
   /**
    * @description: Request password reset
    * @param {Object} req - Request object
@@ -203,18 +203,15 @@ const userController = {
     const { token } = req.params;
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      const user = await User.findByPk(decoded.userId);
+      const result = await userService.verifyEmailToken(token);
 
-      if (!user) {
+      if (!result.success) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid verification token',
+          message: result.message,
           error: 'INVALID_TOKEN'
         });
       }
-
-      await user.update({ isVerified: true });
 
       res.json({
         success: true,
@@ -247,18 +244,73 @@ const userController = {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      const user = await User.findByPk(decoded.userId);
+      const result = await userService.verifyEmailToken(token);
 
-      if (!user) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid verification token',
-          error: 'INVALID_TOKEN'
-        });
+      if (!result.success) {
+        // Return error HTML page for better UX
+        return res.status(400).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Verification Failed - Metro System</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              }
+              .container {
+                background: white;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                text-align: center;
+                max-width: 400px;
+              }
+              .error-icon {
+                font-size: 48px;
+                color: #dc3545;
+                margin-bottom: 20px;
+              }
+              h1 {
+                color: #333;
+                margin-bottom: 15px;
+              }
+              p {
+                color: #666;
+                line-height: 1.6;
+              }
+              .btn {
+                display: inline-block;
+                background: #28a745;
+                color: white;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 5px;
+                margin-top: 20px;
+              }
+              .btn:hover {
+                background: #218838;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="error-icon">❌</div>
+              <h1>Verification Failed</h1>
+              <p>${result.message}</p>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/resend-verification" class="btn">Request New Link</a>
+            </div>
+          </body>
+          </html>
+        `);
       }
-
-      await user.update({ isVerified: true });
 
       // Return a nice HTML page instead of JSON for better UX when clicking from email
       res.send(`
@@ -423,42 +475,20 @@ const userController = {
       });
     }
 
-    const user = await User.findByPk(userId);
+    const result = await userService.unlockUserAccount(userId, req.user?.id);
     
-    if (!user) {
+    if (!result.success) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: result.message,
         error: 'USER_NOT_FOUND'
       });
     }
 
-    // Reset login attempts and unlock account (both fields)
-    await user.update({
-      loginAttempts: 0,
-      lockUntil: null,
-      accountLocked: false
-    });
-
-    logger.info('User account unlocked by admin', { 
-      userId: user.id, 
-      userEmail: user.email,
-      adminId: req.user?.id 
-    });
-
     res.json({
       success: true,
       message: 'Account unlocked successfully',
-      data: {
-        userId: user.id,
-        email: user.email,
-        unlockedAt: new Date(),
-        previousLockInfo: {
-          accountLocked: user.accountLocked,
-          lockUntil: user.lockUntil,
-          loginAttempts: user.loginAttempts
-        }
-      }
+      data: result.data
     });
   }),
 };

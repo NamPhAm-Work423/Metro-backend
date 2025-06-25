@@ -8,6 +8,9 @@ const { logger } = require('../config/logger');
 const emailService = require('./email.service');
 const { Kafka } = require('kafkajs');
 const keyService = require('./key.service');
+const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
+const { Key } = require('../models/index.model');
+const { setImmediate } = require('timers');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -301,103 +304,273 @@ class UserService {
      * @returns {Object} - The token and refresh token
      */
     createToken = async (userId, username, roles) => {
-        const accessToken = jwt.sign(
-            { 
-                id: userId,
-                userId, 
-                username,
-                roles: roles || ['passenger']
-            },
-            ACCESS_TOKEN_SECRET,
-            { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
-        );
-        const refreshToken = jwt.sign(
-            { userId },
-            REFRESH_TOKEN_SECRET,
-            { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
-        );
+        // Use minimal payload for fastest token generation
+        const tokenPayload = { 
+            id: userId,
+            userId, 
+            username,
+            roles: roles || ['passenger']
+        };
+
+        // Generate both tokens in parallel (not sequential)
+        const [accessToken, refreshToken] = await Promise.all([
+            new Promise((resolve) => {
+                const token = jwt.sign(
+                    tokenPayload,
+                    ACCESS_TOKEN_SECRET,
+                    { expiresIn: ACCESS_TOKEN_EXPIRES_IN, algorithm: 'HS256' }
+                );
+                resolve(token);
+            }),
+            
+            // Refresh token with minimal payload
+            new Promise((resolve) => {
+                const token = jwt.sign(
+                    { userId, username },
+                    REFRESH_TOKEN_SECRET,
+                    { expiresIn: REFRESH_TOKEN_EXPIRES_IN, algorithm: 'HS256' }
+                );
+                resolve(token);
+            })
+        ]);
+
         return { accessToken, refreshToken };
     }
 
     /**
-     * @description: Register a new user
+     * @description: Auto-generate API key for user if they don't have one
+     * @param {string} userId - User ID
+     * @returns {string|null} - Generated or existing API key ID
+     */
+    autoGenerateAPIKey = async (userId) => {
+        try {
+            const operationStartTime = process.hrtime.bigint();
+            
+            // Import Redis client helper
+            const { withRedisClient } = require('../config/redis');
+            
+            // STEP 1: Check Redis cache first (ultra-fast lookup)
+            const cacheKey = `user:${userId}:api_key`;
+            const cachedKeyData = await withRedisClient(async (client) => {
+                return await client.get(cacheKey);
+            });
+            
+            if (cachedKeyData) {
+                const keyData = JSON.parse(cachedKeyData);
+                logger.debug('API key found in Redis cache', { 
+                    userId, 
+                    keyId: keyData.keyId,
+                    cacheHit: true
+                });
+                return keyData.keyId;
+            }
+
+            // STEP 2: Check database for existing active key (fallback)
+            const existingKey = await Key.findOne({
+                where: {
+                    userId: userId,
+                    status: 'activated',
+                },
+                order: [['createdAt', 'DESC']]
+            });
+
+            if (existingKey) {
+                // Cache the existing key in Redis for future requests
+                const keyData = { keyId: existingKey.id, userId: userId };
+                await withRedisClient(async (client) => {
+                    await client.setEx(cacheKey, 86400, JSON.stringify(keyData)); // 24 hour cache
+                });
+                
+                const operationEndTime = process.hrtime.bigint();
+                const operationTime = Number(operationEndTime - operationStartTime) / 1000000;
+                
+                logger.info('Existing API key cached in Redis', { 
+                    userId, 
+                    keyId: existingKey.id,
+                    operationTimeMs: operationTime.toFixed(2),
+                    createdAt: existingKey.createdAt
+                });
+                return existingKey.id;
+            }
+
+            // Only create new API key if user doesn't have one
+            const apiToken = createAPIToken();
+            const hashedToken = hashToken(apiToken, process.env.HASH_SECRET);
+            
+            // Store in database for management
+            const newKey = await Key.create({
+                value: hashedToken,
+                userId: userId,
+                status: 'activated',
+                lastUsedAt: new Date()
+            });
+            
+            // Cache new key in Redis immediately
+            const keyData = { keyId: newKey.id, userId: userId };
+            await withRedisClient(async (client) => {
+                await client.setEx(cacheKey, 86400, JSON.stringify(keyData)); // 24 hour cache
+            });
+            
+            // Store in Redis for fast API key validation (separate from cache)
+            await keyService.storeAPIKey(apiToken, { 
+                userId: userId,
+                keyId: newKey.id 
+            });
+            
+            const operationEndTime = process.hrtime.bigint();
+            const operationTime = Number(operationEndTime - operationStartTime) / 1000000;
+            
+            logger.info('New API key generated and cached', { 
+                userId, 
+                keyId: newKey.id,
+                operationTimeMs: operationTime.toFixed(2)
+            });
+            
+            return newKey.id;
+        } catch (err) {
+            logger.error('Failed to auto-generate API key', {
+                error: err.message,
+                stack: err.stack,
+                userId: userId
+            });
+            return null;
+        }
+    }
+
+    /**
+     * @description: Get existing active API key for user
+     * @param {string} userId - User ID
+     * @returns {string|null} - Existing API key or null if none found
+     */
+    getExistingAPIKey = async (userId) => {
+        try {
+            // We can't retrieve the original API key from DB since we only store hashed versions
+            // For simplicity, we'll generate a new one each time
+            // In production, you might want to implement a different strategy
+            return null;
+        } catch (err) {
+            logger.error('Failed to get existing API key', {
+                error: err.message,
+                userId: userId
+            });
+            return null;
+        }
+    }
+
+    /**
+     * @description: User registration
      * @param {Object} userData - User registration data
-     * @returns {Object} - Created user and tokens
+     * @returns {Object} - User data only (API key stored internally)
      */
     signup = async (userData) => {
         const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles } = userData;
         
-        // Check if user already exists
+            
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             throw new Error('User already exists');
         }
 
         // Hash password
-        const passwordHash = await bcrypt.hash(password, 12);
+        const passwordHash = await bcrypt.hash(password, 10);
 
         // Create user (API Gateway only stores auth data)
         const user = await User.create({
             email,
             username,
             password: passwordHash,
-            isVerified: process.env.NEED_EMAIL_VERIFICATION, // Require email verification
-            roles: roles || ['passenger']
+            isVerified: process.env.NEED_EMAIL_VERIFICATION,
+            roles: roles || ['passenger'],
+            loginAttempts: 0
         });
-        if(process.env.NEED_EMAIL_VERIFICATION === 'false'){
-            // Generate verification token
-            const verificationToken = jwt.sign(
-                { userId: user.id },
-                ACCESS_TOKEN_SECRET,
-                { expiresIn: '24h' }
+        
+        // ALL non-essential operations moved to setImmediate (after response sent)
+        setImmediate(() => {
+            const backgroundTasks = [];
+
+            if(process.env.NEED_EMAIL_VERIFICATION === 'false'){
+                // Generate verification token
+                const verificationToken = jwt.sign(
+                    { userId: user.id },
+                    ACCESS_TOKEN_SECRET,
+                    { expiresIn: '24h' }
+                );
+
+                // Send verification email in background
+                backgroundTasks.push(
+                    emailService.sendVerificationEmail(email, verificationToken)
+                        .then(() => {
+                            logger.info('Verification email sent successfully', { 
+                                userId: user.id, 
+                                email: user.email 
+                            });
+                        })
+                        .catch(err => {
+                            logger.error('Failed to send verification email', { 
+                                error: err.message,
+                                userId: user.id,
+                                email: user.email 
+                            });
+                        })
+                );
+            }
+
+            // Auto-generate API key in background
+            backgroundTasks.push(
+                this.autoGenerateAPIKey(user.id)
+                    .then(() => logger.debug('API key generated in background', { userId: user.id }))
+                    .catch(err => {
+                        logger.error('Failed to auto-generate API key in background', {
+                            error: err.message,
+                            userId: user.id
+                        });
+                    })
             );
 
-            // Send verification email
-            try {
-                await emailService.sendVerificationEmail(email, verificationToken);
-                logger.info('Verification email sent successfully', { 
-                    userId: user.id, 
-                    email: user.email 
-                });
-            } catch (err) {
-                logger.error('Failed to send verification email', { 
-                    error: err.message,
+            // Publish Kafka event in background
+            backgroundTasks.push(
+                kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
                     userId: user.id,
-                    email: user.email 
-                });
-                // Don't fail registration if email fails - user can request resend
-            }
-        }
+                    email: user.email,
+                    roles: user.roles,
+                    username: user.username,
+                    // Profile data from registration form (not stored in API Gateway)
+                    firstName: firstName,
+                    lastName: lastName,
+                    phoneNumber: phoneNumber,
+                    dateOfBirth: dateOfBirth,
+                    gender: gender,
+                    address: address,
+                    status: 'activated',
+                    roles: roles || ['passenger']
+                })
+                    .then(() => {
+                        logger.info('User.created event published successfully', { 
+                            userId: user.id, 
+                            username: user.username,
+                            email: user.email,
+                            roles: user.roles 
+                        });
+                    })
+                    .catch(err => {
+                        logger.error('Failed to publish user.created event', { 
+                            error: err.message,
+                            userId: user.id
+                        });
+                    })
+            );
 
-        // Publish user.created event with profile data for Passenger Service
-        try {
-            await kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
-                userId: user.id,
-                email: user.email,
-                roles: user.roles,
-                username: user.username,
-                // Profile data from registration form (not stored in API Gateway)
-                firstName: firstName,
-                lastName: lastName,
-                phoneNumber: phoneNumber,
-                dateOfBirth: dateOfBirth,
-                gender: gender,
-                address: address,
-                isActive: true,
-                roles: roles || ['passenger']
-            });
-            logger.info('User.created event published successfully', { 
-                userId: user.id, 
-                username: user.username,
-                email: user.email,
-                roles: user.roles 
-            });
-        } catch (err) {
-            logger.error('Failed to publish user.created event', { error: err.message });
-            // Consider rolling back user creation if event publishing fails
-            // await user.destroy();
-            // throw new Error('Registration failed - please try again');
-        }
+            // Execute all background tasks
+            Promise.allSettled(backgroundTasks)
+                .then(() => {
+                    const backgroundEndTime = process.hrtime.bigint();
+                    const backgroundTime = Number(backgroundEndTime - backgroundStartTime) / 1000000;
+                    logger.debug('Background operations completed', {
+                        backgroundTimeMs: backgroundTime.toFixed(2),
+                        userId: user.id
+                    });
+                });
+        });
 
         return { user };
     }
@@ -406,7 +579,7 @@ class UserService {
      * @description: Login user
      * @param {string} email - User email
      * @param {string} password - User password
-     * @returns {Object} - User data and tokens
+     * @returns {Object} - User data and tokens only (API key stored internally)
      */
     login = async (email, password) => {
         // Find user
@@ -425,22 +598,58 @@ class UserService {
             throw new Error('Please verify your email address');
         }
 
-        // Check password
+        // Check password (only critical operation that must block)
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            // Increment login attempts on failed password
-            await user.incLoginAttempts();
+            setImmediate(() => {
+                user.incLoginAttempts().catch(err => {
+                    logger.error('Failed to increment login attempts in background', {
+                        error: err.message,
+                        userId: user.id,
+                        email
+                    });
+                });
+            });
             throw new Error('Invalid email or password');
         }
 
-        // Reset login attempts on successful login
-        await user.resetLoginAttempts();
-
-        // Update last login
-        await user.update({ lastLoginAt: new Date() });
-
-        // Generate tokens
+        // Generate tokens immediately (minimal, fast operation)
         const tokens = await this.createToken(user.id, user.username, user.roles);
+
+        // Log successful login immediately for security audit
+        logger.info('User logged in successfully', { userId: user.id, email });
+
+        setImmediate(() => {
+            // Array to track all background operations
+            const backgroundTasks = [
+                // Reset login attempts
+                user.resetLoginAttempts()
+                    .then(() => logger.debug('Login attempts reset in background', { userId: user.id }))
+                    .catch(err => logger.error('Failed to reset login attempts in background', {
+                        error: err.message,
+                        userId: user.id
+                    })),
+                
+                // Update last login
+                user.update({ lastLoginAt: new Date() })
+                    .then(() => logger.debug('Last login updated in background', { userId: user.id }))
+                    .catch(err => logger.error('Failed to update last login in background', {
+                        error: err.message,
+                        userId: user.id
+                    })),
+                
+                // Auto-generate or refresh API key (only if user doesn't have one)
+                this.autoGenerateAPIKey(user.id)
+                    .then(() => logger.debug('API key processed in background', { userId: user.id }))
+                    .catch(err => logger.error('Failed to auto-generate API key in background', {
+                        error: err.message,
+                        userId: user.id
+                    }))
+            ];
+
+            // Run all background tasks
+            Promise.allSettled(backgroundTasks);
+        });
 
         return { user, tokens };
     }
@@ -553,7 +762,7 @@ class UserService {
         }
 
         // Hash new password
-        const passwordHash = await bcrypt.hash(newPassword, 12);
+        const passwordHash = await bcrypt.hash(newPassword, 10);
 
         // Update password and clear reset token
         await user.update({
@@ -577,22 +786,119 @@ class UserService {
      */
     async deleteUserByUserId(userId) {
         try {
-            const result = await User.destroy({
-                where: { id: userId }  // Use 'id' field, not 'userId'
+            const deletedRowCount = await User.destroy({
+                where: { id: userId }
             });
 
-            if (result === 0) {
+            if (deletedRowCount > 0) {
+                logger.info('User deleted successfully via Kafka event', { userId });
+                return true;
+            } else {
                 logger.warn('User not found for deletion', { userId });
                 return false;
             }
-
-            logger.info('User deleted successfully from API Gateway', { userId });
-            return true;
-
         } catch (error) {
-            logger.error('Error deleting user from API Gateway', {
+            logger.error('Error deleting user via Kafka event', {
                 error: error.message,
                 userId
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Verify email token (used by controller)
+     * @param {string} token - Verification token
+     * @returns {Object} - Success status and message
+     */
+    async verifyEmailToken(token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+            const user = await User.findByPk(decoded.userId);
+
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'Invalid verification token'
+                };
+            }
+
+            await user.update({ isVerified: true });
+
+            logger.info('Email verified successfully through service', { 
+                userId: user.id, 
+                email: user.email 
+            });
+
+            return {
+                success: true,
+                message: 'Email verified successfully'
+            };
+        } catch (error) {
+            logger.error('Error verifying email token:', {
+                error: error.message,
+                stack: error.stack
+            });
+            
+            return {
+                success: false,
+                message: 'Invalid or expired verification token'
+            };
+        }
+    }
+
+    /**
+     * Unlock user account (used by controller)
+     * @param {string} userId - User ID to unlock
+     * @param {string} adminId - Admin ID performing the action
+     * @returns {Object} - Success status and data
+     */
+    async unlockUserAccount(userId, adminId) {
+        try {
+            const user = await User.findByPk(userId);
+            
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'User not found'
+                };
+            }
+
+            // Store previous lock info for response
+            const previousLockInfo = {
+                accountLocked: user.accountLocked,
+                lockUntil: user.lockUntil,
+                loginAttempts: user.loginAttempts
+            };
+
+            // Reset login attempts and unlock account (both fields)
+            await user.update({
+                loginAttempts: 0,
+                lockUntil: null,
+                accountLocked: false
+            });
+
+            logger.info('User account unlocked by admin through service', { 
+                userId: user.id, 
+                userEmail: user.email,
+                adminId 
+            });
+
+            return {
+                success: true,
+                data: {
+                    userId: user.id,
+                    email: user.email,
+                    unlockedAt: new Date(),
+                    previousLockInfo
+                }
+            };
+        } catch (error) {
+            logger.error('Error unlocking user account:', {
+                error: error.message,
+                stack: error.stack,
+                userId,
+                adminId
             });
             throw error;
         }

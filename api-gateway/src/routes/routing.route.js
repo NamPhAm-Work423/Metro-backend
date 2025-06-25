@@ -7,191 +7,134 @@ const authMiddleware = require('../middlewares/auth.middleware');
  * @swagger
  * components:
  *   securitySchemes:
- *     ApiKeyAuth:
- *       type: apiKey
- *       in: header
- *       name: x-api-key
- *       description: 'API key required for routing endpoints. Get from /v1/auth/key/{userId}'
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *       description: 'JWT token obtained from login endpoint. Format: Bearer <token>'
  * 
  * tags:
  *   - name: Routing
  *     description: |
- *       ## 🚀 Dynamic Routing to Microservices
+ *       ## 🚀 Service Routing
  *       
- *       These endpoints provide access to registered microservices through the API gateway.
+ *       Access registered microservices through the API gateway.
  *       
- *       ### 🔑 Authentication Required
- *       All routing endpoints require an **API Key** in the `x-api-key` header.
+ *       ### Authentication:
+ *       - Requires JWT token in `Authorization: Bearer TOKEN` header
+ *       - API keys are handled automatically by the backend
  *       
- *       ### 📝 How to Get API Key:
- *       1. **Register**: POST `/v1/auth/register`
- *       2. **Login**: POST `/v1/auth/login` (save accessToken)
- *       3. **Generate API Key**: GET `/v1/auth/key/{userId}` with JWT token
- *       4. **Use API Key**: Add `x-api-key: YOUR_API_KEY` header
+ *       ### Available Services:
+ *       - **Passenger Service**: `/v1/route/passengers/*`
  *       
- *       ### 🎯 Available Services:
- *       - **Passenger Service**: `/v1/route/passengers/*` - Passenger management
- *       
- *       ### 📖 Example Usage:
+ *       ### Example Usage:
  *       ```bash
- *       # List all passengers
- *       curl -H "x-api-key: YOUR_API_KEY" \\
- *            http://localhost:3000/v1/route/passengers
+ *       # Get all passengers
+ *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+ *         /v1/route/passengers
  *       
  *       # Get specific passenger
- *       curl -H "x-api-key: YOUR_API_KEY" \\
- *            http://localhost:3000/v1/route/passengers/123
+ *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+ *         /v1/route/passengers/123
  *       
- *       # Create new passenger
+ *       # Create passenger
  *       curl -X POST \\
- *            -H "x-api-key: YOUR_API_KEY" \\
- *            -H "Content-Type: application/json" \\
- *            -d '{"name":"John","email":"john@example.com"}' \\
- *            http://localhost:3000/v1/route/passengers
+ *         -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+ *         -H "Content-Type: application/json" \\
+ *         -d '{"name":"John","email":"john@example.com"}' \\
+ *         /v1/route/passengers
  *       ```
  *       
- *       ### 🔄 Load Balancing
- *       The gateway automatically load balances requests across available service instances.
- *       
- *       ### ⚡ Features:
- *       - **Circuit Breaker**: Automatic failover if service is down
- *       - **Rate Limiting**: Request throttling per API key
- *       - **Request Forwarding**: Headers and body passed through to services
- *       - **Response Proxying**: Service responses returned as-is
+ *       ### Features:
+ *       - Load balancing across service instances
+ *       - Circuit breaker for fault tolerance
+ *       - Rate limiting per user
+ *       - Request/response forwarding
  */
 
 /**
  * @swagger
  * /v1/route/{endPoint}:
  *   get:
- *     summary: 🔀 GET - Route request to microservice
+ *     summary: GET - Route request to microservice
  *     description: |
  *       Forward GET requests to registered microservices.
  *       
- *       **Path Parameter**: `endPoint` - The service endpoint (e.g., "passengers")
- *       
  *       **Examples**:
- *       - `/v1/route/passengers` → Routes to passenger service
- *       - `/v1/route/passengers/123` → Routes to passenger service with ID 123
- *       
- *       **Authentication**: API Key required in `x-api-key` header
+ *       - `/v1/route/passengers` → Get all passengers
+ *       - `/v1/route/passengers/123` → Get passenger with ID 123
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
  *         required: true
  *         schema:
  *           type: string
- *         description: Target service endpoint name
+ *         description: Target service endpoint
  *         example: passengers
  *       - in: query
  *         name: page
- *         required: false
  *         schema:
  *           type: integer
  *         description: Page number for pagination
  *         example: 1
  *       - in: query
  *         name: limit
- *         required: false
  *         schema:
  *           type: integer
- *         description: Number of items per page
+ *         description: Items per page
  *         example: 10
  *     responses:
  *       200:
- *         description: ✅ Request successfully forwarded to service
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               description: Response from the target microservice
+ *         description: Request forwarded successfully
  *       401:
- *         description: ❌ Unauthorized - Invalid or missing API key
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "API key is required"
+ *         description: Unauthorized - Invalid or missing JWT token
  *       404:
- *         description: ❌ Service not found or no healthy instances
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Service not found"
+ *         description: Service not found
  *       503:
- *         description: ❌ Service unavailable
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Service temporarily unavailable"
+ *         description: Service unavailable
  *   post:
- *     summary: 📝 POST - Create resource in microservice
+ *     summary: POST - Create resource in microservice
  *     description: |
- *       Forward POST requests to create resources in registered microservices.
- *       
- *       **Path Parameter**: `endPoint` - The service endpoint (e.g., "passengers")
+ *       Forward POST requests to create resources in microservices.
  *       
  *       **Example**: POST `/v1/route/passengers` with passenger data
- *       
- *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
  *         required: true
  *         schema:
  *           type: string
- *         description: Target service endpoint name
+ *         description: Target service endpoint
  *         example: passengers
  *     requestBody:
- *       description: Request body will be forwarded to the target service
+ *       description: Data to send to the microservice
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             description: Data to send to the microservice
  *           example:
  *             name: "John Doe"
  *             email: "john@example.com"
  *             phone: "+1234567890"
  *     responses:
  *       200:
- *         description: ✅ Resource created successfully
+ *         description: Resource created successfully
  *       201:
- *         description: ✅ Resource created successfully
+ *         description: Resource created successfully
  *       400:
- *         description: ❌ Bad request - Invalid data
+ *         description: Bad request - Invalid data
  *       401:
- *         description: ❌ Unauthorized - Invalid or missing API key
+ *         description: Unauthorized - Invalid or missing JWT token
  *       404:
- *         description: ❌ Service not found
+ *         description: Service not found
  *       503:
- *         description: ❌ Service unavailable
+ *         description: Service unavailable
  *   put:
  *     summary: ✏️ PUT - Update resource in microservice
  *     description: |
@@ -204,7 +147,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -247,7 +190,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -288,7 +231,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -329,7 +272,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -362,7 +305,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Example**: POST `/v1/route/passengers/123/bookings` to create booking for passenger 123
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -399,7 +342,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward PUT requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -432,7 +375,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward PATCH requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -465,7 +408,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward DELETE requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - ApiKeyAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -494,8 +437,8 @@ const authMiddleware = require('../middlewares/auth.middleware');
 
 // Dynamic routing - all HTTP methods supported
 // More specific routes first - catches paths with additional segments
-router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+router.all('/:endPoint/*', authMiddleware.autoInjectAPIKeyMiddleware, routingController.useService);
 // Less specific routes last - catches exact endpoint matches
-router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+router.all('/:endPoint', authMiddleware.autoInjectAPIKeyMiddleware, routingController.useService);
 
 module.exports = router;

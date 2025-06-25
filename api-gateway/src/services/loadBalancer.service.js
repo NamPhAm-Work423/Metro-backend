@@ -1,6 +1,12 @@
 const { getClient, withRedisClient } = require('../config/redis');
 const axios = require('axios');
 
+/**
+ * Store instances in Redis
+ * @param {string} endPoint - The endpoint to store instances for
+ * @param {Array} instances - The instances to store
+ * @returns {Promise<Array>} - The result of the multi operation
+ */
 async function storeInstances(endPoint, instances) {
     return withRedisClient(async (client) => {
         const multi = client.multi();
@@ -31,6 +37,11 @@ async function storeInstances(endPoint, instances) {
     });
 }
 
+/**
+ * Get the least connections instance
+ * @param {string} endPoint - The endpoint to get the least connections instance for
+ * @returns {Promise<Object>} - The least connections instance
+ */
 async function getLeastConnectionsInstance(endPoint) {
     return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
@@ -63,6 +74,11 @@ async function getLeastConnectionsInstance(endPoint) {
     });
 }
 
+/**
+ * Increment the connection count for an instance
+ * @param {string} endPoint - The endpoint to increment the connection count for
+ * @param {string} instanceId - The instance ID to increment the connection count for
+ */
 async function incrementConnection(endPoint, instanceId) {
     return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
@@ -70,7 +86,12 @@ async function incrementConnection(endPoint, instanceId) {
     });
 }
 
-async function decrementConnection(endPoint, instanceId) {
+/**
+ * Decrement the connection count for an instance
+ * @param {string} endPoint - The endpoint to decrement the connection count for
+ * @param {string} instanceId - The instance ID to decrement the connection count for
+ */
+    async function decrementConnection(endPoint, instanceId) {
     // console.log("Decreasing...")
     return withRedisClient(async (client) => {
         const connectionsKey = `${endPoint}:connections`;
@@ -78,6 +99,10 @@ async function decrementConnection(endPoint, instanceId) {
     });
 }
 
+/**
+ * Delete a service from Redis
+ * @param {string} endPoint - The endpoint to delete the service for
+ */
 async function deleteServiceFromRedis(endPoint) {
     return withRedisClient(async (client) => {
         const multi = client.multi();
@@ -97,6 +122,11 @@ async function deleteServiceFromRedis(endPoint) {
     });
 }
 
+/**
+ * Delete an instance from Redis
+ * @param {string} endPoint - The endpoint to delete the instance for
+ * @param {string} instanceId - The instance ID to delete
+ */
 async function deleteInstanceFromRedis(endPoint, instanceId) {
     return withRedisClient(async (client) => {
         const multi = client.multi();
@@ -111,6 +141,9 @@ async function deleteInstanceFromRedis(endPoint, instanceId) {
     });
 }
 
+/**
+ * Update the status of all instances in Redis
+ */
 async function updateAllInstancesStatus() {
     return withRedisClient(async (client) => {
         const multi = client.multi();

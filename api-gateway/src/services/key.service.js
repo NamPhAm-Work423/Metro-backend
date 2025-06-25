@@ -1,5 +1,5 @@
 const { getClient, withRedisClient, setWithExpiry } = require('../config/redis');
-const { hashToken } = require('../helpers/crypto.helper');
+const { hashToken, createAPIToken } = require('../helpers/crypto.helper');
 const { logger } = require('../config/logger');
 const Key = require('../models/key.model');
 
@@ -121,4 +121,217 @@ async function revokeAllUserKeys(userId) {
     }
 }
 
-module.exports = { storeAPIKey, validateAPIKey, revokeAllUserKeys };
+/**
+ * Get active API key for user - for auto-injection
+ * Enhanced strategy: Use a secure session-based cache for API keys
+ * @param {string} userId - The user ID
+ * @returns {string|null} - Active API key if found, null otherwise
+ */
+async function getActiveAPIKeyForUser(userId) {
+    try {
+        // Strategy: Use Redis cache with session-based keys
+        // This allows us to store the original API key temporarily per session
+        
+        const Key = require('../models/key.model');
+        
+        // Check if user has any active keys
+        const existingKey = await Key.findOne({
+            where: {
+                userId: userId,
+                status: 'activated',
+            },
+            order: [['createdAt', 'DESC']]
+        });
+        
+        if (!existingKey) {
+            logger.warn('No active API key found for user', { userId });
+            return null;
+        }
+
+        // Check if we have a cached API key for this session
+        const sessionCacheKey = `session_api_key:${userId}:${existingKey.id}`;
+        
+        logger.info('Checking cache for API key', {
+            userId,
+            keyId: existingKey.id,
+            sessionCacheKey,
+            cacheLookupAttempt: true
+        });
+        
+        const cachedApiKey = await withRedisClient(async (client) => {
+            return await client.get(sessionCacheKey);
+        });
+
+        logger.info('Cache lookup result', {
+            userId,
+            keyId: existingKey.id,
+            sessionCacheKey,
+            cacheHit: !!cachedApiKey,
+            cachedKeyPrefix: cachedApiKey ? cachedApiKey.substring(0, 10) + '...' : 'null'
+        });
+
+        if (cachedApiKey) {
+            // Update last used time
+            await existingKey.update({ lastUsedAt: new Date() });
+            
+            logger.info('Using cached API key for auto-injection', { 
+                userId, 
+                keyId: existingKey.id 
+            });
+            return cachedApiKey;
+        }
+
+        // If no cached key, generate a new one and cache it for this session
+        const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
+        const newApiToken = createAPIToken();
+        const hashedToken = hashToken(newApiToken, process.env.HASH_SECRET);
+        
+        // Update the existing key record with new token
+        await existingKey.update({
+            value: hashedToken,
+            lastUsedAt: new Date()
+        });
+        
+        // Cache the API key for this session (24 hour expiry)
+        await withRedisClient(async (client) => {
+            await client.setEx(sessionCacheKey, 24 * 3600, newApiToken);
+        });
+        
+        // Update Redis validation cache
+        await storeAPIKey(newApiToken, { 
+            userId: userId,
+            keyId: existingKey.id 
+        });
+        
+        logger.info('API key regenerated and cached for auto-injection', { 
+            userId, 
+            keyId: existingKey.id 
+        });
+        
+        return newApiToken;
+        
+    } catch (error) {
+        logger.error('Error getting active API key for user:', {
+            error: error.message,
+            stack: error.stack,
+            userId: userId
+        });
+        return null;
+    }
+}
+
+/**
+ * Generate API key for user (used by controller)
+ * @param {string} userId - User ID
+ * @returns {Object} - Generated token and key ID
+ */
+async function generateAPIKeyForUser(userId) {
+    try {
+        const apiToken = createAPIToken();
+        const hashedToken = hashToken(apiToken, process.env.HASH_SECRET);
+        
+        // Store in database for management
+        const newKey = await Key.create({
+            value: hashedToken,
+            userId: userId,
+            status: 'activated',
+            lastUsedAt: new Date()
+        });
+        
+        // Store in Redis for fast validation
+        await storeAPIKey(apiToken, { 
+            userId: userId,
+            keyId: newKey.id 
+        });
+        
+        logger.info('API key generated through service', { 
+            userId, 
+            keyId: newKey.id 
+        });
+        
+        return {
+            token: apiToken,
+            keyId: newKey.id
+        };
+        
+    } catch (error) {
+        logger.error('Error generating API key for user:', {
+            error: error.message,
+            stack: error.stack,
+            userId
+        });
+        throw error;
+    }
+}
+
+/**
+ * Get API keys by user ID (used by controller)
+ * @param {string} userId - User ID
+ * @returns {Array} - List of API keys
+ */
+async function getAPIKeysByUserId(userId) {
+    try {
+        const keys = await Key.findAll({
+            where: {
+                userId: userId,
+                status: 'activated',
+            },
+        });
+        
+        logger.info('API keys retrieved through service', { 
+            userId, 
+            keyCount: keys.length 
+        });
+        
+        return keys;
+        
+    } catch (error) {
+        logger.error('Error getting API keys by user ID:', {
+            error: error.message,
+            stack: error.stack,
+            userId
+        });
+        throw error;
+    }
+}
+
+/**
+ * Delete API key by ID (used by controller)
+ * @param {string} keyId - Key ID
+ * @returns {boolean} - Success status
+ */
+async function deleteAPIKeyById(keyId) {
+    try {
+        const deletedCount = await Key.destroy({
+            where: {
+                id: keyId,
+            },
+        });
+        
+        if (deletedCount > 0) {
+            logger.info('API key deleted through service', { keyId, deletedCount });
+            return true;
+        } else {
+            logger.warn('API key not found for deletion', { keyId });
+            return false;
+        }
+        
+    } catch (error) {
+        logger.error('Error deleting API key by ID:', {
+            error: error.message,
+            stack: error.stack,
+            keyId
+        });
+        throw error;
+    }
+}
+
+module.exports = { 
+    storeAPIKey, 
+    validateAPIKey, 
+    revokeAllUserKeys, 
+    getActiveAPIKeyForUser,
+    generateAPIKeyForUser,
+    getAPIKeysByUserId,
+    deleteAPIKeyById
+};

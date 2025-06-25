@@ -1,38 +1,24 @@
 const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const CustomError = require('../utils/CustomError');
-const { Key } = require('../models/index.model');
 const keyService = require('../services/key.service');
 const { logger } = require('../config/logger');
 
 const generateAPIToken = asyncErrorHandler(async (req, res, next) => {
     try {
         const userId = req.params.id;
-        const apiToken = createAPIToken();
-        const hashedToken = hashToken(apiToken, process.env.HASH_SECRET);
         
-        // Store in database for management
-        const newKey = await Key.create({
-            value: hashedToken,
-            userId: userId,
-            isActive: true,
-            lastUsedAt: new Date()
-        });
-        
-        // Store in Redis for fast validation
-        await keyService.storeAPIKey(apiToken, { 
-            userId: userId,
-            keyId: newKey.id 
-        });
+        // Use service layer instead of direct model access
+        const { token, keyId } = await keyService.generateAPIKeyForUser(userId);
         
         logger.info('API key generated successfully', { 
             userId, 
-            keyId: newKey.id 
+            keyId 
         });
         
         res.status(200).json({ 
             status: 'success', 
-            token: apiToken,
+            token: token,
             message: 'API key generated successfully. Use this key in x-api-key header for routing endpoints.'
         });
     } catch (err) {
@@ -56,12 +42,8 @@ const getAPIKeyByUser = asyncErrorHandler(async (req, res, next) => {
     try {
         logger.info('Getting API keys for user', { userId });
         
-        const keys = await Key.findAll({
-            where: {
-                userId: userId,
-                isActive: true,
-            },
-        });
+        // Use service layer instead of direct model access
+        const keys = await keyService.getAPIKeysByUserId(userId);
         
         logger.info('API keys retrieved successfully', { 
             userId, 
@@ -89,22 +71,18 @@ const deleteKeyById = asyncErrorHandler(async (req, res, next) => {
     try {
         logger.info('Deleting API key', { keyId: id });
         
-        const deletedCount = await Key.destroy({
-            where: {
-                id: id,
-            },
-        });
+        // Use service layer instead of direct model access
+        const deleted = await keyService.deleteAPIKeyById(id);
 
-        if (deletedCount === 0) {
+        if (!deleted) {
             logger.warn('API key not found for deletion', { keyId: id });
             return res.status(404).json({ error: 'No API keys found' });
         }
 
-        logger.info('API key deleted successfully', { keyId: id, deletedCount });
+        logger.info('API key deleted successfully', { keyId: id });
         
         return res.status(200).json({ 
             status: 'success', 
-            deleted: deletedCount,
             message: 'API key deleted successfully'
         });
     } catch (err) {
