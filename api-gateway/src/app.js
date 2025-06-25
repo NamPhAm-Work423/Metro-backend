@@ -14,7 +14,7 @@ dotenv.config();
 const corsOptions = {
     origin: [process.env.UV_DESK_CLIENT, process.env.UI_CLIENT],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'bksi-api-key'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key'],
     credentials: true,
 };
 

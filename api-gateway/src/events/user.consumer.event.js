@@ -1,0 +1,224 @@
+const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
+const { logger } = require('../config/logger');
+const keyService = require('../services/key.service');
+
+class UserEventConsumer {
+    constructor() {
+        this.eventConsumer = null;
+    }
+
+    /**
+     * Handle user.deleted events
+     * @param {Object} payload - The event payload
+     */
+    async handleUserDeletedEvent(payload) {
+        try {
+            logger.info('Processing user.deleted event', { 
+                userId: payload.userId,
+                source: payload.source 
+            });
+
+            // Import User model and userService to avoid circular dependency
+            const User = require('../models/user.model');
+            const userService = require('../services/user.service');
+
+            // Delete user from API Gateway database
+            await userService.deleteUserByUserId(payload.userId);
+
+            // Revoke all API keys for the user
+            await keyService.revokeAllUserKeys(payload.userId);
+
+            logger.info('User deletion processed successfully in API Gateway', {
+                userId: payload.userId,
+                email: payload.email,
+                source: payload.source
+            });
+
+        } catch (error) {
+            logger.error('Error handling user.deleted event', { 
+                error: error.message, 
+                stack: error.stack,
+                payload: JSON.stringify(payload)
+            });
+        }
+    }
+
+    /**
+     * Handle passenger.deleted events
+     * @param {Object} payload - The event payload
+     */
+    async handlePassengerDeletedEvent(payload) {
+        try {
+            logger.info('Processing passenger.deleted event', { 
+                passengerId: payload.passengerId,
+                userId: payload.userId,
+                source: payload.source 
+            });
+
+            // Additional cleanup for passenger-specific data if needed
+            // For now, just log the event as passenger cleanup is handled by passenger service
+            
+        } catch (error) {
+            logger.error('Error handling passenger.deleted event', { 
+                error: error.message, 
+                stack: error.stack,
+                payload: JSON.stringify(payload)
+            });
+        }
+    }
+
+    /**
+     * Handle staff.deleted events
+     * @param {Object} payload - The event payload
+     */
+    async handleStaffDeletedEvent(payload) {
+        try {
+            logger.info('Processing staff.deleted event', { 
+                staffId: payload.staffId,
+                userId: payload.userId,
+                source: payload.source 
+            });
+
+            // Additional cleanup for staff-specific data if needed
+            // For now, just log the event as staff cleanup is handled by staff service
+            
+        } catch (error) {
+            logger.error('Error handling staff.deleted event', { 
+                error: error.message, 
+                stack: error.stack,
+                payload: JSON.stringify(payload)
+            });
+        }
+    }
+
+    /**
+     * Handle staff.updated events
+     * @param {Object} payload - The event payload
+     */
+    async handleStaffUpdatedEvent(payload) {
+        try {
+            logger.info('Processing staff.updated event', { 
+                staffId: payload.staffId,
+                userId: payload.userId,
+                source: payload.source 
+            });
+
+            // Log staff updates for audit purposes
+            // Additional processing can be added here if needed
+            
+        } catch (error) {
+            logger.error('Error handling staff.updated event', { 
+                error: error.message, 
+                stack: error.stack,
+                payload: JSON.stringify(payload)
+            });
+        }
+    }
+
+    /**
+     * Handle staff.status.changed events
+     * @param {Object} payload - The event payload
+     */
+    async handleStaffStatusChangedEvent(payload) {
+        try {
+            logger.info('Processing staff.status.changed event', { 
+                staffId: payload.staffId,
+                userId: payload.userId,
+                oldStatus: payload.oldStatus,
+                newStatus: payload.newStatus,
+                source: payload.source 
+            });
+
+            // Log staff status changes for audit purposes
+            // Additional processing can be added here if needed
+            
+        } catch (error) {
+            logger.error('Error handling staff.status.changed event', { 
+                error: error.message, 
+                stack: error.stack,
+                payload: JSON.stringify(payload)
+            });
+        }
+    }
+
+    /**
+     * Process incoming Kafka messages
+     * @param {Object} messageData - Raw message data from Kafka
+     */
+    async processMessage(messageData) {
+        const { topic, partition, message } = messageData;
+        
+        if (!message.value) {
+            logger.warn('Received empty message', { topic, partition });
+            return;
+        }
+        
+        let data;
+        try {
+            data = JSON.parse(message.value.toString());
+            logger.debug('Received Kafka message', { topic, messageData: data });
+        } catch (e) {
+            logger.error('JSON parse error for Kafka message', { 
+                error: e.message,
+                messageValue: message.value.toString()
+            });
+            return;
+        }
+        
+        const payload = data.payload || data;
+        
+        // Route to appropriate handler based on topic
+        if (topic === (process.env.USER_DELETED_TOPIC || 'user.deleted')) {
+            await this.handleUserDeletedEvent(payload);
+        } else if (topic === (process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted')) {
+            await this.handlePassengerDeletedEvent(payload);
+        } else if (topic === (process.env.STAFF_DELETED_TOPIC || 'staff.deleted')) {
+            await this.handleStaffDeletedEvent(payload);
+        } else if (topic === (process.env.STAFF_UPDATED_TOPIC || 'staff.updated')) {
+            await this.handleStaffUpdatedEvent(payload);
+        } else if (topic === (process.env.STAFF_STATUS_CHANGED_TOPIC || 'staff.status.changed')) {
+            await this.handleStaffStatusChangedEvent(payload);
+        } else {
+            logger.warn('Unhandled topic', { topic });
+        }
+    }
+
+    /**
+     * Start consuming user-related events
+     */
+    async start() {
+        const topics = [
+            // User events
+            process.env.USER_DELETED_TOPIC || 'user.deleted',
+            // Passenger events
+            process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted',
+            // Staff events
+            process.env.STAFF_DELETED_TOPIC || 'staff.deleted',
+            process.env.STAFF_UPDATED_TOPIC || 'staff.updated',
+            process.env.STAFF_STATUS_CHANGED_TOPIC || 'staff.status.changed'
+        ];
+
+        this.eventConsumer = new KafkaEventConsumer({
+            clientId: process.env.KAFKA_CLIENT_ID || 'api-gateway-consumer',
+            brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
+            groupId: process.env.KAFKA_GROUP_ID || 'api-gateway-group',
+            topics,
+            eachMessage: this.processMessage.bind(this)
+        });
+
+        await this.eventConsumer.start();
+        logger.info('UserEventConsumer started successfully for topics:', topics);
+    }
+
+    /**
+     * Stop consuming events
+     */
+    async stop() {
+        if (this.eventConsumer) {
+            await this.eventConsumer.stop();
+            logger.info('UserEventConsumer stopped successfully');
+        }
+    }
+}
+
+module.exports = new UserEventConsumer(); 

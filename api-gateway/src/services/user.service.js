@@ -3,15 +3,15 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 const getConfig = require('../config');
 const axios = require('axios');
-const kafkaProducer = require('../events/kafkaProducer');
 const { logger } = require('../config/logger');
 const emailService = require('./email.service');
-const { Kafka } = require('kafkajs');
 const keyService = require('./key.service');
 const { createAPIToken, hashToken, sha256, generateResetToken } = require('../helpers/crypto.helper');
 const { Key } = require('../models/index.model');
 const { setImmediate } = require('timers');
 const { withRedisClient } = require('../config/redis');
+const userEventProducer = require('../events/user.producer.event');
+const userEventConsumer = require('../events/user.consumer.event');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -20,283 +20,15 @@ const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 const gatewayConfig = getConfig();
 
-function resolveUserServiceBaseUrl() {
-    // Find user-service definition in config.json
-    const svc = gatewayConfig.services.find((s) => s.name === 'passenger-service');
-    if (svc && Array.isArray(svc.instances) && svc.instances.length > 0) {
-        const inst = svc.instances[0]; // simple: pick first (could add LB later)
-        return `http://${inst.host}:${inst.port}`;
-    }
-}
 
 class UserService {
     constructor() {
-        this.kafka = new Kafka({
-            clientId: process.env.KAFKA_CLIENT_ID || 'api-gateway-consumer',
-            brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
-            connectionTimeout: 30000,
-            requestTimeout: 25000,
-            retry: {
-                initialRetryTime: 100,
-                retries: 8
-            }
-        });
-
-        this.consumer = this.kafka.consumer({ 
-            groupId: process.env.KAFKA_GROUP_ID || 'api-gateway-group',
-            sessionTimeout: 30000,
-            rebalanceTimeout: 60000,
-            heartbeatInterval: 3000,
-            maxWaitTimeInMs: 5000,
-            retry: {
-                initialRetryTime: 100,
-                retries: 8
-            }
-        });
-
-        this.isConnected = false;
-        this.isSubscribed = false;
-        this.isRunning = false;
-        this.isConnecting = false; // Prevent multiple concurrent connection attempts
-        this.reconnectTimeout = null;
-        this.handlersSetup = false; // Track if event handlers are set up
-        this.startKafkaConsumer();
+        // Start user event consumer (non-blocking)
+        userEventConsumer.start()
+            .catch((err) => logger.error('Failed to start UserEventConsumer', { error: err.message }));
     }
 
-    /**
-     * Handle user.deleted events
-     * @param {Object} payload - The event payload
-     */
-    async handleUserDeletedEvent(payload) {
-        try {
-            logger.info('Processing user.deleted event', { 
-                userId: payload.userId,
-                source: payload.source 
-            });
 
-            // Delete user from API Gateway database
-            await this.deleteUserByUserId(payload.userId);
-
-            // Revoke all API keys for the user
-            await keyService.revokeAllUserKeys(payload.userId);
-
-            logger.info('User deletion processed successfully in API Gateway', {
-                userId: payload.userId,
-                email: payload.email,
-                source: payload.source
-            });
-
-        } catch (error) {
-            logger.error('Error handling user.deleted event', { 
-                error: error.message, 
-                stack: error.stack,
-                payload: JSON.stringify(payload)
-            });
-        }
-    }
-
-    /**
-     * Process incoming Kafka messages
-     * @param {Object} messageData - Raw message data from Kafka
-     */
-    async processMessage(messageData) {
-        const { topic, partition, message } = messageData;
-        
-        if (!message.value) {
-            logger.warn('Received empty message', { topic, partition });
-            return;
-        }
-        
-        let data;
-        try {
-            data = JSON.parse(message.value.toString());
-            logger.debug('Received Kafka message', { topic, messageData: data });
-        } catch (e) {
-            logger.error('JSON parse error for Kafka message', { 
-                error: e.message,
-                messageValue: message.value.toString()
-            });
-            return;
-        }
-        
-        const payload = data.payload || data;
-        
-        // Route to appropriate handler based on topic
-        if (topic === (process.env.USER_DELETED_TOPIC || 'user.deleted')) {
-            await this.handleUserDeletedEvent(payload);
-        } else if (topic === (process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted')) {
-            // Just log passenger deletion events
-            logger.info('Processing passenger.deleted event', { 
-                passengerId: payload.passengerId,
-                userId: payload.userId,
-                source: payload.source 
-            });
-        } else {
-            logger.warn('Unhandled topic', { topic });
-        }
-    }
-
-    /**
-     * Start the Kafka consumer
-     */
-    async startKafkaConsumer() {
-        // Prevent multiple concurrent connection attempts
-        if (this.isConnecting || this.isRunning) {
-            logger.debug('Kafka consumer connection already in progress or running');
-            return;
-        }
-
-        this.isConnecting = true;
-
-        try {
-            // Clean up any existing timeout
-            if (this.reconnectTimeout) {
-                clearTimeout(this.reconnectTimeout);
-                this.reconnectTimeout = null;
-            }
-
-            // Disconnect if already connected
-            if (this.isConnected) {
-                await this.consumer.disconnect();
-                this.isConnected = false;
-                this.isSubscribed = false;
-                this.isRunning = false;
-                this.handlersSetup = false; // Reset handlers flag
-            }
-
-            await this.consumer.connect();
-            this.isConnected = true;
-            logger.info('User service Kafka consumer connected successfully');
-            
-            // Subscribe to deletion topics
-            const topics = [
-                process.env.USER_DELETED_TOPIC || 'user.deleted',
-                process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted'
-            ];
-
-            for (const topic of topics) {
-                await this.consumer.subscribe({ 
-                    topic, 
-                    fromBeginning: false 
-                });
-                logger.info('User service subscribed to topic successfully', { topic });
-            }
-            this.isSubscribed = true;
-
-            await this.consumer.run({
-                eachMessage: this.processMessage.bind(this)
-            });
-            this.isRunning = true;
-
-            logger.info('User service Kafka consumer is now running successfully');
-
-            // Set up event handlers only after successful connection
-            this.setupEventHandlers();
-
-        } catch (error) {
-            logger.error('User service Kafka consumer connection failed', { 
-                error: error.message,
-                stack: error.stack
-            });
-            
-            // Reset state
-            this.isConnected = false;
-            this.isSubscribed = false;
-            this.isRunning = false;
-            this.handlersSetup = false; // Reset handlers flag
-            
-            // Retry after delay with exponential backoff
-            this.scheduleReconnect();
-        } finally {
-            this.isConnecting = false;
-        }
-    }
-
-    /**
-     * Set up event handlers for the consumer
-     */
-    setupEventHandlers() {
-        // Only set up handlers once to prevent duplicates
-        if (this.handlersSetup) {
-            return;
-        }
-
-        this.consumer.on('consumer.crash', (error) => {
-            logger.error('User service Kafka consumer crashed', { 
-                error: error.message, 
-                stack: error.stack 
-            });
-            
-            this.isConnected = false;
-            this.isSubscribed = false;
-            this.isRunning = false;
-            this.handlersSetup = false; // Reset handlers flag
-            
-            this.scheduleReconnect(10000); // 10 second delay for crashes
-        });
-
-        this.consumer.on('consumer.disconnect', () => {
-            logger.warn('User service Kafka consumer disconnected');
-            this.isConnected = false;
-            this.isSubscribed = false;
-            this.isRunning = false;
-            this.handlersSetup = false; // Reset handlers flag
-            
-            this.scheduleReconnect();
-        });
-
-        this.consumer.on('consumer.connect', () => {
-            logger.info('User service Kafka consumer reconnected');
-            this.isConnected = true;
-        });
-
-        this.handlersSetup = true;
-    }
-
-    /**
-     * Schedule a reconnection attempt with exponential backoff
-     */
-    scheduleReconnect(delay = 5000) {
-        // Clear any existing timeout
-        if (this.reconnectTimeout) {
-            clearTimeout(this.reconnectTimeout);
-        }
-
-        // Don't schedule if already connecting or connected
-        if (this.isConnecting || this.isConnected) {
-            return;
-        }
-
-        this.reconnectTimeout = setTimeout(() => {
-            logger.info('Attempting to restart user service Kafka consumer');
-            this.startKafkaConsumer();
-        }, delay);
-    }
-
-    /**
-     * Stop the Kafka consumer gracefully
-     */
-    async stopKafkaConsumer() {
-        try {
-            // Clear any pending reconnect timeout
-            if (this.reconnectTimeout) {
-                clearTimeout(this.reconnectTimeout);
-                this.reconnectTimeout = null;
-            }
-
-            if (this.isConnected) {
-                await this.consumer.disconnect();
-                this.isConnected = false;
-                this.isSubscribed = false;
-                this.isRunning = false;
-                logger.info('User service Kafka consumer disconnected successfully');
-            }
-        } catch (error) {
-            logger.error('Error disconnecting user service Kafka consumer', { 
-                error: error.message 
-            });
-        }
-    }
 
     /**
      * @description: This function is used to create a token for a user
@@ -481,7 +213,7 @@ class UserService {
             username,
             password: passwordHash,
             isVerified: process.env.NEED_EMAIL_VERIFICATION,
-            roles: roles || ['passenger'],
+            roles: roles || ['passenger'], // Default role is passenger
             loginAttempts: 0
         });
         
@@ -530,7 +262,7 @@ class UserService {
 
             // Publish Kafka event in background
             backgroundTasks.push(
-                kafkaProducer.publish(process.env.USER_CREATED_TOPIC || 'user.created', user.id, {
+                userEventProducer.publishUserCreated({
                     userId: user.id,
                     email: user.email,
                     roles: user.roles,
@@ -545,16 +277,8 @@ class UserService {
                     status: 'activated',
                     roles: roles || ['passenger']
                 })
-                    .then(() => {
-                        logger.info('User.created event published successfully', { 
-                            userId: user.id, 
-                            username: user.username,
-                            email: user.email,
-                            roles: user.roles 
-                        });
-                    })
                     .catch(err => {
-                        logger.error('Failed to publish user.created event', { 
+                        logger.error('Failed to publish user.created event in background', { 
                             error: err.message,
                             userId: user.id
                         });
@@ -583,6 +307,9 @@ class UserService {
      * @returns {Object} - User data and tokens only (API key stored internally)
      */
     login = async (email, password) => {
+        // Sanitize input to avoid whitespace issues
+        const sanitizedPassword = (password || '').trim();
+
         // Find user
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -600,7 +327,11 @@ class UserService {
         }
 
         // Check password (only critical operation that must block)
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (sanitizedPassword.length === 0) {
+            throw new Error('Invalid email or password');
+        }
+
+        const isPasswordValid = await bcrypt.compare(sanitizedPassword, user.password);
         if (!isPasswordValid) {
             setImmediate(() => {
                 user.incLoginAttempts().catch(err => {
@@ -789,6 +520,12 @@ class UserService {
             throw new Error('Token, user ID, and new password are required');
         }
         
+        // Trim and basic validation on new password
+        const sanitizedPassword = String(newPassword).trim();
+        if (sanitizedPassword.length < 6) {
+            throw new Error('Password must be at least 6 characters');
+        }
+        
         // Hash the provided token
         const hashedToken = sha256(token);
         
@@ -828,7 +565,7 @@ class UserService {
         }
 
         // Hash new password
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const passwordHash = await bcrypt.hash(sanitizedPassword, 10);
 
         // Update password and reset account lock status
         await user.update({

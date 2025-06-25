@@ -50,39 +50,6 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  firstName: {
-    type: DataTypes.STRING(50),
-    allowNull: true,
-    validate: {
-      len: [1, 50]
-    }
-  },
-  lastName: {
-    type: DataTypes.STRING(50),
-    allowNull: true,
-    validate: {
-      len: [1, 50]
-    }
-  },
-  phoneNumber: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-    validate: {
-      len: [10, 20]
-    }
-  },
-  dateOfBirth: {
-    type: DataTypes.DATEONLY,
-    allowNull: true
-  },
-  gender: {
-    type: DataTypes.ENUM('male', 'female', 'other'),
-    allowNull: true
-  },
-  address: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
   roles: {
     type: DataTypes.ARRAY(DataTypes.STRING),
     defaultValue: ['user'],

@@ -17,6 +17,9 @@ services:
       - USER_CREATED_TOPIC=user.created
       - USER_DELETED_TOPIC=user.deleted
       - PASSENGER_DELETED_TOPIC=passenger.deleted
+      - STAFF_DELETED_TOPIC=staff.deleted
+      - STAFF_UPDATED_TOPIC=staff.updated
+      - STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
       - KAFKAJS_NO_PARTITIONER_WARNING=1
       - NEED_EMAIL_VERIFICATION=true  #turn off to require email verification
     volumes:
@@ -71,6 +74,37 @@ services:
       #   condition: service_started
       # kafka-3:
       #   condition: service_started
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  # Staff Service - handles staff users
+  staff-service:
+    build:
+      context: ./staff-service
+    container_name: staff-service
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./staff-service/.env
+    environment:
+      - KAFKA_BROKERS=kafka-1:19092
+      - KAFKA_CLIENT_ID=staff-service
+      - KAFKA_GROUP_ID=staff-service-group
+      - USER_CREATED_TOPIC=user.created
+      - USER_DELETED_TOPIC=user.deleted
+      - STAFF_DELETED_TOPIC=staff.deleted
+      - STAFF_UPDATED_TOPIC=staff.updated
+      - STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    volumes:
+      - ./staff-service:/app
+      - /app/node_modules
+    depends_on:
+      kafka-1:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:

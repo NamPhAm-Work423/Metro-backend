@@ -1,8 +1,8 @@
 const http = require('http');
 const app = require('./app');
 const sequelize = require('./config/database');
-const kafkaConsumer = require('./events/kafkaConsumer');
-const kafkaProducer = require('./events/kafkaProducer');
+const userEventConsumer = require('./events/user.consumer.event');
+
 const { logger } = require('./config/logger');
 require('dotenv').config();
 
@@ -21,14 +21,9 @@ sequelize.sync({ alter: true })
             });
         });
 
-        // Start Kafka consumer
-        kafkaConsumer.start().catch(error => {
-            logger.error('Failed to start Kafka consumer', { error: error.message });
-        });
-
-        // Initialize Kafka producer
-        kafkaProducer.connect().catch(error => {
-            logger.error('Failed to connect Kafka producer', { error: error.message });
+        // Start user event consumer
+        userEventConsumer.start().catch(error => {
+            logger.error('Failed to start user event consumer', { error: error.message });
         });
 
         // Graceful shutdown
@@ -38,8 +33,7 @@ sequelize.sync({ alter: true })
             server.close(async () => {
                 try {
                     await sequelize.close();
-                    await kafkaConsumer.stop();
-                    await kafkaProducer.disconnect();
+                    await userEventConsumer.stop();
                     logger.info('Passenger service shutdown complete');
                     process.exit(0);
                 } catch (error) {

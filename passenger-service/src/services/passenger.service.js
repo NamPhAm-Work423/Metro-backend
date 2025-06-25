@@ -1,63 +1,9 @@
 const { Passenger } = require('../models/index.model');
 const { Op } = require('sequelize');
-const kafkaProducer = require('../events/kafkaProducer');
+const passengerEventProducer = require('../events/passenger.producer.event');
 const { logger } = require('../config/logger');
 
-/**
- * Create a passenger profile from user registration event
- * @param {Object} userData - User data from the event
- */
-async function createPassengerFromUserEvent(userData) {
-    try {
-        const {
-            userId,
-            username,
-            firstName,
-            lastName,
-            phoneNumber,
-            dateOfBirth,
-            gender,
-            address,
-            roles
-        } = userData;
 
-        // Check if passenger profile already exists
-        const exists = await Passenger.findOne({ where: { userId } });
-        if (exists) {
-            logger.info('Passenger profile already exists', { userId });
-            return exists;
-        }
-
-        // Create passenger profile
-        const passenger = await Passenger.create({
-            userId,
-            username,
-            firstName,
-            lastName,
-            phoneNumber: phoneNumber || null,
-            dateOfBirth: dateOfBirth || null,
-            gender: gender || null,
-            address: address || null,
-            isActive: true
-        });
-
-        logger.info('Passenger profile created successfully', { 
-            userId, 
-            username, 
-            passengerId: passenger.id 
-        });
-
-        return passenger;
-
-    } catch (err) {
-        logger.error('Error creating passenger profile from user event', { 
-            error: err.message, 
-            stack: err.stack,
-            userData: JSON.stringify(userData)
-        });
-        throw err;
-    }
-}
 
 /**
  * Create a passenger profile
@@ -273,7 +219,7 @@ async function deletePassengerByUserId(userId) {
 
         // Publish deletion events after successful deletion
         try {
-            await kafkaProducer.publishUserDeleted(eventData);
+            await passengerEventProducer.publishUserDeleted(eventData);
         } catch (eventError) {
             // Log event publishing error but don't rollback deletion
             logger.error('Failed to publish deletion events', {
@@ -426,7 +372,6 @@ async function getPassengerTickets(userId) {
 }
 
 module.exports = {
-    createPassengerFromUserEvent,
     createPassenger,
     getPassengerByUserId,
     getPassengerById,

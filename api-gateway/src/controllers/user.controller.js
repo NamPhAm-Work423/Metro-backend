@@ -56,7 +56,8 @@ const userController = {
     // Remove all fields from response except email, username, and roles
     const userResponse = {
       email: user.email,
-      username: user.username
+      username: user.username,
+      roles: user.roles
     };
 
     logger.info('User logged in successfully', { userId: user.id, email });

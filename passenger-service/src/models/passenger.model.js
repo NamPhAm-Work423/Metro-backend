@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             validate: {
                 notEmpty: true,
-                len: [10, 15]
+                len: [9, 15]
             }
         },
         dateOfBirth: {

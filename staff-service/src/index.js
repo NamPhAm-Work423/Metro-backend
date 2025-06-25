@@ -1,7 +1,7 @@
 const http = require('http');
 const app = require('./app');
 const sequelize = require('./config/database');
-const kafkaConsumer = require('./events/kafkaConsumer');
+const userEventConsumer = require('./events/user.consumer.event');
 require('dotenv').config();
 
 const PORT = process.env.PORT || 3003;
@@ -19,12 +19,12 @@ sequelize.sync({ force: false })
             await new Promise(resolve => setTimeout(resolve, kafkaStartupDelay));
             
             try {
-                await kafkaConsumer.start();
-                console.log('Kafka consumer running');
+                await userEventConsumer.start();
+                console.log('Staff event consumer running');
             } catch (err) {
-                console.error('Kafka consumer error', err.message);
+                console.error('Staff event consumer error', err.message);
                 // Continue running service even if Kafka fails
-                console.log('Service will continue running without Kafka consumer');
+                console.log('Service will continue running without event consumer');
             }
         });
     })
@@ -37,8 +37,8 @@ sequelize.sync({ force: false })
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down gracefully');
     try {
-        await kafkaConsumer.stop();
-        console.log('Kafka consumer stopped');
+        await userEventConsumer.stop();
+        console.log('Staff event consumer stopped');
         process.exit(0);
     } catch (err) {
         console.error('Error during shutdown:', err.message);
@@ -49,8 +49,8 @@ process.on('SIGTERM', async () => {
 process.on('SIGINT', async () => {
     console.log('SIGINT received, shutting down gracefully');
     try {
-        await kafkaConsumer.stop();
-        console.log('Kafka consumer stopped');
+        await userEventConsumer.stop();
+        console.log('Staff event consumer stopped');
         process.exit(0);
     } catch (err) {
         console.error('Error during shutdown:', err.message);
