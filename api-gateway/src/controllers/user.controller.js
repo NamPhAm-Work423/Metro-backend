@@ -175,17 +175,17 @@ const userController = {
    * @returns {Object} - Reset password response
    */
   resetPassword: asyncErrorHandler(async (req, res) => {
-    const { token, password } = req.body;
+    const { token, uid, newPassword } = req.body;
 
-    if (!token || !password) {
+    if (!token || !uid || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Token and password are required',
+        message: 'Token, user ID, and new password are required',
         error: 'INVALID_REQUEST'
       });
     }
 
-    await userService.resetPassword(token, password);
+    await userService.resetPassword(token, uid, newPassword);
 
     res.json({
       success: true,

@@ -63,26 +63,24 @@ sequenceDiagram
     Note over Client,PassengerService: 🔐 Bước 1: Đăng ký User
     Client->>Gateway: POST /v1/auth/register
     Gateway->>PostgreSQL: Tạo User mới
+    Gateway->>Gateway: Auto-generate API key (background)
+    Gateway->>Redis: Cache API key cho validation nhanh
     PostgreSQL-->>Gateway: User created
     Gateway->>Kafka: Publish user.created event
     Kafka-->>PassengerService: Consumer nhận event
     PassengerService->>PassengerService: Tạo Passenger record
-    Gateway-->>Client: Registration success
+    Gateway-->>Client: Registration success (chỉ JWT tokens)
     
     Note over Client,PassengerService: 🔑 Bước 2: Đăng nhập
     Client->>Gateway: POST /v1/auth/login (email, password)
     Gateway->>PostgreSQL: Verify credentials
+    Gateway->>Gateway: Auto-refresh API key (background)
     PostgreSQL-->>Gateway: User data + JWT tokens
-    Gateway-->>Client: JWT tokens (access + refresh)
+    Gateway-->>Client: JWT tokens only (access + refresh)
     
-    Note over Client,PassengerService: 🎟️ Bước 3: Tạo API Key  
-    Client->>Gateway: GET /v1/auth/key/{userId} + JWT
-    Gateway->>PostgreSQL: Store hashed API key
-    Gateway->>Redis: Cache API key cho validation nhanh
-    Gateway-->>Client: API Key
-    
-    Note over Client,PassengerService: 🚀 Bước 4: Routing Request
-    Client->>Gateway: Request /v1/route/passengers + API Key
+    Note over Client,PassengerService: 🚀 Bước 3: Routing Request (Simplified)
+    Client->>Gateway: Request /v1/route/passengers + JWT only
+    Gateway->>Gateway: Auto-inject API key từ backend
     Gateway->>Redis: Validate API Key
     Gateway->>PostgreSQL: Find service & instances
     Gateway->>Gateway: Load balancing + Circuit breaker
@@ -91,21 +89,21 @@ sequenceDiagram
     Gateway-->>Client: Response
 ```
 
-### 2. Chi tiết Authentication Types
+### 2. Chi tiết Authentication Types 
 
-#### A. JWT Bearer Token
-- **Mục đích**: Quản lý services, tạo API key, admin operations
-- **Header**: `Authorization: Bearer <jwt_token>`
-- **Endpoints**: `/v1/auth/*`, `/v1/service/*`
+#### A. JWT Bearer Token (Duy nhất người dùng cần biết)
+- **Mục đích**: Tất cả operations - auth, routing, admin
+- **Lưu trữ**: HTTP-only cookie (secure)
+- **Endpoints**: Tất cả endpoints `/v1/auth/*`, `/v1/service/*`, `/v1/route/*`
 - **Thời gian sống**: 1 giờ (access), 7 ngày (refresh)
-- **Lưu trữ**: Chỉ trong memory của client
+- **Lưu trữ**: Trong cookie
 
-#### B. API Key Authentication
-- **Mục đích**: Định tuyến đến microservices
-- **Header**: `x-api-key: <api_key>`  
-- **Endpoints**: `/v1/route/*`
+#### B. API Key (Tự động quản lý bởi backend)
+- **Mục đích**: Validation nội bộ cho routing
+- **Xử lý**: Tự động inject bởi middleware
 - **Lưu trữ**: PostgreSQL (hashed) + Redis (cached)
-- **Performance**: Validation cực nhanh qua Redis
+- **Performance**: Ultra-fast validation qua Redis cache
+- **Người dùng**: Không cần biết hoặc quản lý
 
 ## 🎯 Chi tiết Routes
 
@@ -167,23 +165,21 @@ Response: {
 #### 🔑 API Key Management
 
 ```javascript
-// Tạo API key (Cần JWT token)
-GET /v1/auth/key/{userId}
-Headers: Authorization: Bearer <jwt_token>
+// API key được tự động tạo khi đăng ký/đăng nhập
+// KHÔNG CÓ endpoint thủ công để tạo API key
 
-// Xử lý:
-// 1. Verify JWT token qua middleware
-// 2. Generate random API key
-// 3. Hash API key với secret
-// 4. Store hashed key trong PostgreSQL
-// 5. Cache original key trong Redis cho validation
-// 6. Return original key cho client
+// Quá trình tự động:
+// 1. User đăng ký → Auto-generate API key (background)
+// 2. User đăng nhập → Auto-refresh API key (background)  
+// 3. User dùng JWT cho routing → Auto-inject API key
+// 4. Backend validation qua Redis cache
+// 5. User chỉ cần quản lý JWT token
 
-Response: {
-  status: "success",
-  token: "api_1234567890abcdef",
-  message: "Use this key in x-api-key header"
-}
+// Lợi ích:
+// ✅ Zero API key management cho user
+// ✅ Tự động refresh và validation
+// ✅ Ultra-fast performance với Redis
+// ✅ Secure - API key không bao giờ expose
 ```
 
 ### 2. Service Management Routes (`/v1/service/*`)
@@ -227,7 +223,7 @@ Headers: Authorization: Bearer <token>
 ```javascript
 // Route đến service endpoint
 ALL /v1/route/{endPoint}
-Headers: x-api-key: <api_key>
+Cookies: accessToken=<jwt_token> (HTTP-only, auto-send)
 
 // Examples:
 GET /v1/route/passengers      → GET passengers service
@@ -235,36 +231,47 @@ POST /v1/route/passengers     → CREATE in passengers service
 PUT /v1/route/passengers/123  → UPDATE passenger 123
 DELETE /v1/route/passengers/123 → DELETE passenger 123
 
-// Route với sub-paths
+// Route với sub-paths (CHỈ CẦN JWT TOKEN)
 ALL /v1/route/{endPoint}/*
-Headers: x-api-key: <api_key>
+Cookies: accessToken=<jwt_token> (HTTP-only, auto-send)
 
 // Examples:
 GET /v1/route/passengers/123/bookings
 POST /v1/route/passengers/123/bookings
 DELETE /v1/route/passengers/123/bookings/456
+
+// Backend tự động:
+// 1. Extract JWT từ HTTP-only cookie
+// 2. Validate JWT token
+// 3. Auto-inject API key từ cache/database
+// 4. Route request đến microservice
 ```
 
-#### 🔧 Cách hoạt động của Dynamic Routing:
+#### 🔧 Cách hoạt động của Dynamic Routing (Tối ưu hóa):
 
 ```mermaid
 flowchart TD
-    A["Client Request<br/>/v1/route/passengers/123"] --> B["API Key Validation<br/>validateAPIKeyMiddleware"]
-    B --> C{"API Key Valid?"}
+    A["Client Request<br/>/v1/route/passengers/123<br/>+ JWT Cookie"] --> B["Extract JWT từ Cookie<br/>autoInjectAPIKeyMiddleware"]
+    B --> C{"JWT Valid?"}
     C -->|"No"| D["Return 401 Unauthorized"]
-    C -->|"Yes"| E["Parse Endpoint<br/>endPoint = 'passengers'"]
-    E --> F["Find Service in PostgreSQL<br/>WHERE endPoint = 'passengers'"]
-    F --> G{"Service Found?"}
-    G -->|"No"| H["Return 404 Service Not Found"]
-    G -->|"Yes"| I["Get Active Instances<br/>WHERE status = 'active' AND isHealthy = true"]
-    I --> J{"Healthy Instances?"}
-    J -->|"No"| K["Return 503 Service Unavailable"]
-    J -->|"Yes"| L["Load Balancing<br/>selectInstance()"]
-    L --> M["Circuit Breaker Check<br/>proxyBreaker.fire()"]
-    M --> N["HTTP Proxy<br/>express-http-proxy"]
-    N --> O["Path Resolution<br/>/v1/route/passengers/123 → /v1/passengers/123"]
-    O --> P["Forward to Instance<br/>http://passenger-service-1:3001/v1/passengers/123"]
-    P --> Q["Return Response"]
+    C -->|"Yes"| E["Auto-inject API Key<br/>từ Redis/Database"]
+    E --> F{"API Key Found?"}
+    F -->|"No"| G["Auto-generate new API Key"]
+    G --> H["Cache API Key trong Redis"]
+    F -->|"Yes"| I["Parse Endpoint<br/>endPoint = 'passengers'"]
+    H --> I
+    I --> J["Find Service in PostgreSQL<br/>WHERE endPoint = 'passengers'"]
+    J --> K{"Service Found?"}
+    K -->|"No"| L["Return 404 Service Not Found"]
+    K -->|"Yes"| M["Get Active Instances<br/>WHERE status = 'active' AND isHealthy = true"]
+    M --> N{"Healthy Instances?"}
+    N -->|"No"| O["Return 503 Service Unavailable"]
+    N -->|"Yes"| P["Load Balancing<br/>selectInstance()"]
+    P --> Q["Circuit Breaker Check<br/>proxyBreaker.fire()"]
+    Q --> R["HTTP Proxy<br/>express-http-proxy"]
+    R --> S["Path Resolution<br/>/v1/route/passengers/123 → /v1/passengers/123"]
+    S --> T["Forward to Instance<br/>http://passenger-service-1:3001/v1/passengers/123"]
+    T --> U["Return Response"]
 ```
 
 ## 🚀 HTTP Proxy System
@@ -742,11 +749,11 @@ flowchart TD
 
 ```javascript
 // File: src/routes/routing.route.js
-router.all('/:endPoint', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
-router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingController.useService);
+router.all('/:endPoint', authMiddleware.autoInjectAPIKeyMiddleware, routingController.useService);
+router.all('/:endPoint/*', authMiddleware.autoInjectAPIKeyMiddleware, routingController.useService);
 
-// Processing flow:
-// 1. API Key validation middleware
+// Processing flow (Optimized):
+// 1. JWT validation + Auto-inject API key middleware
 // 2. Route to routingController.useService  
 // 3. Parse endPoint parameter
 // 4. Call routingService.routeRequest
@@ -756,36 +763,43 @@ router.all('/:endPoint/*', authMiddleware.validateAPIKeyMiddleware, routingContr
 // 8. Return response
 ```
 
-## 🎯 Các tính năng bảo mật
+## 🎯 Các tính năng bảo mật (Tăng cường)
 
 ### 1. Rate Limiting
 - Giới hạn request per IP và per user
 - Khác nhau cho các endpoint sensitive
 - Stored trong Redis với TTL
+- Auto-scaling limits based on usage patterns
 
 ### 2. Account Locking
 - Tự động lock sau nhiều lần đăng nhập sai
 - Temporary lock (TTL) hoặc permanent lock
 - Admin có thể unlock thủ công
+- Progressive delay for repeated failures
 
-### 3. Token Security
+### 3. Token Security (Enhanced)
 - JWT với expiration time ngắn (1h)
 - Refresh token để gia hạn (7 ngày)
-- API key được hash với secret trước khi lưu
+- **API key tự động hash và quản lý an toàn**
+- **Zero exposure của API key cho client**
+- **Auto-rotation và regeneration**
 
 ### 4. Input Validation & Sanitization
 - Joi schema validation cho request body
 - Helmet.js cho security headers
 - CORS configuration
 - SQL injection prevention
+- XSS protection và CSRF tokens
 
-### 5. Logging & Monitoring
+### 5. Logging & Monitoring (Advanced)
 - Winston logger với multiple transports
 - Request/response logging với correlation IDs
 - Error tracking và alerting
 - Performance metrics
+- **API key usage analytics**
+- **Auto-anomaly detection**
 
-## 📖 Hướng dẫn sử dụng từng bước
+## 📖 Hướng dẫn sử dụng từng bước (Đơn giản hóa)
 
 ### Bước 1: Đăng ký tài khoản
 ```bash
@@ -802,6 +816,8 @@ curl -X POST http://localhost:3000/v1/auth/register \
     "email": "john@example.com",
     "password": "password123"
   }'
+
+# Backend tự động tạo API key ở background
 ```
 
 ### Bước 2: Đăng nhập  
@@ -813,33 +829,41 @@ curl -X POST http://localhost:3000/v1/auth/login \
     "password": "password123"
   }'
 
-# Save accessToken từ response
+# JWT tokens được lưu trong HTTP-only cookies tự động
+# Backend tự động refresh API key ở background
 ```
 
-### Bước 3: Tạo API Key
+### Bước 3: Sử dụng JWT cookie cho mọi thứ (HOÀN TOÀN TỰ ĐỘNG)
 ```bash
-curl -X GET http://localhost:3000/v1/auth/key/USER_ID \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-  
-# Save API key từ response
-```
-
-### Bước 4: Sử dụng API Key
-```bash
-# List passengers
+# List passengers - JWT tự động gửi qua cookie
 curl -X GET http://localhost:3000/v1/route/passengers \
-  -H "x-api-key: YOUR_API_KEY"
+  --cookie-jar cookies.txt --cookie cookies.txt
 
-# Get specific passenger  
+# Get specific passenger - JWT tự động gửi qua cookie  
 curl -X GET http://localhost:3000/v1/route/passengers/123 \
-  -H "x-api-key: YOUR_API_KEY"
+  --cookie-jar cookies.txt --cookie cookies.txt
 
-# Create passenger
+# Create passenger - JWT tự động gửi qua cookie
 curl -X POST http://localhost:3000/v1/route/passengers \
-  -H "x-api-key: YOUR_API_KEY" \
+  --cookie-jar cookies.txt --cookie cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"name":"Jane","email":"jane@example.com"}'
+
+# Backend tự động:
+# 1. Extract JWT từ HTTP-only cookie
+# 2. Validate JWT token  
+# 3. Auto-inject API key cho validation
 ```
+
+### 🎯 Lợi ích của thiết kế mới:
+- ✅ **Zero token management** - JWT auto-send qua HTTP-only cookie
+- ✅ **Zero API key management** - User không cần biết API key
+- ✅ **Auto-generation** - API key tự động tạo khi đăng ký
+- ✅ **Auto-refresh** - API key tự động refresh khi đăng nhập  
+- ✅ **Auto-injection** - Backend tự động inject API key
+- ✅ **Ultra-fast** - Redis cache cho performance tối ưu
+- ✅ **Maximum security** - JWT trong HTTP-only cookie, API key không expose
+- ✅ **XSS Protection** - JavaScript không thể access token
 
 ## 🔍 Error Handling
 
@@ -1611,33 +1635,40 @@ curl -X POST http://localhost:3000/v1/auth/login \
     "password": "password123"
   }'
 
-# Save accessToken from response
+# JWT tokens are automatically saved in HTTP-only cookies
 ```
 
-### Step 3: Generate API Key
+### Step 3: Use JWT Cookie for Everything (FULLY AUTOMATIC)
 ```bash
-curl -X GET http://localhost:3000/v1/auth/key/USER_ID \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-  
-# Save API key from response
-```
-
-### Step 4: Use API Key
-```bash
-# List passengers
+# List passengers - JWT automatically sent via cookie
 curl -X GET http://localhost:3000/v1/route/passengers \
-  -H "x-api-key: YOUR_API_KEY"
+  --cookie-jar cookies.txt --cookie cookies.txt
 
-# Get specific passenger
+# Get specific passenger - JWT automatically sent via cookie
 curl -X GET http://localhost:3000/v1/route/passengers/123 \
-  -H "x-api-key: YOUR_API_KEY"
+  --cookie-jar cookies.txt --cookie cookies.txt
 
-# Create passenger
+# Create passenger - JWT automatically sent via cookie
 curl -X POST http://localhost:3000/v1/route/passengers \
-  -H "x-api-key: YOUR_API_KEY" \
+  --cookie-jar cookies.txt --cookie cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"name":"Jane","email":"jane@example.com"}'
+
+# Backend automatically:
+# 1. Extracts JWT from HTTP-only cookie
+# 2. Validates JWT token
+# 3. Injects API key for validation
 ```
+
+### 🎯 Benefits of the New Design:
+- ✅ **Zero token management** - JWT auto-sent via HTTP-only cookie
+- ✅ **Zero API key management** - Users don't need to know about API keys
+- ✅ **Auto-generation** - API key automatically created on signup
+- ✅ **Auto-refresh** - API key automatically refreshed on login  
+- ✅ **Auto-injection** - Backend automatically injects API key
+- ✅ **Ultra-fast** - Redis cache for optimal performance
+- ✅ **Maximum security** - JWT in HTTP-only cookie, API key never exposed
+- ✅ **XSS Protection** - JavaScript cannot access tokens
 
 ## 🔍 Error Handling
 

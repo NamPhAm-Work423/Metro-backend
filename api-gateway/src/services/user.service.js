@@ -8,9 +8,10 @@ const { logger } = require('../config/logger');
 const emailService = require('./email.service');
 const { Kafka } = require('kafkajs');
 const keyService = require('./key.service');
-const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
+const { createAPIToken, hashToken, sha256, generateResetToken } = require('../helpers/crypto.helper');
 const { Key } = require('../models/index.model');
 const { setImmediate } = require('timers');
+const { withRedisClient } = require('../config/redis');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -700,71 +701,136 @@ class UserService {
      * @returns {boolean} - Success status
      */
     forgotPassword = async (email) => {
+        
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            // Return success even if user doesn't exist for security
+            logger.info('Password reset requested for non-existent email (security)', { 
+                email: email.substring(0, 3) + '***', 
+            });
             return true;
         }
 
-        // Generate reset token using the same secret as refresh tokens
-        const resetToken = jwt.sign(
-            { userId: user.id, type: 'password_reset' },
-            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-            { expiresIn: '1h' }
-        );
-
-        // Store reset token in user record
-        await user.update({ 
-            passwordResetToken: resetToken,
-            passwordResetExpiry: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
-        });
-
-        // Send reset email
+        // Generate secure random token
+        const resetToken = generateResetToken();
+        
+        // Hash the token using sha256
+        const hashedToken = sha256(resetToken);
+        
+        // Store hashed token in Redis with TTL of 10 minutes (600 seconds)
+        const redisKey = `reset:${user.id}`;
+        const ttlSeconds = 600; // 10 minutes
+        
         try {
-            await emailService.sendPasswordResetEmail(user.email, resetToken);
-            logger.info('Password reset email sent successfully', { userId: user.id, email });
-        } catch (emailError) {
-            logger.error('Failed to send password reset email', { 
+            await withRedisClient(async (client) => {
+                await client.set(redisKey, hashedToken, { EX: ttlSeconds });
+            });
+            
+            logger.info('Password reset token stored in Redis', { 
+                userId: user.id, 
+                email,
+                redisKey,
+                ttlSeconds 
+            });
+        } catch (redisError) {
+            logger.error('Failed to store reset token in Redis', { 
                 userId: user.id, 
                 email, 
-                error: emailError.message 
+                error: redisError.message 
             });
-            // Continue without throwing error to prevent exposing email service issues
+            throw new Error('Failed to generate password reset token');
         }
+
+        // Send reset email with token and userId (async - don't wait)
+        // Process email sending in background to improve response time
+        setImmediate(async () => {
+            try {
+                await emailService.sendPasswordResetEmail(user.email, resetToken, user.id);
+                logger.info('Password reset email sent successfully', { userId: user.id, email });
+            } catch (emailError) {
+                logger.error('Failed to send password reset email', { 
+                    userId: user.id, 
+                    email, 
+                    error: emailError.message 
+                });
+                // Clean up Redis token if email fails
+                try {
+                    await withRedisClient(async (client) => {
+                        await client.del(redisKey);
+                    });
+                    logger.info('Cleaned up Redis token after email failure', { userId: user.id, redisKey });
+                } catch (cleanupError) {
+                    logger.error('Failed to cleanup Redis token after email failure', { 
+                        userId: user.id, 
+                        redisKey,
+                        error: cleanupError.message 
+                    });
+                }
+            }
+        });
+
+        logger.info('Password reset process completed', { 
+            userId: user.id, 
+            email,
+        });
 
         return true;
     }
 
     /**
-     * @description: Reset password with token
+     * @description: Reset password with token and userId
      * @param {string} token - Reset token
+     * @param {string} uid - User ID
      * @param {string} newPassword - New password
      * @returns {boolean} - Success status
      */
-    resetPassword = async (token, newPassword) => {
-        // Verify reset token
-        const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
-        
-        // Check token type
-        if (decoded.type !== 'password_reset') {
-            throw new Error('Invalid reset token');
+    resetPassword = async (token, uid, newPassword) => {
+        // Validate input parameters
+        if (!token || !uid || !newPassword) {
+            throw new Error('Token, user ID, and new password are required');
         }
         
-        // Find user
-        const user = await User.findByPk(decoded.userId);
-        if (!user) {
-            throw new Error('Invalid reset token');
+        // Hash the provided token
+        const hashedToken = sha256(token);
+        
+        // Get stored hashed token from Redis
+        const redisKey = `reset:${uid}`;
+        let storedHashedToken;
+        
+        try {
+            storedHashedToken = await withRedisClient(async (client) => {
+                return await client.get(redisKey);
+            });
+        } catch (redisError) {
+            logger.error('Failed to retrieve reset token from Redis', { 
+                uid, 
+                redisKey,
+                error: redisError.message 
+            });
+            throw new Error('Failed to verify reset token');
         }
-
-        // Check if token matches stored token and hasn't expired
-        if (user.passwordResetToken !== token || new Date() > user.passwordResetExpiry) {
+        
+        // Check if token exists and matches
+        if (!storedHashedToken || hashedToken !== storedHashedToken) {
+            logger.warn('Invalid or expired reset token attempt', { 
+                uid, 
+                hasToken: !!token,
+                hasStoredToken: !!storedHashedToken,
+                tokensMatch: hashedToken === storedHashedToken 
+            });
             throw new Error('Invalid or expired reset token');
+        }
+        
+        // Find user by ID
+        const user = await User.findByPk(uid);
+        if (!user) {
+            logger.warn('User not found during password reset', { uid });
+            throw new Error('Invalid reset token');
         }
 
         // Hash new password
         const passwordHash = await bcrypt.hash(newPassword, 10);
 
-        // Update password and clear reset token
+        // Update password and reset account lock status
         await user.update({
             password: passwordHash,
             passwordResetToken: null,
@@ -774,9 +840,91 @@ class UserService {
             accountLocked: false
         });
 
+        // Delete the reset token from Redis
+        try {
+            await withRedisClient(async (client) => {
+                await client.del(redisKey);
+            });
+            logger.info('Reset token deleted from Redis', { uid, redisKey });
+        } catch (redisError) {
+            logger.error('Failed to delete reset token from Redis', { 
+                uid, 
+                redisKey,
+                error: redisError.message 
+            });
+            // Don't throw error here as password was already updated successfully
+        }
+
         logger.info('Password reset successful', { userId: user.id, email: user.email });
 
         return true;
+    }
+
+    /**
+     * @description: Check if password reset token exists for user
+     * @param {string} userId - User ID
+     * @returns {Object} - Token existence status and TTL
+     */
+    checkResetToken = async (userId) => {
+        const redisKey = `reset:${userId}`;
+        
+        try {
+            const result = await withRedisClient(async (client) => {
+                const token = await client.get(redisKey);
+                const ttl = await client.ttl(redisKey);
+                return { token: !!token, ttl };
+            });
+            
+            logger.info('Reset token check', { 
+                userId, 
+                redisKey,
+                hasToken: result.token,
+                ttlSeconds: result.ttl 
+            });
+            
+            return {
+                exists: result.token,
+                ttlSeconds: result.ttl,
+                expiresAt: result.ttl > 0 ? new Date(Date.now() + result.ttl * 1000) : null
+            };
+        } catch (redisError) {
+            logger.error('Failed to check reset token in Redis', { 
+                userId, 
+                redisKey,
+                error: redisError.message 
+            });
+            return { exists: false, ttlSeconds: -1, expiresAt: null };
+        }
+    }
+
+    /**
+     * @description: Revoke/delete password reset token for user
+     * @param {string} userId - User ID
+     * @returns {boolean} - Deletion success
+     */
+    revokeResetToken = async (userId) => {
+        const redisKey = `reset:${userId}`;
+        
+        try {
+            const deleted = await withRedisClient(async (client) => {
+                return await client.del(redisKey);
+            });
+            
+            logger.info('Reset token revoked', { 
+                userId, 
+                redisKey,
+                deleted: deleted > 0 
+            });
+            
+            return deleted > 0;
+        } catch (redisError) {
+            logger.error('Failed to revoke reset token in Redis', { 
+                userId, 
+                redisKey,
+                error: redisError.message 
+            });
+            return false;
+        }
     }
 
     /**

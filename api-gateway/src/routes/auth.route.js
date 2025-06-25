@@ -161,16 +161,11 @@ const router = express.Router();
  *           example: api_1234567890abcdef
  *           description: Generated API key for accessing routing endpoints
  *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- *       description: 'JWT token obtained from login endpoint. Format: Bearer <token>'
- *     ApiKeyAuth:
+ *     cookieAuth:
  *       type: apiKey
- *       in: header
- *       name: x-api-key
- *       description: 'API key for routing endpoints. Get from /v1/auth/key/{userId}'
+ *       in: cookie
+ *       name: accessToken
+ *       description: 'JWT token stored in HTTP-only cookie (automatic)'
  *
  * tags:
  *   - name: Authentication
@@ -179,24 +174,25 @@ const router = express.Router();
  *       
  *       ### Simple 2-Step Process:
  *       
- *       1. **Register/Login** → Get JWT tokens only
- *       2. **Use JWT everywhere** → Works for all endpoints (auth + routing)
+ *       1. **Register/Login** → JWT automatically saved in HTTP-only cookie
+ *       2. **Use any endpoint** → Cookies automatically sent with requests
  *       
  *       ### How It Works:
- *       - API keys are automatically managed by the backend
- *       - Users only interact with JWT tokens
- *       - Zero API key management required
+ *       - JWT stored in secure HTTP-only cookies (auto-sent)
+ *       - API keys automatically managed by backend
+ *       - Zero token management required
+ *       - Maximum security (XSS protection)
  *       
  *       ### Quick Start:
  *       ```bash
- *       # 1. Login
+ *       # 1. Login (cookies auto-saved)
  *       curl -X POST /v1/auth/login \\
+ *         --cookie-jar cookies.txt \\
  *         -H "Content-Type: application/json" \\
  *         -d '{"email":"user@example.com","password":"password"}'
  *       
- *       # 2. Use JWT for everything
- *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
- *         /v1/route/passengers
+ *       # 2. Use any endpoint (cookies auto-sent)
+ *       curl --cookie cookies.txt /v1/route/passengers
  *       ```
  *       
  *       ### Swagger UI Authentication:
@@ -337,7 +333,7 @@ router.post('/login', userController.login);
  *     description: Logout the current user and clear authentication cookies.
  *     tags: [Authentication]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: ✅ Logout successful
@@ -400,7 +396,7 @@ router.post('/forgot-password', userController.forgotPassword);
  * /v1/auth/reset-password:
  *   post:
  *     summary: 🔑 Reset password
- *     description: Reset password using token from reset email.
+ *     description: Reset password using token and user ID from reset email.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -410,12 +406,16 @@ router.post('/forgot-password', userController.forgotPassword);
  *             type: object
  *             required:
  *               - token
- *               - password
+ *               - uid
+ *               - newPassword
  *             properties:
  *               token:
  *                 type: string
  *                 description: Reset token from email
- *               password:
+ *               uid:
+ *                 type: string
+ *                 description: User ID from email
+ *               newPassword:
  *                 type: string
  *                 minLength: 6
  *                 description: New password
@@ -424,6 +424,8 @@ router.post('/forgot-password', userController.forgotPassword);
  *         description: ✅ Password reset successful
  *       400:
  *         description: ❌ Invalid request or expired token
+ *       403:
+ *         description: ❌ Invalid or expired reset token
  */
 router.post('/reset-password', userController.resetPassword);
 
@@ -471,93 +473,13 @@ router.get('/verify/:token', userController.verifyEmail);
  */
 router.get('/verify-email', userController.verifyEmailFromQuery);
 
-/**
- * @swagger
- * /v1/auth/key/{userId}:
- *   get:
- *     summary: Generate additional API key (Advanced)
- *     description: |
- *       Generate an additional API key for accessing routing endpoints.
- *       
- *       **Note**: This is optional since API keys are auto-generated during login.
- *       Mainly used for:
- *       - Creating additional keys for the same user
- *       - System integrations
- *       - Advanced key management
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: User ID from login response
- *         example: "0aca0654-1ea3-425b-9cd0-151e0996412a"
- *     responses:
- *       200:
- *         description: API key generated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/APIKeyResponse'
- *       401:
- *         description: Unauthorized - Invalid or missing JWT token
- */
+
 router.get('/key/:id', authMiddleware.authenticate, authController.generateAPIToken);
 
-/**
- * @swagger
- * /v1/auth/keys/{userId}:
- *   get:
- *     summary: 📋 Get all API keys for user
- *     description: Retrieve all active API keys for a specific user.
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: User ID
- *     responses:
- *       200:
- *         description: ✅ API keys retrieved successfully
- *       401:
- *         description: ❌ Unauthorized
- */
+
 router.get('/keys/:userId', authMiddleware.authenticate, authController.getAPIKeyByUser);
 
-/**
- * @swagger
- * /v1/auth/key/{id}:
- *   delete:
- *     summary: 🗑️ Delete API key
- *     description: Delete a specific API key by ID.
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: API key ID to delete
- *     responses:
- *       200:
- *         description: ✅ API key deleted successfully
- *       401:
- *         description: ❌ Unauthorized
- *       404:
- *         description: ❌ API key not found
- */
+
 router.delete('/key/:id', authMiddleware.authenticate, authController.deleteKeyById);
 
 module.exports = router;

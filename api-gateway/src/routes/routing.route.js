@@ -7,11 +7,11 @@ const authMiddleware = require('../middlewares/auth.middleware');
  * @swagger
  * components:
  *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- *       description: 'JWT token obtained from login endpoint. Format: Bearer <token>'
+ *     cookieAuth:
+ *       type: apiKey
+ *       in: cookie
+ *       name: accessToken
+ *       description: 'JWT token stored in HTTP-only cookie (automatic)'
  * 
  * tags:
  *   - name: Routing
@@ -21,25 +21,23 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       Access registered microservices through the API gateway.
  *       
  *       ### Authentication:
- *       - Requires JWT token in `Authorization: Bearer TOKEN` header
- *       - API keys are handled automatically by the backend
+ *       - JWT automatically sent via HTTP-only cookie
+ *       - API keys handled automatically by backend
+ *       - Zero token management required
  *       
  *       ### Available Services:
  *       - **Passenger Service**: `/v1/route/passengers/*`
  *       
  *       ### Example Usage:
  *       ```bash
- *       # Get all passengers
- *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
- *         /v1/route/passengers
+ *       # Get all passengers (cookies auto-sent)
+ *       curl --cookie cookies.txt /v1/route/passengers
  *       
- *       # Get specific passenger
- *       curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
- *         /v1/route/passengers/123
+ *       # Get specific passenger (cookies auto-sent)
+ *       curl --cookie cookies.txt /v1/route/passengers/123
  *       
- *       # Create passenger
- *       curl -X POST \\
- *         -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+ *       # Create passenger (cookies auto-sent)
+ *       curl -X POST --cookie cookies.txt \\
  *         -H "Content-Type: application/json" \\
  *         -d '{"name":"John","email":"john@example.com"}' \\
  *         /v1/route/passengers
@@ -65,7 +63,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       - `/v1/route/passengers/123` → Get passenger with ID 123
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -103,7 +101,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Example**: POST `/v1/route/passengers` with passenger data
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -147,7 +145,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -190,7 +188,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -231,7 +229,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -272,7 +270,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Authentication**: API Key required in `x-api-key` header
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -305,7 +303,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       **Example**: POST `/v1/route/passengers/123/bookings` to create booking for passenger 123
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -342,7 +340,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward PUT requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -375,7 +373,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward PATCH requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
@@ -408,7 +406,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *     description: Forward DELETE requests with sub-paths to registered microservices.
  *     tags: [Routing]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
  *         name: endPoint
