@@ -16,9 +16,12 @@ services:
       - KAFKA_GROUP_ID=api-gateway-group
       - USER_CREATED_TOPIC=user.created
       - USER_DELETED_TOPIC=user.deleted
+      - ADMIN_DELETED_TOPIC=admin.deleted
+      - ADMIN_UPDATED_TOPIC=admin.updated
       - PASSENGER_DELETED_TOPIC=passenger.deleted
+      - PASSENGER_UPDATED_TOPIC=passenger.updated
       - STAFF_DELETED_TOPIC=staff.deleted
-      - STAFF_UPDATED_TOPIC=staff.updated
+      - STAFF_UPDATED_TOPIC=staff.updated 
       - STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
       - KAFKAJS_NO_PARTITIONER_WARNING=1
       - NEED_EMAIL_VERIFICATION=true  #turn off to require email verification
@@ -46,61 +49,31 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Passenger Service - handles passenger users
-  passenger-service:
+  # User Service - unified service handling admin, passenger and staff users
+  user-service:
     build:
-      context: ./passenger-service
-    container_name: passenger-service
+      context: ./user-service
+    container_name: user-service
     ports:
       - "3001:3001"
     env_file:
-      - ./passenger-service/.env
+      - ./user-service/.env
     environment:
       - KAFKA_BROKERS=kafka-1:19092
-      # ,kafka-2:19093,kafka-3:19094
-      - KAFKA_CLIENT_ID=passenger-service
-      - KAFKA_GROUP_ID=passenger-service-group
+      - KAFKA_CLIENT_ID=user-service
+      - KAFKA_GROUP_ID=user-service-group
       - USER_CREATED_TOPIC=user.created
       - USER_DELETED_TOPIC=user.deleted
+      - ADMIN_DELETED_TOPIC=admin.deleted
+      - ADMIN_UPDATED_TOPIC=admin.updated
       - PASSENGER_DELETED_TOPIC=passenger.deleted
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
-    volumes:
-      - ./passenger-service:/app
-      - /app/node_modules
-    depends_on:
-      kafka-1:
-        condition: service_healthy
-      # kafka-2:
-      #   condition: service_started
-      # kafka-3:
-      #   condition: service_started
-      postgres:
-        condition: service_healthy
-    networks:
-      - backend-network
-    restart: unless-stopped
-
-  # Staff Service - handles staff users
-  staff-service:
-    build:
-      context: ./staff-service
-    container_name: staff-service
-    ports:
-      - "3002:3002"
-    env_file:
-      - ./staff-service/.env
-    environment:
-      - KAFKA_BROKERS=kafka-1:19092
-      - KAFKA_CLIENT_ID=staff-service
-      - KAFKA_GROUP_ID=staff-service-group
-      - USER_CREATED_TOPIC=user.created
-      - USER_DELETED_TOPIC=user.deleted
+      - PASSENGER_UPDATED_TOPIC=passenger.updated
       - STAFF_DELETED_TOPIC=staff.deleted
       - STAFF_UPDATED_TOPIC=staff.updated
       - STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     volumes:
-      - ./staff-service:/app
+      - ./user-service:/app
       - /app/node_modules
     depends_on:
       kafka-1:

@@ -25,7 +25,14 @@ const userController = {
       address,
       roles: roles || ['passenger']
     });
-
+    //If in roles have admin, reject create user
+    if (roles.includes('admin')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin role is not allowed to be created',
+        error: 'ADMIN_ROLE_NOT_ALLOWED'
+      });
+    }
     // Remove all fields from response except email, username, and roles
     const userResponse = {
       email: user.email,

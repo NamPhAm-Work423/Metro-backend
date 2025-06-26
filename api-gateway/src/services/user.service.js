@@ -203,7 +203,10 @@ class UserService {
         if (existingUser) {
             throw new Error('User already exists');
         }
-
+        //If in roles have admin, reject create user
+        if (roles.includes('admin')) {
+            throw new Error('Admin role is not allowed to be created');
+        }
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
@@ -313,7 +316,7 @@ class UserService {
         // Find user
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            throw new Error('Invalid email or password');
+            throw new Error('User is not found');
         }
 
         // Check if account is locked BEFORE password check
@@ -328,7 +331,7 @@ class UserService {
 
         // Check password (only critical operation that must block)
         if (sanitizedPassword.length === 0) {
-            throw new Error('Invalid email or password');
+            throw new Error('Password is required');
         }
 
         const isPasswordValid = await bcrypt.compare(sanitizedPassword, user.password);

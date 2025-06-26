@@ -1,7 +1,151 @@
 # Metro Backend - Microservices Platform
 
-An event-driven microservices backend built with Node.js, PostgreSQL, Redis, and Kafka.  
-The platform provides a comprehensive API Gateway with dynamic routing, authentication, and real-time passenger management services.
+A comprehensive event-driven microservices backend platform built with Node.js, featuring unified user management, dynamic routing, and real-time communication capabilities.
+
+## 🏢 Service Domain Architecture
+
+The Metro Backend is organized into logical service domains, each handling specific business capabilities:
+
+| Domain | Services | Sub-Modules | Status |
+|--------|----------|-------------|--------|
+| 🧑‍✈️ **User Management** | `user-service` | admin, passenger, staff | ✅ Active |
+| 🚆 **Transport Operations** | `transport-service` | station, schedule, route | 🏗️ In Development |
+| 🎫 **Ticket & Pricing** | `ticket-service` | ticket, fare, promotion | 📋 Planned |
+| 📞 **Customer Support** | `customer-support-service` | supportReq, guide, chat, call | 📋 Planned |
+| 💳 **Payment Processing** | `payment-service` | Single unified payment service | 📋 Planned |
+| 📊 **Analytics & Reporting** | `report-service` | Single reporting service | 📋 Planned |
+| 🔐 **API Management** | `api-gateway` | Central gateway with routing | ✅ Active |
+
+### Service Architecture Benefits:
+- ✅ **Domain-Driven Design**: Services grouped by business capability
+- ✅ **Independent Deployment**: Each service can be deployed separately
+- ✅ **Scalability**: Scale services based on domain-specific load
+- ✅ **Team Ownership**: Clear service boundaries for development teams
+- ✅ **Technology Flexibility**: Each domain can use optimal tech stack
+
+### Current Implementation:
+- **🔐 API Gateway**: Central authentication, routing, and load balancing
+- **🧑‍✈️ User Service**: Unified user management (previously 3 separate services)
+
+### 🏗️ Service Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "🔐 API Management Layer"
+        API[API Gateway :3000]
+    end
+
+    subgraph "🧑‍✈️ User Management Domain"
+        USER[user-service :3001]
+        subgraph "User Modules"
+            ADMIN[Admin Management]
+            PASSENGER[Passenger Management] 
+            STAFF[Staff Management]
+        end
+    end
+
+    subgraph "🚆 Transport Operations Domain"
+        TRANSPORT[transport-service :3002]
+        subgraph "Transport Modules"
+            STATION[Station Management]
+            SCHEDULE[Schedule Management]
+            ROUTE[Route Management]
+        end
+    end
+
+    subgraph "🎫 Ticket & Pricing Domain"
+        TICKET_SVC[ticket-service :3003]
+        subgraph "Ticket Modules"
+            TICKET[Ticket Management]
+            FARE[Fare Management]
+            PROMOTION[Promotion Management]
+        end
+    end
+
+    subgraph "📞 Customer Support Domain"
+        SUPPORT[customer-support-service :3004]
+        subgraph "Support Modules"
+            SUPPORT_REQ[Support Requests]
+            GUIDE[Guide System]
+            CHAT[Chat Support]
+            CALL[Call Center]
+        end
+    end
+
+    subgraph "💳 Payment Domain"
+        PAYMENT[payment-service :3005]
+    end
+
+    subgraph "📊 Analytics Domain"
+        REPORT[report-service :3006]
+    end
+
+    subgraph "💾 Data & Infrastructure"
+        POSTGRES[(PostgreSQL)]
+        REDIS[(Redis Cache)]
+        KAFKA[Kafka Events]
+    end
+
+    API --> USER
+    API --> TRANSPORT
+    API --> TICKET_SVC
+    API --> SUPPORT
+    API --> PAYMENT
+    API --> REPORT
+
+    USER --> ADMIN
+    USER --> PASSENGER
+    USER --> STAFF
+
+    TRANSPORT --> STATION
+    TRANSPORT --> SCHEDULE
+    TRANSPORT --> ROUTE
+
+    TICKET_SVC --> TICKET
+    TICKET_SVC --> FARE
+    TICKET_SVC --> PROMOTION
+
+    SUPPORT --> SUPPORT_REQ
+    SUPPORT --> GUIDE
+    SUPPORT --> CHAT
+    SUPPORT --> CALL
+
+    USER --> POSTGRES
+    TRANSPORT --> POSTGRES
+    TICKET_SVC --> POSTGRES
+    SUPPORT --> POSTGRES
+    PAYMENT --> POSTGRES
+    REPORT --> POSTGRES
+
+    API --> REDIS
+    USER --> KAFKA
+    TRANSPORT --> KAFKA
+    TICKET_SVC --> KAFKA
+    SUPPORT --> KAFKA
+    PAYMENT --> KAFKA
+
+    style API fill:#e1f5fe
+    style USER fill:#f3e5f5
+    style TRANSPORT fill:#e8f5e8
+    style TICKET_SVC fill:#fff3e0
+    style SUPPORT fill:#fce4ec
+    style PAYMENT fill:#f1f8e9
+    style REPORT fill:#fff8e1
+```
+
+---
+
+## 🎯 Platform Overview
+
+The Metro Backend consolidates user management (admin, passenger, staff) into a unified architecture with sophisticated API Gateway capabilities including authentication, dynamic routing, load balancing, and event-driven communication.
+
+### Key Achievements:
+- ✅ **Unified User Service**: Merged 3 separate services into 1 (admin-service, passenger-service, staff-service → user-service)
+- ✅ **Dynamic Routing**: API Gateway with load balancing and circuit breaker patterns
+- ✅ **Event-Driven Architecture**: Kafka-based microservice communication
+- ✅ **High-Performance Caching**: Redis-based API key validation (10-50x faster)
+- ✅ **Comprehensive Security**: JWT + API Key authentication, rate limiting, account protection
+- ✅ **Complete Documentation**: Swagger UI with detailed API specifications
 
 ---
 
@@ -9,72 +153,202 @@ The platform provides a comprehensive API Gateway with dynamic routing, authenti
 
 ```
 Metro-backend/
-├── api-gateway/           # Central API Gateway (authentication, routing, load balancing)
-├── passenger-service/     # Passenger management microservice
-├── pgadmin/              # PostgreSQL admin interface configuration
-├── docker-compose.yml    # Complete development stack
-├── init_db.sql          # Database initialization script
+├── api-gateway/              # Central API Gateway (Port 3000)
+│   ├── src/
+│   │   ├── controllers/      # Authentication, routing, service management
+│   │   ├── services/         # Business logic, load balancing, email
+│   │   ├── middlewares/      # Auth, rate limiting, validation
+│   │   ├── events/           # Kafka producer for user events
+│   │   ├── config/           # Database, Redis, Swagger setup
+│   │   └── swagger/          # Comprehensive API documentation
+│   └── tests/                # Unit and integration tests
+├── user-service/             # Unified User Management (Port 3001)
+│   ├── src/
+│   │   ├── controllers/      # Admin, passenger, staff controllers
+│   │   ├── services/         # User management business logic
+│   │   ├── models/           # Admin, Passenger, Staff models
+│   │   ├── events/           # Kafka consumer for user events
+│   │   └── routes/           # Modular routing system
+│   └── package.json
+├── transport-service/        # Transport Operations (Port 3002)
+│   └── src/
+│       ├── station/          # Station management module
+│       ├── schedule/         # Schedule management module
+│       └── route/            # Route management module
+├── ticket-service/           # Ticket & Pricing (Port 3003)
+│   └── src/
+│       ├── ticket/           # Ticket management module
+│       ├── fare/             # Fare management module
+│       └── promotion/        # Promotion management module
+├── customer-support-service/ # Customer Support (Port 3004)
+│   └── src/
+│       ├── supportReq/       # Support request module
+│       ├── guide/            # Guide system module
+│       ├── chat/             # Chat support module
+│       └── call/             # Call center module
+├── payment-service/          # Payment Processing (Port 3005)
+├── report-service/           # Analytics & Reporting (Port 3006)
+├── docker-compose.yml        # Complete development infrastructure
+├── init_db.sql              # Database initialization
 └── README.md
 ```
 
-> Each service owns its own Dockerfile, package.json, tests, and dedicated database schema.
-
 ---
 
-## 🚀 Quick Start (Development)
+## 🚀 Quick Start
 
 ### Prerequisites
+- Docker + Docker Compose v2.0+
+- Node.js 18+ (for local development)
+- Git
 
-* Docker + Docker Compose v2
-* Node.js 18+ (LTS)
-* Git
+### 1. Environment Setup
 
-### 1. Clone & Bootstrap
+Create environment files for each service:
+
+#### API Gateway (`.env` in `api-gateway/`)
+```env
+# Application Configuration
+NODE_ENV=development
+PORT=3000
+SERVICE_NAME=api-gateway
+
+# Database Configuration
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# Redis Configuration  
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_USER=
+
+# JWT Security
+JWT_ACCESS_SECRET=your_super_secret_access_key_change_in_production
+JWT_REFRESH_SECRET=your_super_secret_refresh_key_change_in_production
+JWT_ACCESS_EXPIRY=1h
+JWT_REFRESH_EXPIRY=7d
+
+# API Key Security
+HASH_SECRET=your_api_key_hash_secret_change_in_production
+API_KEY_EXPIRY=86400
+
+# Kafka Configuration
+KAFKA_BROKERS=kafka-1:19092
+KAFKA_CLIENT_ID=api-gateway
+KAFKA_GROUP_ID=api-gateway-group
+
+# Kafka Topics
+USER_CREATED_TOPIC=user.created
+USER_UPDATED_TOPIC=user.updated
+USER_DELETED_TOPIC=user.deleted
+
+# Email Service (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+AUTH_RATE_LIMIT_MAX=10
+SENSITIVE_RATE_LIMIT_MAX=5
+API_RATE_LIMIT_MAX=1000
+USER_RATE_LIMIT_MAX=60
+
+# Circuit Breaker
+CIRCUIT_BREAKER_TIMEOUT=30000
+CIRCUIT_BREAKER_ERROR_THRESHOLD=50
+CIRCUIT_BREAKER_RESET_TIMEOUT=30000
+
+# Logging
+LOG_LEVEL=info
+LOG_MAX_SIZE=20m
+LOG_MAX_FILES=14d
+```
+
+#### User Service (`.env` in `user-service/`)
+```env
+# Application Configuration
+NODE_ENV=development
+PORT=3001
+SERVICE_NAME=user-service
+
+# Database Configuration
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# Kafka Configuration
+KAFKA_BROKERS=kafka-1:19092
+KAFKA_CLIENT_ID=user-service
+KAFKA_GROUP_ID=user-service-group
+
+# Kafka Topics - Consumer
+USER_CREATED_TOPIC=user.created
+USER_UPDATED_TOPIC=user.updated
+USER_DELETED_TOPIC=user.deleted
+
+# Kafka Topics - Producer
+ADMIN_CREATED_TOPIC=admin.created
+ADMIN_UPDATED_TOPIC=admin.updated
+ADMIN_DELETED_TOPIC=admin.deleted
+PASSENGER_CREATED_TOPIC=passenger.created
+PASSENGER_UPDATED_TOPIC=passenger.updated
+PASSENGER_DELETED_TOPIC=passenger.deleted
+STAFF_CREATED_TOPIC=staff.created
+STAFF_UPDATED_TOPIC=staff.updated
+STAFF_DELETED_TOPIC=staff.deleted
+STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
+
+# Database Sync
+DB_FORCE_SYNC=true
+DB_ALTER_SYNC=false
+
+# Logging
+LOG_LEVEL=info
+LOG_MAX_SIZE=20m
+LOG_MAX_FILES=14d
+
+# Security
+BCRYPT_ROUNDS=12
+```
+
+### 2. Launch Development Stack
 
 ```bash
 # Clone repository
-git clone <repo-url> Metro-backend && cd Metro-backend
+git clone <repository-url> Metro-backend
+cd Metro-backend
 
-# Start complete development stack
-docker-compose up --build
-```
+# Start complete infrastructure
+docker-compose up --build -d
 
-Docker Compose will provision:
-1. **API Gateway** (Port 3000) - Authentication, routing, load balancing
-2. **Passenger Service** (Port 3001) - Passenger management
-3. **PostgreSQL** (Port 5432) - Primary database
-4. **Redis** (Port 6379) - Cache and session store
-5. **Kafka** (Port 9092) - Event streaming platform
-6. **pgAdmin** (Port 5050) - Database management UI
-
-### 2. Verify Installation
-
-```bash
-# Health checks
-curl http://localhost:3000/health        # API Gateway
-curl http://localhost:3001/health        # Passenger Service
-
-# API Documentation
-open http://localhost:3000/api-docs      # Swagger UI
-open http://localhost:5050               # pgAdmin
-```
-
-### 3. Development Commands
-
-```bash
 # View service logs
 docker-compose logs -f api-gateway
-docker-compose logs -f passenger-service
+docker-compose logs -f user-service
+```
 
-# Run tests
-docker-compose exec api-gateway npm test
-docker-compose exec passenger-service npm test
+### 3. Service Verification
 
-# Restart specific service
-docker-compose restart api-gateway
+```bash
+# Health Checks
+curl http://localhost:3000/health          # API Gateway
+curl http://localhost:3001/metrics         # User Service
 
-# Cleanup (removes volumes/data)
-docker-compose down -v
+# API Documentation
+open http://localhost:3000/api-docs        # Swagger UI
+
+# Management Interfaces
+open http://localhost:5050                 # pgAdmin (postgres/postgres)
+open http://localhost:8081                 # Redis Commander
+open http://localhost:8080                 # Kafka UI
 ```
 
 ---
@@ -83,495 +357,379 @@ docker-compose down -v
 
 ```mermaid
 graph TB
-    subgraph "Client Layer"
-        C1[Web App]
-        C2[Mobile App]
-        C3[Admin Panel]
+    subgraph "Client Applications"
+        WEB[Web Application]
+        MOBILE[Mobile App]
+        ADMIN[Admin Panel]
     end
 
-    subgraph "API Gateway :3000"
-        AG[API Gateway]
-        AUTH[Authentication]
+    subgraph "API Gateway Layer :3000"
+        GATEWAY[API Gateway]
+        AUTH[JWT Authentication]
+        APIKEY[API Key Management]
         ROUTER[Dynamic Router]
         LB[Load Balancer]
         CB[Circuit Breaker]
-        RL[Rate Limiter]
+        RATE[Rate Limiter]
     end
 
     subgraph "Microservices"
-        PS[Passenger Service :3001]
-        FS[Future Services]
+        USER[User Service :3001]
+        FUTURE[Future Services...]
     end
 
-    subgraph "Data Layer"
-        PG[(PostgreSQL :5432)]
-        RD[(Redis :6379)]
-        KF[Kafka :9092]
+    subgraph "Data & Cache Layer"
+        POSTGRES[(PostgreSQL :5432)]
+        REDIS[(Redis :6379)]
+        KAFKA[Kafka :9092]
     end
 
-    subgraph "Management"
-        PA[pgAdmin :5050]
-        RC[Redis Commander :8081]
-        KU[Kafka UI :8080]
+    subgraph "Management Tools"
+        PGADMIN[pgAdmin :5050]
+        REDISUI[Redis Commander :8081]
+        KAFKAUI[Kafka UI :8080]
     end
 
-    C1 --> AG
-    C2 --> AG  
-    C3 --> AG
+    WEB --> GATEWAY
+    MOBILE --> GATEWAY
+    ADMIN --> GATEWAY
 
-    AG --> AUTH
-    AG --> ROUTER
+    GATEWAY --> AUTH
+    GATEWAY --> APIKEY
+    GATEWAY --> ROUTER
     ROUTER --> LB
     LB --> CB
-    CB --> RL
+    CB --> RATE
 
-    ROUTER --> PS
-    ROUTER --> FS
+    ROUTER --> USER
+    ROUTER --> FUTURE
 
-    AG --> PG
-    AG --> RD
-    AG --> KF
+    GATEWAY --> POSTGRES
+    GATEWAY --> REDIS
+    GATEWAY --> KAFKA
 
-    PS --> PG
-    PS --> KF
+    USER --> POSTGRES
+    USER --> KAFKA
 
-    PA -.-> PG
-    RC -.-> RD
-    KU -.-> KF
+    PGADMIN -.-> POSTGRES
+    REDISUI -.-> REDIS
+    KAFKAUI -.-> KAFKA
 
-    style AG fill:#e1f5fe
-    style PS fill:#f3e5f5
-    style PG fill:#e8f5e8
-    style RD fill:#fff3e0
-    style KF fill:#fce4ec
+    style GATEWAY fill:#e1f5fe
+    style USER fill:#f3e5f5
+    style POSTGRES fill:#e8f5e8
+    style REDIS fill:#fff3e0
+    style KAFKA fill:#fce4ec
 ```
 
-### Key Components:
+### Architecture Highlights:
 
-* **API Gateway** – Central entry point with JWT authentication, API key management, dynamic routing, load balancing, circuit breaker, and rate limiting
-* **Passenger Service** – Manages passenger profiles, integrates with user events via Kafka
-* **PostgreSQL** – Stores users, services, instances, API keys, and passenger data
-* **Redis** – High-speed cache for API keys (10-50x faster), rate limiting, and connection tracking
-* **Kafka** – Event-driven communication for user lifecycle events
+#### 🔐 **API Gateway (Port 3000)**
+- **Dual Authentication**: JWT (service management) + API Key (routing)
+- **Dynamic Routing**: Auto-discovery and load balancing to microservices
+- **Performance**: Redis caching for ultra-fast API key validation (< 1ms)
+- **Reliability**: Circuit breaker pattern with automatic fallback
+- **Security**: Multi-tier rate limiting, account protection, input validation
+
+#### 👥 **User Service (Port 3001)** 
+- **Unified Management**: Admin + Passenger + Staff in single service
+- **Event-Driven**: Automatic profile creation from Kafka user events
+- **Role-Based**: Smart processing based on user roles
+- **Backward Compatible**: Maintains all previous API endpoints
+
+
 
 ---
 
-## 🔄 Data Flow & Event Architecture
+## 🔄 Event-Driven Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant AG as API Gateway
-    participant PS as Passenger Service
-    participant PG as PostgreSQL
-    participant RD as Redis
-    participant KF as Kafka
+    participant CLIENT as Client App
+    participant GATEWAY as API Gateway
+    participant USER as User Service
+    participant POSTGRES as PostgreSQL
+    participant REDIS as Redis Cache
+    participant KAFKA as Kafka
 
-    Note over C,KF: User Registration & Passenger Creation Flow
+    Note over CLIENT,KAFKA: Complete User Registration & Profile Creation Flow
 
-    C->>AG: POST /v1/auth/register
-    AG->>PG: Create user record
-    AG->>RD: Cache user session
-    AG->>KF: Publish user.created event
-    AG->>C: Return user + JWT token
+    CLIENT->>GATEWAY: POST /v1/auth/register
+    GATEWAY->>POSTGRES: Create User record
+    GATEWAY->>REDIS: Cache session + API key
+    GATEWAY->>KAFKA: Publish user.created event
+    GATEWAY->>CLIENT: Return JWT tokens
 
-    KF->>PS: Consume user.created event
-    PS->>PG: Create passenger record
-    Note over PS: Only if user.roles includes 'passenger'
+    KAFKA->>USER: Consume user.created event
+    USER->>USER: Check user roles [passenger, staff, admin]
+    alt User has passenger role
+        USER->>POSTGRES: Create Passenger profile
+        USER->>KAFKA: Publish passenger.created event
+    end
+    alt User has staff role
+        USER->>POSTGRES: Create Staff profile
+        USER->>KAFKA: Publish staff.created event
+    end
+    Note over USER: Admin profiles NOT auto-created (security)
 
-    Note over C,KF: API Key Generation & Usage Flow
+    Note over CLIENT,KAFKA: API Usage Flow with Auto-Injection
 
-    C->>AG: GET /v1/auth/key/:userId (JWT)
-    AG->>PG: Validate user & generate key
-    AG->>RD: Cache API key (24h TTL)
-    AG->>C: Return API key
-
-    C->>AG: GET /v1/route/passengers (API Key)
-    AG->>RD: Validate API key (< 1ms)
-    AG->>AG: Load balance to instance
-    AG->>PS: Proxy request
-    PS->>PG: Query passenger data
-    PS->>AG: Return response
-    AG->>C: Return passenger list
+    CLIENT->>GATEWAY: GET /v1/route/passengers (JWT cookie)
+    GATEWAY->>GATEWAY: Extract JWT + Auto-inject API key
+    GATEWAY->>REDIS: Validate API key (< 1ms)
+    GATEWAY->>GATEWAY: Load balance to user-service
+    GATEWAY->>USER: Proxy: GET /v1/passengers
+    USER->>POSTGRES: Query passenger data
+    USER->>GATEWAY: Return passenger list
+    GATEWAY->>CLIENT: Return response
 ```
 
 ---
 
-## 🗄️ Database Schema
+## 📊 Database Schema
 
-```mermaid
-erDiagram
-    USERS ||--o{ API_KEYS : has
-    USERS ||--|| PASSENGERS : creates
-    SERVICES ||--o{ SERVICE_INSTANCES : has
-    PASSENGERS ||--o{ TICKETS : books
+### Core Tables:
 
-    USERS {
-        uuid userId PK
-        string username UK
-        string email UK
-        string passwordHash
-        string firstName
-        string lastName
-        string phoneNumber
-        date dateOfBirth
-        enum gender
-        text address
-        json roles
-        boolean isActive
-        boolean isLocked
-        timestamp lockExpiresAt
-        int failedLoginAttempts
-        timestamp createdAt
-        timestamp updatedAt
-    }
+#### **API Gateway Database**
+```sql
+-- Users table (authentication)
+users (id, email, username, password_hash, first_name, last_name, phone_number, roles, is_active, created_at, updated_at)
 
-    API_KEYS {
-        uuid keyId PK
-        uuid userId FK
-        string keyHash
-        json metadata
-        timestamp expiresAt
-        timestamp createdAt
-        timestamp updatedAt
-    }
+-- Services registry
+services (id, name, end_point, description, version, timeout, retries, created_at, updated_at)
 
-    PASSENGERS {
-        uuid passengerId PK
-        uuid userId FK "UNIQUE"
-        string username UK
-        string firstName
-        string lastName
-        string phoneNumber
-        date dateOfBirth
-        enum gender
-        text address
-        boolean isActive
-        json ticketList
-        timestamp createdAt
-        timestamp updatedAt
-    }
+-- Service instances for load balancing
+service_instances (id, service_id, host, port, status, is_healthy, weight, region, metadata, created_at, updated_at)
 
-    SERVICES {
-        uuid serviceId PK
-        string name UK
-        string endPoint UK
-        string description
-        string version
-        int timeout
-        int retries
-        boolean isActive
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    SERVICE_INSTANCES {
-        uuid instanceId PK
-        uuid serviceId FK
-        string host
-        int port
-        int weight
-        string region
-        json metadata
-        boolean isActive
-        boolean isHealthy
-        timestamp lastHealthCheck
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    TICKETS {
-        uuid ticketId PK
-        string ticketNumber UK
-        string ticketType
-        decimal ticketPrice
-        string ticketStatus
-        date ticketDate
-        time ticketTime
-        uuid passengerId FK
-        timestamp createdAt
-        timestamp updatedAt
-    }
+-- API keys for routing
+keys (id, user_id, key_hash, created_at, updated_at)
 ```
 
-### Schema Highlights:
+#### **User Service Database**
+```sql
+-- Admin profiles
+admins (id, user_id, permissions, department, hire_date, created_at, updated_at)
 
-- **Multi-role User System**: Supports passenger, staff, admin roles
-- **API Key Management**: Hashed keys with metadata and TTL
-- **Service Registry**: Dynamic service discovery and health monitoring
-- **Event-Driven Sync**: User → Passenger creation via Kafka
-- **Extensible Design**: Ready for ticketing, payment, route services
+-- Passenger profiles  
+passengers (id, user_id, membership_type, total_trips, last_trip_date, created_at, updated_at)
 
----
-
-## 🔧 Configuration & Environment
-
-### API Gateway (.env)
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=metro_gateway
-DB_USER=postgres
-DB_PASSWORD=postgres
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT & Security
-JWT_ACCESS_SECRET=your_super_secret_access_key_32_chars_min
-JWT_REFRESH_SECRET=your_super_secret_refresh_key_32_chars_min
-HASH_SECRET=your_api_key_hash_secret_32_chars_min
-
-# Kafka
-KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=api-gateway
-```
-
-### Passenger Service (.env)
-```env
-# Application
-NODE_ENV=development
-PORT=3001
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=passenger_db
-DB_USER=postgres
-DB_PASSWORD=postgres
-
-# Kafka
-KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=passenger-service
+-- Staff profiles
+staff (id, user_id, position, department, hire_date, status, supervisor_id, created_at, updated_at)
 ```
 
 ---
 
-## 📚 API Endpoints
+## 🛡️ Security Features
 
-### Authentication Routes (API Gateway)
+### Authentication & Authorization
+- **JWT Authentication**: HTTP-only cookies with access/refresh tokens
+- **API Key Management**: Automatic generation, caching, and rotation
+- **Role-Based Access**: Admin, Staff, Passenger with granular permissions
+- **Account Protection**: Auto-locking, progressive delays, admin controls
+
+### Rate Limiting & Performance
+- **Multi-Tier Limits**: Different rates for auth, API, sensitive operations
+- **Redis-Backed**: Distributed rate limiting across instances
+- **Circuit Breaker**: Automatic failover and recovery
+- **Ultra-Fast Validation**: Redis caching for 10-50x performance improvement
+
+### Data Protection
+- **Input Validation**: Joi schemas, SQL injection prevention
+- **XSS Protection**: Helmet.js security headers
+- **CORS Configuration**: Controlled cross-origin access
+- **Secure Logging**: Correlation IDs, no sensitive data exposure
+
+---
+
+## 🧪 Testing & Development
+
+### Running Tests
 ```bash
-POST /v1/auth/register      # User registration + Kafka event
-POST /v1/auth/login         # JWT authentication
-POST /v1/auth/refresh       # Token refresh
-POST /v1/auth/logout        # User logout
-GET  /v1/auth/key/:userId   # Generate API key (JWT required)
+# API Gateway tests
+docker-compose exec api-gateway npm test
+docker-compose exec api-gateway npm run test:unit
+docker-compose exec api-gateway npm run test:integration
+
+# User Service tests
+docker-compose exec user-service npm test
+
+# All services
+docker-compose exec api-gateway npm test && docker-compose exec user-service npm test
 ```
 
-### Service Management (API Gateway - JWT Required)
+### Development Commands
 ```bash
-POST /v1/services                        # Register microservice
-GET  /v1/services                        # List services
-POST /v1/services/:id/instances          # Register service instance
-GET  /v1/services/:id/health             # Health check instances
+# Watch logs
+docker-compose logs -f api-gateway user-service
+
+# Restart specific service
+docker-compose restart user-service
+
+# Access service shell
+docker-compose exec user-service bash
+
+# Database access
+docker-compose exec postgres psql -U postgres
+
+# Redis CLI
+docker-compose exec redis redis-cli
 ```
 
-### Dynamic Routing (API Gateway - API Key Required)
+### Code Quality
 ```bash
-# Route to any registered microservice
-ALL /v1/route/:endPoint/*
+# Linting
+npm run lint
+npm run lint:fix
 
-# Examples:
-GET  /v1/route/passengers               # List all passengers
-GET  /v1/route/passengers/:id           # Get passenger profile
-POST /v1/route/passengers               # Create passenger
-PUT  /v1/route/passengers/:id           # Update passenger
-DELETE /v1/route/passengers/:id         # Delete passenger
-```
+# Code formatting
+npm run format
 
-### Passenger Service (Direct - for development)
-```bash
-GET  /v1/passengers         # List passengers
-GET  /v1/passengers/:id     # Get passenger by ID
-POST /v1/passengers         # Create passenger
-PUT  /v1/passengers/:id     # Update passenger
-DELETE /v1/passengers/:id   # Delete passenger
+# Type checking
+npm run type-check
 ```
 
 ---
 
-## ➕ Adding New Microservices
+## 📈 Monitoring & Operations
 
-### 1. Create Service Structure
+### Health Endpoints
+- **API Gateway**: `GET /health`, `GET /health/db`, `GET /health/redis`
+- **User Service**: `GET /metrics`, `GET /health`
+- **Database**: `GET /health/db` (via API Gateway)
+
+### Performance Metrics
+- Request/response times with correlation IDs
+- API key validation performance
+- Circuit breaker statistics
+- Rate limiting metrics
+- Database connection pool monitoring
+
+### Management Interfaces
+- **Swagger UI**: http://localhost:3000/api-docs (Complete API documentation)
+- **pgAdmin**: http://localhost:5050 (Database management)
+- **Redis Commander**: http://localhost:8081 (Cache monitoring)
+- **Kafka UI**: http://localhost:8080 (Event streaming monitoring)
+
+---
+
+## 📖 API Usage Examples
+
+### Complete User Journey
+
 ```bash
-mkdir new-service && cd new-service
-npm init -y
-npm install express sequelize pg kafkajs winston
-```
-
-### 2. Add Dockerfile
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 3002
-CMD ["npm", "start"]
-```
-
-### 3. Update docker-compose.yml
-```yaml
-new-service:
-  build: ./new-service
-  ports: ["3002:3002"]
-  environment:
-    - NODE_ENV=development
-    - PORT=3002
-    - DB_HOST=postgres
-  depends_on:
-    - postgres
-    - redis
-    - kafka
-  networks:
-    - metro-network
-```
-
-### 4. Register with API Gateway
-```bash
-# Register service
-curl -X POST http://localhost:3000/v1/services \
-  -H "Authorization: Bearer JWT_TOKEN" \
+# 1. Register new user
+curl -X POST http://localhost:3000/v1/auth/register \
+  -H "Content-Type: application/json" \
   -d '{
-    "name": "new-service",
-    "endPoint": "newservice",
-    "description": "New microservice",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "password": "SecurePass123!",
+    "phoneNumber": "1234567890",
+    "roles": ["passenger"]
+  }'
+
+# 2. Login (JWT in HTTP-only cookie)
+curl -X POST http://localhost:3000/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{
+    "email": "john@example.com",
+    "password": "SecurePass123!"
+  }'
+
+# 3. Access passenger data (automatic API key injection)
+curl -X GET http://localhost:3000/v1/route/passengers \
+  -b cookies.txt
+
+# 4. Update passenger profile
+curl -X PUT http://localhost:3000/v1/route/passengers/me \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "membershipType": "premium"
+  }'
+```
+
+### Service Management (Admin)
+
+```bash
+# Register new microservice
+curl -X POST http://localhost:3000/v1/services \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ticket-service",
+    "endPoint": "tickets",
+    "description": "Ticket management service",
     "version": "1.0.0"
   }'
 
-# Register instance
-curl -X POST http://localhost:3000/v1/services/SERVICE_ID/instances \
-  -H "Authorization: Bearer JWT_TOKEN" \
+# Register service instance
+curl -X POST http://localhost:3000/v1/services/1/instances \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
   -d '{
-    "host": "new-service",
-    "port": 3002,
+    "host": "ticket-service",
+    "port": 3003,
     "weight": 1
   }'
 ```
 
 ---
 
-## 🧪 Testing Strategy
+## 🚀 Deployment
 
-### Unit Tests
+### Production Configuration
+- Update all `.env` files with production values
+- Use strong secrets for JWT and API key hashing
+- Configure proper database credentials
+- Set up SSL/TLS certificates
+- Configure production logging levels
+
+### Docker Production
 ```bash
-# Test specific service
-docker-compose exec api-gateway npm test
-docker-compose exec passenger-service npm test
+# Build production images
+docker-compose -f docker-compose.prod.yml build
 
-# Test with coverage
-docker-compose exec api-gateway npm run test:coverage
-```
-
-### Integration Tests
-```bash
-# Full system integration tests
-npm run test:integration
-
-# Kafka event flow tests
-npm run test:events
-
-# Load balancing tests
-npm run test:routing
-```
-
-### Performance Tests
-```bash
-# API Gateway load testing
-npm run test:load
-
-# Redis performance validation
-npm run test:cache
-```
-
----
-
-## 🚀 Production Deployment
-
-### 1. Build Production Images
-```bash
-# Build versioned images
-docker build -t metro/api-gateway:v1.0.0 ./api-gateway
-docker build -t metro/passenger-service:v1.0.0 ./passenger-service
-
-# Push to registry
-docker push metro/api-gateway:v1.0.0
-docker push metro/passenger-service:v1.0.0
-```
-
-### 2. Production Compose
-```bash
-# Deploy with production configuration
+# Deploy to production
 docker-compose -f docker-compose.prod.yml up -d
+
+# Monitor production logs
+docker-compose -f docker-compose.prod.yml logs -f
 ```
 
-### 3. Health Monitoring
-```bash
-# Monitor service health
-curl http://production-url/health
-curl http://production-url/v1/services/health
-
-# View metrics
-curl http://production-url/metrics
-```
-
----
-
-## 📊 Monitoring & Observability
-
-### Health Endpoints
-- **API Gateway**: `GET /health`, `GET /health/db`, `GET /health/redis`
-- **Services**: `GET /v1/services/:id/health`
-- **Metrics**: `GET /metrics` (Prometheus format)
-
-### Management UIs
-- **API Documentation**: http://localhost:3000/api-docs
-- **Database Admin**: http://localhost:5050 (pgAdmin)
-- **Redis Management**: http://localhost:8081 (Redis Commander)  
-- **Kafka UI**: http://localhost:8080
-
-### Performance Metrics
-- **API Key Validation**: Redis cache ~0.5-1ms vs PostgreSQL ~10-50ms
-- **Rate Limiting**: Redis-backed with automatic TTL cleanup
-- **Circuit Breaker**: Opossum with configurable thresholds
-- **Load Balancing**: Connection-aware routing with Redis tracking
+### Scaling Considerations
+- Multiple API Gateway instances behind load balancer
+- User Service horizontal scaling with Kafka consumer groups
+- Redis clustering for high availability
+- PostgreSQL read replicas for performance
 
 ---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create feature branch: `git checkout -b feature/awesome-feature`
-3. Follow conventional commits: `feat: add user authentication`
-4. Run tests: `npm test` 
-5. Submit PR with comprehensive description
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Follow the established code standards and patterns
+4. Write comprehensive tests
+5. Update documentation as needed
+6. Commit changes: `git commit -m 'Add amazing feature'`
+7. Push to branch: `git push origin feature/amazing-feature`
+8. Open a Pull Request
 
-### Code Standards
-- **ESLint + Prettier**: Consistent code formatting
-- **Jest**: Unit and integration testing
+### Development Standards
+- **ESLint + Prettier**: Code formatting and linting
+- **Jest**: Testing framework with high coverage requirements
 - **Conventional Commits**: Standardized commit messages
-- **API Documentation**: Swagger/OpenAPI 3.0
+- **API Documentation**: Update Swagger specs for all changes
 
 ---
 
-## 📄 Documentation
+## 📄 License
 
-- **[API Gateway Documentation](./api-gateway/README.md)**: Comprehensive guide
-- **[Routes Documentation](./api-gateway/ROUTES_DOCUMENTATION.md)**: Detailed API reference
-- **[Swagger UI](http://localhost:3000/api-docs)**: Interactive API explorer
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📝 License
-
-MIT © 2025 Metro Backend Contributors
-
----
-
-**Built with ❤️ for scalable microservices architecture** 
+**Metro Backend - Building the Future of Urban Transit Management** 🚇✨

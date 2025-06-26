@@ -865,6 +865,98 @@ curl -X POST http://localhost:3000/v1/route/passengers \
 - ✅ **Maximum security** - JWT trong HTTP-only cookie, API key không expose
 - ✅ **XSS Protection** - JavaScript không thể access token
 
+---
+
+## 🔧 Environment Variables
+
+### API Gateway Configuration (`.env`)
+
+```env
+# Application Configuration
+NODE_ENV=development
+PORT=3000
+SERVICE_NAME=api-gateway
+
+# Database Configuration
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# Redis Configuration  
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_USER=
+
+# JWT Security
+JWT_ACCESS_SECRET=your_super_secret_access_key_change_in_production
+JWT_REFRESH_SECRET=your_super_secret_refresh_key_change_in_production
+JWT_ACCESS_EXPIRY=1h
+JWT_REFRESH_EXPIRY=7d
+
+# API Key Security
+HASH_SECRET=your_api_key_hash_secret_change_in_production
+API_KEY_EXPIRY=86400
+
+# Kafka Configuration
+KAFKA_BROKERS=kafka-1:19092
+KAFKA_CLIENT_ID=api-gateway
+KAFKA_GROUP_ID=api-gateway-group
+
+# Kafka Topics
+USER_CREATED_TOPIC=user.created
+USER_UPDATED_TOPIC=user.updated
+USER_DELETED_TOPIC=user.deleted
+
+# Email Service (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+AUTH_RATE_LIMIT_MAX=10
+SENSITIVE_RATE_LIMIT_MAX=5
+API_RATE_LIMIT_MAX=1000
+USER_RATE_LIMIT_MAX=60
+
+# Circuit Breaker
+CIRCUIT_BREAKER_TIMEOUT=30000
+CIRCUIT_BREAKER_ERROR_THRESHOLD=50
+CIRCUIT_BREAKER_RESET_TIMEOUT=30000
+
+# Logging
+LOG_LEVEL=info
+LOG_MAX_SIZE=20m
+LOG_MAX_FILES=14d
+```
+
+### Giải thích các Environment Variables quan trọng:
+
+#### 🔐 Security Configuration
+- **JWT_ACCESS_SECRET/JWT_REFRESH_SECRET**: Secrets để sign JWT tokens
+- **HASH_SECRET**: Secret để hash API keys trước khi lưu database
+- **API_KEY_EXPIRY**: Thời gian sống của API key (giây)
+
+#### ⚡ Performance Tuning
+- **REDIS_**: Cấu hình Redis cache cho API key validation siêu nhanh
+- **RATE_LIMIT_**: Cấu hình rate limiting đa cấp
+- **CIRCUIT_BREAKER_**: Cấu hình circuit breaker cho fault tolerance
+
+#### 📨 Event System
+- **KAFKA_BROKERS**: Kafka cluster cho event-driven architecture
+- **USER_*_TOPIC**: Tên topics cho user lifecycle events
+
+#### 📧 Email Integration
+- **EMAIL_**: Cấu hình SMTP cho gửi email (password reset, notifications)
+
+#### 🔍 Monitoring
+- **LOG_**: Cấu hình logging với Winston (level, rotation, file size)
+
 ## 🔍 Error Handling
 
 ### Authentication Errors:
@@ -1669,6 +1761,98 @@ curl -X POST http://localhost:3000/v1/route/passengers \
 - ✅ **Ultra-fast** - Redis cache for optimal performance
 - ✅ **Maximum security** - JWT in HTTP-only cookie, API key never exposed
 - ✅ **XSS Protection** - JavaScript cannot access tokens
+
+---
+
+## 🔧 Environment Variables
+
+### API Gateway Configuration (`.env`)
+
+```env
+# Application Configuration
+NODE_ENV=development
+PORT=3000
+SERVICE_NAME=api-gateway
+
+# Database Configuration
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# Redis Configuration  
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_USER=
+
+# JWT Security
+JWT_ACCESS_SECRET=your_super_secret_access_key_change_in_production
+JWT_REFRESH_SECRET=your_super_secret_refresh_key_change_in_production
+JWT_ACCESS_EXPIRY=1h
+JWT_REFRESH_EXPIRY=7d
+
+# API Key Security
+HASH_SECRET=your_api_key_hash_secret_change_in_production
+API_KEY_EXPIRY=86400
+
+# Kafka Configuration
+KAFKA_BROKERS=kafka-1:19092
+KAFKA_CLIENT_ID=api-gateway
+KAFKA_GROUP_ID=api-gateway-group
+
+# Kafka Topics
+USER_CREATED_TOPIC=user.created
+USER_UPDATED_TOPIC=user.updated
+USER_DELETED_TOPIC=user.deleted
+
+# Email Service (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+AUTH_RATE_LIMIT_MAX=10
+SENSITIVE_RATE_LIMIT_MAX=5
+API_RATE_LIMIT_MAX=1000
+USER_RATE_LIMIT_MAX=60
+
+# Circuit Breaker
+CIRCUIT_BREAKER_TIMEOUT=30000
+CIRCUIT_BREAKER_ERROR_THRESHOLD=50
+CIRCUIT_BREAKER_RESET_TIMEOUT=30000
+
+# Logging
+LOG_LEVEL=info
+LOG_MAX_SIZE=20m
+LOG_MAX_FILES=14d
+```
+
+### Environment Variables Explanation:
+
+#### 🔐 Security Configuration
+- **JWT_ACCESS_SECRET/JWT_REFRESH_SECRET**: Secrets for signing JWT tokens
+- **HASH_SECRET**: Secret for hashing API keys before database storage
+- **API_KEY_EXPIRY**: API key lifetime in seconds
+
+#### ⚡ Performance Tuning
+- **REDIS_**: Redis cache configuration for ultra-fast API key validation
+- **RATE_LIMIT_**: Multi-tier rate limiting configuration
+- **CIRCUIT_BREAKER_**: Circuit breaker configuration for fault tolerance
+
+#### 📨 Event System
+- **KAFKA_BROKERS**: Kafka cluster for event-driven architecture
+- **USER_*_TOPIC**: Topic names for user lifecycle events
+
+#### 📧 Email Integration
+- **EMAIL_**: SMTP configuration for sending emails (password reset, notifications)
+
+#### 🔍 Monitoring
+- **LOG_**: Winston logging configuration (level, rotation, file size)
 
 ## 🔍 Error Handling
 

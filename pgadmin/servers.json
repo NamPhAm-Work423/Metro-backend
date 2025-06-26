@@ -12,14 +12,14 @@
       "SavePassword": true
     },
     "2": {
-      "Name": "Passenger DB",
+      "Name": "User DB",
       "Group": "Servers",
       "Host": "postgres",
       "Port": 5432,
-      "MaintenanceDB": "passenger_db",
-      "Username": "passenger_service",
+      "MaintenanceDB": "user_db",
+      "Username": "user_service",
       "SSLMode": "prefer",
-      "Password": "passengerpass",
+      "Password": "userpass",
       "SavePassword": true
     }
   }
