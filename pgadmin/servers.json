@@ -21,6 +21,61 @@
       "SSLMode": "prefer",
       "Password": "userpass",
       "SavePassword": true
+    },
+    "3": {
+      "Name": "Transport DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "transport_db",
+      "Username": "transport_service",
+      "SSLMode": "prefer",
+      "Password": "transportpass",
+      "SavePassword": true
+    },
+    "4": {
+      "Name": "Ticket DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "ticket_db",
+      "Username": "ticket_service",
+      "SSLMode": "prefer",
+      "Password": "ticketpass",
+      "SavePassword": true
+    },
+    "5": {
+      "Name": "Customer Support DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "customer_support_db",
+      "Username": "customer_support_service",
+      "SSLMode": "prefer",
+      "Password": "customersupportpass",
+      "SavePassword": true
+    },
+    "6": {
+      "Name": "Payment DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "payment_db",
+      "Username": "payment_service",
+      "SSLMode": "prefer",
+      "Password": "paymentpass",
+      "SavePassword": true
+    },
+    "7": {
+      "Name": "Report DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "report_db",
+      "Username": "report_service",
+      "SSLMode": "prefer",
+      "Password": "reportpass",
+      "SavePassword": true
     }
   }
 } 

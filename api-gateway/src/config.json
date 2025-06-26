@@ -9,35 +9,60 @@
         {
             "name": "user-service",
             "endPoint": "user",
-            "description": "User profile and management service",
-            "version": "1.0.0",
-            "timeout": 5000,
-            "retries": 3,
-            "authentication": {
-                "required": true,
-                "type": "jwt",
-                "roles": ["admin"]
-            },
-            "circuitBreaker": {
-                "enabled": true,
-                "threshold": 5,
-                "resetTimeout": 30000
-            },
-            "loadBalancer": {
-                "strategy": "round-robin"
-            },
-            "rateLimit": {
-                "enabled": true,
-                "windowMs": 900000,
-                "max": 100
-            },
-            "status": "active",
             "instances": [
                 {
                     "host": "user-service",
-                    "port": 3001,
-                    "weight": 1,
-                    "region": "default"
+                    "port": 3001
+                }
+            ]
+        },
+        {
+            "name": "transport-service",
+            "endPoint": "transport",
+            "instances": [
+                {
+                    "host": "transport-service",
+                    "port": 3002
+                }
+            ]
+        },
+        {
+            "name": "ticket-service",
+            "endPoint": "ticket",
+            "instances": [
+                {
+                    "host": "ticket-service",
+                    "port": 3003
+                }
+            ]
+        },
+        {
+            "name": "customer-support-service",
+            "endPoint": "customer-support",
+            "instances": [
+                {
+                    "host": "customer-support-service",
+                    "port": 3004
+                }
+            ]
+        },
+        {
+            "name": "payment-service",
+            "endPoint": "payment",
+            "instances": [
+                {
+                    "host": "payment-service",
+                    "port": 3005
+                }
+            ]
+        },
+        {
+            "name": "report-service",
+            "endPoint": "report",
+            "instances": [
+                {
+                    "host": "report-service",
+                    "port": 3006
                 }
             ]
         }
