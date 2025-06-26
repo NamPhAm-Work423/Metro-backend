@@ -4,6 +4,7 @@ const CustomError = require('../utils/CustomError');
 const Service = require('../models/service.model');
 const ServiceInstance = require('../models/serviceInstance.model');
 const { logger } = require('../config/logger');
+const jwt = require('jsonwebtoken');
 
 class RoutingService {
     constructor() {
@@ -18,6 +19,55 @@ class RoutingService {
         this.proxyBreaker.fallback(() => {
             throw new CustomError('Circuit breaker: service temporarily unavailable', 503);
         });
+    }
+
+    /**
+     * Generate secure service-to-service JWT token
+     */
+    generateServiceToken(user) {
+        if (!process.env.SERVICE_JWT_SECRET) {
+            throw new Error('SERVICE_JWT_SECRET environment variable is required');
+        }
+
+        console.log('🔐 Generating service JWT:', {
+            userId: user.id,
+            email: user.email,
+            roles: user.roles,
+            secretAvailable: !!process.env.SERVICE_JWT_SECRET,
+            secretPrefix: process.env.SERVICE_JWT_SECRET.substring(0, 10) + '...'
+        });
+
+        const payload = {
+            userId: user.id,
+            email: user.email,
+            roles: user.roles,
+            iss: 'api-gateway',
+            aud: 'internal-services',
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + (5 * 60) // 5 minutes expiry
+        };
+
+        console.log('📝 JWT Payload:', payload);
+
+        const token = jwt.sign(
+            payload,
+            process.env.SERVICE_JWT_SECRET,
+            { algorithm: 'HS256' }
+        );
+
+        console.log('🎫 Generated service token:', {
+            tokenPrefix: token.substring(0, 30) + '...',
+            tokenLength: token.length,
+            payload: {
+                userId: payload.userId,
+                roles: payload.roles,
+                issuer: payload.iss,
+                audience: payload.aud,
+                expiresIn: '5 minutes'
+            }
+        });
+
+        return token;
     }
 
     /**
@@ -109,8 +159,26 @@ class RoutingService {
                     proxyReqOpts.headers['x-forwarded-for'] = srcReq.ip;
                     proxyReqOpts.headers['x-forwarded-proto'] = srcReq.protocol;
                     proxyReqOpts.headers['x-forwarded-host'] = srcReq.get('host');
+                    
+                    // SECURITY: Generate secure service-to-service JWT
+                    if (srcReq.user) {
+                        const serviceToken = this.generateServiceToken(srcReq.user);
+                        proxyReqOpts.headers['x-service-auth'] = `Bearer ${serviceToken}`;
+                        
+                        // Remove potentially dangerous headers from client
+                        delete proxyReqOpts.headers['x-user-id'];
+                        delete proxyReqOpts.headers['x-user-email'];
+                        delete proxyReqOpts.headers['x-user-roles'];
+                        
+                        logger.info('Service authentication added', {
+                            userId: srcReq.user.id,
+                            roles: srcReq.user.roles,
+                            tokenPrefix: serviceToken.substring(0, 20) + '...'
+                        });
+                    }
+                    
                     return proxyReqOpts;
-                }
+                }.bind(this)
             });
 
             res.on('finish', () => {

@@ -21,7 +21,8 @@
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^4.7.1",
     "node-fetch": "^2.7.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",
