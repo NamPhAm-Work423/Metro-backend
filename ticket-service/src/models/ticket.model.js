@@ -9,7 +9,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     passengerId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
@@ -17,7 +17,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     tripId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
@@ -40,7 +40,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     originStationId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
@@ -48,7 +48,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     destinationStationId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
@@ -106,13 +106,13 @@ const Ticket = sequelize.define('Ticket', {
         }
     },
     status: {
-        type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled', 'refunded'),
+        type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled'),
         allowNull: false,
         defaultValue: 'active',
     },
     ticketType: {
-        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass'),
-        allowNull: false,
+        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'),
+        allowNull: true,
         defaultValue: 'single',
     },
     qrCode: {

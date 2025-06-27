@@ -16,6 +16,9 @@ class TicketController {
             });
         }
 
+
+
+
         const ticket = await ticketService.createTicket({
             ...ticketData,
             passengerId
@@ -52,6 +55,8 @@ class TicketController {
                 message: 'Ticket not found'
             });
         }
+
+        
         
         res.status(200).json({
             success: true,
@@ -66,6 +71,8 @@ class TicketController {
         const filters = req.query;
         const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
         
+        
+        
         res.status(200).json({
             success: true,
             message: 'Passenger tickets retrieved successfully',
@@ -78,6 +85,8 @@ class TicketController {
     getActiveTicketsByPassenger = asyncErrorHandler(async (req, res, next) => {
         const { passengerId } = req.params;
         const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
+        
+        
         
         res.status(200).json({
             success: true,
@@ -101,6 +110,8 @@ class TicketController {
         const filters = req.query;
         const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
         
+        
+        
         res.status(200).json({
             success: true,
             message: 'My tickets retrieved successfully',
@@ -121,6 +132,8 @@ class TicketController {
         }
 
         const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
+        
+        
         
         res.status(200).json({
             success: true,

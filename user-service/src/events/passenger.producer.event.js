@@ -85,6 +85,56 @@ class PassengerEventProducer {
             throw error;
         }
     }
+
+    /**
+     * Publish passenger-cache-sync event
+     * @param {Object} passengerData - Passenger data to sync to ticket service cache
+     */
+    async publishPassengerCacheSync(passengerData) {
+        try {
+            const message = {
+                passenger: {
+                    passengerId: passengerData.passengerId,
+                    userId: passengerData.userId,
+                    username: passengerData.username,
+                    firstName: passengerData.firstName,
+                    lastName: passengerData.lastName,
+                    phoneNumber: passengerData.phoneNumber,
+                    dateOfBirth: passengerData.dateOfBirth,
+                    gender: passengerData.gender,
+                    address: passengerData.address,
+                    isActive: passengerData.isActive
+                },
+                eventType: 'cache-sync',
+                syncReason: 'user-login',
+                timestamp: new Date().toISOString(),
+                source: 'user-service'
+            };
+
+            await publish(
+                'passenger-cache-sync',
+                passengerData.passengerId,
+                message
+            );
+            
+            logger.info('Passenger cache sync event published successfully', {
+                passengerId: passengerData.passengerId,
+                userId: passengerData.userId,
+                topic: 'passenger-cache-sync',
+                service: 'user-service',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            logger.error('Failed to publish passenger cache sync event', {
+                error: error.message,
+                passengerId: passengerData.passengerId,
+                userId: passengerData.userId,
+                service: 'user-service',
+                timestamp: new Date().toISOString()
+            });
+            throw error;
+        }
+    }
 }
 
 module.exports = new PassengerEventProducer(); 

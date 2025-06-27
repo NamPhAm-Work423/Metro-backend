@@ -3,9 +3,6 @@ const router = express.Router();
 const promotionController = require('../controllers/promotion.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
-// Health check endpoint (no auth required)
-router.get('/health', promotionController.healthCheck);
-
 // Public promotion information (all authenticated users)
 router.get('/active', ...authorizeRoles('passenger', 'staff', 'admin'), promotionController.getActivePromotions);
 router.get('/search', ...authorizeRoles('passenger', 'staff', 'admin'), promotionController.searchPromotions);

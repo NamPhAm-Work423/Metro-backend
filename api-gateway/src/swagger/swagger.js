@@ -14,6 +14,11 @@ const swaggerDefinition = {
 
 This API uses **cookie-based authentication** for maximum security and ease of use.
 
+
+### FRONT END DEVELOPER MUST DO THIS WHEN HANDLING WITH PAGES 
+- **Must call /v1/route/user/passenger/sync-passenger route when access to ticket buy page to sync passenger data to cache**
+
+
 ### How it works:
 1. **Login** using \`/v1/auth/login\` - JWT token is automatically stored in HTTP-only cookie
 2. **Use any endpoint** - Cookies are automatically sent with requests
@@ -38,6 +43,8 @@ This API uses **cookie-based authentication** for maximum security and ease of u
 - ❌ **Forbidden**: Using 'admin' role in \'/v1/auth/register\`
 - ❌ **Blocked**: Auto-creation of admin profiles from user events
 - ✅ **Required**: Manual creation by existing administrators only
+
+
 
 ### Admin Creation Process:
 1. Only existing administrators can create new admin accounts

@@ -198,80 +198,42 @@ const deleteMe = asyncErrorHandler(async (req, res, next) => {
     });
 });
 
-// POST /v1/passengers/me/tickets
-const addTicket = async (req, res, next) => {
-    try {
-        const { ticketId } = req.body;
-        const userId = req.user.id;
-        
-        if (!ticketId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Ticket ID is required'
-            });
-        }
-        
-        const passenger = await passengerService.addTicketToPassenger(userId, ticketId);
-        
-        if (!passenger) {
-            return res.status(404).json({ 
-                success: false,
-                message: 'Passenger profile not found' 
-            });
-        }
-        
-        res.json({ 
-            success: true,
-            message: 'Ticket added successfully',
-            data: passenger 
+// POST /v1/passengers/sync-passenger
+const syncPassenger = asyncErrorHandler(async (req, res, next) => {
+    const userId = req.user.userId || req.user.id;
+    
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            message: 'User ID not found in request'
         });
-    } catch (err) {
-        next(err);
     }
-};
 
-// DELETE /v1/passengers/me/tickets/:ticketId
-const removeTicket = async (req, res, next) => {
-    try {
-        const { ticketId } = req.params;
-        const userId = req.user.id;
-        
-        const passenger = await passengerService.removeTicketFromPassenger(userId, ticketId);
-        
-        if (!passenger) {
-            return res.status(404).json({ 
-                success: false,
-                message: 'Passenger profile not found' 
-            });
-        }
-        
-        res.json({ 
-            success: true,
-            message: 'Ticket removed successfully',
-            data: passenger 
+    // Get passenger data from database
+    const passenger = await passengerService.getPassengerByUserId(userId);
+    
+    if (!passenger) {
+        return res.status(404).json({
+            success: false,
+            message: 'Passenger profile not found'
         });
-    } catch (err) {
-        next(err);
     }
-};
 
-// GET /v1/passengers/me/tickets
-const getMyTickets = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        
-        const tickets = await passengerService.getPassengerTickets(userId);
-        
-        res.json({ 
-            success: true,
-            message: 'Tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
-    } catch (err) {
-        next(err);
-    }
-};
+    // Import passenger producer
+    const passengerProducer = require('../events/passenger.producer.event');
+    
+    // Send passenger data to ticket-service cache via Kafka
+    await passengerProducer.publishPassengerCacheSync(passenger);
+    
+    res.status(200).json({
+        success: true,
+        message: 'Passenger data synchronized successfully',
+        data: {
+            passengerId: passenger.passengerId,
+            syncedAt: new Date().toISOString()
+        }
+    });
+});
 
 module.exports = { 
     getAllPassengers, 
@@ -282,7 +244,5 @@ module.exports = {
     getMe, 
     updateMe, 
     deleteMe,
-    addTicket,
-    removeTicket,
-    getMyTickets
+    syncPassenger
 }; 

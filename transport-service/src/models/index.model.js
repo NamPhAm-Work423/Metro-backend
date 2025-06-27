@@ -13,9 +13,15 @@ RouteStation.belongsTo(Station, { foreignKey: 'stationId' });
 
 // Trip relationships
 Route.hasMany(Trip, { foreignKey: 'routeId', as: 'trips' });
-Trip.belongsTo(Route, { foreignKey: 'routeId' });
+Trip.belongsTo(Route, { foreignKey: 'routeId', as: 'route' });
 Train.hasMany(Trip, { foreignKey: 'trainId', as: 'trips' });
-Trip.belongsTo(Train, { foreignKey: 'trainId' });
+Trip.belongsTo(Train, { foreignKey: 'trainId', as: 'train' });
+
+// Route Station relationships
+Route.belongsTo(Station, { foreignKey: 'originId', as: 'origin' });
+Route.belongsTo(Station, { foreignKey: 'destinationId', as: 'destination' });
+Station.hasMany(Route, { foreignKey: 'originId', as: 'originRoutes' });
+Station.hasMany(Route, { foreignKey: 'destinationId', as: 'destinationRoutes' });
 
 // Stop relationships
 Trip.hasMany(Stop, { foreignKey: 'tripId', as: 'stops' });

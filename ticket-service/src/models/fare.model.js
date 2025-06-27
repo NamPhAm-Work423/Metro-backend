@@ -17,7 +17,7 @@ const Fare = sequelize.define('Fare', {
     },
     originStationId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
@@ -25,40 +25,22 @@ const Fare = sequelize.define('Fare', {
     },
     destinationStationId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             isUUID: 4
         }
     },
     ticketType: {
-        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass'),
-        allowNull: false,
-        defaultValue: 'single',
+        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'),
+        allowNull: true,
     },
     passengerType: {
         type: DataTypes.ENUM('adult', 'child', 'student', 'senior', 'disabled'),
-        allowNull: false,
-        defaultValue: 'adult',
+        allowNull: true,
     },
     basePrice: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-        validate: {
-            min: 0
-        }
-    },
-    peakHourMultiplier: {
-        type: DataTypes.DECIMAL(3, 2),
-        allowNull: false,
-        defaultValue: 1.00,
-        validate: {
-            min: 0.5,
-            max: 3.0
-        }
-    },
-    distance: {
-        type: DataTypes.FLOAT,
         allowNull: false,
         validate: {
             min: 0
@@ -84,10 +66,8 @@ const Fare = sequelize.define('Fare', {
     currency: {
         type: DataTypes.STRING(3),
         allowNull: false,
-        defaultValue: 'USD',
-        validate: {
-            len: [3, 3]
-        }
+        defaultValue: 'VND',
+        type: DataTypes.ENUM('VND', 'USD', 'CNY'),
     },
     isActive: {
         type: DataTypes.BOOLEAN,

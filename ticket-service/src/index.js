@@ -4,6 +4,8 @@ const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Ticket, Fare, Promotion } = require('./models/index.model');
+const { initializeRedis } = require('./config/redis');
+const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
 
 const PORT = process.env.PORT || 3003;
 const SERVICE_NAME = 'ticket-service';
@@ -37,6 +39,12 @@ const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
     
     try {
+        // Stop passenger cache consumer
+        if (passengerCacheConsumer) {
+            await passengerCacheConsumer.stop();
+            logger.info('Passenger cache consumer stopped successfully');
+        }
+        
         // Close database connection
         await sequelize.close();
         logger.info('Database connection closed');
@@ -59,9 +67,19 @@ async function startApplication() {
         // Sync database first
         await syncDatabase();
         
+        // Initialize Redis
+        await initializeRedis();
+        logger.info('Redis initialized successfully');
+        
+        // Start passenger cache consumer
+        if (passengerCacheConsumer) {
+            await passengerCacheConsumer.start();
+            logger.info('Passenger cache consumer started successfully');
+        }
+        
         // Start HTTP server
         app.listen(PORT, () => {
-            logger.info(`${SERVICE_NAME} running on port ${PORT}`, {
+            logger.info(`${SERVICE_NAME} HTTP server running on port ${PORT}`, {
                 port: PORT,
                 environment: process.env.NODE_ENV || 'development',
                 service: SERVICE_NAME,

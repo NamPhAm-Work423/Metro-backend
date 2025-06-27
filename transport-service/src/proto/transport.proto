@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package transport;
+
+service TransportService {
+  rpc GetRoute(GetRouteRequest) returns (RouteResponse);
+  rpc GetStation(GetStationRequest) returns (StationResponse);
+  rpc GetTrip(GetTripRequest) returns (TripResponse);
+  rpc GetRoutesByStations(GetRoutesByStationsRequest) returns (RoutesResponse);
+}
+
+message GetRouteRequest {
+  string routeId = 1;
+}
+
+message GetStationRequest {
+  string stationId = 1;
+}
+
+message GetTripRequest {
+  string tripId = 1;
+}
+
+message GetRoutesByStationsRequest {
+  string originStationId = 1;
+  string destinationStationId = 2;
+}
+
+message RouteResponse {
+  string routeId = 1;
+  string name = 2;
+  string originId = 3;
+  string destinationId = 4;
+  double distance = 5;
+  double duration = 6;
+  bool isActive = 7;
+  Station origin = 8;
+  Station destination = 9;
+}
+
+message RoutesResponse {
+  repeated RouteResponse routes = 1;
+}
+
+message StationResponse {
+  string stationId = 1;
+  string name = 2;
+  string location = 3;
+  double latitude = 4;
+  double longitude = 5;
+  bool isActive = 6;
+}
+
+message TripResponse {
+  string tripId = 1;
+  string routeId = 2;
+  string trainId = 3;
+  string departureTime = 4;
+  string arrivalTime = 5;
+  string dayOfWeek = 6;
+  bool isActive = 7;
+  RouteResponse route = 8;
+}
+
+message Station {
+  string stationId = 1;
+  string name = 2;
+  string location = 3;
+  double latitude = 4;
+  double longitude = 5;
+  bool isActive = 6;
+} 

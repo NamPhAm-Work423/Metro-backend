@@ -29,7 +29,6 @@ By merging these services, we reduce the operational complexity and resource usa
 ### Passenger Management
 - Passenger profile CRUD operations
 - Passenger self-service endpoints
-- Ticket management (add/remove/list tickets)
 - Passenger-specific event publishing
 
 ### Staff Management
@@ -62,9 +61,6 @@ By merging these services, we reduce the operational complexity and resource usa
 - `GET /me` - Get current passenger profile
 - `PUT /me` - Update current passenger profile
 - `DELETE /me` - Delete current passenger profile
-- `GET /me/tickets` - Get my tickets
-- `POST /me/tickets` - Add ticket
-- `DELETE /me/tickets/:ticketId` - Remove ticket
 
 ### Staff Routes (`/v1/staff`)
 - `GET /getAllStaff` - Get all staff (staff/admin only)

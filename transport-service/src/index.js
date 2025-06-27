@@ -4,6 +4,7 @@ const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Route, Station, Stop, Train, Trip, RouteStation } = require('./models/index.model');
+const { startGrpcServer } = require('./grpc/server');
 
 const PORT = process.env.PORT || 3002;
 const SERVICE_NAME = 'transport-service';
@@ -63,13 +64,17 @@ async function startApplication() {
         
         // Start HTTP server
         app.listen(PORT, () => {
-            logger.info(`${SERVICE_NAME} running on port ${PORT}`, {
+            logger.info(`${SERVICE_NAME} HTTP server running on port ${PORT}`, {
                 port: PORT,
                 environment: process.env.NODE_ENV || 'development',
                 service: SERVICE_NAME,
                 timestamp: new Date().toISOString()
             });
         });
+
+        // Start gRPC server
+        logger.info(`${SERVICE_NAME} gRPC server starting...`);
+        startGrpcServer();
         
     } catch (error) {
         logger.error('Failed to start application', { 

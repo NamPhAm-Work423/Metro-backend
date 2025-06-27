@@ -43,10 +43,10 @@ class FareService {
             }
 
             if (filters.effectiveDate) {
-                where.effectiveFrom = { [Op.lte]: filters.effectiveDate };
+                where.validFrom = { [Op.lte]: filters.effectiveDate };
                 where[Op.or] = [
-                    { effectiveUntil: null },
-                    { effectiveUntil: { [Op.gte]: filters.effectiveDate } }
+                    { validUntil: null },
+                    { validUntil: { [Op.gte]: filters.effectiveDate } }
                 ];
             }
 
@@ -154,10 +154,10 @@ class FareService {
             }
             
             if (filters.effectiveDate) {
-                where.effectiveFrom = { [Op.lte]: filters.effectiveDate };
+                where.validFrom = { [Op.lte]: filters.effectiveDate };
                 where[Op.or] = [
-                    { effectiveUntil: null },
-                    { effectiveUntil: { [Op.gte]: filters.effectiveDate } }
+                    { validUntil: null },
+                    { validUntil: { [Op.gte]: filters.effectiveDate } }
                 ];
             }
 
@@ -190,10 +190,10 @@ class FareService {
             }
             
             const effectiveDate = filters.effectiveDate || new Date();
-            where.effectiveFrom = { [Op.lte]: effectiveDate };
+            where.validFrom = { [Op.lte]: effectiveDate };
             where[Op.or] = [
-                { effectiveUntil: null },
-                { effectiveUntil: { [Op.gte]: effectiveDate } }
+                { validUntil: null },
+                { validUntil: { [Op.gte]: effectiveDate } }
             ];
 
             const fares = await Fare.findAll({
@@ -224,15 +224,12 @@ class FareService {
                 throw new Error('Fare is not currently valid');
             }
             
-            const isPeakHour = options.isPeakHour || false;
-            const price = fare.calculatePrice(isPeakHour);
+            const price = fare.calculatePrice();
             
             return {
                 fareId: fare.fareId,
                 basePrice: fare.basePrice,
-                peakHourMultiplier: fare.peakHourMultiplier,
                 finalPrice: price,
-                isPeakHour,
                 currency: fare.currency
             };
         } catch (error) {
@@ -247,10 +244,10 @@ class FareService {
             return await Fare.findAll({
                 where: {
                     isActive: true,
-                    effectiveFrom: { [Op.lte]: currentDate },
+                    validFrom: { [Op.lte]: currentDate },
                     [Op.or]: [
-                        { effectiveUntil: null },
-                        { effectiveUntil: { [Op.gte]: currentDate } }
+                        { validUntil: null },
+                        { validUntil: { [Op.gte]: currentDate } }
                     ]
                 },
                 order: [['routeId', 'ASC'], ['ticketType', 'ASC'], ['passengerType', 'ASC']]
@@ -343,10 +340,10 @@ class FareService {
             }
             
             const effectiveDate = filters.effectiveDate || new Date();
-            where.effectiveFrom = { [Op.lte]: effectiveDate };
+            where.validFrom = { [Op.lte]: effectiveDate };
             where[Op.or] = [
-                { effectiveUntil: null },
-                { effectiveUntil: { [Op.gte]: effectiveDate } }
+                { validUntil: null },
+                { validUntil: { [Op.gte]: effectiveDate } }
             ];
 
             const fares = await Fare.findAll({

@@ -15,9 +15,7 @@ router.get('/me', ...authorizeRoles('passenger','staff','admin'), passengerContr
 router.put('/me', ...authorizeRoles('passenger','staff','admin'), passengerController.updateMe);
 router.delete('/me', ...authorizeRoles('passenger','staff','admin'), passengerController.deleteMe);
 
-// Ticket management routes
-router.get('/me/tickets', ...authorizeRoles('passenger','staff','admin'), passengerController.getMyTickets);
-router.post('/me/tickets', ...authorizeRoles('passenger','staff','admin'), passengerController.addTicket);
-router.delete('/me/tickets/:ticketId', ...authorizeRoles('passenger','staff','admin'), passengerController.removeTicket);
+// Passenger post cache routes
+router.post('/sync-passenger', ...authorizeRoles('passenger','staff','admin'), passengerController.syncPassenger);
 
 module.exports = router; 

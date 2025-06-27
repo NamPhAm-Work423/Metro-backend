@@ -9,7 +9,7 @@ const Promotion = sequelize.define('Promotion', {
     },
     code: {
         type: DataTypes.STRING(50),
-        allowNull: false,
+        allowNull: true,
         unique: true,
         validate: {
             notEmpty: true,
@@ -18,7 +18,7 @@ const Promotion = sequelize.define('Promotion', {
     },
     name: {
         type: DataTypes.STRING(100),
-        allowNull: false,
+        allowNull: true,
         validate: {
             notEmpty: true,
             len: [3, 100]
@@ -30,24 +30,9 @@ const Promotion = sequelize.define('Promotion', {
     },
     type: {
         type: DataTypes.ENUM('percentage', 'fixed_amount', 'buy_one_get_one', 'free_upgrade'),
-        allowNull: false,
-        defaultValue: 'percentage',
+        allowNull: true,
     },
     value: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-        validate: {
-            min: 0
-        }
-    },
-    maxDiscountAmount: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: true,
-        validate: {
-            min: 0
-        }
-    },
-    minPurchaseAmount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,
         validate: {
@@ -55,14 +40,14 @@ const Promotion = sequelize.define('Promotion', {
         }
     },
     applicableTicketTypes: {
-        type: DataTypes.ARRAY(DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass')),
-        allowNull: false,
-        defaultValue: ['single']
+        type: DataTypes.ARRAY(DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass')),
+        allowNull: true,
+        defaultValue: []
     },
     applicablePassengerTypes: {
         type: DataTypes.ARRAY(DataTypes.ENUM('adult', 'child', 'student', 'senior', 'disabled')),
-        allowNull: false,
-        defaultValue: ['adult']
+        allowNull: true,
+        defaultValue: []
     },
     applicableRoutes: {
         type: DataTypes.ARRAY(DataTypes.UUID),
@@ -99,23 +84,6 @@ const Promotion = sequelize.define('Promotion', {
     validUntil: {
         type: DataTypes.DATE,
         allowNull: false,
-    },
-    daysOfWeek: {
-        type: DataTypes.ARRAY(DataTypes.INTEGER),
-        allowNull: true,
-        defaultValue: [0, 1, 2, 3, 4, 5, 6], // 0=Sunday, 6=Saturday
-        validate: {
-            isValidDays(value) {
-                if (value && value.some(day => day < 0 || day > 6)) {
-                    throw new Error('Days of week must be between 0 and 6');
-                }
-            }
-        }
-    },
-    timeSlots: {
-        type: DataTypes.ARRAY(DataTypes.JSON),
-        allowNull: true,
-        defaultValue: []
     },
     isActive: {
         type: DataTypes.BOOLEAN,
