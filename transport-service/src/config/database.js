@@ -1,15 +1,16 @@
 const { Sequelize } = require('sequelize');
-require('dotenv').config();
+const dotenv = require('dotenv');
+dotenv.config();
 
 const sequelize = new Sequelize(
     process.env.DB_NAME,
     process.env.DB_USER,
     process.env.DB_PASSWORD,
     {
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 5432,
+        host: process.env.DB_HOST || '127.0.0.1',
         dialect: 'postgres',
-        logging: false,
+        port: process.env.DB_PORT || '5432',
+        showWarnings: true,
         connectTimeout: 60000,
         dialectOptions: {
             connectTimeout: 60000,
@@ -26,7 +27,7 @@ const sequelize = new Sequelize(
             max: 5
         },
         pool: {
-            max: 10,
+            max: 1000,
             min: 0,
             acquire: 30000,
             idle: 10000,
@@ -42,7 +43,7 @@ async function connectWithRetry() {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             await sequelize.authenticate();
-            console.log('User service database connection established successfully.');
+            console.log('Connection has been established successfully.');
             return;
         } catch (error) {
             console.error(`Database connection attempt ${attempt}/${maxRetries} failed:`, error.message);
@@ -63,4 +64,4 @@ async function connectWithRetry() {
 // Start connection attempts
 connectWithRetry();
 
-module.exports = sequelize; 
+module.exports = sequelize;

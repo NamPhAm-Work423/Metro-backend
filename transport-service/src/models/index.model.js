@@ -1,12 +1,9 @@
-const sequelize = require('../config/database');
-const { DataTypes } = require('sequelize');
-
-const Station = require('./station.model')(sequelize, DataTypes);
-const Route = require('./route.model')(sequelize, DataTypes);
-const Stop = require('./stop.model')(sequelize, DataTypes);
-const Train = require('./train.model')(sequelize, DataTypes);
-const Trip = require('./trip.model')(sequelize, DataTypes);
-const RouteStation = require('./routeStation.model')(sequelize, DataTypes);
+const Station = require('./station.model');
+const Route = require('./route.model');
+const Stop = require('./stop.model');
+const Train = require('./train.model');
+const Trip = require('./trip.model');
+const RouteStation = require('./routeStation.model');
 
 // RouteStation relationships
 Route.hasMany(RouteStation, { foreignKey: 'routeId', as: 'stations' });
@@ -28,7 +25,6 @@ Stop.belongsTo(Station, { foreignKey: 'stationId' });
 
 
 module.exports = {
-    sequelize,
     Station,
     Route,
     Stop,

@@ -1,0 +1,192 @@
+const trainService = require('../services/train.service');
+
+class TrainController {
+    async createTrain(req, res) {
+        try {
+            const train = await trainService.createTrain(req.body);
+            res.status(201).json({
+                success: true,
+                message: 'Train created successfully',
+                data: train
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getAllTrains(req, res) {
+        try {
+            const trains = await trainService.getAllTrains(req.query);
+            res.status(200).json({
+                success: true,
+                data: trains
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getTrainById(req, res) {
+        try {
+            const train = await trainService.getTrainById(req.params.id);
+            res.status(200).json({
+                success: true,
+                data: train
+            });
+        } catch (error) {
+            res.status(404).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async updateTrain(req, res) {
+        try {
+            const train = await trainService.updateTrain(req.params.id, req.body);
+            res.status(200).json({
+                success: true,
+                message: 'Train updated successfully',
+                data: train
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async deleteTrain(req, res) {
+        try {
+            await trainService.deleteTrain(req.params.id);
+            res.status(200).json({
+                success: true,
+                message: 'Train deactivated successfully'
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getActiveTrains(req, res) {
+        try {
+            const trains = await trainService.getActiveTrains();
+            res.status(200).json({
+                success: true,
+                data: trains
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getTrainsByType(req, res) {
+        try {
+            const trains = await trainService.getTrainsByType(req.params.type);
+            res.status(200).json({
+                success: true,
+                data: trains
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getTrainsByStatus(req, res) {
+        try {
+            const trains = await trainService.getTrainsByStatus(req.params.status);
+            res.status(200).json({
+                success: true,
+                data: trains
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async updateTrainStatus(req, res) {
+        try {
+            const { status } = req.body;
+            const train = await trainService.updateTrainStatus(req.params.id, status);
+            res.status(200).json({
+                success: true,
+                message: 'Train status updated successfully',
+                data: train
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async scheduleTrainMaintenance(req, res) {
+        try {
+            const { maintenanceDate } = req.body;
+            const train = await trainService.scheduleMaintenanceForTrain(req.params.id, maintenanceDate);
+            res.status(200).json({
+                success: true,
+                message: 'Train maintenance scheduled successfully',
+                data: train
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getTrainsNeedingMaintenance(req, res) {
+        try {
+            const { daysThreshold } = req.query;
+            const trains = await trainService.getTrainsNeedingMaintenance(daysThreshold);
+            res.status(200).json({
+                success: true,
+                data: trains
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async getTrainUtilization(req, res) {
+        try {
+            const utilization = await trainService.getTrainUtilization(req.params.id);
+            res.status(200).json({
+                success: true,
+                data: utilization
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+}
+
+module.exports = new TrainController(); 

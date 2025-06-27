@@ -15,6 +15,14 @@ const Station = sequelize.define('Station', {
         type: DataTypes.STRING(100),
         allowNull: false,
     },
+    latitude: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+    },
+    longitude: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+    },
     openTime: {
         type: DataTypes.TIME,
         allowNull: false,

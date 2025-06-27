@@ -5,6 +5,7 @@ const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Admin, Passenger, Staff } = require('./models/index.model');
 const userEventConsumer = require('./events/user.consumer.event');
+const seedAdminProfile = require('./utils/seedAdmin');
 
 const PORT = process.env.PORT || 3001;
 const SERVICE_NAME = 'user-service';
@@ -65,6 +66,9 @@ async function startApplication() {
     try {
         // Sync database first
         await syncDatabase();
+        
+        // Seed admin profile if configured
+        await seedAdminProfile();
         
         // Start event consumer
         if (userEventConsumer) {

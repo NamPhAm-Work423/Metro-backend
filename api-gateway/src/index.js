@@ -7,6 +7,7 @@ const sequelize = require('./config/database');
 const config = require('./config')();
 const initialize = require('./initialize');
 const { updateAllInstancesStatus } = require('./services/loadBalancer.service');
+const seedAdmin = require('./utils/seedAdmin');
 
 const updateServiceStatusCronJob = () => {
     cron.schedule('*/1 * * * *', async () => {
@@ -17,8 +18,10 @@ const updateServiceStatusCronJob = () => {
 
 sequelize.sync({ force: false }).then(() => {
     console.log('Database is ready');
-    initialize().then(() => {
+    initialize().then(async () => {
         console.log('Finish initalize gateway');
+
+        await seedAdmin();
 
         const PORT = config.gateway.port || 3000;
 

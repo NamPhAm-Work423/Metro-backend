@@ -97,6 +97,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             // User schemas
             User: {
                 type: 'object',
+                description: 'Core user profile returned by authentication/user services',
                 properties: {
                     id: { type: 'string', format: 'uuid' },
                     email: { type: 'string', format: 'email' },
@@ -120,6 +121,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             // Admin schemas
             Admin: {
                 type: 'object',
+                description: 'Administrator role linked to a base user. Created only by existing admins.',
                 properties: {
                     adminId: { type: 'string', format: 'uuid' },
                     userId: { type: 'string', format: 'uuid' },
@@ -130,6 +132,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             // Passenger schemas
             Passenger: {
                 type: 'object',
+                description: 'Passenger profile with personal and ticket information',
                 properties: {
                     passengerId: { type: 'string', format: 'uuid' },
                     userId: { type: 'string', format: 'uuid' },
@@ -151,6 +154,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             // Staff schemas
             Staff: {
                 type: 'object',
+                description: 'Railway staff profile including position and employment status',
                 properties: {
                     staffId: { type: 'string', format: 'uuid' },
                     userId: { type: 'string', format: 'uuid' },
@@ -166,25 +170,139 @@ This API uses **cookie-based authentication** for maximum security and ease of u
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' }
                 }
+            },
+            // Transport schemas
+            Station: {
+                type: 'object',
+                description: 'A train/metro station with geo-location and facilities',
+                properties: {
+                    stationId: { type: 'string', format: 'uuid' },
+                    name: { type: 'string' },
+                    location: { type: 'string', description: 'Human-readable address or description' },
+                    latitude: { type: 'number', format: 'float' },
+                    longitude: { type: 'number', format: 'float' },
+                    openTime: { type: 'string', format: 'time' },
+                    closeTime: { type: 'string', format: 'time' },
+                    facilities: { type: 'object', description: 'JSON object describing facilities (e.g., restrooms, elevators)' },
+                    connections: { type: 'object', description: 'JSON object for connections to other lines or transport' },
+                    isActive: { type: 'boolean' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            Route: {
+                type: 'object',
+                description: 'A defined line connecting an origin station to a destination station',
+                properties: {
+                    routeId: { type: 'string', format: 'uuid' },
+                    name: { type: 'string' },
+                    originId: { type: 'string', format: 'uuid', description: 'Origin stationId' },
+                    destinationId: { type: 'string', format: 'uuid', description: 'Destination stationId' },
+                    distance: { type: 'number', format: 'float', description: 'Distance in kilometers' },
+                    duration: { type: 'number', format: 'float', description: 'Estimated duration in minutes' },
+                    isActive: { type: 'boolean' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            RouteStation: {
+                type: 'object',
+                description: 'Link entity that maps stations to a route in travel sequence',
+                properties: {
+                    routeStationId: { type: 'string', format: 'uuid' },
+                    routeId: { type: 'string', format: 'uuid' },
+                    stationId: { type: 'string', format: 'uuid' },
+                    sequence: { type: 'integer', description: 'Order of the station in the route' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            Stop: {
+                type: 'object',
+                description: 'A scheduled stop for a trip at a particular station',
+                properties: {
+                    stopId: { type: 'string', format: 'uuid' },
+                    tripId: { type: 'string', format: 'uuid' },
+                    stationId: { type: 'string', format: 'uuid' },
+                    arrivalTime: { type: 'string', format: 'time', nullable: true },
+                    departureTime: { type: 'string', format: 'time', nullable: true },
+                    sequence: { type: 'integer' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            Train: {
+                type: 'object',
+                description: 'A physical train asset with capacity and maintenance info',
+                properties: {
+                    trainId: { type: 'string', format: 'uuid' },
+                    name: { type: 'string' },
+                    type: { type: 'string', enum: ['standard', 'express', 'freight'] },
+                    capacity: { type: 'integer' },
+                    status: { type: 'string', enum: ['active', 'maintenance', 'out-of-service'] },
+                    lastMaintenance: { type: 'string', format: 'date-time', nullable: true },
+                    isActive: { type: 'boolean' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            Trip: {
+                type: 'object',
+                description: 'A scheduled departure of a train along a route',
+                properties: {
+                    tripId: { type: 'string', format: 'uuid' },
+                    routeId: { type: 'string', format: 'uuid' },
+                    trainId: { type: 'string', format: 'uuid' },
+                    departureTime: { type: 'string', format: 'time' },
+                    arrivalTime: { type: 'string', format: 'time' },
+                    dayOfWeek: { type: 'string', enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] },
+                    isActive: { type: 'boolean' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' }
+                }
             }
         }
     },
     tags: [
         {
             name: 'Authentication',
-            description: 'User authentication and authorization'
+            description: `User authentication and authorization.\n\n**User model fields**:\n- id (uuid)\n- email (string)\n- username (string)\n- roles (array<admin|passenger|staff>)\n- firstName (string)\n- lastName (string)\n- phoneNumber (string)\n- isVerified (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'Admin Management',
-            description: '🚨 Admin user management operations - ADMIN ACCOUNTS CANNOT BE CREATED VIA PUBLIC REGISTRATION. Manual creation by existing administrators only!'
+            description: `🚨 Admin user management operations.\n\n**Admin model fields**:\n- adminId (uuid)\n- userId (uuid)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'Passenger Management', 
-            description: 'Passenger user management operations'
+            description: `Passenger user management operations.\n\n**Passenger model fields**:\n- passengerId (uuid)\n- userId (uuid)\n- firstName (string)\n- lastName (string)\n- phoneNumber (string)\n- dateOfBirth (date)\n- gender (male|female|other)\n- address (string)\n- ticketList (array<string>)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'Staff Management',
-            description: 'Staff user management operations'
+            description: `Staff user management operations.\n\n**Staff model fields**:\n- staffId (uuid)\n- userId (uuid)\n- firstName (string)\n- lastName (string)\n- phoneNumber (string)\n- dateOfBirth (date)\n- gender (male|female|other)\n- address (string)\n- position (string)\n- department (string)\n- status (active|inactive|on_leave)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Stations',
+            description: `Endpoints for creating, updating and retrieving station data.\n\n**Station model fields**:\n- stationId (uuid)\n- name (string)\n- location (string)\n- latitude (float)\n- longitude (float)\n- openTime (time)\n- closeTime (time)\n- facilities (object)\n- connections (object)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Routes',
+            description: `Endpoints for managing routes between stations.\n\n**Route model fields**:\n- routeId (uuid)\n- name (string)\n- originId (uuid)\n- destinationId (uuid)\n- distance (float km)\n- duration (float minutes)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Route Stations',
+            description: `Endpoints that map stations to routes and provide search between stations.\n\n**RouteStation model fields**:\n- routeStationId (uuid)\n- routeId (uuid)\n- stationId (uuid)\n- sequence (integer)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Stops',
+            description: `Endpoints for managing scheduled stops within trips.\n\n**Stop model fields**:\n- stopId (uuid)\n- tripId (uuid)\n- stationId (uuid)\n- arrivalTime (time)\n- departureTime (time)\n- sequence (integer)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Trains',
+            description: `Endpoints for managing train assets, capacity and status.\n\n**Train model fields**:\n- trainId (uuid)\n- name (string)\n- type (standard|express|freight)\n- capacity (integer seats)\n- status (active|maintenance|out-of-service)\n- lastMaintenance (date-time)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Trips',
+            description: `Endpoints for scheduling trips of trains along routes.\n\n**Trip model fields**:\n- tripId (uuid)\n- routeId (uuid)\n- trainId (uuid)\n- departureTime (time)\n- arrivalTime (time)\n- dayOfWeek (Monday-Sunday)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'System',

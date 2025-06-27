@@ -15,7 +15,7 @@ const config = require('../config')();
 router.use('/v1/auth', authRoutes);
 
 // Service management routes - mounted at /v1/service
-router.use('/v1/', serviceRoutes);
+router.use('/v1/service', serviceRoutes);
 
 // Dynamic service routing - mounted at /v1/route
 router.use('/v1/route', routingRoutes);

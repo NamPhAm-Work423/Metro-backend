@@ -29,13 +29,6 @@ class RoutingService {
             throw new Error('SERVICE_JWT_SECRET environment variable is required');
         }
 
-        console.log('🔐 Generating service JWT:', {
-            userId: user.id,
-            email: user.email,
-            roles: user.roles,
-            secretAvailable: !!process.env.SERVICE_JWT_SECRET,
-            secretPrefix: process.env.SERVICE_JWT_SECRET.substring(0, 10) + '...'
-        });
 
         const payload = {
             userId: user.id,
@@ -47,25 +40,13 @@ class RoutingService {
             exp: Math.floor(Date.now() / 1000) + (5 * 60) // 5 minutes expiry
         };
 
-        console.log('📝 JWT Payload:', payload);
-
         const token = jwt.sign(
             payload,
             process.env.SERVICE_JWT_SECRET,
             { algorithm: 'HS256' }
         );
 
-        console.log('🎫 Generated service token:', {
-            tokenPrefix: token.substring(0, 30) + '...',
-            tokenLength: token.length,
-            payload: {
-                userId: payload.userId,
-                roles: payload.roles,
-                issuer: payload.iss,
-                audience: payload.aud,
-                expiresIn: '5 minutes'
-            }
-        });
+
 
         return token;
     }
@@ -135,18 +116,14 @@ class RoutingService {
                                 proxyReqPathResolver: function (req) {
                     const originalPath = req.url;
                     
-                    // Split path and query parameters
                     const [pathPart, queryPart] = originalPath.split('?');
                     const queryString = queryPart ? `?${queryPart}` : '';
                     
-                    // Construct the target service path: /v1/{endPoint}/{proxyEndpoint}
                     let newPathPart;
                     
                     if (proxyEndpoint) {
-                        // We have a sub-path: /v1/passengers/me
                         newPathPart = `/v1/${endPoint}/${proxyEndpoint}`;
                     } else {
-                        // Root endpoint: /v1/passengers
                         newPathPart = `/v1/${endPoint}`;
                     }
                     
@@ -155,7 +132,6 @@ class RoutingService {
                     return newPath;
                 },
                 proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
-                    // Add headers for tracing
                     proxyReqOpts.headers['x-forwarded-for'] = srcReq.ip;
                     proxyReqOpts.headers['x-forwarded-proto'] = srcReq.protocol;
                     proxyReqOpts.headers['x-forwarded-host'] = srcReq.get('host');

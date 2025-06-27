@@ -44,7 +44,7 @@ const validateNetworkSource = (req, res, next) => {
         
         return res.status(403).json({
             success: false,
-            message: 'Direct access to user service is not allowed. Please use API Gateway.',
+            message: 'Direct access to transport service is not allowed. Please use API Gateway.',
             error: 'DIRECT_ACCESS_FORBIDDEN'
         });
     }
@@ -95,7 +95,7 @@ app.use('/v1', routes);
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
-        service: 'user-service',
+        service: 'transport-service',
         timestamp: new Date().toISOString()
     });
 });
@@ -104,7 +104,7 @@ app.get('/health', (req, res) => {
 app.get('/metrics', (req, res) => {
     res.status(200).json({
         status: 'healthy',
-        service: 'user-service',
+        service: 'transport-service',
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         memory: process.memoryUsage()
