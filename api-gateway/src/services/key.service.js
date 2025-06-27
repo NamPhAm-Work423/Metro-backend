@@ -54,31 +54,64 @@ async function validateAPIKey(apiKey) {
         const hashKey = hashToken(apiKey, process.env.HASH_SECRET);
         const redisKey = formatAPIKey(hashKey);
         
-        const data = await withRedisClient(async (client) => {
+        // Step 1: Check Redis cache first
+        const cachedData = await withRedisClient(async (client) => {
             return await client.hGetAll(redisKey);
         });
-        
-        if (!data || Object.keys(data).length === 0) {
-            logger.warn('API key not found in Redis', { 
-                redisKey: redisKey.substring(0, 20) + '...' 
+
+        // Cache Hit: Key found in Redis
+        if (cachedData && Object.keys(cachedData).length > 0) {
+            logger.info('API key validated successfully from Redis (Cache Hit)', { 
+                redisKey: redisKey.substring(0, 20) + '...'
+            });
+            const metadata = cachedData.metadata ? JSON.parse(cachedData.metadata) : {};
+            return {
+                ...metadata,
+                createdAt: cachedData.createdAt
+            };
+        }
+
+        // Cache Miss: Key not in Redis, proceed to database fallback
+        logger.warn('API key not found in Redis (Cache Miss), checking database...', { 
+            redisKey: redisKey.substring(0, 20) + '...' 
+        });
+
+        // Step 2: Fallback to database
+        const dbKey = await Key.findOne({
+            where: {
+                value: hashKey,
+                status: 'activated'
+            }
+        });
+
+        // Key not found in database either
+        if (!dbKey) {
+            logger.warn('Invalid API key: Not found in database either.', {
+                hashKey: hashKey.substring(0, 20) + '...'
             });
             return null;
         }
-        
-        logger.info('API key validated successfully from Redis', { 
-            redisKey: redisKey.substring(0, 20) + '...',
-            createdAt: data.createdAt 
+
+        // Key found in database, it's valid.
+        logger.info('API key validated successfully from Database (Fallback)', {
+            keyId: dbKey.id,
+            userId: dbKey.userId
         });
-        
-        // Parse and return metadata
-        const metadata = data.metadata ? JSON.parse(data.metadata) : {};
-        return {
-            ...metadata,
-            createdAt: data.createdAt
+
+        // Step 3: Warm up the cache
+        const metadataToCache = {
+            userId: dbKey.userId,
+            keyId: dbKey.id
         };
         
+        await storeAPIKey(apiKey, metadataToCache);
+        logger.info('Redis cache has been warmed for the API key.', { keyId: dbKey.id });
+
+        // Return the metadata
+        return metadataToCache;
+        
     } catch (error) {
-        logger.error('Error validating API key in Redis:', {
+        logger.error('Error during API key validation process:', {
             error: error.message,
             stack: error.stack
         });
@@ -228,7 +261,7 @@ async function getActiveAPIKeyForUser(userId) {
 async function generateAPIKeyForUser(userId) {
     try {
         const apiToken = createAPIToken();
-        const hashedToken = hashToken(apiToken, process.env.HASH_SECRET);
+        const hashedToken = hashToken(apiToken, process.env.API_KEY_HASH_SECRET);
         
         // Store in database for management
         const newKey = await Key.create({
@@ -326,10 +359,10 @@ async function deleteAPIKeyById(keyId) {
     }
 }
 
-module.exports = { 
-    storeAPIKey, 
-    validateAPIKey, 
-    revokeAllUserKeys, 
+module.exports = {
+    storeAPIKey,
+    validateAPIKey,
+    revokeAllUserKeys,
     getActiveAPIKeyForUser,
     generateAPIKeyForUser,
     getAPIKeysByUserId,

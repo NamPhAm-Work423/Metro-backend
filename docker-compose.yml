@@ -12,6 +12,7 @@ services:
       - ./api-gateway/.env
     environment:
       - NEED_EMAIL_VERIFICATION=true  #turn off to require email verification
+      - NEED_API_KEY=false
     volumes:
       - ./api-gateway:/app
       - /app/node_modules 

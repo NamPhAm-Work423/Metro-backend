@@ -5,6 +5,8 @@ const router = express.Router();
 const authRoutes = require('./auth.route');
 const serviceRoutes = require('./service.routes');
 const routingRoutes = require('./routing.route');
+const authMiddleware = require('../middlewares/auth.middleware');
+
 const config = require('../config')();
 
 /**
@@ -12,13 +14,13 @@ const config = require('../config')();
  */
 
 // Authentication routes - mounted at /v1/auth
-router.use('/v1/auth', authRoutes);
+router.use('/v1/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
 
 // Service management routes - mounted at /v1/service
-router.use('/v1/service', serviceRoutes);
+router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
 
 // Dynamic service routing - mounted at /v1/route
-router.use('/v1/route', routingRoutes);
+router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
 
 
 // Health check endpoint

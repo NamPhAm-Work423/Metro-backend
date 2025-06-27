@@ -70,125 +70,7 @@ class UserService {
         return { accessToken, refreshToken };
     }
 
-    /**
-     * @description: Auto-generate API key for user if they don't have one
-     * @param {string} userId - User ID
-     * @returns {string|null} - Generated or existing API key ID
-     */
-    autoGenerateAPIKey = async (userId) => {
-        try {
-            const operationStartTime = process.hrtime.bigint();
-            
-            // Import Redis client helper
-            const { withRedisClient } = require('../config/redis');
-            
-            // STEP 1: Check Redis cache first (ultra-fast lookup)
-            const cacheKey = `user:${userId}:api_key`;
-            const cachedKeyData = await withRedisClient(async (client) => {
-                return await client.get(cacheKey);
-            });
-            
-            if (cachedKeyData) {
-                const keyData = JSON.parse(cachedKeyData);
-                logger.debug('API key found in Redis cache', { 
-                    userId, 
-                    keyId: keyData.keyId,
-                    cacheHit: true
-                });
-                return keyData.keyId;
-            }
 
-            // STEP 2: Check database for existing active key (fallback)
-            const existingKey = await Key.findOne({
-                where: {
-                    userId: userId,
-                    status: 'activated',
-                },
-                order: [['createdAt', 'DESC']]
-            });
-
-            if (existingKey) {
-                // Cache the existing key in Redis for future requests
-                const keyData = { keyId: existingKey.id, userId: userId };
-                await withRedisClient(async (client) => {
-                    await client.setEx(cacheKey, 86400, JSON.stringify(keyData)); // 24 hour cache
-                });
-                
-                const operationEndTime = process.hrtime.bigint();
-                const operationTime = Number(operationEndTime - operationStartTime) / 1000000;
-                
-                logger.info('Existing API key cached in Redis', { 
-                    userId, 
-                    keyId: existingKey.id,
-                    operationTimeMs: operationTime.toFixed(2),
-                    createdAt: existingKey.createdAt
-                });
-                return existingKey.id;
-            }
-
-            // Only create new API key if user doesn't have one
-            const apiToken = createAPIToken();
-            const hashedToken = hashToken(apiToken, process.env.HASH_SECRET);
-            
-            // Store in database for management
-            const newKey = await Key.create({
-                value: hashedToken,
-                userId: userId,
-                status: 'activated',
-                lastUsedAt: new Date()
-            });
-            
-            // Cache new key in Redis immediately
-            const keyData = { keyId: newKey.id, userId: userId };
-            await withRedisClient(async (client) => {
-                await client.setEx(cacheKey, 86400, JSON.stringify(keyData)); // 24 hour cache
-            });
-            
-            // Store in Redis for fast API key validation (separate from cache)
-            await keyService.storeAPIKey(apiToken, { 
-                userId: userId,
-                keyId: newKey.id 
-            });
-            
-            const operationEndTime = process.hrtime.bigint();
-            const operationTime = Number(operationEndTime - operationStartTime) / 1000000;
-            
-            logger.info('New API key generated and cached', { 
-                userId, 
-                keyId: newKey.id,
-                operationTimeMs: operationTime.toFixed(2)
-            });
-            
-            return newKey.id;
-        } catch (err) {
-            logger.error('Failed to auto-generate API key', {
-                error: err.message,
-                stack: err.stack,
-                userId: userId
-            });
-            return null;
-        }
-    }
-
-    /**
-     * @description: Get existing active API key for user
-     * @param {string} userId - User ID
-     * @returns {string|null} - Existing API key or null if none found
-     */
-    getExistingAPIKey = async (userId) => {
-        try {
-            // We can't retrieve the original API key from DB since we only store hashed versions
-            // For simplicity, we'll generate a new one each time
-            // In production, you might want to implement a different strategy
-            return null;
-        } catch (err) {
-            logger.error('Failed to get existing API key', {
-                error: err.message,
-                userId: userId
-            });
-            return null;
-        }
-    }
 
     /**
      * @description: User registration
@@ -251,17 +133,7 @@ class UserService {
                 );
             }
 
-            // Auto-generate API key in background
-            backgroundTasks.push(
-                this.autoGenerateAPIKey(user.id)
-                    .then(() => logger.debug('API key generated in background', { userId: user.id }))
-                    .catch(err => {
-                        logger.error('Failed to auto-generate API key in background', {
-                            error: err.message,
-                            userId: user.id
-                        });
-                    })
-            );
+
 
             // Publish Kafka event in background
             backgroundTasks.push(
@@ -373,13 +245,6 @@ class UserService {
                         userId: user.id
                     })),
                 
-                // Auto-generate or refresh API key (only if user doesn't have one)
-                this.autoGenerateAPIKey(user.id)
-                    .then(() => logger.debug('API key processed in background', { userId: user.id }))
-                    .catch(err => logger.error('Failed to auto-generate API key in background', {
-                        error: err.message,
-                        userId: user.id
-                    }))
             ];
 
             // Run all background tasks

@@ -55,40 +55,48 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - User login response
    */
-  login: asyncErrorHandler(async (req, res) => {
-    const { email, password } = req.body;
+  login: asyncErrorHandler(async (req, res, next) => {
+    try {
+      const { email, password } = req.body;
 
-    const { user, tokens } = await userService.login(email, password);
+      const { user, tokens } = await userService.login(email, password);
 
-    // Remove all fields from response except email, username, and roles
-    const userResponse = {
-      email: user.email,
-      username: user.username,
-      roles: user.roles
-    };
+      // Remove all fields from response except email, username, and roles
+      const userResponse = {
+        email: user.email,
+        username: user.username,
+        roles: user.roles
+      };
 
-    logger.info('User logged in successfully', { userId: user.id, email });
+      logger.info('User logged in successfully', { userId: user.id, email });
 
-    res.cookie('accessToken', tokens.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 60 * 60 * 1000
-    });
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+      res.cookie('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 60 * 60 * 1000
+      });
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
 
-    res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: userResponse,
-      }
-    });
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: userResponse
+        }
+      });
+    } catch (error) {
+      // Clear any existing cookies on login failure
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+      // Forward the error to the global error handler
+      next(error);
+    }
   }),
 
   /**

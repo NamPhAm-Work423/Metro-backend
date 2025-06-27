@@ -7,7 +7,7 @@ const sequelize = require('./config/database');
 const config = require('./config')();
 const initialize = require('./initialize');
 const { updateAllInstancesStatus } = require('./services/loadBalancer.service');
-const seedAdmin = require('./utils/seedAdmin');
+const seedAdmin = require('./seed/seedAdmin');
 
 const updateServiceStatusCronJob = () => {
     cron.schedule('*/1 * * * *', async () => {

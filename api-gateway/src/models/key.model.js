@@ -19,11 +19,7 @@ const Key = sequelize.define('Key', {
     title: {
         type: DataTypes.STRING,
         allowNull: true,
-    },
-    userId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-    },
+    }
 });
 
 module.exports = Key;
