@@ -95,7 +95,7 @@ app.use('/v1', routes);
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
-        service: 'user-service',
+        service: 'ticket-service',
         timestamp: new Date().toISOString()
     });
 });
@@ -104,7 +104,7 @@ app.get('/health', (req, res) => {
 app.get('/metrics', (req, res) => {
     res.status(200).json({
         status: 'healthy',
-        service: 'user-service',
+        service: 'ticket-service',
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         memory: process.memoryUsage()

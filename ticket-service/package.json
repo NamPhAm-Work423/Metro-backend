@@ -1,7 +1,7 @@
 {
-  "name": "user-service",
+  "name": "ticket-service",
   "version": "1.0.0",
-  "description": "Unified user service handling admin, passenger and staff users",
+  "description": "Metro ticket service handling tickets, fares, and promotions",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

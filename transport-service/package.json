@@ -1,7 +1,7 @@
 {
-  "name": "user-service",
+  "name": "transport-service",
   "version": "1.0.0",
-  "description": "Unified user service handling admin, passenger and staff users",
+  "description": "Transport service managing routes, stations, trips, and trains for the metro system",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

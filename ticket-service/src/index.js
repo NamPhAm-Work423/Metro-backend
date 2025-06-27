@@ -3,11 +3,10 @@ require('dotenv').config();
 const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
-const { Admin, Passenger, Staff } = require('./models/index.model');
-const userEventConsumer = require('./events/user.consumer.event');
+const { Ticket, Fare, Promotion } = require('./models/index.model');
 
-const PORT = process.env.PORT || 3001;
-const SERVICE_NAME = 'user-service';
+const PORT = process.env.PORT || 3003;
+const SERVICE_NAME = 'ticket-service';
 
 // Database synchronization
 async function syncDatabase() {
@@ -38,12 +37,6 @@ const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
     
     try {
-        // Stop consuming events
-        if (userEventConsumer) {
-            await userEventConsumer.stop();
-            logger.info('User event consumer stopped successfully');
-        }
-        
         // Close database connection
         await sequelize.close();
         logger.info('Database connection closed');
@@ -65,12 +58,6 @@ async function startApplication() {
     try {
         // Sync database first
         await syncDatabase();
-        
-        // Start event consumer
-        if (userEventConsumer) {
-            await userEventConsumer.start();
-            logger.info('User event consumer started successfully');
-        }
         
         // Start HTTP server
         app.listen(PORT, () => {

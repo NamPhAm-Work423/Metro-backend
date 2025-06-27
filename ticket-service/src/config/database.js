@@ -42,7 +42,7 @@ async function connectWithRetry() {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             await sequelize.authenticate();
-            console.log('User service database connection established successfully.');
+            console.log('Ticket service database connection established successfully.');
             return;
         } catch (error) {
             console.error(`Database connection attempt ${attempt}/${maxRetries} failed:`, error.message);

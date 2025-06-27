@@ -116,52 +116,6 @@ async function deletePassengerByUserId(userId) {
     }
 }
 
-// Placeholder ticket management methods
-async function addTicketToPassenger(userId, ticketId) {
-    try {
-        const passenger = await Passenger.findOne({ where: { userId } });
-        if (!passenger) return null;
-        
-        const currentTickets = passenger.ticketList || [];
-        if (!currentTickets.includes(ticketId)) {
-            currentTickets.push(ticketId);
-            await passenger.update({ ticketList: currentTickets });
-        }
-        
-        return passenger;
-    } catch (err) {
-        logger.error('Error adding ticket to passenger', { error: err.message, userId, ticketId });
-        throw err;
-    }
-}
-
-async function removeTicketFromPassenger(userId, ticketId) {
-    try {
-        const passenger = await Passenger.findOne({ where: { userId } });
-        if (!passenger) return null;
-        
-        const currentTickets = passenger.ticketList || [];
-        const updatedTickets = currentTickets.filter(id => id !== ticketId);
-        await passenger.update({ ticketList: updatedTickets });
-        
-        return passenger;
-    } catch (err) {
-        logger.error('Error removing ticket from passenger', { error: err.message, userId, ticketId });
-        throw err;
-    }
-}
-
-async function getPassengerTickets(userId) {
-    try {
-        const passenger = await Passenger.findOne({ where: { userId } });
-        if (!passenger) return [];
-        
-        return passenger.ticketList || [];
-    } catch (err) {
-        logger.error('Error getting passenger tickets', { error: err.message, userId });
-        throw err;
-    }
-}
 
 module.exports = {
     getAllPassengers,
@@ -172,7 +126,5 @@ module.exports = {
     updatePassengerById,
     deletePassengerById,
     deletePassengerByUserId,
-    addTicketToPassenger,
-    removeTicketFromPassenger,
-    getPassengerTickets
+
 }; 

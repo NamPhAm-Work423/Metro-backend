@@ -67,11 +67,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true
         },
-        ticketList: {
-            type: DataTypes.ARRAY(DataTypes.UUID),
-            allowNull: true,
-            defaultValue: []
-        }
     }, {
         tableName: 'passengers',
         timestamps: true,

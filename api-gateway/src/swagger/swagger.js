@@ -132,7 +132,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             // Passenger schemas
             Passenger: {
                 type: 'object',
-                description: 'Passenger profile with personal and ticket information',
+                description: 'Passenger profile with personal information',
                 properties: {
                     passengerId: { type: 'string', format: 'uuid' },
                     userId: { type: 'string', format: 'uuid' },
@@ -142,11 +142,6 @@ This API uses **cookie-based authentication** for maximum security and ease of u
                     dateOfBirth: { type: 'string', format: 'date' },
                     gender: { type: 'string', enum: ['male', 'female', 'other'] },
                     address: { type: 'string' },
-                    ticketList: { 
-                        type: 'array', 
-                        items: { type: 'string' },
-                        description: 'List of ticket IDs'
-                    },
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' }
                 }
@@ -274,7 +269,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
         },
         {
             name: 'Passenger Management', 
-            description: `Passenger user management operations.\n\n**Passenger model fields**:\n- passengerId (uuid)\n- userId (uuid)\n- firstName (string)\n- lastName (string)\n- phoneNumber (string)\n- dateOfBirth (date)\n- gender (male|female|other)\n- address (string)\n- ticketList (array<string>)\n- createdAt (date-time)\n- updatedAt (date-time)`
+            description: `Passenger user management operations.\n\n**Passenger model fields**:\n- passengerId (uuid)\n- userId (uuid)\n- firstName (string)\n- lastName (string)\n- phoneNumber (string)\n- dateOfBirth (date)\n- gender (male|female|other)\n- address (string)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'Staff Management',
@@ -303,6 +298,18 @@ This API uses **cookie-based authentication** for maximum security and ease of u
         {
             name: 'Trips',
             description: `Endpoints for scheduling trips of trains along routes.\n\n**Trip model fields**:\n- tripId (uuid)\n- routeId (uuid)\n- trainId (uuid)\n- departureTime (time)\n- arrivalTime (time)\n- dayOfWeek (Monday-Sunday)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Tickets',
+            description: `Ticket management and lifecycle operations.\n\n**Ticket model fields**:\n- ticketId (uuid)\n- passengerId (uuid)\n- tripId (uuid)\n- fareId (uuid)\n- promotionId (uuid, nullable)\n- originStationId (uuid)\n- destinationStationId (uuid)\n- purchaseDate (date-time)\n- validFrom (date-time)\n- validUntil (date-time)\n- usedAt (date-time, nullable)\n- originalPrice (decimal)\n- discountAmount (decimal)\n- finalPrice (decimal)\n- paymentMethod (credit_card|debit_card|cash|digital_wallet|bank_transfer)\n- paymentId (string)\n- status (active|used|expired|cancelled|refunded)\n- ticketType (single|return|day_pass|weekly|monthly)\n- qrCode (string)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Fares',
+            description: `Fare management and pricing calculations.\n\n**Fare model fields**:\n- fareId (uuid)\n- routeId (uuid)\n- originStationId (uuid)\n- destinationStationId (uuid)\n- ticketType (single|return|day_pass|weekly|monthly)\n- passengerType (adult|child|senior|student|disabled)\n- basePrice (decimal)\n- peakHourMultiplier (decimal)\n- distance (float)\n- zones (integer)\n- effectiveFrom (date-time)\n- effectiveUntil (date-time, nullable)\n- currency (string)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
+            name: 'Promotions',
+            description: `Promotion management and discount validation.\n\n**Promotion model fields**:\n- promotionId (uuid)\n- code (string)\n- name (string)\n- description (string)\n- type (percentage|fixed_amount|buy_one_get_one)\n- value (decimal)\n- maxDiscountAmount (decimal, nullable)\n- minPurchaseAmount (decimal, nullable)\n- applicableTicketTypes (array)\n- applicablePassengerTypes (array)\n- applicableRoutes (array)\n- usageLimit (integer, nullable)\n- usageCount (integer)\n- userUsageLimit (integer, nullable)\n- validFrom (date-time)\n- validUntil (date-time)\n- daysOfWeek (array)\n- timeSlots (array)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
             name: 'System',

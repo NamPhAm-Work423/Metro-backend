@@ -87,6 +87,27 @@ services:
       - backend-network
     restart: unless-stopped
 
+  # Ticket Service - handles tickets, fares, and promotions
+  ticket-service:
+    build:
+      context: ./ticket-service
+    container_name: ticket-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./ticket-service/.env
+    volumes:
+      - ./ticket-service:/app
+      - /app/node_modules
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
