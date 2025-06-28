@@ -11,17 +11,17 @@ class TicketService {
                 throw new Error('Invalid or inactive fare');
             }
 
-            // Calculate pricing
-            let originalPrice = fare.basePrice;
+            // Calculate pricing from Fare
+            let basePrice = fare.basePrice;
             let discountAmount = 0;
-            let finalPrice = originalPrice;
+            let totalPrice = basePrice;
 
             // Apply promotion if provided
             if (ticketData.promotionId) {
                 const promotion = await Promotion.findByPk(ticketData.promotionId);
                 if (promotion && promotion.isCurrentlyValid()) {
-                    discountAmount = promotion.calculateDiscount(originalPrice);
-                    finalPrice = originalPrice - discountAmount;
+                    discountAmount = promotion.calculateDiscount(basePrice);
+                    totalPrice = basePrice - discountAmount;
                     
                     // Increment promotion usage
                     await promotion.incrementUsage();
@@ -34,13 +34,13 @@ class TicketService {
             // Create ticket with calculated pricing
             const ticket = await Ticket.create({
                 ...ticketData,
-                originalPrice,
+                basePrice,
                 discountAmount,
-                finalPrice,
+                totalPrice,
                 status: 'active'
             });
 
-            logger.info('Ticket created successfully', { ticketId: ticket.ticketId, passengerId: ticket.passengerId });
+            logger.info('Ticket created successfully', { ticketId: ticket.ticketId, passengerId: ticket.passengerId, totalPrice });
             return ticket;
         } catch (error) {
             logger.error('Error creating ticket', { error: error.message, ticketData });
@@ -204,43 +204,268 @@ class TicketService {
         }
     }
 
-    async useTicket(ticketId, usageData = {}) {
+    async getInactiveTicketsByPassenger(passengerId) {
         try {
-            const ticket = await Ticket.findByPk(ticketId);
+            const tickets = await Ticket.findAll({
+                where: {
+                    passengerId,
+                    status: 'used'
+                },
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare',
+                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        attributes: ['promotionId', 'code', 'name', 'type'],
+                        required: false
+                    }
+                ],
+                order: [['usedAt', 'DESC']]
+            });
             
-            if (!ticket) {
-                throw new Error('Ticket not found');
-            }
-            
-            if (!ticket.isValid()) {
-                throw new Error('Ticket is not valid for use');
-            }
-            
-            if (ticket.status !== 'active') {
-                throw new Error('Ticket is not active');
-            }
-
-            const updateData = {
-                status: 'used',
-                usedAt: new Date()
-            };
-
-            const updatedTicket = await ticket.update(updateData);
-            logger.info('Ticket used successfully', { ticketId, passengerId: ticket.passengerId });
-            
-            return updatedTicket;
+            return tickets;
         } catch (error) {
-            logger.error('Error using ticket', { error: error.message, ticketId });
+            logger.error('Error fetching inactive tickets by passenger', { error: error.message, passengerId });
             throw error;
         }
     }
 
-    async cancelTicket(ticketId, reason = 'Passenger cancellation') {
+    async getCancelledTicketsByPassenger(passengerId) {
+        try {
+            const tickets = await Ticket.findAll({
+                where: {
+                    passengerId,
+                    status: 'cancelled'
+                },
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare',
+                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        attributes: ['promotionId', 'code', 'name', 'type'],
+                        required: false
+                    }
+                ],
+                order: [['updatedAt', 'DESC']]
+            });
+            
+            return tickets;
+        } catch (error) {
+            logger.error('Error fetching cancelled tickets by passenger', { error: error.message, passengerId });
+            throw error;
+        }
+    }
+
+    async getExpiredTicketsByPassenger(passengerId) {
+        try {
+            const tickets = await Ticket.findAll({
+                where: {
+                    passengerId,
+                    [Op.or]: [
+                        { status: 'expired' },
+                        {
+                            status: 'active',
+                            validUntil: { [Op.lt]: new Date() }
+                        }
+                    ]
+                },
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare',
+                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        attributes: ['promotionId', 'code', 'name', 'type'],
+                        required: false
+                    }
+                ],
+                order: [['validUntil', 'DESC']]
+            });
+            
+            return tickets;
+        } catch (error) {
+            logger.error('Error fetching expired tickets by passenger', { error: error.message, passengerId });
+            throw error;
+        }
+    }
+
+    async getTicketWithQR(ticketId, passengerId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId, {
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare'
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        required: false
+                    }
+                ]
+            });
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            if (ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
+            }
+            
+            const qrData = {
+                ticketId: ticket.ticketId,
+                passengerId: ticket.passengerId,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                status: ticket.status,
+                totalPrice: ticket.totalPrice,
+                generatedAt: new Date().toISOString()
+            };
+            
+            // Generate QR code (in real implementation, you would use a QR code library)
+            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+            
+            logger.info('Ticket with QR code retrieved', { ticketId, passengerId });
+            
+            return {
+                ticket,
+                qrCode: {
+                    data: qrCodeData,
+                    format: 'base64',
+                    metadata: qrData
+                }
+            };
+        } catch (error) {
+            logger.error('Error getting ticket with QR', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async sendTicketToPhone(ticketId, phoneNumber, passengerId) {
         try {
             const ticket = await Ticket.findByPk(ticketId);
             
             if (!ticket) {
                 throw new Error('Ticket not found');
+            }
+            
+            if (ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
+            }
+            
+            // Generate ticket data for SMS
+            const ticketSummary = {
+                ticketId: ticket.ticketId,
+                originStation: ticket.originStationId,
+                destinationStation: ticket.destinationStationId,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                totalPrice: ticket.totalPrice,
+                status: ticket.status
+            };
+            
+            // In real implementation, you would send SMS here
+            logger.info('Ticket sent to phone', { 
+                ticketId, 
+                phoneNumber: phoneNumber.replace(/\d(?=\d{4})/g, '*'), 
+                passengerId 
+            });
+            
+            return {
+                success: true,
+                message: `Ticket sent to ${phoneNumber.replace(/\d(?=\d{4})/g, '*')}`,
+                ticketSummary,
+                sentAt: new Date().toISOString()
+            };
+        } catch (error) {
+            logger.error('Error sending ticket to phone', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async sendTicketToEmail(ticketId, email, passengerId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId, {
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare'
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        required: false
+                    }
+                ]
+            });
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            if (ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
+            }
+            
+            // Generate detailed ticket data for email
+            const ticketDetails = {
+                ticketId: ticket.ticketId,
+                passengerId: ticket.passengerId,
+                originStation: ticket.originStationId,
+                destinationStation: ticket.destinationStationId,
+                ticketType: ticket.ticketType,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                basePrice: ticket.basePrice,
+                discountAmount: ticket.discountAmount,
+                totalPrice: ticket.totalPrice,
+                status: ticket.status,
+                fare: ticket.fare,
+                promotion: ticket.promotion
+            };
+            
+            // In real implementation, you would send email here
+            logger.info('Ticket sent to email', { 
+                ticketId, 
+                email: email.replace(/(.{2})(.*)(@.*)/, '$1***$3'), 
+                passengerId 
+            });
+            
+            return {
+                success: true,
+                message: `Ticket sent to ${email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}`,
+                ticketDetails,
+                sentAt: new Date().toISOString()
+            };
+        } catch (error) {
+            logger.error('Error sending ticket to email', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async cancelTicket(ticketId, reason = 'Passenger cancellation', passengerId = null) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            // If passengerId is provided, validate ownership
+            if (passengerId && ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
             }
             
             if (ticket.status === 'used') {
@@ -253,98 +478,15 @@ class TicketService {
 
             const updatedTicket = await ticket.update({
                 status: 'cancelled',
-                isActive: false
+                isActive: false,
+                cancelledAt: new Date(),
+                cancellationReason: reason
             });
             
             logger.info('Ticket cancelled successfully', { ticketId, passengerId: ticket.passengerId, reason });
             return updatedTicket;
         } catch (error) {
             logger.error('Error cancelling ticket', { error: error.message, ticketId });
-            throw error;
-        }
-    }
-
-    async refundTicket(ticketId, refundData = {}) {
-        try {
-            const ticket = await Ticket.findByPk(ticketId);
-            
-            if (!ticket) {
-                throw new Error('Ticket not found');
-            }
-            
-            if (ticket.status === 'used') {
-                throw new Error('Cannot refund a used ticket');
-            }
-            
-            if (ticket.status === 'refunded') {
-                throw new Error('Ticket is already refunded');
-            }
-
-            const updatedTicket = await ticket.update({
-                status: 'refunded',
-                isActive: false
-            });
-            
-            logger.info('Ticket refunded successfully', { ticketId, passengerId: ticket.passengerId, refundAmount: ticket.finalPrice });
-            return updatedTicket;
-        } catch (error) {
-            logger.error('Error refunding ticket', { error: error.message, ticketId });
-            throw error;
-        }
-    }
-
-    async expireTickets() {
-        try {
-            const expiredTickets = await Ticket.update(
-                { status: 'expired' },
-                {
-                    where: {
-                        status: 'active',
-                        validUntil: { [Op.lt]: new Date() },
-                        isActive: true
-                    },
-                    returning: true
-                }
-            );
-            
-            logger.info('Expired tickets updated', { count: expiredTickets[0] });
-            return expiredTickets[0];
-        } catch (error) {
-            logger.error('Error expiring tickets', { error: error.message });
-            throw error;
-        }
-    }
-
-    async getTicketStatistics(filters = {}) {
-        try {
-            const where = { isActive: true };
-            
-            if (filters.dateFrom && filters.dateTo) {
-                where.createdAt = {
-                    [Op.between]: [filters.dateFrom, filters.dateTo]
-                };
-            }
-            
-            if (filters.passengerId) {
-                where.passengerId = filters.passengerId;
-            }
-
-            const stats = await Ticket.findAll({
-                where,
-                attributes: [
-                    'status',
-                    'ticketType',
-                    [Ticket.sequelize.fn('COUNT', '*'), 'count'],
-                    [Ticket.sequelize.fn('SUM', Ticket.sequelize.col('finalPrice')), 'totalRevenue'],
-                    [Ticket.sequelize.fn('AVG', Ticket.sequelize.col('finalPrice')), 'averagePrice']
-                ],
-                group: ['status', 'ticketType'],
-                raw: true
-            });
-            
-            return stats;
-        } catch (error) {
-            logger.error('Error generating ticket statistics', { error: error.message, filters });
             throw error;
         }
     }
@@ -382,11 +524,145 @@ class TicketService {
                     validFrom: ticket.validFrom,
                     validUntil: ticket.validUntil,
                     originStationId: ticket.originStationId,
-                    destinationStationId: ticket.destinationStationId
+                    destinationStationId: ticket.destinationStationId,
+                    totalPrice: ticket.totalPrice
                 }
             };
         } catch (error) {
             logger.error('Error validating ticket', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async getTicketDetail(ticketId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId, {
+                include: [
+                    {
+                        model: Fare,
+                        as: 'fare'
+                    },
+                    {
+                        model: Promotion,
+                        as: 'promotion',
+                        required: false
+                    }
+                ]
+            });
+            
+            return ticket;
+        } catch (error) {
+            logger.error('Error fetching ticket detail', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async updateTicket(ticketId, updateData) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            // Prevent updating critical fields
+            const allowedFields = ['notes', 'specialRequests'];
+            const filteredData = {};
+            
+            Object.keys(updateData).forEach(key => {
+                if (allowedFields.includes(key)) {
+                    filteredData[key] = updateData[key];
+                }
+            });
+            
+            const updatedTicket = await ticket.update(filteredData);
+            
+            logger.info('Ticket updated successfully', { ticketId, updatedFields: Object.keys(filteredData) });
+            
+            return updatedTicket;
+        } catch (error) {
+            logger.error('Error updating ticket', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async deleteTicket(ticketId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            if (ticket.status === 'used') {
+                throw new Error('Cannot delete a used ticket');
+            }
+            
+            await ticket.destroy();
+            
+            logger.info('Ticket deleted successfully', { ticketId });
+            
+            return true;
+        } catch (error) {
+            logger.error('Error deleting ticket', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    async getTicketStatistics(filters = {}) {
+        try {
+            const where = { isActive: true };
+            
+            if (filters.dateFrom && filters.dateTo) {
+                where.createdAt = {
+                    [Op.between]: [filters.dateFrom, filters.dateTo]
+                };
+            }
+            
+            if (filters.passengerId) {
+                where.passengerId = filters.passengerId;
+            }
+
+            const stats = await Ticket.findAll({
+                where,
+                attributes: [
+                    'status',
+                    'ticketType',
+                    [Ticket.sequelize.fn('COUNT', '*'), 'count'],
+                    [Ticket.sequelize.fn('SUM', Ticket.sequelize.col('totalPrice')), 'totalRevenue'],
+                    [Ticket.sequelize.fn('AVG', Ticket.sequelize.col('totalPrice')), 'averagePrice'],
+                    [Ticket.sequelize.fn('SUM', Ticket.sequelize.col('basePrice')), 'totalBaseRevenue'],
+                    [Ticket.sequelize.fn('SUM', Ticket.sequelize.col('discountAmount')), 'totalDiscounts']
+                ],
+                group: ['status', 'ticketType'],
+                raw: true
+            });
+            
+            return stats;
+        } catch (error) {
+            logger.error('Error generating ticket statistics', { error: error.message, filters });
+            throw error;
+        }
+    }
+
+    async expireTickets() {
+        try {
+            const expiredTickets = await Ticket.update(
+                { status: 'expired' },
+                {
+                    where: {
+                        status: 'active',
+                        validUntil: { [Op.lt]: new Date() },
+                        isActive: true
+                    },
+                    returning: true
+                }
+            );
+            
+            logger.info('Expired tickets updated', { count: expiredTickets[0] });
+            return expiredTickets[0];
+        } catch (error) {
+            logger.error('Error expiring tickets', { error: error.message });
             throw error;
         }
     }

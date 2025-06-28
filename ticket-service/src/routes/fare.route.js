@@ -3,9 +3,6 @@ const router = express.Router();
 const fareController = require('../controllers/fare.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
-// Health check endpoint (no auth required)
-router.get('/health', fareController.healthCheck);
-
 // Public fare information (all authenticated users)
 router.get('/active', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getActiveFares);
 router.get('/search', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.searchFares);

@@ -3,46 +3,32 @@ const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
-
-// Public ticket validation (for transit systems)
-router.get('/:id/validate', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.validateTicket);
+// Passenger ticket creation
+router.post('/create', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createTicket);
 
 // Passenger self-service routes
-//Passenger can use this route to get all their tickets
 router.get('/me', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyTickets);
-//Passenger can use this route to get all their active tickets
 router.get('/me/unused', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyActiveTickets);
-//Passenger can use this route to get all their used tickets
 router.get('/me/used', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyInactiveTickets);
-//Passenger can use this route to get all their cancelled tickets
 router.get('/me/cancelled', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyCancelledTickets);
-//Passenger can use this route to get all their expired tickets
 router.get('/me/expired', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyExpiredTickets);
-//Passenger can use this route to get QR code of a ticket
-router.get('/:id/qrcode', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getQRCode);
-//Passenger can use this route to cancel a ticket NOT refund
+
+// Passenger ticket actions
+router.get('/:id/getTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getTicket);
 router.post('/:id/cancel', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.cancelTicket);
-//Passenger can use this route to get a code to validate a ticket to their phone
-router.post('/:id/phoneCode', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getCode);
-//Passenger can use this route to get a mail contain a ticket
-router.post('/:id/mailCode', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMailCode);
+router.post('/:id/phoneTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getPhoneTicket);
+router.post('/:id/mailTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMailTicket);
 
+// Public/Transit system validation (accessible by all authenticated users)
+router.get('/:id/validate', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.validateTicket);
 
-//Staff and admin can use this route to validate a ticket
-router.get('/:id/validate', ...authorizeRoles('staff', 'admin'), ticketController.validateTicket);
-//Staff and admin can use this route to get details of a ticket
+// Staff and admin management routes
 router.get('/:id/detail', ...authorizeRoles('staff', 'admin'), ticketController.getTicketDetail);
-//Staff and admin can use this route to update a ticket
 router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.updateTicket);
-//Staff and admin can use this route to delete a ticket
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
 
-
-//Admin can use this route to get all tickets
+// Admin-only routes
 router.get('/getAllTickets', ...authorizeRoles('admin'), ticketController.getAllTickets);
-
-
-
-//
+router.get('/getTicketStatistics', ...authorizeRoles('admin'), ticketController.getTicketStatistics);
 
 module.exports = router;

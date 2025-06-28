@@ -7,6 +7,13 @@ const Ticket = sequelize.define('Ticket', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
+    totalPrice: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        validate: {
+            min: 0
+        }
+    },
     passengerId: {
         type: DataTypes.UUID,
         allowNull: true,

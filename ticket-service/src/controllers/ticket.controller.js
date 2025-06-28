@@ -1,27 +1,36 @@
 const ticketService = require('../services/ticket.service');
+const passengerCacheService = require('../services/passengerCache.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 
 class TicketController {
-    // POST /v1/tickets
+    // Helper method to get passenger from cache
+    async _getPassengerFromCache(req) {
+        const passengerId = req.headers['x-passenger-id'] || req.user?.passengerId;
+        
+        if (!passengerId) {
+            throw new Error('Passenger ID not found in request');
+        }
+
+        const passenger = await passengerCacheService.getPassenger(passengerId);
+        
+        if (!passenger) {
+            throw new Error('Passenger not found in cache. Please authenticate again.');
+        }
+
+        return { passengerId, passenger };
+    }
+
+    // POST /v1/tickets/create
     createTicket = asyncErrorHandler(async (req, res, next) => {
         const ticketData = req.body;
         
-        // Extract passenger ID from authenticated user or request
-        const passengerId = req.headers['x-passenger-id'] || req.user?.passengerId || ticketData.passengerId;
-        
-        if (!passengerId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Passenger ID is required'
-            });
-        }
-
-
-
+        // Get passenger from cache to validate existence
+        const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
         const ticket = await ticketService.createTicket({
             ...ticketData,
-            passengerId
+            passengerId,
+            passengerInfo: passenger // Include passenger info for validation
         });
 
         res.status(201).json({
@@ -31,7 +40,7 @@ class TicketController {
         });
     });
 
-    // GET /v1/tickets
+    // GET /v1/tickets/getAllTickets
     getAllTickets = asyncErrorHandler(async (req, res, next) => {
         const filters = req.query;
         const tickets = await ticketService.getAllTickets(filters);
@@ -55,8 +64,6 @@ class TicketController {
                 message: 'Ticket not found'
             });
         }
-
-        
         
         res.status(200).json({
             success: true,
@@ -65,52 +72,12 @@ class TicketController {
         });
     });
 
-    // GET /v1/tickets/passenger/:passengerId
-    getTicketsByPassenger = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = req.params;
-        const filters = req.query;
-        const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
-        
-        
-        
-        res.status(200).json({
-            success: true,
-            message: 'Passenger tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
-    });
-
-    // GET /v1/tickets/passenger/:passengerId/active
-    getActiveTicketsByPassenger = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = req.params;
-        const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
-        
-        
-        
-        res.status(200).json({
-            success: true,
-            message: 'Active passenger tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
-    });
-
     // GET /v1/tickets/me
     getMyTickets = asyncErrorHandler(async (req, res, next) => {
-        const passengerId = req.headers['x-passenger-id'] || req.user?.passengerId;
-        
-        if (!passengerId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Passenger ID not found in request'
-            });
-        }
+        const { passengerId } = await this._getPassengerFromCache(req);
 
         const filters = req.query;
         const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
-        
-        
         
         res.status(200).json({
             success: true,
@@ -120,20 +87,11 @@ class TicketController {
         });
     });
 
-    // GET /v1/tickets/me/active
+    // GET /v1/tickets/me/unused
     getMyActiveTickets = asyncErrorHandler(async (req, res, next) => {
-        const passengerId = req.headers['x-passenger-id'] || req.user?.passengerId;
-        
-        if (!passengerId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Passenger ID not found in request'
-            });
-        }
+        const { passengerId } = await this._getPassengerFromCache(req);
 
         const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
-        
-        
         
         res.status(200).json({
             success: true,
@@ -143,17 +101,59 @@ class TicketController {
         });
     });
 
-    // POST /v1/tickets/:id/use
-    useTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const usageData = req.body;
-        
-        const ticket = await ticketService.useTicket(id, usageData);
+    // GET /v1/tickets/me/used
+    getMyInactiveTickets = asyncErrorHandler(async (req, res, next) => {
+        const { passengerId } = await this._getPassengerFromCache(req);
+
+        const tickets = await ticketService.getInactiveTicketsByPassenger(passengerId);
         
         res.status(200).json({
             success: true,
-            message: 'Ticket used successfully',
-            data: ticket
+            message: 'My used tickets retrieved successfully',
+            data: tickets,
+            count: tickets.length
+        });
+    });
+
+    // GET /v1/tickets/me/cancelled
+    getMyCancelledTickets = asyncErrorHandler(async (req, res, next) => {
+        const { passengerId } = await this._getPassengerFromCache(req);
+
+        const tickets = await ticketService.getCancelledTicketsByPassenger(passengerId);
+        
+        res.status(200).json({
+            success: true,
+            message: 'My cancelled tickets retrieved successfully',
+            data: tickets,
+            count: tickets.length
+        });
+    });
+
+    // GET /v1/tickets/me/expired
+    getMyExpiredTickets = asyncErrorHandler(async (req, res, next) => {
+        const { passengerId } = await this._getPassengerFromCache(req);
+
+        const tickets = await ticketService.getExpiredTicketsByPassenger(passengerId);
+        
+        res.status(200).json({
+            success: true,
+            message: 'My expired tickets retrieved successfully',
+            data: tickets,
+            count: tickets.length
+        });
+    });
+
+    // GET /v1/tickets/:id/getTicket
+    getTicket = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { passengerId } = await this._getPassengerFromCache(req);
+        
+        const ticketData = await ticketService.getTicketWithQR(id, passengerId);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Ticket retrieved with QR code successfully',
+            data: ticketData
         });
     });
 
@@ -161,8 +161,9 @@ class TicketController {
     cancelTicket = asyncErrorHandler(async (req, res, next) => {
         const { id } = req.params;
         const { reason } = req.body;
+        const { passengerId } = await this._getPassengerFromCache(req);
         
-        const ticket = await ticketService.cancelTicket(id, reason);
+        const ticket = await ticketService.cancelTicket(id, reason, passengerId);
         
         res.status(200).json({
             success: true,
@@ -171,17 +172,33 @@ class TicketController {
         });
     });
 
-    // POST /v1/tickets/:id/refund
-    refundTicket = asyncErrorHandler(async (req, res, next) => {
+    // POST /v1/tickets/:id/phoneTicket
+    getPhoneTicket = asyncErrorHandler(async (req, res, next) => {
         const { id } = req.params;
-        const refundData = req.body;
+        const { phoneNumber } = req.body;
+        const { passengerId } = await this._getPassengerFromCache(req);
         
-        const ticket = await ticketService.refundTicket(id, refundData);
+        const result = await ticketService.sendTicketToPhone(id, phoneNumber, passengerId);
         
         res.status(200).json({
             success: true,
-            message: 'Ticket refunded successfully',
-            data: ticket
+            message: 'Ticket sent to phone successfully',
+            data: result
+        });
+    });
+
+    // POST /v1/tickets/:id/mailTicket
+    getMailTicket = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { email } = req.body;
+        const { passengerId } = await this._getPassengerFromCache(req);
+        
+        const result = await ticketService.sendTicketToEmail(id, email, passengerId);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Ticket sent to email successfully',
+            data: result
         });
     });
 
@@ -197,7 +214,51 @@ class TicketController {
         });
     });
 
-    // GET /v1/tickets/statistics
+    // GET /v1/tickets/:id/detail
+    getTicketDetail = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const ticket = await ticketService.getTicketDetail(id);
+        
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Ticket details retrieved successfully',
+            data: ticket
+        });
+    });
+
+    // PUT /v1/tickets/:id/update
+    updateTicket = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const updateData = req.body;
+        
+        const ticket = await ticketService.updateTicket(id, updateData);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Ticket updated successfully',
+            data: ticket
+        });
+    });
+
+    // DELETE /v1/tickets/:id/delete
+    deleteTicket = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        await ticketService.deleteTicket(id);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Ticket deleted successfully'
+        });
+    });
+
+    // GET /v1/tickets/getTicketStatistics
     getTicketStatistics = asyncErrorHandler(async (req, res, next) => {
         const filters = req.query;
         const stats = await ticketService.getTicketStatistics(filters);
