@@ -146,10 +146,12 @@ class StopService {
                         include: [
                             {
                                 model: Route,
+                                as: 'route',
                                 attributes: ['routeId', 'name', 'originId', 'destinationId']
                             },
                             {
                                 model: Train,
+                                as: 'train',
                                 attributes: ['trainId', 'name', 'type', 'capacity']
                             }
                         ]
