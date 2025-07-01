@@ -313,7 +313,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, token, userId) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}&uid=${userId}`;
     
     const subject = 'Password Reset Request';
