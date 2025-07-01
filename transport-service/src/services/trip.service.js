@@ -238,10 +238,12 @@ class TripService {
                 include: [
                     {
                         model: Route,
+                        as: 'route',
                         attributes: ['routeId', 'name', 'originId', 'destinationId', 'duration']
                     },
                     {
                         model: Train,
+                        as: 'train',
                         attributes: ['trainId', 'name', 'type', 'capacity', 'status'],
                         where: { status: 'active' }
                     }
