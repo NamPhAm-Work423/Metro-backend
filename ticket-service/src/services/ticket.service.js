@@ -1,27 +1,70 @@
 const { Ticket, Fare, Promotion } = require('../models/index.model');
 const { Op } = require('sequelize');
 const { logger } = require('../config/logger');
+const FareService = require('./fare.service');
 
 class TicketService {
+    constructor() {
+        this.fareService = FareService;
+    }
+
+    /**
+     * Create a per-trip ticket with station-based fare calculation
+     * @param {Object} ticketData - The ticket data
+     * @description - Create a single-use ticket for one trip based on station count
+     * @param {Object} ticketData.routeId - The route ID
+     * @param {Object} ticketData.passengerId - The passenger ID
+     * @param {Object} ticketData.passengerInfo - The passenger info (including dateOfBirth)
+     * @param {Object} ticketData.promotionId - The promotion ID (optional)
+     * @param {Object} ticketData.originStationId - The origin station ID
+     * @param {Object} ticketData.destinationStationId - The destination station ID
+     * @param {Object} ticketData.tripId - The specific trip ID (optional)
+     * @returns {Promise<Object>} The created ticket
+     */
     async createTicket(ticketData) {
         try {
-            // Validate fare exists and is active
-            const fare = await Fare.findByPk(ticketData.fareId);
-            if (!fare || !fare.isCurrentlyValid()) {
-                throw new Error('Invalid or inactive fare');
+            // Validate required fields
+            if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
+                throw new Error('Route ID, origin station ID, and destination station ID are required');
             }
 
-            // Calculate pricing from Fare
-            let basePrice = fare.basePrice;
+            // Determine passenger type based on age
+            let passengerType = 'adult';
+            
+            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
+                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
+                age = age.getUTCFullYear() - 1970;
+                
+                if (age < 12) {
+                    passengerType = 'child';
+                } else if (age < 18) {
+                    passengerType = 'teen';
+                } else if (age > 60) {
+                    passengerType = 'senior';
+                } else {
+                    passengerType = 'adult';
+                }
+            }
+
+            // Calculate station-based fare
+            const fareCalculation = await this.fareService.calculateStationBasedFare(
+                ticketData.routeId,
+                ticketData.originStationId,
+                ticketData.destinationStationId,
+                passengerType
+            );
+
+            // Use calculated fare
+            let originalPrice = fareCalculation.basePrice;
             let discountAmount = 0;
-            let totalPrice = basePrice;
+            let totalPrice = originalPrice;
 
             // Apply promotion if provided
             if (ticketData.promotionId) {
                 const promotion = await Promotion.findByPk(ticketData.promotionId);
                 if (promotion && promotion.isCurrentlyValid()) {
-                    discountAmount = promotion.calculateDiscount(basePrice);
-                    totalPrice = basePrice - discountAmount;
+                    discountAmount = promotion.calculateDiscount(originalPrice);
+                    totalPrice = originalPrice - discountAmount;
                     
                     // Increment promotion usage
                     await promotion.incrementUsage();
@@ -31,16 +74,42 @@ class TicketService {
                 }
             }
 
+            // Set ticket validity (per-trip tickets are valid for 30 days from purchase)
+            const validFrom = new Date();
+            const validUntil = new Date();
+            validUntil.setDate(validUntil.getDate() + 30); // Valid for 30 days
+
             // Create ticket with calculated pricing
             const ticket = await Ticket.create({
-                ...ticketData,
-                basePrice,
-                discountAmount,
-                totalPrice,
-                status: 'active'
+                passengerId: ticketData.passengerId,
+                tripId: ticketData.tripId || null,
+                promotionId: ticketData.promotionId || null,
+                originStationId: ticketData.originStationId,
+                destinationStationId: ticketData.destinationStationId,
+                originalPrice: originalPrice,
+                discountAmount: discountAmount,
+                finalPrice: totalPrice,
+                totalPrice: totalPrice,
+                validFrom: validFrom,
+                validUntil: validUntil,
+                numberOfUses: 'single', // Per-trip tickets are single use
+                ticketType: 'single', // All tickets are single-trip tickets
+                status: 'active',
+                stationCount: fareCalculation.stationCount,
+                fareBreakdown: fareCalculation.priceBreakdown,
+                paymentMethod: ticketData.paymentMethod || 'card',
+                paymentId: ticketData.paymentId || null
             });
 
-            logger.info('Ticket created successfully', { ticketId: ticket.ticketId, passengerId: ticket.passengerId, totalPrice });
+            logger.info('Per-trip ticket created successfully', { 
+                ticketId: ticket.ticketId, 
+                passengerId: ticket.passengerId, 
+                stationCount: fareCalculation.stationCount,
+                totalPrice: totalPrice,
+                passengerType: passengerType,
+                originStationId: ticketData.originStationId,
+                destinationStationId: ticketData.destinationStationId
+            });
             return ticket;
         } catch (error) {
             logger.error('Error creating ticket', { error: error.message, ticketData });

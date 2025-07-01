@@ -313,7 +313,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, token, userId) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}&uid=${userId}`;
     
     const subject = 'Password Reset Request';
@@ -388,7 +388,7 @@ class EmailService {
       
       Your account has been successfully created and verified. You can now enjoy all the features we offer.
       
-      Visit ${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard to get started.
+      Visit ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard to get started.
       
       If you have any questions or need assistance, feel free to contact our support team.
       

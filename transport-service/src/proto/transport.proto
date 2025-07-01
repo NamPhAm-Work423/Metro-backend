@@ -7,6 +7,8 @@ service TransportService {
   rpc GetStation(GetStationRequest) returns (StationResponse);
   rpc GetTrip(GetTripRequest) returns (TripResponse);
   rpc GetRoutesByStations(GetRoutesByStationsRequest) returns (RoutesResponse);
+  rpc GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse);
+  rpc CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse);
 }
 
 message GetRouteRequest {
@@ -26,6 +28,16 @@ message GetRoutesByStationsRequest {
   string destinationStationId = 2;
 }
 
+message GetRouteStationsRequest {
+  string routeId = 1;
+}
+
+message CalculateStationCountRequest {
+  string routeId = 1;
+  string originStationId = 2;
+  string destinationStationId = 3;
+}
+
 message RouteResponse {
   string routeId = 1;
   string name = 2;
@@ -40,6 +52,17 @@ message RouteResponse {
 
 message RoutesResponse {
   repeated RouteResponse routes = 1;
+}
+
+message RouteStationsResponse {
+  repeated RouteStation routeStations = 1;
+}
+
+message StationCountResponse {
+  int32 stationCount = 1;
+  string routeId = 2;
+  string originStationId = 3;
+  string destinationStationId = 4;
 }
 
 message StationResponse {
@@ -69,4 +92,12 @@ message Station {
   double latitude = 4;
   double longitude = 5;
   bool isActive = 6;
+}
+
+message RouteStation {
+  string routeStationId = 1;
+  string routeId = 2;
+  string stationId = 3;
+  int32 sequence = 4;
+  Station station = 5;
 } 

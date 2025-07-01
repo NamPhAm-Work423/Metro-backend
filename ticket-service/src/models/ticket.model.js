@@ -74,6 +74,12 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.DATE,
         allowNull: false,
     },
+    numberOfUses: {
+        type: DataTypes.ENUM('single', 'many'),
+        allowNull: false,
+        defaultValue: 'single',
+        comment: 'Per-trip tickets are always single use'
+    },
     usedAt: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -118,13 +124,27 @@ const Ticket = sequelize.define('Ticket', {
         defaultValue: 'active',
     },
     ticketType: {
-        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'),
-        allowNull: true,
+        type: DataTypes.ENUM('single'),
+        allowNull: false,
         defaultValue: 'single',
+        comment: 'All tickets are single-trip tickets'
     },
     qrCode: {
         type: DataTypes.TEXT,
         allowNull: true,
+    },
+    stationCount: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+            min: 0
+        },
+        comment: 'Number of stations between origin and destination'
+    },
+    fareBreakdown: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Detailed breakdown of fare calculation'
     },
     isActive: {
         type: DataTypes.BOOLEAN,

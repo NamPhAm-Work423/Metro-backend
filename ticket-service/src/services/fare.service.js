@@ -212,7 +212,7 @@ class FareService {
         }
     }
 
-    async calculateFarePrice(fareId, options = {}) {
+    async calculateFarePrice(fareId) {
         try {
             const fare = await Fare.findByPk(fareId);
             
@@ -354,6 +354,109 @@ class FareService {
             return fares;
         } catch (error) {
             logger.error('Error fetching fares by zone', { error: error.message, zones });
+            throw error;
+        }
+    }
+
+    /**
+     * Calculate the number of stations between origin and destination
+     * @param {string} routeId - The route ID
+     * @param {string} originStationId - The origin station ID
+     * @param {string} destinationStationId - The destination station ID
+     * @returns {Promise<number>} Number of stations passenger will pass through
+     */
+    async calculateStationCount(routeId, originStationId, destinationStationId) {
+        try {
+            // This would typically require calling the transport service
+            // For now, we'll implement a mock calculation
+            // In a real implementation, you'd make a gRPC or HTTP call to transport service
+            
+            // Mock implementation - replace with actual transport service call
+            const mockRouteStations = [
+                { stationId: originStationId, sequence: 1 },
+                { stationId: 'station2', sequence: 2 },
+                { stationId: 'station3', sequence: 3 },
+                { stationId: destinationStationId, sequence: 4 }
+            ];
+            
+            const originSequence = mockRouteStations.find(rs => rs.stationId === originStationId)?.sequence;
+            const destinationSequence = mockRouteStations.find(rs => rs.stationId === destinationStationId)?.sequence;
+            
+            if (!originSequence || !destinationSequence) {
+                throw new Error('Station not found on route');
+            }
+            
+            return Math.abs(destinationSequence - originSequence);
+        } catch (error) {
+            logger.error('Error calculating station count', { 
+                error: error.message, 
+                routeId, 
+                originStationId, 
+                destinationStationId 
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Calculate fare price based on number of stations (per-trip basis)
+     * @param {string} routeId - The route ID
+     * @param {string} originStationId - The origin station ID
+     * @param {string} destinationStationId - The destination station ID
+     * @param {string} passengerType - The passenger type
+     * @returns {Promise<Object>} Calculated fare information
+     */
+    async calculateStationBasedFare(routeId, originStationId, destinationStationId, passengerType = 'adult') {
+        try {
+            // Calculate number of stations
+            const stationCount = await this.calculateStationCount(routeId, originStationId, destinationStationId);
+            
+            // Base fare configuration for per-trip tickets
+            const baseFareConfig = {
+                basePrice: 8000, // Base price in VND for any trip
+                pricePerStation: 3000, // Additional price per station passed
+                passengerTypeMultipliers: {
+                    'child': 0.5,    // 50% discount for children (under 12)
+                    'teen': 0.7,     // 30% discount for teens (12-17)
+                    'adult': 1.0,    // Full price for adults
+                    'senior': 0.0    // Free for seniors (over 60)
+                }
+            };
+            
+            // Calculate base price based on station count
+            let calculatedPrice = baseFareConfig.basePrice + (stationCount * baseFareConfig.pricePerStation);
+            
+            // Apply passenger type multiplier
+            const passengerMultiplier = baseFareConfig.passengerTypeMultipliers[passengerType] || 1.0;
+            calculatedPrice *= passengerMultiplier;
+            
+            // Round to nearest 1000 VND for convenience
+            calculatedPrice = Math.round(calculatedPrice / 1000) * 1000;
+            
+            return {
+                routeId,
+                originStationId,
+                destinationStationId,
+                stationCount,
+                basePrice: calculatedPrice,
+                passengerType,
+                currency: 'VND',
+                priceBreakdown: {
+                    baseFare: baseFareConfig.basePrice,
+                    stationFare: stationCount * baseFareConfig.pricePerStation,
+                    subtotal: baseFareConfig.basePrice + (stationCount * baseFareConfig.pricePerStation),
+                    passengerDiscount: passengerMultiplier < 1.0 ? (1.0 - passengerMultiplier) : 0,
+                    finalPrice: calculatedPrice
+                }
+            };
+        } catch (error) {
+            logger.error('Error calculating station-based fare', { 
+                error: error.message, 
+                routeId, 
+                originStationId, 
+                destinationStationId,
+                passengerType
+            });
             throw error;
         }
     }

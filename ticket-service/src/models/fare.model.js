@@ -1,6 +1,19 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+/**
+ * Fare model
+ * @description - Fare model for the fare table
+ * @param {Object} fareData - The fare data
+ * @param {Object} fareData.fareId - The fare ID
+ * @param {Object} fareData.routeId - The route ID
+ * The fare is calculate based on the number of stations between the origin and destination station
+ * The fare is calculate based on the ticket type
+ * The fare is calculate based on the passenger type
+ * The fare is calculate based on the base price
+ * The fare is calculate based on the currency
+ * The fare is calculate based on the isActive
+ */
 const Fare = sequelize.define('Fare', {
     fareId: {
         type: DataTypes.UUID,
@@ -32,12 +45,15 @@ const Fare = sequelize.define('Fare', {
         }
     },
     ticketType: {
-        type: DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'),
-        allowNull: true,
+        type: DataTypes.ENUM('single'),
+        allowNull: false,
+        defaultValue: 'single',
+        comment: 'Only single-trip tickets are supported'
     },
     passengerType: {
-        type: DataTypes.ENUM('adult', 'child', 'student', 'senior', 'disabled'),
+        type: DataTypes.ENUM('child', 'teen', 'adult', 'senior'),
         allowNull: true,
+        defaultValue: 'adult',
     },
     basePrice: {
         type: DataTypes.DECIMAL(10, 2),
@@ -52,7 +68,17 @@ const Fare = sequelize.define('Fare', {
         defaultValue: 1,
         validate: {
             min: 1
-        }
+        },
+        comment: 'Number of zones or stations (deprecated in favor of dynamic calculation)'
+    },
+    pricePerStation: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 2000,
+        validate: {
+            min: 0
+        },
+        comment: 'Additional price per station beyond base price'
     },
     effectiveFrom: {
         type: DataTypes.DATE,
@@ -106,12 +132,15 @@ Fare.prototype.isCurrentlyValid = function() {
            this.isActive;
 };
 
-Fare.prototype.calculatePrice = function(isPeakHour = false) {
+Fare.prototype.calculatePrice = function() {
+    return parseFloat(this.basePrice);
+};
+
+Fare.prototype.calculateStationBasedPrice = function(stationCount) {
     const basePrice = parseFloat(this.basePrice);
-    if (isPeakHour) {
-        return basePrice * parseFloat(this.peakHourMultiplier);
-    }
-    return basePrice;
+    const pricePerStation = parseFloat(this.pricePerStation) || 3000;
+    
+    return basePrice + (stationCount * pricePerStation);
 };
 
 module.exports = Fare;
