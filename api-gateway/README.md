@@ -75,25 +75,67 @@ NODE_ENV=development
 PORT=3000
 
 # Database
-DB_HOST=localhost
+DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=metro_gateway
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_NAME=auth_db
+DB_USER=auth_user
+DB_PASSWORD=authpass
+
+# JWT
+JWT_ACCESS_SECRET=ad9be0a348b0e7825a4f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
+JWT_REFRESH_SECRET=270351fdf27329e0bcf49f6b232256f3c1d91846d01e4d2556feafbdc867b7d3
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+SERVICE_JWT_SECRET=ad9be0a348b0e7825a2f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
+DEFAULT_ADMIN_USER_ID=00000000-0000-0000-0000-000000000001
+
+
+#API KEY
+API_KEY_HASH_SECRET=e4da29a6440eb433cc052462d4a872aabc9580ee6272bdd24919e3a2eeb8fe0d7b917859
+# NEED_API_KEY=false
+
+
 
 # Redis
-REDIS_HOST=localhost
+REDIS_HOST=redis
 REDIS_PORT=6379
-REDIS_PASSWORD=
+REDIS_PASSWORD=${REDIS_PASSWORD:-redispass123}
+REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-api_gateway_dev_}
 
-# JWT Secrets
-JWT_ACCESS_SECRET=your_super_secret_access_key_here
-JWT_REFRESH_SECRET=your_super_secret_refresh_key_here
-HASH_SECRET=your_api_key_hash_secret
 
-# Kafka
-KAFKA_BROKERS=localhost:9092
+# CORS
+CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+CORS_METHODS=GET,HEAD,PUT,PATCH,POST,DELETE
+CORS_HEADERS=Content-Type,Authorization
+
+
+# KAFKA
+KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
 KAFKA_CLIENT_ID=api-gateway
+KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
+KAFKA_GROUP_ID=api-gateway-group
+USER_CREATED_TOPIC=user.created
+USER_DELETED_TOPIC=user.deleted
+ADMIN_DELETED_TOPIC=admin.deleted
+ADMIN_UPDATED_TOPIC=admin.updated
+PASSENGER_DELETED_TOPIC=passenger.deleted
+PASSENGER_UPDATED_TOPIC=passenger.updated
+STAFF_DELETED_TOPIC=staff.deleted
+STAFF_UPDATED_TOPIC=staff.updated 
+STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
+
+
+#email
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=metrosystem365@gmail.com
+EMAIL_PASS=djbmwwzmglbsqjgp
+EMAIL_FROM_NAME=Metro System
+EMAIL_FROM=metrosystem365@gmail.com
+
+
+
 ```
 
 ### 2. Installation & Startup

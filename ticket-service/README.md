@@ -103,51 +103,31 @@ user-service/
 Create a `.env` file in the user-service directory:
 
 ```env
-# Application Configuration
-NODE_ENV=development
-PORT=3001
-SERVICE_NAME=user-service
+NODE_ENV=production
+PORT=3003
 
-# Database Configuration
+#Service JWT
+SERVICE_JWT_SECRET=ad9be0a348b0e7825a2f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
+
+# Database
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_NAME=ticket_db
+DB_USER=ticket_service
+DB_PASSWORD=ticketpass
 
-# Kafka Configuration
-KAFKA_BROKERS=kafka-1:19092
-KAFKA_CLIENT_ID=user-service
-KAFKA_GROUP_ID=user-service-group
 
-# Kafka Topics - Consumer (Listen to these events)
-USER_CREATED_TOPIC=user.created
-USER_UPDATED_TOPIC=user.updated
-USER_DELETED_TOPIC=user.deleted
+# Redis
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=${REDIS_PASSWORD:-redispass123}
+REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-api_gateway_dev_}
 
-# Kafka Topics - Producer (Publish these events)
-ADMIN_CREATED_TOPIC=admin.created
-ADMIN_UPDATED_TOPIC=admin.updated
-ADMIN_DELETED_TOPIC=admin.deleted
-PASSENGER_CREATED_TOPIC=passenger.created
-PASSENGER_UPDATED_TOPIC=passenger.updated
-PASSENGER_DELETED_TOPIC=passenger.deleted
-STAFF_CREATED_TOPIC=staff.created
-STAFF_UPDATED_TOPIC=staff.updated
-STAFF_DELETED_TOPIC=staff.deleted
-STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
 
-# Database Sync Options
-DB_FORCE_SYNC=true
-DB_ALTER_SYNC=false
 
-# Logging Configuration
-LOG_LEVEL=info
-LOG_MAX_SIZE=20m
-LOG_MAX_FILES=14d
-
-# Security
-BCRYPT_ROUNDS=12
+KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+KAFKA_CLIENT_ID=ticket-service
+KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
 ```
 
 ### Environment Variables Explanation:
