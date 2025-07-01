@@ -26,7 +26,7 @@ const userController = {
       roles: roles || ['passenger']
     });
     //If in roles have admin, reject create user
-    if (roles.includes('admin')) {
+    if (Array.isArray(roles) && roles.includes('admin')) {
       return res.status(400).json({
         success: false,
         message: 'Admin role is not allowed to be created',
