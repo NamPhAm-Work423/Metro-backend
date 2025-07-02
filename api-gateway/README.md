@@ -134,7 +134,8 @@ EMAIL_PASS=djbmwwzmglbsqjgp
 EMAIL_FROM_NAME=Metro System
 EMAIL_FROM=metrosystem365@gmail.com
 
-
+UV_DESK_CLIENT=http://localhost:5173
+UI_CLIENT=http://localhost:5173
 
 ```
 
