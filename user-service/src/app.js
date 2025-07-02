@@ -58,6 +58,7 @@ const corsOptions = {
         const allowedOrigins = [
             'http://localhost:3000',    // API Gateway
             'http://api-gateway:3000',  // Docker service
+            'http://localhost:5173',  // ✅ Thêm dòng này
             undefined                   // For same-origin requests
         ];
         
