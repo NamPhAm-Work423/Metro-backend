@@ -1,5 +1,5 @@
 const serviceService = require('../services/service.service');
-const logger = require('../config/logger');
+const { logger } = require('../config/logger');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 
 const serviceController = {

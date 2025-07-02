@@ -8,79 +8,26 @@ class PassengerEventProducer {
      */
     async publishPassengerDeleted(passengerData) {
         try {
-            const message = {
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                email: passengerData.email,
-                username: passengerData.username,
-                firstName: passengerData.firstName,
-                lastName: passengerData.lastName,
-                deletedAt: new Date().toISOString(),
-                source: 'user-service'
+            const eventData = {
+                eventType: 'passenger.deleted',
+                timestamp: new Date().toISOString(),
+                data: {
+                    passengerId: passengerData.passengerId,
+                    userId: passengerData.userId,
+                    email: passengerData.email,
+                    deletedAt: new Date().toISOString()
+                }
             };
 
-            await publish(
-                process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted',
-                passengerData.userId,
-                message
-            );
-            
-            logger.info('Passenger deleted event published successfully', {
+            await publish('passenger.deleted', eventData);
+            logger.info('Published passenger.deleted event', { 
                 passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                topic: process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted',
-                service: 'user-service',
-                timestamp: new Date().toISOString()
+                userId: passengerData.userId 
             });
         } catch (error) {
-            logger.error('Failed to publish passenger deleted event', {
+            logger.error('Failed to publish passenger.deleted event', { 
                 error: error.message,
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                service: 'user-service',
-                timestamp: new Date().toISOString()
-            });
-            throw error;
-        }
-    }
-
-    /**
-     * Publish passenger.updated event
-     * @param {Object} passengerData - Updated passenger data
-     */
-    async publishPassengerUpdated(passengerData) {
-        try {
-            const message = {
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                email: passengerData.email,
-                username: passengerData.username,
-                firstName: passengerData.firstName,
-                lastName: passengerData.lastName,
-                phoneNumber: passengerData.phoneNumber,
-                updatedAt: new Date().toISOString(),
-                source: 'user-service'
-            };
-
-            await publish(
-                process.env.PASSENGER_UPDATED_TOPIC || 'passenger.updated',
-                passengerData.userId,
-                message
-            );
-            
-            logger.info('Passenger updated event published successfully', {
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                service: 'user-service',
-                timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-            logger.error('Failed to publish passenger updated event', {
-                error: error.message,
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                service: 'user-service',
-                timestamp: new Date().toISOString()
+                passengerId: passengerData.passengerId 
             });
             throw error;
         }
@@ -92,45 +39,30 @@ class PassengerEventProducer {
      */
     async publishPassengerCacheSync(passengerData) {
         try {
-            const message = {
-                passenger: {
+            const eventData = {
+                eventType: 'passenger-cache-sync',
+                timestamp: new Date().toISOString(),
+                data: {
                     passengerId: passengerData.passengerId,
                     userId: passengerData.userId,
-                    username: passengerData.username,
-                    firstName: passengerData.firstName,
-                    lastName: passengerData.lastName,
+                    email: passengerData.email,
+                    fullName: passengerData.fullName,
                     phoneNumber: passengerData.phoneNumber,
                     dateOfBirth: passengerData.dateOfBirth,
-                    gender: passengerData.gender,
-                    address: passengerData.address,
-                    isActive: passengerData.isActive
-                },
-                eventType: 'cache-sync',
-                syncReason: 'user-login',
-                timestamp: new Date().toISOString(),
-                source: 'user-service'
+                    isActive: passengerData.isActive,
+                    updatedAt: new Date().toISOString()
+                }
             };
 
-            await publish(
-                'passenger-cache-sync',
-                passengerData.passengerId,
-                message
-            );
-            
-            logger.info('Passenger cache sync event published successfully', {
+            await publish('passenger-cache-sync', eventData);
+            logger.info('Published passenger-cache-sync event', { 
                 passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                topic: 'passenger-cache-sync',
-                service: 'user-service',
-                timestamp: new Date().toISOString()
+                userId: passengerData.userId 
             });
         } catch (error) {
-            logger.error('Failed to publish passenger cache sync event', {
+            logger.error('Failed to publish passenger-cache-sync event', { 
                 error: error.message,
-                passengerId: passengerData.passengerId,
-                userId: passengerData.userId,
-                service: 'user-service',
-                timestamp: new Date().toISOString()
+                passengerId: passengerData.passengerId 
             });
             throw error;
         }

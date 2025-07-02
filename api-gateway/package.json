@@ -55,10 +55,5 @@
     "prettier": "^3.2.5",
     "sqlite3": "^5.1.6",
     "supertest": "^6.3.4"
-  },
-  "jest": {
-    "testMatch": [
-      "<rootDir>/tests/**/*.test.js"
-    ]
   }
 }

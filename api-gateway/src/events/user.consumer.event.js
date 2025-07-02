@@ -91,55 +91,6 @@ class UserEventConsumer {
         }
     }
 
-    /**
-     * Handle staff.updated events
-     * @param {Object} payload - The event payload
-     */
-    async handleStaffUpdatedEvent(payload) {
-        try {
-            logger.info('Processing staff.updated event', { 
-                staffId: payload.staffId,
-                userId: payload.userId,
-                source: payload.source 
-            });
-
-            // Log staff updates for audit purposes
-            // Additional processing can be added here if needed
-            
-        } catch (error) {
-            logger.error('Error handling staff.updated event', { 
-                error: error.message, 
-                stack: error.stack,
-                payload: JSON.stringify(payload)
-            });
-        }
-    }
-
-    /**
-     * Handle staff.status.changed events
-     * @param {Object} payload - The event payload
-     */
-    async handleStaffStatusChangedEvent(payload) {
-        try {
-            logger.info('Processing staff.status.changed event', { 
-                staffId: payload.staffId,
-                userId: payload.userId,
-                oldStatus: payload.oldStatus,
-                newStatus: payload.newStatus,
-                source: payload.source 
-            });
-
-            // Log staff status changes for audit purposes
-            // Additional processing can be added here if needed
-            
-        } catch (error) {
-            logger.error('Error handling staff.status.changed event', { 
-                error: error.message, 
-                stack: error.stack,
-                payload: JSON.stringify(payload)
-            });
-        }
-    }
 
     /**
      * Process incoming Kafka messages
@@ -174,10 +125,6 @@ class UserEventConsumer {
             await this.handlePassengerDeletedEvent(payload);
         } else if (topic === (process.env.STAFF_DELETED_TOPIC || 'staff.deleted')) {
             await this.handleStaffDeletedEvent(payload);
-        } else if (topic === (process.env.STAFF_UPDATED_TOPIC || 'staff.updated')) {
-            await this.handleStaffUpdatedEvent(payload);
-        } else if (topic === (process.env.STAFF_STATUS_CHANGED_TOPIC || 'staff.status.changed')) {
-            await this.handleStaffStatusChangedEvent(payload);
         } else {
             logger.warn('Unhandled topic', { topic });
         }
@@ -193,9 +140,7 @@ class UserEventConsumer {
             // Passenger events
             process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted',
             // Staff events
-            process.env.STAFF_DELETED_TOPIC || 'staff.deleted',
-            process.env.STAFF_UPDATED_TOPIC || 'staff.updated',
-            process.env.STAFF_STATUS_CHANGED_TOPIC || 'staff.status.changed'
+            process.env.STAFF_DELETED_TOPIC || 'staff.deleted'
         ];
 
         this.eventConsumer = new KafkaEventConsumer({

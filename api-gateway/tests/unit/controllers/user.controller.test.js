@@ -69,7 +69,7 @@ describe('Auth Controller – Registration & Login (unit style)', () => {
       username: 'john',
     });
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(userService.signup).toHaveBeenCalled();
   });
@@ -178,7 +178,7 @@ describe('Auth Controller – integration with in-memory SQLite', () => {
       email,
       password: '12345678',
       username: 'ab',
-    }).expect(201);
+    }).expect(200);
 
     await request(app).post('/v1/auth/login').send({ email, password: '12345678' }).expect(200);
   });

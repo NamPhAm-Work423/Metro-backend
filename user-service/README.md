@@ -118,13 +118,8 @@ KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
 KAFKA_GROUP_ID=user-service-group
 USER_CREATED_TOPIC=user.created
 USER_DELETED_TOPIC=user.deleted
-ADMIN_DELETED_TOPIC=admin.deleted
-ADMIN_UPDATED_TOPIC=admin.updated
 PASSENGER_DELETED_TOPIC=passenger.deleted
-PASSENGER_UPDATED_TOPIC=passenger.updated
 STAFF_DELETED_TOPIC=staff.deleted
-STAFF_UPDATED_TOPIC=staff.updated
-STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
 
 ```
 

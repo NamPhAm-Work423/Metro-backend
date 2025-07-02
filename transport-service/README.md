@@ -1,93 +1,116 @@
-# User Service
+# Transport Service
 
-Unified microservice handling admin, passenger and staff user profiles for the Metro backend system.
+Microservice handling transportation infrastructure management for the Metro backend system.
 
 ## Overview
 
-This service consolidates three previously separate services:
-- `admin-service` - Admin user management
-- `passenger-service` - Passenger user management  
-- `staff-service` - Staff user management
+The Transport Service manages the core transportation infrastructure including:
+- **Routes**: Metro line definitions and route management
+- **Stations**: Station information and geographical data
+- **Trains**: Train fleet management and specifications
+- **Trips**: Scheduled trips and real-time operations
+- **Stops**: Individual stop points and timing
+- **Route-Station Relationships**: Complex routing and connectivity
 
-By merging these services, we reduce the operational complexity and resource usage while maintaining all functionality.
-
-### Key Benefits:
-- ✅ **Unified Architecture**: Single service reduces deployment complexity
-- ✅ **Event-Driven**: Automatic profile creation from Kafka user events  
-- ✅ **Role-Based Processing**: Smart handling based on user roles
-- ✅ **Backward Compatible**: All original API endpoints maintained
-- ✅ **Security Enhanced**: Admin profiles NOT auto-created for security
-- ✅ **Performance Optimized**: Shared database connections and resources
+### Key Features:
+- ✅ **Comprehensive Route Management**: Full metro line and route definitions
+- ✅ **Station Network**: Complete station database with geographical information
+- ✅ **Fleet Management**: Train inventory and operational status
+- ✅ **Schedule Management**: Trip planning and real-time schedule updates
+- ✅ **gRPC Server**: High-performance API for other services
+- ✅ **Event-Driven Architecture**: Kafka integration for real-time updates
 
 ## Features
 
-### Admin Management
-- Admin profile CRUD operations
-- Admin self-service endpoints
-- Admin-specific event publishing
+### Route Management
+- Metro line definitions and route creation
+- Route optimization and path planning
+- Multi-modal transportation support
+- Route-station relationship management
 
-### Passenger Management
-- Passenger profile CRUD operations
-- Passenger self-service endpoints
-- Ticket management (add/remove/list tickets)
-- Passenger-specific event publishing
+### Station Management
+- Station geographical data and metadata
+- Accessibility information and facilities
+- Station capacity and platform management
+- Real-time station status updates
 
-### Staff Management
-- Staff profile CRUD operations
-- Staff self-service endpoints
-- Staff status management (active/inactive)
-- Staff-specific event publishing
+### Train Management
+- Train fleet inventory and specifications
+- Maintenance scheduling and tracking
+- Train assignment to routes
+- Real-time train location and status
 
-### Unified Event Handling
-- Consumes `user.created` events from api-gateway
-- Automatically creates appropriate profiles based on user roles
-- Publishes domain-specific events for other services
+### Trip Management
+- Schedule creation and management
+- Real-time trip tracking
+- Delay notifications and updates
+- Trip analytics and reporting
+
+### Stop Management
+- Individual stop point management
+- Timing and schedule coordination
+- Stop accessibility and amenities
+- Real-time arrival/departure information
 
 ## API Endpoints
 
-### Admin Routes (`/v1/admins`)
-- `GET /getAllAdmins` - Get all admins (admin only)
-- `GET /getAdminById/:id` - Get admin by ID (admin only)
-- `PUT /updateAdmin/:id` - Update admin (admin only)
-- `DELETE /deleteAdmin/:id` - Delete admin (admin only)
-- `GET /me` - Get current admin profile
-- `DELETE /me` - Delete current admin profile
+### Route Routes (`/v1/routes`)
+- `GET /` - Get all routes
+- `GET /:id` - Get route details
+- `POST /` - Create new route (admin only)
+- `PUT /:id` - Update route (admin only)
+- `DELETE /:id` - Delete route (admin only)
+- `GET /:id/stations` - Get stations on route
 
-### Passenger Routes (`/v1/passengers`)
-- `GET /getallPassengers` - Get all passengers (staff/admin only)
-- `GET /getPassengerById/:id` - Get passenger by ID (staff/admin only)
-- `POST /createPassenger` - Create passenger (staff/admin only)
-- `PUT /updatePassenger/:id` - Update passenger (staff/admin only)
-- `DELETE /deletePassenger/:id` - Delete passenger (staff/admin only)
-- `GET /me` - Get current passenger profile
-- `PUT /me` - Update current passenger profile
-- `DELETE /me` - Delete current passenger profile
-- `GET /me/tickets` - Get my tickets
-- `POST /me/tickets` - Add ticket
-- `DELETE /me/tickets/:ticketId` - Remove ticket
+### Station Routes (`/v1/stations`)
+- `GET /` - Get all stations
+- `GET /:id` - Get station details
+- `POST /` - Create new station (admin only)
+- `PUT /:id` - Update station (admin only)
+- `DELETE /:id` - Delete station (admin only)
+- `GET /:id/routes` - Get routes serving station
 
-### Staff Routes (`/v1/staff`)
-- `GET /getAllStaff` - Get all staff (staff/admin only)
-- `GET /getStaffById/:id` - Get staff by ID (staff/admin only)
-- `POST /createStaff` - Create staff (staff/admin only)
-- `PUT /updateStaff/:id` - Update staff (staff/admin only)
-- `DELETE /deleteStaff/:id` - Delete staff (staff/admin only)
-- `PUT /updateStaffStatus/:id` - Update staff status (admin only)
-- `GET /me` - Get current staff profile
-- `PUT /me` - Update current staff profile
-- `DELETE /me` - Delete current staff profile
+### Train Routes (`/v1/trains`)
+- `GET /` - Get all trains
+- `GET /:id` - Get train details
+- `POST /` - Create new train (admin only)
+- `PUT /:id` - Update train (admin only)
+- `DELETE /:id` - Delete train (admin only)
+- `GET /:id/schedule` - Get train schedule
+
+### Trip Routes (`/v1/trips`)
+- `GET /` - Get all trips
+- `GET /:id` - Get trip details
+- `POST /` - Create new trip (admin only)
+- `PUT /:id` - Update trip (admin only)
+- `DELETE /:id` - Delete trip (admin only)
+- `GET /schedule` - Get trip schedules
+
+### Stop Routes (`/v1/stops`)
+- `GET /` - Get all stops
+- `GET /:id` - Get stop details
+- `POST /` - Create new stop (admin only)
+- `PUT /:id` - Update stop (admin only)
+- `DELETE /:id` - Delete stop (admin only)
+
+### Route-Station Routes (`/v1/route-stations`)
+- `GET /` - Get all route-station relationships
+- `POST /` - Create route-station relationship (admin only)
+- `PUT /:id` - Update relationship (admin only)
+- `DELETE /:id` - Delete relationship (admin only)
 
 ## Architecture
 
 ```
-user-service/
+transport-service/
 ├── src/
-│   ├── config/          # Database, logger, etc.
-│   ├── models/          # Sequelize models (Admin, Passenger, Staff)
+│   ├── config/          # Database, logger configs
+│   ├── models/          # Sequelize models (Route, Station, Train, Trip, Stop)
 │   ├── controllers/     # HTTP request handlers
 │   ├── services/        # Business logic
 │   ├── routes/          # Express routes
-│   ├── events/          # Kafka event handlers
+│   ├── grpc/            # gRPC server implementation
+│   ├── proto/           # Protocol buffer definitions
 │   ├── kafka/           # Kafka utilities
 │   ├── middlewares/     # Authorization, etc.
 │   ├── helpers/         # Utility functions
@@ -100,73 +123,47 @@ user-service/
 
 ## Environment Variables
 
-Create a `.env` file in the user-service directory:
+Create a `.env` file in the transport-service directory:
 
 ```env
-# Application Configuration
-NODE_ENV=development
-PORT=3001
-SERVICE_NAME=user-service
+NODE_ENV=production
+PORT=3002
 
-# Database Configuration
+#Service JWT
+SERVICE_JWT_SECRET=ad9be0a348b0e7825a2f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
+
+# Database
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_NAME=transport_db    
+DB_USER=transport_service
+DB_PASSWORD=transportpass
 
-# Kafka Configuration
-KAFKA_BROKERS=kafka-1:19092
-KAFKA_CLIENT_ID=user-service
-KAFKA_GROUP_ID=user-service-group
-
-# Kafka Topics - Consumer (Listen to these events)
-USER_CREATED_TOPIC=user.created
-USER_UPDATED_TOPIC=user.updated
-USER_DELETED_TOPIC=user.deleted
-
-# Kafka Topics - Producer (Publish these events)
-ADMIN_CREATED_TOPIC=admin.created
-ADMIN_UPDATED_TOPIC=admin.updated
-ADMIN_DELETED_TOPIC=admin.deleted
-PASSENGER_CREATED_TOPIC=passenger.created
-PASSENGER_UPDATED_TOPIC=passenger.updated
-PASSENGER_DELETED_TOPIC=passenger.deleted
-STAFF_CREATED_TOPIC=staff.created
-STAFF_UPDATED_TOPIC=staff.updated
-STAFF_DELETED_TOPIC=staff.deleted
-STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
-
-# Database Sync Options
-DB_FORCE_SYNC=true
-DB_ALTER_SYNC=false
-
-# Logging Configuration
-LOG_LEVEL=info
-LOG_MAX_SIZE=20m
-LOG_MAX_FILES=14d
-
-# Security
-BCRYPT_ROUNDS=12
+KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+KAFKA_CLIENT_ID=transport_service
+KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
 ```
 
 ### Environment Variables Explanation:
 
+#### 🏗️ **Application Configuration**
+- **NODE_ENV**: Runtime environment (development/production)
+- **PORT**: Service port (default: 3002)
+
+#### 🔐 **Authentication**
+- **SERVICE_JWT_SECRET**: JWT secret for inter-service communication
+
 #### 📊 **Database Configuration**
-- **DB_FORCE_SYNC**: Forces database recreation on startup (development only)
-- **DB_ALTER_SYNC**: Allows automatic table alterations (use with caution)
+- **DB_HOST**: PostgreSQL host
+- **DB_PORT**: PostgreSQL port
+- **DB_NAME**: Database name for transport service
+- **DB_USER**: Database username
+- **DB_PASSWORD**: Database password
 
-#### 📨 **Event System**
-- **Consumer Topics**: Events this service listens to from other services
-- **Producer Topics**: Events this service publishes for other services to consume
-
-#### 🔍 **Logging & Monitoring**
-- **LOG_LEVEL**: Winston logging level (error, warn, info, debug)
-- **LOG_MAX_SIZE**: Maximum log file size before rotation
-- **LOG_MAX_FILES**: How long to keep rotated log files
-
-#### 🛡️ **Security**
-- **BCRYPT_ROUNDS**: Password hashing rounds (higher = more secure but slower)
+#### 📨 **Event System (Kafka)**
+- **KAFKA_BROKERS**: Kafka broker addresses
+- **KAFKA_CLIENT_ID**: Unique client identifier
+- **KAFKA_BROKERS_INTERNAL**: Internal Kafka broker addresses
 
 ## Getting Started
 
@@ -182,81 +179,142 @@ npm run dev
 ### Docker
 ```bash
 # Build and run with docker-compose
-docker-compose up user-service
+docker-compose up transport-service
 ```
 
-## Migration from Previous Services
+## gRPC Server
 
-This service replaces:
-- `admin-service` (port 3xxx)
-- `passenger-service` (port 3001)
-- `staff-service` (port 3002)
+The Transport Service provides a gRPC server for high-performance communication with other services:
 
-All API endpoints maintain backward compatibility. Update your API Gateway routing to point to:
-- `user-service:3001` instead of individual services
+### Available gRPC Methods:
+- `GetRoute(RouteRequest)` - Get route information
+- `GetStation(StationRequest)` - Get station details
+- `GetRouteStations(RouteRequest)` - Get all stations on a route
+- `CalculateDistance(DistanceRequest)` - Calculate distance between stations
+- `GetNextTrips(TripRequest)` - Get upcoming trips for a route
 
-### Migration Benefits:
-- ✅ **Resource Optimization**: 3 services → 1 service = 66% reduction in containers
-- ✅ **Simplified Deployment**: Single Docker image and configuration
-- ✅ **Unified Database**: Shared connections and transactions
-- ✅ **Event Consolidation**: Single Kafka consumer for all user events
-- ✅ **Maintenance Reduction**: One codebase instead of three
+### Protocol Buffers:
+```protobuf
+service TransportService {
+  rpc GetRoute(RouteRequest) returns (RouteResponse);
+  rpc GetStation(StationRequest) returns (StationResponse);
+  rpc GetRouteStations(RouteRequest) returns (RouteStationsResponse);
+  rpc CalculateDistance(DistanceRequest) returns (DistanceResponse);
+  rpc GetNextTrips(TripRequest) returns (TripsResponse);
+}
+```
+
+## Data Models
+
+### Route
+- Route ID, name, and description
+- Start and end stations
+- Route type (metro, bus, tram)
+- Operational status
+
+### Station
+- Station ID, name, and code
+- Geographical coordinates (latitude, longitude)
+- Address and accessibility information
+- Platform and facility details
+
+### Train
+- Train ID, model, and specifications
+- Capacity and configuration
+- Maintenance status and schedule
+- Current route assignment
+
+### Trip
+- Trip ID and schedule information
+- Route and train assignment
+- Start and end times
+- Real-time status updates
+
+### Stop
+- Stop ID and timing information
+- Station and trip relationships
+- Arrival and departure times
+- Platform assignments
 
 ## Event Flow
 
 ```mermaid
 sequenceDiagram
-    participant API as API Gateway
-    participant KAFKA as Kafka
-    participant USER as User Service
+    participant A as Admin
+    participant T as Transport Service
+    participant gRPC as gRPC Clients
+    participant K as Kafka
     participant DB as PostgreSQL
 
-    Note over API,DB: User Registration & Profile Creation
+    Note over A,DB: Infrastructure Management
 
-    API->>KAFKA: Publish user.created event
-    KAFKA->>USER: Consume user.created event
-    USER->>USER: Check user roles
+    A->>T: Create/Update Route
+    T->>DB: Store route data
+    T->>K: Publish route.updated event
     
-    alt User has "passenger" role
-        USER->>DB: Create Passenger profile
-        USER->>KAFKA: Publish passenger.created event
-    end
+    A->>T: Schedule Trip
+    T->>DB: Store trip schedule
+    T->>K: Publish trip.scheduled event
     
-    alt User has "staff" role
-        USER->>DB: Create Staff profile
-        USER->>KAFKA: Publish staff.created event
-    end
+    Note over gRPC,DB: Real-time Queries
     
-    Note over USER: Admin profiles NOT auto-created (security)
+    gRPC->>T: GetRoute request
+    T->>DB: Query route data
+    T->>gRPC: Return route details
     
-    Note over API,DB: Profile Updates & Events
-    
-    USER->>DB: Update passenger/staff profile
-    USER->>KAFKA: Publish passenger.updated/staff.updated event
+    gRPC->>T: CalculateDistance request
+    T->>T: Calculate station distance
+    T->>gRPC: Return distance info
 ```
 
-### Event Processing Logic:
+### Event Processing:
 
-1. **User Registration**: API Gateway publishes `user.created` event
-2. **Role-Based Processing**: User Service creates profiles based on user roles:
-   - `passenger` role → Creates Passenger profile
-   - `staff` role → Creates Staff profile
-   - `admin` role → **NOT auto-created for security**
-3. **Event Publishing**: Service publishes domain-specific events for other services
-4. **Profile Updates**: All CRUD operations publish corresponding events
+1. **Infrastructure Updates**: Real-time updates for routes, stations, and schedules
+2. **Trip Management**: Schedule changes and real-time trip updates
+3. **Performance Monitoring**: Service health and operational metrics
+4. **Integration Events**: Cross-service communication via Kafka
 
-### Security Note:
-Admin profiles are **never** automatically created from user registration events. Admin accounts must be manually created by existing administrators for security reasons.
+## Integration
+
+### gRPC Communication
+- **High Performance**: Binary protocol for efficient data transfer
+- **Type Safety**: Protocol buffer definitions ensure data integrity
+- **Streaming Support**: Real-time updates for trip and route information
+- **Load Balancing**: Automatic service discovery and load distribution
+
+### REST API
+- **Admin Operations**: Full CRUD operations for all entities
+- **Public Queries**: Read-only access for public transportation data
+- **Authentication**: JWT-based authorization for admin operations
 
 ## Health Check & Monitoring
 
 ### Endpoints:
-- **Health Check**: `GET /metrics` - Service health status
+- **Health Check**: `GET /health` - Service health status
 - **Database Check**: Included in health endpoint
+- **gRPC Health**: gRPC health checking protocol
 - **Kafka Check**: Included in health endpoint
 
 ### Monitoring Features:
 - **Winston Logging**: Structured logging with daily rotation
 - **Error Tracking**: Comprehensive error handling with correlation IDs
 - **Performance Metrics**: Request timing and database query performance
-- **Event Tracking**: Kafka message processing status 
+- **gRPC Metrics**: Request/response times and error rates
+- **Event Tracking**: Kafka message processing status
+
+## Performance Optimization
+
+### Database Optimization:
+- **Indexing**: Optimized indexes for geographical queries
+- **Connection Pooling**: Efficient database connection management
+- **Query Optimization**: Optimized queries for route and station lookups
+
+### Caching Strategy:
+- **Route Caching**: Frequently accessed route information
+- **Station Data**: Cached station details and geographical data
+- **Schedule Caching**: Trip schedules and real-time updates
+
+### gRPC Optimization:
+- **Connection Reuse**: Persistent gRPC connections
+- **Compression**: Data compression for large responses
+- **Streaming**: Efficient real-time data streaming 

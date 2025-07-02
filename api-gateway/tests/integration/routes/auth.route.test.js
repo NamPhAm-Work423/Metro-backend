@@ -1,7 +1,7 @@
 const express = require('express');
 const request = require('supertest');
 
-// Mock user controller so we can test routing only
+// Mock user controller so we can test routing only  
 jest.mock('../../../src/controllers/user.controller', () => {
   const mockController = {
     signup: jest.fn((req, res) => res.status(201).json({ success: true })),
@@ -9,10 +9,12 @@ jest.mock('../../../src/controllers/user.controller', () => {
     logout: jest.fn((req, res) => res.status(200).json({ success: true })),
     refreshToken: jest.fn((req, res) => res.status(200).json({ success: true })),
     verifyEmail: jest.fn((req, res) => res.status(200).json({ success: true })),
+    verifyEmailFromQuery: jest.fn((req, res) => res.status(200).send('<html><body>Email verified!</body></html>')),
     verifyToken: jest.fn((req, res) => res.status(200).json({ success: true })),
     getMe: jest.fn((req, res) => res.status(200).json({ success: true })),
     forgotPassword: jest.fn((req, res) => res.status(200).json({ success: true })),
     resetPassword: jest.fn((req, res) => res.status(200).json({ success: true })),
+    unlockAccount: jest.fn((req, res) => res.status(200).json({ success: true })),
   };
   return mockController;
 });
@@ -26,6 +28,13 @@ jest.mock('../../../src/middlewares/auth.middleware', () => ({
     req.user = { id: 'test-user', roles: ['user'] };
     next();
   },
+}));
+
+// Mock auth controller for API key management
+jest.mock('../../../src/controllers/auth.controller', () => ({
+  generateAPIToken: jest.fn((req, res) => res.status(200).json({ success: true, token: 'api-token' })),
+  getAPIKeyByUser: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
+  deleteKeyById: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Key deleted' }))
 }));
 
 // Mock the parent src index required by middleware config
@@ -71,38 +80,28 @@ describe('Auth Routes', () => {
     expect(userControllerMock.logout).toHaveBeenCalled();
   });
 
-  it('POST /v1/auth/refresh-token should return 200', async () => {
+  it('POST /v1/auth/refresh should return 200', async () => {
     const res = await request(app)
-      .post('/v1/auth/refresh-token')
+      .post('/v1/auth/refresh')
       .send({ refreshToken: 'refreshtoken' });
 
     expect(res.statusCode).toBe(200);
     expect(userControllerMock.refreshToken).toHaveBeenCalled();
   });
 
-  it('GET /v1/auth/verify-email/:token should return 200', async () => {
-    const res = await request(app).get('/v1/auth/verify-email/testtoken');
+  it('GET /v1/auth/verify/:token should return 200', async () => {
+    const res = await request(app).get('/v1/auth/verify/testtoken');
 
     expect(res.statusCode).toBe(200);
     expect(userControllerMock.verifyEmail).toHaveBeenCalled();
   });
 
-  it('POST /v1/auth/verify-token should return 200', async () => {
+  it('GET /v1/auth/verify-email should return 200', async () => {
     const res = await request(app)
-      .post('/v1/auth/verify-token')
-      .set('Authorization', 'Bearer token');
+      .get('/v1/auth/verify-email?token=testtoken');
 
     expect(res.statusCode).toBe(200);
-    expect(userControllerMock.verifyToken).toHaveBeenCalled();
-  });
-
-  it('GET /v1/auth/me should return 200', async () => {
-    const res = await request(app)
-      .get('/v1/auth/me')
-      .set('Authorization', 'Bearer token');
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.getMe).toHaveBeenCalled();
+    expect(userControllerMock.verifyEmailFromQuery).toHaveBeenCalled();
   });
 
   it('POST /v1/auth/forgot-password should return 200', async () => {

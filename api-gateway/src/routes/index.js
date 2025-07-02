@@ -19,6 +19,7 @@ router.use('/v1/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.vali
 // Service management routes - mounted at /v1/service
 router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
 
+//** ALL SERVICE WILL BE MOUNTED HERE, YOU HAVE TO CALL THE SERVICE ROUTE BY USING THE ENDPOINT v1/route/serviceName */
 // Dynamic service routing - mounted at /v1/route
 router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
 

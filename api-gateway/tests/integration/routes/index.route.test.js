@@ -8,31 +8,53 @@ jest.mock('../../../src/middlewares/auth.middleware', () => ({
 }));
 
 jest.mock('../../../src/controllers/user.controller', () => {
-  const noop = () => (req, res) => res.end();
+  const noop = () => (req, res) => res.status(200).json({ success: true });
   return {
     signup: noop(),
     login: noop(),
     logout: noop(),
     refreshToken: noop(),
     verifyEmail: noop(),
+    verifyEmailFromQuery: noop(),
     verifyToken: noop(),
     getMe: noop(),
     forgotPassword: noop(),
     resetPassword: noop(),
+    unlockAccount: noop(),
   };
 });
 
 jest.mock('../../../src/controllers/service.controller', () => {
-  const noop = (req, res) => res.end();
+  const noop = (req, res) => res.status(200).json({ success: true });
   return {
+    getAllService: noop,
+    createService: noop,
+    getServiceById: noop,
+    updateService: noop,
+    deleteService: noop,
+    getServiceInstances: noop,
+    createNewInstance: noop,
+    getInstanceById: noop,
+    updateInstance: noop,
+    deleteInstance: noop,
+    // Legacy functions for compatibility
     registerService: noop,
     getAllServices: noop,
     getServiceByName: noop,
-    updateService: noop,
     registerInstance: noop,
     removeInstance: noop,
     healthCheck: noop,
     getNextInstance: noop,
+  };
+});
+
+// Mock auth controller for API key management
+jest.mock('../../../src/controllers/auth.controller', () => {
+  const noop = (req, res) => res.status(200).json({ success: true });
+  return {
+    generateAPIToken: noop,
+    getAPIKeyByUser: noop,
+    deleteKeyById: noop,
   };
 });
 

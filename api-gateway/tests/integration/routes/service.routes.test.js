@@ -1,67 +1,177 @@
 const express = require('express');
 const request = require('supertest');
 
-// Mock authentication & authorisation middleware to always allow
-jest.mock('../../../src/middlewares/auth.middleware', () => ({
-  authenticate: (req, res, next) => {
-    req.user = { id: 'test-user', roles: ['admin'] };
+// Mock service controller BEFORE requiring routes
+const mockServiceController = {
+  getAllService: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
+  createService: jest.fn((req, res) => res.status(201).json({ success: true, data: { id: 1, name: 'test' } })),
+  getServiceById: jest.fn((req, res) => res.status(200).json({ success: true, data: { id: 1 } })),
+  updateService: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Updated' } )),
+  deleteService: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Deleted' } )),
+  getServiceInstances: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
+  createNewInstance: jest.fn((req, res) => res.status(201).json({ success: true, data: { id: 1 } })),
+  getInstanceById: jest.fn((req, res) => res.status(200).json({ success: true, data: { id: 1 } })),
+  updateInstance: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Updated' } )),
+  deleteInstance: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Deleted' } ))
+};
+
+// Mock auth middleware
+const mockAuthMiddleware = {
+  authenticate: jest.fn((req, res, next) => {
+    req.user = { id: 1, role: 'admin' };
     next();
-  },
-  authorize: () => (req, res, next) => next(),
-}));
+  })
+};
 
-// Mock service controller methods so we can verify routing without touching database
-jest.mock('../../../src/controllers/service.controller', () => {
-  const mockController = {
-    registerService: jest.fn((req, res) => res.status(201).json({ success: true })),
-    getAllServices: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
-    getServiceByName: jest.fn((req, res) => res.status(200).json({ success: true, data: { name: 'sample' } })),
-    updateService: jest.fn((req, res) => res.status(200).json({ success: true })),
-    registerInstance: jest.fn((req, res) => res.status(201).json({ success: true })),
-    removeInstance: jest.fn((req, res) => res.status(200).json({ success: true })),
-    healthCheck: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
-    getNextInstance: jest.fn((req, res) => res.status(200).json({ success: true, data: {} })),
-  };
-  return mockController;
-});
+// Apply mocks before requiring modules
+jest.mock('../../../src/controllers/service.controller', () => mockServiceController);
+jest.mock('../../../src/middlewares/auth.middleware', () => mockAuthMiddleware);
 
-// Re-require mocked controller to access spies
-const serviceControllerMock = require('../../../src/controllers/service.controller');
-
+// Now require the routes after mocking
 const serviceRoutes = require('../../../src/routes/service.routes');
 
-describe('Service Routes', () => {
-  const app = express();
-  app.use(express.json());
-  app.use('/api/services', serviceRoutes);
+describe('Service Routes Integration Tests', () => {
+  let app;
 
-  afterEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/services', serviceRoutes);
 
-  it('GET /api/services should return 200', async () => {
-    const res = await request(app)
-      .get('/api/services')
-      .set('Authorization', 'Bearer test');
-
-    expect(res.statusCode).toBe(200);
-    expect(serviceControllerMock.getAllServices).toHaveBeenCalled();
+    // Clear all mocks
+    Object.values(mockServiceController).forEach(fn => fn.mockClear());
+    mockAuthMiddleware.authenticate.mockClear();
   });
 
-  it('POST /api/services should return 201', async () => {
-    const res = await request(app)
-      .post('/api/services')
-      .set('Authorization', 'Bearer test')
-      .send({ name: 'sample', path: '/api/sample', version: '1.0.0' });
+  describe('GET /api/services', () => {
+    it('should get all services', async () => {
+      const res = await request(app)
+        .get('/api/services')
+        .expect(200);
 
-    expect(res.statusCode).toBe(201);
-    expect(serviceControllerMock.registerService).toHaveBeenCalled();
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.getAllService).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('GET /api/services/:name should return 200', async () => {
-    const res = await request(app)
-      .get('/api/services/sample')
-      .set('Authorization', 'Bearer test');
+  describe('POST /api/services', () => {
+    it('should create a new service', async () => {
+      const serviceData = { name: 'test-service', endpoint: '/test' };
 
-    expect(res.statusCode).toBe(200);
-    expect(serviceControllerMock.getServiceByName).toHaveBeenCalled();
+      const res = await request(app)
+        .post('/api/services')
+        .send(serviceData)
+        .expect(201);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.createService).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GET /api/services/:serviceId', () => {
+    it('should get service by ID', async () => {
+      const res = await request(app)
+        .get('/api/services/123')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.getServiceById).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('PUT /api/services/:serviceId', () => {
+    it('should update service', async () => {
+      const updateData = { name: 'updated-service' };
+
+      const res = await request(app)
+        .put('/api/services/123')
+        .send(updateData)
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.updateService).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('DELETE /api/services/:serviceId', () => {
+    it('should delete service', async () => {
+      const res = await request(app)
+        .delete('/api/services/123')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.deleteService).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GET /api/services/:serviceId/instances', () => {
+    it('should get service instances', async () => {
+      const res = await request(app)
+        .get('/api/services/123/instances')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.getServiceInstances).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('POST /api/services/:serviceId/instances', () => {
+    it('should create new instance', async () => {
+      const instanceData = { host: 'localhost', port: 3000 };
+
+      const res = await request(app)
+        .post('/api/services/123/instances')
+        .send(instanceData)
+        .expect(201);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.createNewInstance).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GET /api/services/:serviceId/instances/:instanceId', () => {
+    it('should get instance by ID', async () => {
+      const res = await request(app)
+        .get('/api/services/123/instances/456')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.getInstanceById).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('PUT /api/services/:serviceId/instances/:instanceId', () => {
+    it('should update instance', async () => {
+      const updateData = { host: 'newhost', port: 4000 };
+
+      const res = await request(app)
+        .put('/api/services/123/instances/456')
+        .send(updateData)
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.updateInstance).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('DELETE /api/services/:serviceId/instances/:instanceId', () => {
+    it('should delete instance', async () => {
+      const res = await request(app)
+        .delete('/api/services/123/instances/456')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(mockServiceController.deleteInstance).toHaveBeenCalledTimes(1);
+      expect(mockAuthMiddleware.authenticate).toHaveBeenCalledTimes(1);
+    });
   });
 }); 

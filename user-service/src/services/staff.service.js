@@ -58,7 +58,6 @@ async function updateStaff(userId, updateData) {
         if (!staff) return null;
         
         await staff.update(updateData);
-        await staffEventProducer.publishStaffUpdated(staff);
         
         return staff;
     } catch (err) {
@@ -75,7 +74,6 @@ async function updateStaffById(id, updateData) {
         if (!staff) return null;
         
         await staff.update(updateData);
-        await staffEventProducer.publishStaffUpdated(staff);
         
         return staff;
     } catch (err) {
@@ -89,14 +87,7 @@ async function updateStaffStatus(id, isActive) {
         const staff = await Staff.findOne({ where: { staffId: id } });
         if (!staff) return null;
         
-        const oldStatus = staff.isActive;
         await staff.update({ isActive });
-        
-        await staffEventProducer.publishStaffStatusChanged({
-            ...staff.toJSON(),
-            oldStatus,
-            isActive
-        });
         
         return staff;
     } catch (err) {

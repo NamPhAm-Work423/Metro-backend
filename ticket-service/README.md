@@ -1,93 +1,85 @@
-# User Service
+# Ticket Service
 
-Unified microservice handling admin, passenger and staff user profiles for the Metro backend system.
+Microservice handling ticket management, fare calculation, and promotions for the Metro backend system.
 
 ## Overview
 
-This service consolidates three previously separate services:
-- `admin-service` - Admin user management
-- `passenger-service` - Passenger user management  
-- `staff-service` - Staff user management
+The Ticket Service manages:
+- **Ticket Management**: Creation, validation, and lifecycle management of transit tickets
+- **Fare Calculation**: Dynamic pricing based on routes, zones, and passenger types
+- **Promotion System**: Discount codes, promotional campaigns, and special offers
+- **Passenger Cache**: Redis-based caching for improved performance
 
-By merging these services, we reduce the operational complexity and resource usage while maintaining all functionality.
-
-### Key Benefits:
-- ✅ **Unified Architecture**: Single service reduces deployment complexity
-- ✅ **Event-Driven**: Automatic profile creation from Kafka user events  
-- ✅ **Role-Based Processing**: Smart handling based on user roles
-- ✅ **Backward Compatible**: All original API endpoints maintained
-- ✅ **Security Enhanced**: Admin profiles NOT auto-created for security
-- ✅ **Performance Optimized**: Shared database connections and resources
+### Key Features:
+- ✅ **Flexible Fare System**: Zone-based, distance-based, and time-based pricing
+- ✅ **Promotion Engine**: Percentage and fixed-amount discounts
+- ✅ **Passenger Caching**: Fast access to passenger data via Redis
+- ✅ **Event-Driven**: Kafka integration for real-time updates
+- ✅ **gRPC Integration**: Efficient communication with transport service
 
 ## Features
 
-### Admin Management
-- Admin profile CRUD operations
-- Admin self-service endpoints
-- Admin-specific event publishing
+### Ticket Management
+- Ticket creation and validation
+- QR code generation for digital tickets
+- Ticket expiration and usage tracking
+- Multi-ride ticket support
 
-### Passenger Management
-- Passenger profile CRUD operations
-- Passenger self-service endpoints
-- Ticket management (add/remove/list tickets)
-- Passenger-specific event publishing
+### Fare System
+- Zone-based fare calculation
+- Distance-based pricing
+- Time-based fare adjustments
+- Passenger type discounts (student, senior, etc.)
 
-### Staff Management
-- Staff profile CRUD operations
-- Staff self-service endpoints
-- Staff status management (active/inactive)
-- Staff-specific event publishing
+### Promotion Management
+- Promotional code system
+- Percentage and fixed-amount discounts
+- Campaign management with validity periods
+- Usage limit enforcement
 
-### Unified Event Handling
-- Consumes `user.created` events from api-gateway
-- Automatically creates appropriate profiles based on user roles
-- Publishes domain-specific events for other services
+### Passenger Caching
+- Redis-based passenger data caching
+- Automatic cache invalidation
+- Performance optimization for frequent operations
 
 ## API Endpoints
 
-### Admin Routes (`/v1/admins`)
-- `GET /getAllAdmins` - Get all admins (admin only)
-- `GET /getAdminById/:id` - Get admin by ID (admin only)
-- `PUT /updateAdmin/:id` - Update admin (admin only)
-- `DELETE /deleteAdmin/:id` - Delete admin (admin only)
-- `GET /me` - Get current admin profile
-- `DELETE /me` - Delete current admin profile
+### Ticket Routes (`/v1/tickets`)
+- `POST /create` - Create new ticket
+- `GET /:id` - Get ticket details
+- `PUT /:id/validate` - Validate ticket for use
+- `GET /passenger/:passengerId` - Get passenger tickets
+- `DELETE /:id` - Cancel/refund ticket
 
-### Passenger Routes (`/v1/passengers`)
-- `GET /getallPassengers` - Get all passengers (staff/admin only)
-- `GET /getPassengerById/:id` - Get passenger by ID (staff/admin only)
-- `POST /createPassenger` - Create passenger (staff/admin only)
-- `PUT /updatePassenger/:id` - Update passenger (staff/admin only)
-- `DELETE /deletePassenger/:id` - Delete passenger (staff/admin only)
-- `GET /me` - Get current passenger profile
-- `PUT /me` - Update current passenger profile
-- `DELETE /me` - Delete current passenger profile
-- `GET /me/tickets` - Get my tickets
-- `POST /me/tickets` - Add ticket
-- `DELETE /me/tickets/:ticketId` - Remove ticket
+### Fare Routes (`/v1/fares`)
+- `GET /` - Get all fare rules
+- `POST /calculate` - Calculate fare for route
+- `GET /zones` - Get zone information
+- `POST /` - Create fare rule (admin only)
+- `PUT /:id` - Update fare rule (admin only)
+- `DELETE /:id` - Delete fare rule (admin only)
 
-### Staff Routes (`/v1/staff`)
-- `GET /getAllStaff` - Get all staff (staff/admin only)
-- `GET /getStaffById/:id` - Get staff by ID (staff/admin only)
-- `POST /createStaff` - Create staff (staff/admin only)
-- `PUT /updateStaff/:id` - Update staff (staff/admin only)
-- `DELETE /deleteStaff/:id` - Delete staff (staff/admin only)
-- `PUT /updateStaffStatus/:id` - Update staff status (admin only)
-- `GET /me` - Get current staff profile
-- `PUT /me` - Update current staff profile
-- `DELETE /me` - Delete current staff profile
+### Promotion Routes (`/v1/promotions`)
+- `GET /` - Get active promotions
+- `POST /apply` - Apply promotion code
+- `GET /:code` - Get promotion details
+- `POST /` - Create promotion (admin only)
+- `PUT /:id` - Update promotion (admin only)
+- `DELETE /:id` - Delete promotion (admin only)
 
 ## Architecture
 
 ```
-user-service/
+ticket-service/
 ├── src/
-│   ├── config/          # Database, logger, etc.
-│   ├── models/          # Sequelize models (Admin, Passenger, Staff)
+│   ├── config/          # Database, Redis, logger configs
+│   ├── models/          # Sequelize models (Ticket, Fare, Promotion)
 │   ├── controllers/     # HTTP request handlers
 │   ├── services/        # Business logic
 │   ├── routes/          # Express routes
 │   ├── events/          # Kafka event handlers
+│   ├── grpc/            # gRPC client for transport service
+│   ├── proto/           # Protocol buffer definitions
 │   ├── kafka/           # Kafka utilities
 │   ├── middlewares/     # Authorization, etc.
 │   ├── helpers/         # Utility functions
@@ -100,7 +92,7 @@ user-service/
 
 ## Environment Variables
 
-Create a `.env` file in the user-service directory:
+Create a `.env` file in the ticket-service directory:
 
 ```env
 NODE_ENV=production
@@ -132,21 +124,30 @@ KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
 
 ### Environment Variables Explanation:
 
+#### 🏗️ **Application Configuration**
+- **NODE_ENV**: Runtime environment (development/production)
+- **PORT**: Service port (default: 3003)
+
+#### 🔐 **Authentication**
+- **SERVICE_JWT_SECRET**: JWT secret for inter-service communication
+
 #### 📊 **Database Configuration**
-- **DB_FORCE_SYNC**: Forces database recreation on startup (development only)
-- **DB_ALTER_SYNC**: Allows automatic table alterations (use with caution)
+- **DB_HOST**: PostgreSQL host
+- **DB_PORT**: PostgreSQL port
+- **DB_NAME**: Database name for ticket service
+- **DB_USER**: Database username
+- **DB_PASSWORD**: Database password
 
-#### 📨 **Event System**
-- **Consumer Topics**: Events this service listens to from other services
-- **Producer Topics**: Events this service publishes for other services to consume
+#### 🚀 **Redis Configuration**
+- **REDIS_HOST**: Redis server host
+- **REDIS_PORT**: Redis server port
+- **REDIS_PASSWORD**: Redis authentication password
+- **REDIS_KEY_PREFIX**: Key prefix for ticket service cache
 
-#### 🔍 **Logging & Monitoring**
-- **LOG_LEVEL**: Winston logging level (error, warn, info, debug)
-- **LOG_MAX_SIZE**: Maximum log file size before rotation
-- **LOG_MAX_FILES**: How long to keep rotated log files
-
-#### 🛡️ **Security**
-- **BCRYPT_ROUNDS**: Password hashing rounds (higher = more secure but slower)
+#### 📨 **Event System (Kafka)**
+- **KAFKA_BROKERS**: Kafka broker addresses
+- **KAFKA_CLIENT_ID**: Unique client identifier
+- **KAFKA_BROKERS_INTERNAL**: Internal Kafka broker addresses
 
 ## Getting Started
 
@@ -162,81 +163,79 @@ npm run dev
 ### Docker
 ```bash
 # Build and run with docker-compose
-docker-compose up user-service
+docker-compose up ticket-service
 ```
 
-## Migration from Previous Services
+## Fare Calculation Logic
 
-This service replaces:
-- `admin-service` (port 3xxx)
-- `passenger-service` (port 3001)
-- `staff-service` (port 3002)
+### Zone-Based Fares
+- Metro system divided into fare zones
+- Price increases with zone crossings
+- Base fare + zone multiplier
 
-All API endpoints maintain backward compatibility. Update your API Gateway routing to point to:
-- `user-service:3001` instead of individual services
+### Distance-Based Pricing
+- Calculated using station coordinates
+- Linear pricing based on distance
+- Minimum fare guarantee
 
-### Migration Benefits:
-- ✅ **Resource Optimization**: 3 services → 1 service = 66% reduction in containers
-- ✅ **Simplified Deployment**: Single Docker image and configuration
-- ✅ **Unified Database**: Shared connections and transactions
-- ✅ **Event Consolidation**: Single Kafka consumer for all user events
-- ✅ **Maintenance Reduction**: One codebase instead of three
+### Promotional Discounts
+- Percentage discounts (e.g., 20% off)
+- Fixed amount discounts (e.g., $5 off)
+- Conditional discounts (minimum purchase, specific routes)
 
 ## Event Flow
 
 ```mermaid
 sequenceDiagram
-    participant API as API Gateway
-    participant KAFKA as Kafka
-    participant USER as User Service
-    participant DB as PostgreSQL
+    participant P as Passenger
+    participant T as Ticket Service
+    participant TR as Transport Service (gRPC)
+    participant K as Kafka
+    participant R as Redis
 
-    Note over API,DB: User Registration & Profile Creation
+    Note over P,R: Ticket Purchase Flow
 
-    API->>KAFKA: Publish user.created event
-    KAFKA->>USER: Consume user.created event
-    USER->>USER: Check user roles
-    
-    alt User has "passenger" role
-        USER->>DB: Create Passenger profile
-        USER->>KAFKA: Publish passenger.created event
-    end
-    
-    alt User has "staff" role
-        USER->>DB: Create Staff profile
-        USER->>KAFKA: Publish staff.created event
-    end
-    
-    Note over USER: Admin profiles NOT auto-created (security)
-    
-    Note over API,DB: Profile Updates & Events
-    
-    USER->>DB: Update passenger/staff profile
-    USER->>KAFKA: Publish passenger.updated/staff.updated event
+    P->>T: Request ticket purchase
+    T->>TR: Get route information (gRPC)
+    TR->>T: Return route details
+    T->>T: Calculate fare
+    T->>T: Apply promotions
+    T->>R: Cache passenger data
+    T->>T: Create ticket
+    T->>K: Publish ticket.created event
+    T->>P: Return ticket details
 ```
 
-### Event Processing Logic:
+### Event Processing:
 
-1. **User Registration**: API Gateway publishes `user.created` event
-2. **Role-Based Processing**: User Service creates profiles based on user roles:
-   - `passenger` role → Creates Passenger profile
-   - `staff` role → Creates Staff profile
-   - `admin` role → **NOT auto-created for security**
-3. **Event Publishing**: Service publishes domain-specific events for other services
-4. **Profile Updates**: All CRUD operations publish corresponding events
+1. **Passenger Cache Updates**: Redis caching for performance
+2. **Fare Calculations**: Real-time pricing based on routes
+3. **Promotion Application**: Automatic discount application
+4. **Event Publishing**: Ticket lifecycle events for other services
 
-### Security Note:
-Admin profiles are **never** automatically created from user registration events. Admin accounts must be manually created by existing administrators for security reasons.
+## Integration
+
+### gRPC Communication
+- **Transport Service**: Route and station information
+- **Protocol Buffers**: Efficient data serialization
+- **Load Balancing**: Automatic service discovery
+
+### Redis Caching
+- **Passenger Data**: Frequently accessed passenger information
+- **Fare Rules**: Cached fare calculations
+- **Promotion Codes**: Fast promotion validation
 
 ## Health Check & Monitoring
 
 ### Endpoints:
-- **Health Check**: `GET /metrics` - Service health status
+- **Health Check**: `GET /health` - Service health status
 - **Database Check**: Included in health endpoint
+- **Redis Check**: Included in health endpoint
 - **Kafka Check**: Included in health endpoint
 
 ### Monitoring Features:
 - **Winston Logging**: Structured logging with daily rotation
 - **Error Tracking**: Comprehensive error handling with correlation IDs
 - **Performance Metrics**: Request timing and database query performance
-- **Event Tracking**: Kafka message processing status 
+- **Event Tracking**: Kafka message processing status
+- **Cache Metrics**: Redis performance and hit rates 
