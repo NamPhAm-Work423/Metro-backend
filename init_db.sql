@@ -12,7 +12,7 @@
 
 -- ---------- AUTH SERVICE (API-Gateway) ----------
 CREATE DATABASE auth_db;
-CREATE ROLE auth_user WITH LOGIN PASSWORD 'authpass';
+CREATE ROLE auth_user WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_user;
 
 -- Connect to auth_db and fix schema ownership
@@ -25,7 +25,7 @@ GRANT ALL ON SCHEMA public TO auth_user;
 
 -- ---------- USER SERVICE (User-Service) ----------
 CREATE DATABASE user_db;
-CREATE ROLE user_service WITH LOGIN PASSWORD 'userpass';
+CREATE ROLE user_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE user_db TO user_service;
 
 -- Connect to user_db and fix schema ownership
@@ -39,7 +39,7 @@ GRANT ALL ON SCHEMA public TO user_service;
 
 -- ---------- TRANSPORT SERVICE (Transport-Service) ----------
 CREATE DATABASE transport_db;
-CREATE ROLE transport_service WITH LOGIN PASSWORD 'transportpass';
+CREATE ROLE transport_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE transport_db TO transport_service;
 
 -- Connect to transport_db and fix schema ownership
@@ -52,7 +52,7 @@ GRANT ALL ON SCHEMA public TO transport_service;
 
 -- ---------- TICKET SERVICE (Ticket-Service) ----------
 CREATE DATABASE ticket_db;
-CREATE ROLE ticket_service WITH LOGIN PASSWORD 'ticketpass';
+CREATE ROLE ticket_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE ticket_db TO ticket_service;
 
 -- Connect to ticket_db and fix schema ownership
@@ -65,7 +65,7 @@ GRANT ALL ON SCHEMA public TO ticket_service;
 
 -- ---------- CUSTOMER SUPPORT SERVICE (Customer-Support-Service) ----------
 CREATE DATABASE customer_support_db;
-CREATE ROLE customer_support_service WITH LOGIN PASSWORD 'customersupportpass';
+CREATE ROLE customer_support_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE customer_support_db TO customer_support_service;
 
 -- Connect to customer_support_db and fix schema ownership
@@ -78,7 +78,7 @@ GRANT ALL ON SCHEMA public TO customer_support_service;
 
 -- ---------- PAYMENT SERVICE (Payment-Service) ----------
 CREATE DATABASE payment_db;
-CREATE ROLE payment_service WITH LOGIN PASSWORD 'paymentpass';
+CREATE ROLE payment_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE payment_db TO payment_service;
 
 -- Connect to payment_db and fix schema ownership
@@ -91,7 +91,7 @@ GRANT ALL ON SCHEMA public TO payment_service;
 
 -- ---------- REPORT SERVICE (Report-Service) ----------
 CREATE DATABASE report_db;
-CREATE ROLE report_service WITH LOGIN PASSWORD 'reportpass';
+CREATE ROLE report_service WITH LOGIN PASSWORD '1';
 GRANT ALL PRIVILEGES ON DATABASE report_db TO report_service;
 
 -- Connect to report_db and fix schema ownership    

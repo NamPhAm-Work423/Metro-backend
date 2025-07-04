@@ -12,10 +12,11 @@ services:
       - ./api-gateway/.env
     environment:
       - NEED_EMAIL_VERIFICATION=true  #turn off to require email verification
-      - NEED_API_KEY=false
+      - NEED_API_KEY=false #turn on to require api key from frontend
+      - SEND_ACCESS_TOKEN_TO_CLIENT=false #turn on to send access token to client
     volumes:
       - ./api-gateway:/app
-      - /app/node_modules 
+      - /app/node_modules
     depends_on:
       kafka-1:
         condition: service_started
@@ -71,6 +72,9 @@ services:
       - "3002:3002"
     env_file:
       - ./transport-service/.env
+    environment:
+      - GRPC_HOST=transport-service
+      - GRPC_PORT=50051
     volumes:
       - ./transport-service:/app
       - /app/node_modules
@@ -96,6 +100,10 @@ services:
       - "3003:3003"
     env_file:
       - ./ticket-service/.env
+    environment:
+      - GRPC_HOST=transport-service
+      - GRPC_PORT=50051
+      - TRANSPORT_GRPC_URL=transport-service:50051
     volumes:
       - ./ticket-service:/app
       - /app/node_modules

@@ -3,7 +3,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const { requestLogger, logger } = require('./config/logger');
 const routes = require('./routes');
-
 const app = express();
 
 // Security middleware

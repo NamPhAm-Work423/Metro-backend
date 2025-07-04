@@ -1,7 +1,7 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
-const logger = require('../config/logger');
+const { logger } = require('../config/logger');
 
 // Copy transport.proto from transport-service
 const PROTO_PATH = path.join(__dirname, '../proto/transport.proto');
@@ -70,6 +70,32 @@ class TransportClient {
             }, (error, response) => {
                 if (error) {
                     logger.error('Transport GetRoutesByStations error:', error);
+                    reject(error);
+                } else {
+                    resolve(response);
+                }
+            });
+        });
+    }
+
+    static async getAllRoutes() {
+        return new Promise((resolve, reject) => {
+            transportClient.ListRoutes({}, (error, response) => {
+                if (error) {
+                    logger.error('Transport ListRoutes error:', error);
+                    reject(error);
+                } else {
+                    resolve(response);
+                }
+            });
+        });
+    }
+
+    static async getRouteStations(routeId) {
+        return new Promise((resolve, reject) => {
+            transportClient.GetRouteStations({ routeId }, (error, response) => {
+                if (error) {
+                    logger.error('Transport GetRouteStations error:', error);
                     reject(error);
                 } else {
                     resolve(response);

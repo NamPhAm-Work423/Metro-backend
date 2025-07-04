@@ -4,7 +4,8 @@ const ticketController = require('../controllers/ticket.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Passenger ticket creation
-router.post('/create', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createTicket);
+router.post('/create-short-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createShortTermTicket);
+router.post('/create-long-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createLongTermTicket);
 
 // Passenger self-service routes
 router.get('/me', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyTickets);

@@ -6,6 +6,8 @@ const sequelize = require('./config/database');
 const { Ticket, Fare, Promotion } = require('./models/index.model');
 const { initializeRedis } = require('./config/redis');
 const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
+const { runSeeds } = require('./seed');
+
 
 const PORT = process.env.PORT || 3003;
 const SERVICE_NAME = 'ticket-service';
@@ -66,7 +68,11 @@ async function startApplication() {
     try {
         // Sync database first
         await syncDatabase();
-        
+
+        // Run seeds if available
+        if (typeof runSeeds === 'function') {
+            await runSeeds();
+        }
         // Initialize Redis
         await initializeRedis();
         logger.info('Redis initialized successfully');

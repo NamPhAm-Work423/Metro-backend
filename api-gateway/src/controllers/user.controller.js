@@ -70,24 +70,33 @@ const userController = {
 
       logger.info('User logged in successfully', { userId: user.id, email });
 
+
+
+      //If flag is true, send access token to client
+      if(process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'false'){
       res.cookie('accessToken', tokens.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 60 * 60 * 1000
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+          maxAge: 60 * 60 * 1000,
+          path: '/'
       });
+      }
+      //Store refresh token in cookie
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
       });
 
       res.json({
         success: true,
         message: 'Login successful',
         data: {
-          user: userResponse
+          user: userResponse,
+          accessToken: process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'true' ? tokens.accessToken : null
         }
       });
     } catch (error) {
@@ -135,9 +144,19 @@ const userController = {
    * @returns {Object} - Refresh token response
    */
   refreshToken: asyncErrorHandler(async (req, res) => {
-    const { refreshToken } = req.body;
+    //check in cookie if refresh token is present
+    const refreshToken = req.cookies.refreshToken;
 
-    if (!refreshToken) {
+    // Debug logging
+    logger.debug('Refresh token request debug', {
+      hasCookies: !!req.cookies,
+      cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
+      hasRefreshToken: !!refreshToken,
+      userAgent: req.get('User-Agent'),
+      origin: req.get('Origin')
+    });
+
+    if(!refreshToken){
       return res.status(401).json({
         success: false,
         message: 'Refresh token is required',
@@ -145,14 +164,21 @@ const userController = {
       });
     }
 
-    const { accessToken } = await userService.refreshToken(refreshToken);
+    const { accessToken, user } = await userService.refreshToken(refreshToken);
 
-    logger.info('Token refreshed successfully', { userId: req.user.id });
+    logger.info('Token refreshed successfully', { userId: user.id });
+
+    const userResponse = {
+      email: user.email,
+      username: user.username,
+      roles: user.roles
+    };
 
     res.json({
       success: true,
       message: 'Token refreshed successfully',
       data: {
+        user: userResponse,
         accessToken,
         expiresIn: '1h'
       }

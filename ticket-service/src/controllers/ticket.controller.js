@@ -20,14 +20,14 @@ class TicketController {
         return { passengerId, passenger };
     }
 
-    // POST /v1/tickets/create
-    createTicket = asyncErrorHandler(async (req, res, next) => {
+    // POST /v1/tickets/create-short-term
+    createShortTermTicket = asyncErrorHandler(async (req, res, next) => {
         const ticketData = req.body;
         
         // Get passenger from cache to validate existence
         const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
-        const ticket = await ticketService.createTicket({
+        const ticket = await ticketService.createShortTermTicket({
             ...ticketData,
             passengerId,
             passengerInfo: passenger // Include passenger info for validation
@@ -40,6 +40,25 @@ class TicketController {
         });
     });
 
+    // POST /v1/tickets/create-long-term
+    createLongTermTicket = asyncErrorHandler(async (req, res, next) => {
+        const ticketData = req.body;
+        
+        // Get passenger from cache to validate existence
+        const { passengerId, passenger } = await this._getPassengerFromCache(req);
+
+        const ticket = await ticketService.createLongTermTicket({
+            ...ticketData,
+            passengerId,
+            passengerInfo: passenger // Include passenger info for validation
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Ticket created successfully',
+            data: ticket
+        });
+    });
     // GET /v1/tickets/getAllTickets
     getAllTickets = asyncErrorHandler(async (req, res, next) => {
         const filters = req.query;

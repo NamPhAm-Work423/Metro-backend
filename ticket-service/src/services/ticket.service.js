@@ -21,12 +21,27 @@ class TicketService {
      * @param {Object} ticketData.tripId - The specific trip ID (optional)
      * @returns {Promise<Object>} The created ticket
      */
+    /**
+    TicketBookingData {
+        tripType: "Oneway" | "Return";
+        showPassengerModal: boolean;
+        numAdults: number;
+        numElder: number;
+        numTeenager: number;
+        numChild: number;
+        fromStation: string;
+        toStation: string;
+        }
+    */
     async createTicket(ticketData) {
         try {
             // Validate required fields
             if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
                 throw new Error('Route ID, origin station ID, and destination station ID are required');
             }
+
+            // Determine if this is a pass-based ticket
+            const isPassTicket = ticketData.ticketType?.toLowerCase().includes('pass');
 
             // Determine passenger type based on age
             let passengerType = 'adult';
@@ -46,13 +61,23 @@ class TicketService {
                 }
             }
 
-            // Calculate station-based fare
-            const fareCalculation = await this.fareService.calculateStationBasedFare(
-                ticketData.routeId,
-                ticketData.originStationId,
-                ticketData.destinationStationId,
-                passengerType
-            );
+            // Calculate fare based on ticket type
+            let fareCalculation;
+            if (isPassTicket) {
+                fareCalculation = await this.fareService.calculatePassBasedFare(
+                    ticketData.routeId,
+                    ticketData.ticketType,
+                    passengerType
+                );
+            } else {
+                fareCalculation = await this.fareService.calculateStationBasedFare(
+                    ticketData.routeId,
+                    ticketData.originStationId,
+                    ticketData.destinationStationId,
+                    passengerType,
+                    ticketData.tripType || 'Oneway'
+                );
+            }
 
             // Use calculated fare
             let originalPrice = fareCalculation.basePrice;
@@ -63,21 +88,29 @@ class TicketService {
             if (ticketData.promotionId) {
                 const promotion = await Promotion.findByPk(ticketData.promotionId);
                 if (promotion && promotion.isCurrentlyValid()) {
-                    discountAmount = promotion.calculateDiscount(originalPrice);
-                    totalPrice = originalPrice - discountAmount;
-                    
-                    // Increment promotion usage
-                    await promotion.incrementUsage();
+                    // Validate promotion applicability
+                    if (promotion.applicableTicketTypes.length === 0 || 
+                        promotion.applicableTicketTypes.includes(ticketData.ticketType)) {
+                        discountAmount = promotion.calculateDiscount(originalPrice);
+                        totalPrice = originalPrice - discountAmount;
+                        
+                        // Increment promotion usage
+                        await promotion.incrementUsage();
+                    } else {
+                        logger.warn('Promotion not applicable to ticket type', {
+                            promotionId: ticketData.promotionId,
+                            ticketType: ticketData.ticketType
+                        });
+                        ticketData.promotionId = null;
+                    }
                 } else {
                     logger.warn('Invalid promotion provided', { promotionId: ticketData.promotionId });
                     ticketData.promotionId = null;
                 }
             }
 
-            // Set ticket validity (per-trip tickets are valid for 30 days from purchase)
-            const validFrom = new Date();
-            const validUntil = new Date();
-            validUntil.setDate(validUntil.getDate() + 30); // Valid for 30 days
+            // Calculate validity period
+            const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.ticketType);
 
             // Create ticket with calculated pricing
             const ticket = await Ticket.create({
@@ -92,8 +125,9 @@ class TicketService {
                 totalPrice: totalPrice,
                 validFrom: validFrom,
                 validUntil: validUntil,
-                numberOfUses: 'single', // Per-trip tickets are single use
-                ticketType: 'single', // All tickets are single-trip tickets
+                numberOfUses: isPassTicket ? 'many' : 
+                            ticketData.tripType === 'Return' ? 'return' : 'single',
+                ticketType: ticketData.ticketType.toLowerCase(),
                 status: 'active',
                 stationCount: fareCalculation.stationCount,
                 fareBreakdown: fareCalculation.priceBreakdown,
@@ -101,10 +135,10 @@ class TicketService {
                 paymentId: ticketData.paymentId || null
             });
 
-            logger.info('Per-trip ticket created successfully', { 
+            logger.info('Ticket created successfully', { 
                 ticketId: ticket.ticketId, 
                 passengerId: ticket.passengerId, 
-                stationCount: fareCalculation.stationCount,
+                ticketType: ticket.ticketType,
                 totalPrice: totalPrice,
                 passengerType: passengerType,
                 originStationId: ticketData.originStationId,
@@ -113,6 +147,18 @@ class TicketService {
             return ticket;
         } catch (error) {
             logger.error('Error creating ticket', { error: error.message, ticketData });
+            throw error;
+        }
+    }
+
+    async createLongTermTicket(ticketData) {
+        try {
+            // Validate required fields
+            if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
+                throw new Error('Route ID, origin station ID, and destination station ID are required');
+            }
+        } catch (error) {
+            logger.error('Error creating long-term ticket', { error: error.message, ticketData });
             throw error;
         }
     }
@@ -734,6 +780,280 @@ class TicketService {
             logger.error('Error expiring tickets', { error: error.message });
             throw error;
         }
+    }
+
+    /**
+     * Create ticket for guest user (no account required)
+     * @param {Object} ticketData 
+     * @param {string} contactInfo - Email or phone number
+     */
+    async createGuestTicket(ticketData, contactInfo) {
+        try {
+            // Validate contact info format
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactInfo);
+            const isPhone = /^\+?[\d\s-]{10,}$/.test(contactInfo);
+            
+            if (!isEmail && !isPhone) {
+                throw new Error('Invalid contact information. Please provide a valid email or phone number.');
+            }
+
+            // Create ticket without passenger ID
+            const ticket = await this.createTicket({
+                ...ticketData,
+                guestContact: contactInfo,
+                warningMessage: 'System is not responsible for lost or inaccessible e-tickets after issuance.'
+            });
+
+            // Send ticket to guest
+            if (isEmail) {
+                await this.sendTicketToEmail(ticket.ticketId, contactInfo);
+            } else {
+                await this.sendTicketToPhone(ticket.ticketId, contactInfo);
+            }
+
+            return {
+                ticket,
+                contactMethod: isEmail ? 'email' : 'phone',
+                contactInfo: isEmail ? 
+                    contactInfo.replace(/(.{2})(.*)(@.*)/, '$1***$3') : 
+                    contactInfo.replace(/\d(?=\d{4})/g, '*')
+            };
+        } catch (error) {
+            logger.error('Error creating guest ticket', { error: error.message, contactInfo });
+            throw error;
+        }
+    }
+
+    /**
+     * Validate ticket for station entry/exit
+     * @param {string} ticketId 
+     * @param {string} stationId 
+     * @param {'entry'|'exit'} action
+     */
+    async validateTicketAtGate(ticketId, stationId, action = 'entry') {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+
+            // Check ticket validity
+            if (!ticket.isValid()) {
+                return {
+                    valid: false,
+                    reason: ticket.isExpired() ? 'Ticket has expired' : 'Ticket is not valid'
+                };
+            }
+
+            // For unlimited passes
+            if (ticket.ticketType.includes('pass')) {
+                return { valid: true };
+            }
+
+            // For entry
+            if (action === 'entry') {
+                if (ticket.originStationId !== stationId) {
+                    return {
+                        valid: false,
+                        reason: 'Invalid entry station'
+                    };
+                }
+                return { valid: true };
+            }
+
+            // For exit
+            const exitValidation = await this.fareService.validateExitStation(ticketId, stationId);
+            return exitValidation;
+
+        } catch (error) {
+            logger.error('Error validating ticket at gate', {
+                error: error.message,
+                ticketId,
+                stationId,
+                action
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Pay additional fare for extended journey
+     * @param {string} ticketId 
+     * @param {string} newExitStationId 
+     */
+    async payAdditionalFare(ticketId, newExitStationId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+
+            const fareCalculation = await this.fareService.validateExitStation(ticketId, newExitStationId);
+            if (!fareCalculation.additionalFare) {
+                throw new Error('No additional fare required');
+            }
+
+            // Create a new ticket for the extension
+            const extensionTicket = await this.createTicket({
+                routeId: ticket.routeId,
+                originStationId: ticket.destinationStationId,
+                destinationStationId: newExitStationId,
+                ticketType: 'oneway',
+                passengerType: ticket.passengerType,
+                originalTicketId: ticketId
+            });
+
+            return {
+                originalTicket: ticket,
+                extensionTicket,
+                additionalFare: fareCalculation.additionalFare
+            };
+
+        } catch (error) {
+            logger.error('Error processing additional fare', {
+                error: error.message,
+                ticketId,
+                newExitStationId
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Create tickets from booking data
+     * @param {Object} bookingData 
+     * @param {string} [guestContact] Optional contact for guest bookings
+     */
+    async createTicketsFromBooking(bookingData, guestContact = null) {
+        try {
+            // Validate booking data
+            if (!bookingData.fromStation || !bookingData.toStation) {
+                throw new Error('Origin and destination stations are required');
+            }
+
+            // Get fare for the route
+            const fare = await this.fareService.getFareForRoute(
+                bookingData.routeId,
+                bookingData.tripType,
+                'adult' // Default to adult fare for initial calculation
+            );
+
+            // Calculate station count
+            const stationCount = await this.fareService.calculateStationCount(
+                bookingData.routeId,
+                bookingData.fromStation,
+                bookingData.toStation
+            );
+
+            // Generate tickets using model helper
+            const tickets = await Ticket.generateTicketsFromBooking(
+                bookingData,
+                fare,
+                bookingData.promotionCode ? await this.getValidPromotion(bookingData.promotionCode) : null,
+                stationCount
+            );
+
+            // For guest bookings, send tickets
+            if (guestContact) {
+                const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestContact);
+                for (const ticket of tickets) {
+                    if (isEmail) {
+                        await this.sendTicketToEmail(ticket.ticketId, guestContact);
+                    } else {
+                        await this.sendTicketToPhone(ticket.ticketId, guestContact);
+                    }
+                }
+            }
+
+            return {
+                tickets,
+                totalAmount: tickets.reduce((sum, t) => sum + t.finalPrice, 0),
+                currency: fare.currency,
+                isGuest: !!guestContact,
+                contactInfo: guestContact ? this.maskContactInfo(guestContact) : null,
+                warningMessage: guestContact ? 
+                    'System is not responsible for lost or inaccessible e-tickets after issuance.' : null
+            };
+        } catch (error) {
+            logger.error('Error creating tickets from booking', {
+                error: error.message,
+                bookingData
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Upgrade an existing pass to a higher tier
+     * @param {string} currentTicketId 
+     * @param {string} newPassType 
+     */
+    async upgradePass(currentTicketId, newPassType) {
+        try {
+            // Calculate upgrade cost
+            const upgradeDetails = await this.fareService.calculatePassUpgrade(
+                currentTicketId,
+                newPassType
+            );
+
+            // Create new pass ticket
+            const currentTicket = await Ticket.findByPk(currentTicketId);
+            const newTicket = await this.createTicket({
+                routeId: currentTicket.routeId,
+                passengerId: currentTicket.passengerId,
+                ticketType: newPassType,
+                originalPrice: upgradeDetails.newPassPrice,
+                finalPrice: upgradeDetails.upgradeCost,
+                upgradedFromTicketId: currentTicketId
+            });
+
+            // Deactivate old ticket
+            await currentTicket.update({
+                status: 'upgraded',
+                upgradedToTicketId: newTicket.ticketId
+            });
+
+            return {
+                oldTicket: currentTicket,
+                newTicket,
+                upgradeCost: upgradeDetails.upgradeCost,
+                currency: upgradeDetails.currency
+            };
+        } catch (error) {
+            logger.error('Error upgrading pass', {
+                error: error.message,
+                currentTicketId,
+                newPassType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Mask contact information for privacy
+     * @private
+     */
+    maskContactInfo(contact) {
+        if (/@/.test(contact)) {
+            return contact.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+        }
+        return contact.replace(/\d(?=\d{4})/g, '*');
+    }
+
+    /**
+     * Get valid promotion by code
+     * @private
+     */
+    async getValidPromotion(code) {
+        const promotion = await Promotion.findOne({
+            where: {
+                code,
+                isActive: true,
+                validFrom: { [Op.lte]: new Date() },
+                validUntil: { [Op.gte]: new Date() }
+            }
+        });
+        return promotion;
     }
 }
 

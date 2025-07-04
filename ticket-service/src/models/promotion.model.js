@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { DataTypes } = require('sequelize');
 
 const Promotion = sequelize.define('Promotion', {
     promotionId: {
@@ -40,9 +40,9 @@ const Promotion = sequelize.define('Promotion', {
         }
     },
     applicableTicketTypes: {
-        type: DataTypes.ARRAY(DataTypes.ENUM('single', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass')),
+        type: DataTypes.ARRAY(DataTypes.ENUM('oneway', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass')),
         allowNull: true,
-        defaultValue: []
+        defaultValue: [],
     },
     applicablePassengerTypes: {
         type: DataTypes.ARRAY(DataTypes.ENUM('adult', 'child', 'student', 'senior', 'disabled')),
@@ -161,7 +161,12 @@ Promotion.prototype.calculateDiscount = function(originalPrice) {
             discount = price * 0.5; // 50% off for BOGO
             break;
         case 'free_upgrade':
-            discount = parseFloat(this.value); // Fixed upgrade value
+            // For pass upgrades (e.g. day → week, month → year)
+            if (this.applicableTicketTypes.some(t => t.includes('pass'))) {
+                discount = price * 0.3; // 30% off upgrade to next tier
+            } else {
+                discount = parseFloat(this.value); // Fixed upgrade value
+            }
             break;
         default:
             discount = 0;
@@ -172,6 +177,11 @@ Promotion.prototype.calculateDiscount = function(originalPrice) {
         discount = parseFloat(this.maxDiscountAmount);
     }
 
+    // Long-term passes get reduced discount
+    if (this.applicableTicketTypes.some(t => ['yearly_pass', 'lifetime_pass'].includes(t))) {
+        discount = discount * 0.5; // 50% of normal discount for long-term passes
+    }
+
     // Ensure discount doesn't exceed original price
     return Math.min(discount, price);
 };
@@ -179,6 +189,16 @@ Promotion.prototype.calculateDiscount = function(originalPrice) {
 Promotion.prototype.incrementUsage = async function() {
     this.usageCount += 1;
     await this.save();
+};
+
+/**
+ * Return final price after applying promotion.
+ * @param {number} originalPrice
+ * @returns {{finalPrice:number, discountAmount:number}}
+ */
+Promotion.prototype.applyToPrice = function(originalPrice) {
+    const discount = this.calculateDiscount(originalPrice);
+    return { finalPrice: originalPrice - discount, discountAmount: discount };
 };
 
 module.exports = Promotion;

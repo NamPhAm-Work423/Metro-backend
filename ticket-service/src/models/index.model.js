@@ -2,6 +2,7 @@ const sequelize = require('../config/database');
 const Ticket = require('./ticket.model');
 const Fare = require('./fare.model');
 const Promotion = require('./promotion.model');
+const TransitPass = require('./transitPass.model');
 
 // Define relationships between models
 
@@ -21,5 +22,6 @@ module.exports = {
     sequelize,
     Ticket,
     Fare,
-    Promotion
+    Promotion,
+    TransitPass
 };

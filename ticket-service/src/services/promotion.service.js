@@ -178,6 +178,19 @@ class PromotionService {
                 return { valid: false, reason: 'Promotion is not valid for the selected date/time' };
             }
             
+            // Special handling for pass upgrades
+            if (promotion.type === 'free_upgrade' && validationData.ticketType?.includes('pass')) {
+                const passTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
+                const currentPassIndex = passTypes.indexOf(validationData.ticketType);
+                
+                if (currentPassIndex === -1 || currentPassIndex === passTypes.length - 1) {
+                    return { valid: false, reason: 'Cannot upgrade this pass type' };
+                }
+                
+                // Set the upgrade target
+                validationData.upgradeToType = passTypes[currentPassIndex + 1];
+            }
+            
             // Check ticket type restrictions
             if (validationData.ticketType && 
                 promotion.applicableTicketTypes.length > 0 && 
@@ -218,7 +231,8 @@ class PromotionService {
                     name: promotion.name,
                     type: promotion.type,
                     value: promotion.value,
-                    discountAmount
+                    discountAmount,
+                    upgradeToType: validationData.upgradeToType
                 }
             };
         } catch (error) {
@@ -395,6 +409,136 @@ class PromotionService {
             return expiredPromotions[0];
         } catch (error) {
             logger.error('Error expiring promotions', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get valid promotions for a specific pass type
+     * @param {string} passType Type of pass (day, week, month, etc)
+     * @returns {Promise<Array>} List of valid promotions
+     */
+    async getPassPromotions(passType) {
+        try {
+            const promotions = await Promotion.findAll({
+                where: {
+                    isActive: true,
+                    validFrom: { [Op.lte]: new Date() },
+                    validUntil: { [Op.gte]: new Date() },
+                    applicableTicketTypes: {
+                        [Op.contains]: [passType]
+                    }
+                }
+            });
+
+            return promotions.map(promo => ({
+                code: promo.code,
+                description: promo.description,
+                discountType: promo.discountType,
+                discountValue: promo.discountValue,
+                maxDiscount: promo.maxDiscount,
+                validUntil: promo.validUntil,
+                termsAndConditions: promo.termsAndConditions
+            }));
+        } catch (error) {
+            logger.error('Error getting pass promotions', {
+                error: error.message,
+                passType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Apply promotion to pass upgrade
+     * @param {string} promoCode 
+     * @param {number} upgradeCost 
+     * @param {string} newPassType 
+     */
+    async applyPassUpgradePromotion(promoCode, upgradeCost, newPassType) {
+        try {
+            const promotion = await Promotion.findOne({
+                where: {
+                    code: promoCode,
+                    isActive: true,
+                    validFrom: { [Op.lte]: new Date() },
+                    validUntil: { [Op.gte]: new Date() },
+                    applicableTicketTypes: {
+                        [Op.contains]: [newPassType]
+                    }
+                }
+            });
+
+            if (!promotion) {
+                throw new Error('Invalid or expired promotion code');
+            }
+
+            // Calculate discount
+            let discount = 0;
+            if (promotion.discountType === 'percentage') {
+                discount = (upgradeCost * promotion.discountValue) / 100;
+                if (promotion.maxDiscount) {
+                    discount = Math.min(discount, promotion.maxDiscount);
+                }
+            } else {
+                discount = promotion.discountValue;
+            }
+
+            // Round to nearest 1000
+            discount = Math.round(discount / 1000) * 1000;
+            const finalPrice = Math.max(0, upgradeCost - discount);
+
+            return {
+                originalPrice: upgradeCost,
+                discount,
+                finalPrice,
+                promoCode,
+                promoDescription: promotion.description
+            };
+        } catch (error) {
+            logger.error('Error applying pass upgrade promotion', {
+                error: error.message,
+                promoCode,
+                upgradeCost,
+                newPassType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get all active promotions for a specific route
+     * @param {string} routeId 
+     */
+    async getRoutePromotions(routeId) {
+        try {
+            const promotions = await Promotion.findAll({
+                where: {
+                    isActive: true,
+                    validFrom: { [Op.lte]: new Date() },
+                    validUntil: { [Op.gte]: new Date() },
+                    [Op.or]: [
+                        { applicableRoutes: { [Op.contains]: [routeId] } },
+                        { applicableRoutes: { [Op.eq]: null } }
+                    ]
+                }
+            });
+
+            return promotions.map(promo => ({
+                code: promo.code,
+                description: promo.description,
+                discountType: promo.discountType,
+                discountValue: promo.discountValue,
+                maxDiscount: promo.maxDiscount,
+                validUntil: promo.validUntil,
+                applicableTicketTypes: promo.applicableTicketTypes,
+                termsAndConditions: promo.termsAndConditions
+            }));
+        } catch (error) {
+            logger.error('Error getting route promotions', {
+                error: error.message,
+                routeId
+            });
             throw error;
         }
     }

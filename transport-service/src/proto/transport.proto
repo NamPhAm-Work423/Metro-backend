@@ -9,6 +9,7 @@ service TransportService {
   rpc GetRoutesByStations(GetRoutesByStationsRequest) returns (RoutesResponse);
   rpc GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse);
   rpc CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse);
+  rpc ListRoutes(ListRoutesRequest) returns (RoutesResponse);
 }
 
 message GetRouteRequest {
@@ -100,4 +101,6 @@ message RouteStation {
   string stationId = 3;
   int32 sequence = 4;
   Station station = 5;
-} 
+}
+
+message ListRoutesRequest {} 

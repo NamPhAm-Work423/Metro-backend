@@ -32,8 +32,11 @@ const Trip = sequelize.define('Trip', {
         allowNull: false,
     },
     dayOfWeek: {
-        type: DataTypes.ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
+        type: DataTypes.STRING,
         allowNull: false,
+        validate: {
+            isIn: [['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']]
+        }
     },
     isActive: {
         type: DataTypes.BOOLEAN,

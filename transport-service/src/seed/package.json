@@ -1,0 +1,27 @@
+{
+  "name": "metro-tphcm-seed",
+  "version": "1.0.0",
+  "description": "Seed data cho hệ thống Metro TPHCM với 8 tuyến metro chính",
+  "main": "index.js",
+  "scripts": {
+    "seed": "node index.js",
+    "seed:stations": "node -e \"require('./seedStations').seedStations()\"",
+    "seed:routes": "node -e \"require('./seedRoutes').seedRoutes()\"", 
+    "seed:route-stations": "node -e \"require('./seedRouteStations').seedRouteStations()\"",
+    "seed:trains": "node -e \"require('./seedTrains').seedTrains()\"",
+    "seed:clean": "node -e \"const { Station, Route, RouteStation, Train } = require('../models'); Promise.all([Station.destroy({where:{}}), Route.destroy({where:{}}), RouteStation.destroy({where:{}}), Train.destroy({where:{}})])\""
+  },
+  "keywords": [
+    "metro",
+    "tphcm",
+    "ho-chi-minh-city", 
+    "transportation",
+    "seed",
+    "database"
+  ],
+  "author": "Metro TPHCM Development Team",
+  "license": "MIT",
+  "dependencies": {
+    "sequelize": "^6.x.x"
+  }
+} 

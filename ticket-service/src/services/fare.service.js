@@ -1,6 +1,7 @@
 const { Fare, Ticket } = require('../models/index.model');
 const { Op } = require('sequelize');
 const { logger } = require('../config/logger');
+// const axios = require('axios');
 
 class FareService {
     async createFare(fareData) {
@@ -13,7 +14,21 @@ class FareService {
             throw error;
         }
     }
-
+    /**In 1 route there are many fares, each route has different base price
+     * 1-5 Station: basePrice
+     * 6-10 Station: basePrice*1.2
+     * 11-15 Station: basePrice*1.4
+     * 16-20 Station: basePrice*1.6
+     * 21-25 Station: basePrice*1.8
+     * >25 Station: basePrice*2
+     * Return ticket: Oneway*1.5
+     * In long term ticket, the price is set by admin
+     * day_pass: 1 day
+     * weekly_pass: 7 days
+     * monthly_pass: 30 days
+     * yearly_pass: 365 days
+     * lifetime_pass: 100 years
+    */
     async getAllFares(filters = {}) {
         try {
             const where = {};
@@ -399,36 +414,200 @@ class FareService {
     }
 
     /**
+     * Calculate fare for pass-based tickets (day/week/month/year/lifetime)
+     * @param {string} routeId - The route ID
+     * @param {string} passType - The pass type (day_pass, weekly_pass, etc.)
+     * @param {string} passengerType - The passenger type
+     * @returns {Promise<Object>} Calculated fare information
+     */
+    async calculatePassBasedFare(routeId, passType, passengerType = 'adult') {
+        try {
+            // Get base fare for the route
+            const fare = await Fare.findOne({
+                where: {
+                    routeId,
+                    ticketType: passType,
+                    passengerType,
+                    isActive: true
+                }
+            });
+
+            if (!fare) {
+                throw new Error(`No fare configuration found for ${passType} on route ${routeId}`);
+            }
+
+            // Calculate duration in days
+            let durationDays = 0;
+            switch(passType) {
+                case 'day_pass': durationDays = 1; break;
+                case 'weekly_pass': durationDays = 7; break;
+                case 'monthly_pass': durationDays = 30; break;
+                case 'yearly_pass': durationDays = 365; break;
+                case 'lifetime_pass': durationDays = 36500; break; // 100 years
+                default: throw new Error('Invalid pass type');
+            }
+
+            // Base calculation
+            const basePrice = fare.calculatePrice();
+            const pricePerDay = basePrice / durationDays;
+
+            return {
+                routeId,
+                passType,
+                passengerType,
+                durationDays,
+                basePrice,
+                pricePerDay,
+                currency: fare.currency,
+                priceBreakdown: {
+                    basePrice,
+                    durationDays,
+                    pricePerDay,
+                    passengerType,
+                    passType
+                }
+            };
+        } catch (error) {
+            logger.error('Error calculating pass-based fare', {
+                error: error.message,
+                routeId,
+                passType,
+                passengerType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Calculate fare for multi-route journey
+     * @param {Array<{routeId: string, originStationId: string, destinationStationId: string}>} routeSegments
+     * @param {string} passengerType
+     * @returns {Promise<Object>} Total fare calculation
+     */
+    async calculateMultiRouteFare(routeSegments, passengerType = 'adult') {
+        try {
+            let totalPrice = 0;
+            const priceBreakdown = [];
+
+            // Calculate fare for each route segment separately
+            for (const segment of routeSegments) {
+                const segmentFare = await this.calculateStationBasedFare(
+                    segment.routeId,
+                    segment.originStationId,
+                    segment.destinationStationId,
+                    passengerType
+                );
+                totalPrice += segmentFare.basePrice;
+                priceBreakdown.push({
+                    routeId: segment.routeId,
+                    originStationId: segment.originStationId,
+                    destinationStationId: segment.destinationStationId,
+                    stationCount: segmentFare.stationCount,
+                    segmentPrice: segmentFare.basePrice
+                });
+            }
+
+            return {
+                totalPrice,
+                currency: 'VND',
+                routeSegments: routeSegments.length,
+                priceBreakdown,
+                passengerType
+            };
+        } catch (error) {
+            logger.error('Error calculating multi-route fare', {
+                error: error.message,
+                routeSegments,
+                passengerType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Validate if passenger can exit at station with current ticket
+     * @param {string} ticketId - The ticket ID
+     * @param {string} exitStationId - The exit station ID
+     * @returns {Promise<{canExit: boolean, additionalFare?: number}>}
+     */
+    async validateExitStation(ticketId, exitStationId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+
+            // For unlimited passes, always allow exit
+            if (ticket.ticketType.includes('pass')) {
+                return { canExit: true };
+            }
+
+            // For single/return tickets, check if exit station matches
+            if (ticket.destinationStationId === exitStationId) {
+                return { canExit: true };
+            }
+
+            // Calculate additional fare needed
+            const additionalFare = await this.calculateStationBasedFare(
+                ticket.routeId,
+                ticket.destinationStationId, // Original destination becomes new origin
+                exitStationId,
+                ticket.passengerType
+            );
+
+            return {
+                canExit: false,
+                additionalFare: additionalFare.basePrice,
+                message: 'Additional fare payment required'
+            };
+        } catch (error) {
+            logger.error('Error validating exit station', {
+                error: error.message,
+                ticketId,
+                exitStationId
+            });
+            throw error;
+        }
+    }
+
+    /**
      * Calculate fare price based on number of stations (per-trip basis)
      * @param {string} routeId - The route ID
      * @param {string} originStationId - The origin station ID
      * @param {string} destinationStationId - The destination station ID
      * @param {string} passengerType - The passenger type
+     * @param {string} tripType - The trip type (Oneway/Return)
      * @returns {Promise<Object>} Calculated fare information
      */
-    async calculateStationBasedFare(routeId, originStationId, destinationStationId, passengerType = 'adult') {
+    async calculateStationBasedFare(routeId, originStationId, destinationStationId, passengerType = 'adult', tripType = 'Oneway') {
         try {
             // Calculate number of stations
             const stationCount = await this.calculateStationCount(routeId, originStationId, destinationStationId);
             
-            // Base fare configuration for per-trip tickets
-            const baseFareConfig = {
-                basePrice: 8000, // Base price in VND for any trip
-                pricePerStation: 3000, // Additional price per station passed
-                passengerTypeMultipliers: {
-                    'child': 0.5,    // 50% discount for children (under 12)
-                    'teen': 0.7,     // 30% discount for teens (12-17)
-                    'adult': 1.0,    // Full price for adults
-                    'senior': 0.0    // Free for seniors (over 60)
+            // Get base fare for the route and passenger type
+            const fare = await Fare.findOne({
+                where: {
+                    routeId,
+                    ticketType: tripType,
+                    passengerType,
+                    isActive: true,
+                    effectiveFrom: { [Op.lte]: new Date() },
+                    [Op.or]: [
+                        { effectiveUntil: null },
+                        { effectiveUntil: { [Op.gte]: new Date() } }
+                    ]
                 }
-            };
+            });
+
+            if (!fare) {
+                throw new Error(`No valid fare found for route ${routeId} and passenger type ${passengerType}`);
+            }
             
             // Calculate base price based on station count
-            let calculatedPrice = baseFareConfig.basePrice + (stationCount * baseFareConfig.pricePerStation);
+            let calculatedPrice = fare.calculateStationBasedPrice(stationCount);
             
-            // Apply passenger type multiplier
-            const passengerMultiplier = baseFareConfig.passengerTypeMultipliers[passengerType] || 1.0;
-            calculatedPrice *= passengerMultiplier;
+            // Apply trip type multiplier
+            calculatedPrice = fare.calculatePriceForTrip(stationCount, tripType);
             
             // Round to nearest 1000 VND for convenience
             calculatedPrice = Math.round(calculatedPrice / 1000) * 1000;
@@ -440,12 +619,13 @@ class FareService {
                 stationCount,
                 basePrice: calculatedPrice,
                 passengerType,
-                currency: 'VND',
+                tripType,
+                currency: fare.currency,
                 priceBreakdown: {
-                    baseFare: baseFareConfig.basePrice,
-                    stationFare: stationCount * baseFareConfig.pricePerStation,
-                    subtotal: baseFareConfig.basePrice + (stationCount * baseFareConfig.pricePerStation),
-                    passengerDiscount: passengerMultiplier < 1.0 ? (1.0 - passengerMultiplier) : 0,
+                    baseFare: fare.basePrice,
+                    pricePerStation: fare.pricePerStation,
+                    stationCount,
+                    zones: fare.zones,
                     finalPrice: calculatedPrice
                 }
             };
@@ -455,7 +635,120 @@ class FareService {
                 routeId, 
                 originStationId, 
                 destinationStationId,
-                passengerType
+                passengerType,
+                tripType
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get all available fares for a route with pricing details
+     * @param {string} routeId 
+     * @returns {Promise<Array>} List of fares with pricing
+     */
+    async getRouteFareDetails(routeId) {
+        try {
+            const fares = await Fare.findAll({
+                where: {
+                    routeId,
+                    isActive: true,
+                    effectiveFrom: { [Op.lte]: new Date() },
+                    [Op.or]: [
+                        { effectiveUntil: null },
+                        { effectiveUntil: { [Op.gte]: new Date() } }
+                    ]
+                },
+                order: [
+                    ['ticketType', 'ASC'],
+                    ['passengerType', 'ASC']
+                ]
+            });
+
+            // Group fares by ticket type
+            const faresByType = fares.reduce((acc, fare) => {
+                const key = fare.ticketType;
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                acc[key].push({
+                    fareId: fare.fareId,
+                    passengerType: fare.passengerType,
+                    basePrice: fare.basePrice,
+                    pricePerStation: fare.pricePerStation,
+                    zones: fare.zones,
+                    currency: fare.currency
+                });
+                return acc;
+            }, {});
+
+            return {
+                routeId,
+                fareTypes: faresByType,
+                currency: fares[0]?.currency || 'VND',
+                effectiveDate: new Date()
+            };
+        } catch (error) {
+            logger.error('Error getting route fare details', {
+                error: error.message,
+                routeId
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Calculate fare for pass upgrade
+     * @param {string} currentTicketId Current pass ticket ID
+     * @param {string} newPassType Target pass type
+     */
+    async calculatePassUpgrade(currentTicketId, newPassType) {
+        try {
+            const currentTicket = await Ticket.findByPk(currentTicketId);
+            if (!currentTicket || !currentTicket.ticketType.includes('pass')) {
+                throw new Error('Invalid current ticket - must be a pass type ticket');
+            }
+
+            // Get current and new pass fares
+            const [currentFare, newFare] = await Promise.all([
+                Fare.findByPk(currentTicket.fareId),
+                Fare.findOne({
+                    where: {
+                        routeId: currentTicket.routeId,
+                        ticketType: newPassType,
+                        passengerType: currentTicket.passengerType,
+                        isActive: true
+                    }
+                })
+            ]);
+
+            if (!newFare) {
+                throw new Error(`No fare found for ${newPassType}`);
+            }
+
+            // Calculate remaining value of current pass
+            const now = new Date();
+            const totalDays = (currentTicket.validUntil - currentTicket.validFrom) / (1000 * 60 * 60 * 24);
+            const remainingDays = (currentTicket.validUntil - now) / (1000 * 60 * 60 * 24);
+            const remainingValue = (remainingDays / totalDays) * currentTicket.originalPrice;
+
+            // Calculate upgrade price
+            const newPassPrice = newFare.calculatePrice();
+            const upgradeCost = Math.max(0, newPassPrice - remainingValue);
+
+            return {
+                currentPassType: currentTicket.ticketType,
+                newPassType,
+                remainingValue,
+                newPassPrice,
+                upgradeCost: Math.round(upgradeCost / 1000) * 1000, // Round to nearest 1000
+                currency: newFare.currency
+            };
+        } catch (error) {
+            logger.error('Error calculating pass upgrade', {
+                error: error.message,
+                currentTicketId,
+                newPassType
             });
             throw error;
         }

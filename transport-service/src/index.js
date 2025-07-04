@@ -5,6 +5,7 @@ const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Route, Station, Stop, Train, Trip, RouteStation } = require('./models/index.model');
 const { startGrpcServer } = require('./grpc/server');
+const { runAllSeeds } = require('./seed');
 
 const PORT = process.env.PORT || 3002;
 const SERVICE_NAME = 'transport-service';
@@ -61,6 +62,8 @@ async function startApplication() {
         // Sync database first
         await syncDatabase();
         
+        // Seed initial data
+        await runAllSeeds();
         
         // Start HTTP server
         app.listen(PORT, () => {

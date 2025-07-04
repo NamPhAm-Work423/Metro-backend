@@ -3,7 +3,7 @@ const router = express.Router();
 
 // Import route modules
 const authRoutes = require('./auth.route');
-const serviceRoutes = require('./service.routes');
+const serviceRoutes = require('./service.route');
 const routingRoutes = require('./routing.route');
 const authMiddleware = require('../middlewares/auth.middleware');
 
@@ -23,6 +23,8 @@ router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.v
 // Dynamic service routing - mounted at /v1/route
 router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
 
+// //**I CREATE A GUEST ROUTE FOR GUEST TO ACCESS THE SERVICE */
+// router.use('/v1/guest',process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

@@ -8,7 +8,7 @@
       "MaintenanceDB": "auth_db",
       "Username": "auth_user",
       "SSLMode": "prefer",
-      "Password": "authpass",
+      "Password": "1",
       "SavePassword": true
     },
     "2": {
@@ -19,7 +19,7 @@
       "MaintenanceDB": "user_db",
       "Username": "user_service",
       "SSLMode": "prefer",
-      "Password": "userpass",
+      "Password": "1",
       "SavePassword": true
     },
     "3": {
@@ -30,7 +30,7 @@
       "MaintenanceDB": "transport_db",
       "Username": "transport_service",
       "SSLMode": "prefer",
-      "Password": "transportpass",
+      "Password": "1",
       "SavePassword": true
     },
     "4": {
@@ -41,7 +41,7 @@
       "MaintenanceDB": "ticket_db",
       "Username": "ticket_service",
       "SSLMode": "prefer",
-      "Password": "ticketpass",
+      "Password": "1",
       "SavePassword": true
     },
     "5": {
@@ -52,7 +52,7 @@
       "MaintenanceDB": "customer_support_db",
       "Username": "customer_support_service",
       "SSLMode": "prefer",
-      "Password": "customersupportpass",
+      "Password": "1",
       "SavePassword": true
     },
     "6": {
@@ -63,7 +63,7 @@
       "MaintenanceDB": "payment_db",
       "Username": "payment_service",
       "SSLMode": "prefer",
-      "Password": "paymentpass",
+      "Password": "1",
       "SavePassword": true
     },
     "7": {
@@ -74,7 +74,7 @@
       "MaintenanceDB": "report_db",
       "Username": "report_service",
       "SSLMode": "prefer",
-      "Password": "reportpass",
+      "Password": "1",
       "SavePassword": true
     }
   }
