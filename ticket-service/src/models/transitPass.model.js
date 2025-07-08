@@ -21,6 +21,19 @@ const TransitPass = sequelize.define('TransitPass', {
         defaultValue: 'VND',
         type: DataTypes.ENUM('VND', 'USD', 'CNY'),
     },
-})
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    }
+}, {
+    tableName: 'TransitPasses',
+    timestamps: true,
+    indexes: [
+        {
+            fields: ['transitPassType']
+        }
+    ]
+});
 
 module.exports = TransitPass;

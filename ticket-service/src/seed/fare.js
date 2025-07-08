@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { Fare } = require('../models/index.model');
+const { Fare, TransitPass } = require('../models/index.model');
 const TransportClient = require('../grpc/transportClient');
 const { logger } = require('../config/logger');
 
@@ -28,22 +28,11 @@ const seedFares = async () => {
                     else basePrice = 20000;
                 }
 
-                // One-way fare
+                // Route-based fare for one-way tickets
                 routeFares.push({
                     fareId: uuidv4(),
                     routeId: route.routeId,
-                    ticketType: 'oneway',
                     basePrice,
-                    currency: 'VND',
-                    isActive: true
-                });
-
-                // Return fare (1.5x one-way)
-                routeFares.push({
-                    fareId: uuidv4(),
-                    routeId: route.routeId,
-                    ticketType: 'return',
-                    basePrice: basePrice * 1.5,
                     currency: 'VND',
                     isActive: true
                 });
@@ -54,51 +43,45 @@ const seedFares = async () => {
             }
         }
 
-        // System-wide passes (not route specific)
-        const systemPasses = [
+        // Create route-based fares
+        await Fare.bulkCreate(routeFares, {
+            updateOnDuplicate: ['basePrice', 'isActive', 'updatedAt']
+        });
+
+        // System-wide transit passes (separate model)
+        const transitPasses = [
             {
-                fareId: uuidv4(),
-                routeId: null,
-                ticketType: 'day_pass',
-                longTermPrice: 50000,
-                currency: 'VND',
-                isActive: true
+                transitPassId: uuidv4(),
+                transitPassType: 'day_pass',
+                price: 50000,
+                currency: 'VND'
             },
             {
-                fareId: uuidv4(),
-                routeId: null,
-                ticketType: 'weekly_pass',
-                longTermPrice: 200000,
-                currency: 'VND',
-                isActive: true
+                transitPassId: uuidv4(),
+                transitPassType: 'weekly_pass',
+                price: 200000,
+                currency: 'VND'
             },
             {
-                fareId: uuidv4(),
-                routeId: null,
-                ticketType: 'monthly_pass',
-                longTermPrice: 750000,
-                currency: 'VND',
-                isActive: true
+                transitPassId: uuidv4(),
+                transitPassType: 'monthly_pass',
+                price: 750000,
+                currency: 'VND'
             },
             {
-                fareId: uuidv4(),
-                routeId: null,
-                ticketType: 'yearly_pass',
-                longTermPrice: 8000000,
-                currency: 'VND',
-                isActive: true
+                transitPassId: uuidv4(),
+                transitPassType: 'yearly_pass',
+                price: 8000000,
+                currency: 'VND'
             }
         ];
 
-        // Combine route fares and system passes
-        const allFares = [...routeFares, ...systemPasses];
-
-        // Bulk create fares
-        await Fare.bulkCreate(allFares, {
-            updateOnDuplicate: ['basePrice', 'longTermPrice', 'isActive', 'updatedAt']
+        // Create transit passes
+        await TransitPass.bulkCreate(transitPasses, {
+            updateOnDuplicate: ['price', 'updatedAt']
         });
 
-        logger.info(`✅ Seeded ${routeFares.length} route fares and ${systemPasses.length} system passes`);
+        logger.info(`✅ Seeded ${routeFares.length} route fares and ${transitPasses.length} system passes`);
     } catch (error) {
         logger.error('❌ Error seeding fares:', error);
         throw error;

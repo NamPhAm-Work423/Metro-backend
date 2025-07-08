@@ -41,9 +41,6 @@ const Fare = sequelize.define('Fare', {
     indexes: [
         {
             fields: ['routeId']
-        },
-        {
-            fields: ['ticketType']
         }
     ]
 });
