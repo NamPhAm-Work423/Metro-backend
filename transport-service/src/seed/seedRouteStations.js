@@ -141,40 +141,34 @@ const seedRouteStations = async () => {
   try {
     console.log('🔗 Bắt đầu seed dữ liệu liên kết ga-tuyến Metro TPHCM...');
     
-    // Lấy tất cả routes và stations
-    const routes = await Route.findAll();
+    // Lấy tất cả stations và routes để mapping
     const stations = await Station.findAll();
-    
-    // Tạo maps để tra cứu nhanh
-    const routeMap = {};
-    routes.forEach(route => {
-      routeMap[route.name] = route.routeId;
-    });
+    const routes = await Route.findAll();
     
     const stationMap = {};
     stations.forEach(station => {
       stationMap[station.name] = station.stationId;
     });
     
-    // Xóa dữ liệu cũ
-    await RouteStation.destroy({ where: {} });
+    const routeMap = {};
+    routes.forEach(route => {
+      routeMap[route.name] = route.routeId;
+    });
     
+    // Chuẩn bị dữ liệu routeStations
     const routeStationsToCreate = [];
     
-    // Tạo dữ liệu RouteStation cho từng tuyến
-    for (const [routeName, stationNames] of Object.entries(routeStationsData)) {
+    Object.entries(routeStationsData).forEach(([routeName, stationNames]) => {
       const routeId = routeMap[routeName];
-      
       if (!routeId) {
         console.warn(`⚠️  Không tìm thấy tuyến: ${routeName}`);
-        continue;
+        return;
       }
       
       stationNames.forEach((stationName, index) => {
         const stationId = stationMap[stationName];
-        
         if (!stationId) {
-          console.warn(`⚠️  Không tìm thấy ga: ${stationName} cho tuyến ${routeName}`);
+          console.warn(`⚠️  Không tìm thấy ga: ${stationName}`);
           return;
         }
         
@@ -184,31 +178,16 @@ const seedRouteStations = async () => {
           sequence: index + 1
         });
       });
-    }
+    });
     
-    // Bulk create route stations
+    // Tạo routeStations
     const routeStations = await RouteStation.bulkCreate(routeStationsToCreate);
     
-    const affectedRouteIds = [...new Set(routeStations.map(rs => rs.routeId))];
-    for (const routeId of affectedRouteIds) {
-      const count = await RouteStation.count({ where: { routeId } });
-      await Route.update({ numberOfStations: count }, { where: { routeId }, hooks: false });
-    }
-    
-    console.log(`✅ Đã tạo thành công ${routeStations.length} liên kết ga-tuyến`);
-    console.log('🗺️  Chi tiết các tuyến và ga:');
-    
-    // Hiển thị kết quả theo từng tuyến
-    for (const [routeName, stationNames] of Object.entries(routeStationsData)) {
-      console.log(`\n📍 ${routeName}:`);
-      stationNames.forEach((stationName, index) => {
-        console.log(`   ${index + 1}. ${stationName}`);
-      });
-    }
+    console.log(`✅ Đã tạo thành công ${routeStations.length} liên kết ga-tuyến Metro TPHCM`);
     
     return routeStations;
   } catch (error) {
-    console.error('❌ Lỗi khi seed dữ liệu liên kết ga-tuyến:', error);
+    console.error('❌ Lỗi khi seed dữ liệu liên kết ga-tuyến Metro:', error);
     throw error;
   }
 };

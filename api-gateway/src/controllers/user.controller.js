@@ -77,7 +77,8 @@ const userController = {
       res.cookie('accessToken', tokens.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+          // Use Lax during development so cookies are sent on cross-site requests from localhost:5173 → localhost:3000
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
           maxAge: 60 * 60 * 1000,
           path: '/'
       });
@@ -86,7 +87,7 @@ const userController = {
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/'
       });

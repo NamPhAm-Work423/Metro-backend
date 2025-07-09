@@ -14,13 +14,15 @@ app.use(express.urlencoded({ extended: true }));
 const validateNetworkSource = (req, res, next) => {
     const allowedHosts = [
         'api-gateway',        // Docker service name
-        '172.', '10.', '192.168.', // Private network ranges
-        'localhost', '127.0.0.1'   // Local development
+        'localhost',          // Local development
+        '127.0.0.1',         // Local development
+        '172.', '10.', '192.168.'  // Private network ranges for Docker
     ];
     
     const sourceIP = req.ip || req.connection.remoteAddress;
     const forwardedFor = req.headers['x-forwarded-for'];
     const host = req.headers.host;
+    const origin = req.headers.origin;
     
     // Check if request is from API Gateway or allowed network
     const isFromAllowedSource = allowedHosts.some(allowedHost => {
@@ -32,11 +34,23 @@ const validateNetworkSource = (req, res, next) => {
     // Check for service-to-service authentication header
     const hasServiceAuth = req.headers['x-service-auth'];
     
+    // Log request details for debugging
+    logger.debug('Network validation check', {
+        sourceIP,
+        forwardedFor,
+        host,
+        origin,
+        isFromAllowedSource,
+        hasServiceAuth,
+        userAgent: req.headers['user-agent']
+    });
+    
     if (!isFromAllowedSource && !hasServiceAuth) {
         logger.warn('🚫 Direct external access blocked', {
             sourceIP,
             forwardedFor,
             host,
+            origin,
             userAgent: req.headers['user-agent'],
             url: req.url
         });
@@ -54,19 +68,29 @@ const validateNetworkSource = (req, res, next) => {
 // CORS configuration
 const corsOptions = {
     origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
         const allowedOrigins = [
             'http://localhost:3000',    // API Gateway
             'http://api-gateway:3000',  // Docker service
             undefined                   // For same-origin requests
         ];
         
-        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
+            // Log blocked origins for debugging
+            logger.warn('CORS blocked origin', { origin });
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Service-Auth', 'X-API-Key'],
+    exposedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Apply network validation before CORS
@@ -81,8 +105,12 @@ app.use((req, res, next) => {
         method: req.method,
         url: req.url,
         ip: req.ip,
+        origin: req.headers.origin,
+        host: req.headers.host,
+        forwardedFor: req.headers['x-forwarded-for'],
         userAgent: req.headers['user-agent'],
-        hasServiceAuth: !!req.headers['x-service-auth']
+        hasServiceAuth: !!req.headers['x-service-auth'],
+        serviceAuthHeader: req.headers['x-service-auth'] ? 'present' : 'missing'
     });
     next();
 });
