@@ -32,7 +32,7 @@ function initializeAssociations() {
     models.RouteStation.belongsTo(models.Station, { foreignKey: 'stationId' });
 
     // 5. Trip depends on Route and Train
-    models.Route.hasMany(models.Trip, { foreignKey: 'routeId' });
+    models.Route.hasMany(models.Trip, { foreignKey: 'routeId', as: 'trips' });
     models.Trip.belongsTo(models.Route, { foreignKey: 'routeId' });
     models.Train.hasMany(models.Trip, { foreignKey: 'trainId' });
     models.Trip.belongsTo(models.Train, { foreignKey: 'trainId' });

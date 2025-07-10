@@ -1,6 +1,6 @@
 const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
-const CustomError = require('../utils/CustomError');
+const CustomError = require('../utils/customError');
 const keyService = require('../services/key.service');
 const { logger } = require('../config/logger');
 

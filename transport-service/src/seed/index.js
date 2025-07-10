@@ -19,6 +19,18 @@ const runAllSeeds = async () => {
     console.log('🌟 KHỞI TẠO DỮ LIỆU HỆ THỐNG METRO TPHCM');
     console.log('='.repeat(60));
 
+    // Clear existing data in correct order (child tables first)
+    console.log('\n🗑️  BƯỚC 0: XÓA DỮ LIỆU CŨ');
+    console.log('-'.repeat(40));
+    const { Route, RouteStation, Train, Station } = require('../models/index.model');
+    
+    // Delete in reverse dependency order
+    await RouteStation.destroy({ where: {} });
+    await Route.destroy({ where: {} });
+    await Train.destroy({ where: {} });
+    await Station.destroy({ where: {} });
+    console.log('✅ Đã xóa dữ liệu cũ');
+
     // Bước 1: Tạo các ga Metro
     console.log('\n📍 BƯỚC 1: TẠO CÁC GA METRO');
     console.log('-'.repeat(40));

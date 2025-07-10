@@ -1,6 +1,6 @@
 const httpProxy = require('express-http-proxy');
 const CircuitBreaker = require('opossum');
-const CustomError = require('../utils/CustomError');
+const CustomError = require('../utils/customError');
 const Service = require('../models/service.model');
 const ServiceInstance = require('../models/serviceInstance.model');
 const { logger } = require('../config/logger');
@@ -131,10 +131,17 @@ class RoutingService {
                     console.log(`Proxying: ${originalPath} -> ${newPath}`);
                     return newPath;
                 },
+                onProxyReq: function(proxyReq, req, res) {
+                    // onProxyReq is handled, detailed logging in proxyReqPathResolver
+                }.bind(this),
                 proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
                     proxyReqOpts.headers['x-forwarded-for'] = srcReq.ip;
                     proxyReqOpts.headers['x-forwarded-proto'] = srcReq.protocol;
                     proxyReqOpts.headers['x-forwarded-host'] = srcReq.get('host');
+                    
+                    // Override origin header: Backend services should only accept requests from API Gateway
+                    // This prevents frontend origin (localhost:5173) from being forwarded to backend services
+                    proxyReqOpts.headers['origin'] = process.env.API_GATEWAY_ORIGIN || 'http://localhost:3000';
                     
                     // SECURITY: Generate secure service-to-service JWT
                     if (srcReq.user) {
@@ -154,7 +161,22 @@ class RoutingService {
                     }
                     
                     return proxyReqOpts;
-                }.bind(this)
+                }.bind(this),
+                userResHeaderDecorator: function(headers, proxyRes, userReq, userRes) {
+                    // Remove CORS headers that the inner service might have set
+                    delete headers['access-control-allow-origin'];
+                    delete headers['access-control-allow-credentials'];
+ 
+                    if (userReq && userReq.headers && userReq.headers.origin) {
+                        headers['access-control-allow-origin'] = userReq.headers.origin;
+                        headers['access-control-allow-credentials'] = 'true';
+                    } else {
+                        // Fallback: Set CORS for localhost:5173 if no origin available
+                        headers['access-control-allow-origin'] = 'http://localhost:5173';
+                        headers['access-control-allow-credentials'] = 'true';
+                    }
+                    return headers;
+                }
             });
 
             res.on('finish', () => {

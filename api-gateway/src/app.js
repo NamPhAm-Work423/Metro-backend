@@ -12,10 +12,14 @@ dotenv.config();
 
 // CORS options
 const corsOptions = {
-    origin: [process.env.UV_DESK_CLIENT, process.env.UI_CLIENT],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key'],
+    origin: [
+        process.env.UV_DESK_CLIENT, 
+        process.env.UI_CLIENT,
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key', 'X-Service-Auth'],
     credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
 app.use(cors(corsOptions));

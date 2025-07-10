@@ -14,7 +14,11 @@ const config = require('../config')();
  */
 
 // Authentication routes - mounted at /v1/auth
-router.use('/v1/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
+if (process.env.NEED_API_KEY === 'true') {
+    router.use('/v1/auth', authMiddleware.validateAPIKeyMiddleware, authRoutes);
+} else {
+    router.use('/v1/auth', authRoutes);
+}
 
 // Service management routes - mounted at /v1/service
 router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);

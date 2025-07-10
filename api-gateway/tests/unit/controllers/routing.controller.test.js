@@ -19,7 +19,7 @@ jest.mock('../../../src/config/logger', () => ({
 }));
 
 // Mock CustomError to mimic real class behavior
-jest.mock('../../../src/utils/CustomError', () => {
+jest.mock('../../../src/utils/customError', () => {
   const MockCustomError = function(message, statusCode) {
     Error.captureStackTrace(this, this.constructor);
     this.name = this.constructor.name;
@@ -93,7 +93,7 @@ describe('Routing Controller', () => {
 
     it('should handle CustomError from routing service', async () => {
       req.params = { endPoint: 'invalid', 0: undefined };
-      const CustomError = require('../../../src/utils/CustomError');
+      const CustomError = require('../../../src/utils/customError');
       const customError = new CustomError('Service not found', 404);
       routingService.routeRequest.mockRejectedValue(customError);
 

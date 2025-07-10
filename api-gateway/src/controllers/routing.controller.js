@@ -1,5 +1,5 @@
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
-const CustomError = require('../utils/CustomError');
+const CustomError = require('../utils/customError');
 const routingService = require('../services/routing.service');
 const { logger } = require('../config/logger');
 

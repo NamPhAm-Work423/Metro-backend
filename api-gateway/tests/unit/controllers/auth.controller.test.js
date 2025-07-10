@@ -19,7 +19,7 @@ jest.mock('../../../src/config/logger', () => ({
 }));
 
 // Mock CustomError
-jest.mock('../../../src/utils/CustomError', () => {
+jest.mock('../../../src/utils/customError', () => {
   return jest.fn().mockImplementation((message, statusCode) => {
     const error = new Error(message);
     error.statusCode = statusCode;
