@@ -58,6 +58,52 @@ Fare.prototype.isCurrentlyValid = function() {
            this.isActive;
 };
 
+/**
+ * Calculate price based on station count
+ * 1-5 Station: basePrice
+ * 6-10 Station: basePrice*1.2
+ * 11-15 Station: basePrice*1.4
+ * 16-20 Station: basePrice*1.6
+ * 21-25 Station: basePrice*1.8
+ * >25 Station: basePrice*2
+ */
+Fare.prototype.calculateStationBasedPrice = function(stationCount) {
+    const basePrice = parseFloat(this.basePrice);
+    
+    if (stationCount <= 5) {
+        return basePrice;
+    } else if (stationCount <= 10) {
+        return basePrice * 1.2;
+    } else if (stationCount <= 15) {
+        return basePrice * 1.4;
+    } else if (stationCount <= 20) {
+        return basePrice * 1.6;
+    } else if (stationCount <= 25) {
+        return basePrice * 1.8;
+    } else {
+        return basePrice * 2;
+    }
+};
 
+/**
+ * Calculate price for trip including return multiplier
+ * Return ticket: Oneway*1.5
+ */
+Fare.prototype.calculatePriceForTrip = function(stationCount, tripType = 'Oneway') {
+    let price = this.calculateStationBasedPrice(stationCount);
+    
+    if (tripType === 'Return') {
+        price = price * 1.5;
+    }
+    
+    return price;
+};
+
+/**
+ * Calculate basic price (for compatibility with existing code)
+ */
+Fare.prototype.calculatePrice = function() {
+    return parseFloat(this.basePrice);
+};
 
 module.exports = Fare;

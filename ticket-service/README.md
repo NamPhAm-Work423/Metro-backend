@@ -17,6 +17,69 @@ The Ticket Service manages:
 - ✅ **Event-Driven**: Kafka integration for real-time updates
 - ✅ **gRPC Integration**: Efficient communication with transport service
 
+## Newly Implemented Features
+
+### Short-Term Tickets (One-way & Return)
+
+Short-term tickets are calculated based on station count and route fare using the following pricing structure:
+- **1-5 stations**: Base price
+- **6-10 stations**: Base price × 1.2
+- **11-15 stations**: Base price × 1.4
+- **16-20 stations**: Base price × 1.6
+- **21-25 stations**: Base price × 1.8
+- **>25 stations**: Base price × 2
+- **Return tickets**: One-way price × 1.5
+
+**Important**: When changing routes, the station count resets and is calculated from the beginning of the new route.
+
+#### Usage Example:
+```javascript
+const ticketData = {
+    routeId: "route-123",
+    passengerId: "passenger-456", 
+    passengerInfo: {
+        dateOfBirth: "1990-01-01" // Used to determine passenger type
+    },
+    originStationId: "station-a",
+    destinationStationId: "station-b", 
+    tripType: "Oneway", // or "Return"
+    promotionId: "promo-789", // optional
+    paymentMethod: "card"
+};
+
+const ticket = await ticketService.createShortTermTicket(ticketData);
+```
+
+### Long-Term Tickets (Passes)
+
+Long-term tickets use preset pricing from the `TransitPass` model and include:
+- **day_pass**: 1 day validity
+- **weekly_pass**: 7 days validity
+- **monthly_pass**: 30 days validity  
+- **yearly_pass**: 365 days validity
+- **lifetime_pass**: 100 years validity (effectively lifetime)
+
+Passenger type discounts are automatically applied:
+- **Child** (< 12 years): 50% discount
+- **Teen** (12-17 years): 30% discount  
+- **Senior** (> 60 years): 20% discount
+- **Adult** (18-60 years): Full price
+
+#### Usage Example:
+```javascript
+const longTermTicketData = {
+    passengerId: "passenger-456",
+    passengerInfo: {
+        dateOfBirth: "1990-01-01" // Used to determine discounts
+    },
+    passType: "monthly_pass", // day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass
+    promotionId: "promo-789", // optional
+    paymentMethod: "card"
+};
+
+const pass = await ticketService.createLongTermTicket(longTermTicketData);
+```
+
 ## Features
 
 ### Ticket Management
@@ -50,6 +113,33 @@ The Ticket Service manages:
 - `PUT /:id/validate` - Validate ticket for use
 - `GET /passenger/:passengerId` - Get passenger tickets
 - `DELETE /:id` - Cancel/refund ticket
+
+### POST `/v1/tickets/create-short-term`
+Creates a short-term ticket (one-way or return) with station-based pricing.
+
+**Request Body:**
+```json
+{
+    "routeId": "uuid",
+    "originStationId": "uuid", 
+    "destinationStationId": "uuid",
+    "tripType": "Oneway|Return",
+    "promotionId": "uuid", // optional
+    "paymentMethod": "card|cash|mobile_payment|metro_card"
+}
+```
+
+### POST `/v1/tickets/create-long-term`  
+Creates a long-term pass ticket with preset pricing.
+
+**Request Body:**
+```json
+{
+    "passType": "day_pass|weekly_pass|monthly_pass|yearly_pass|lifetime_pass",
+    "promotionId": "uuid", // optional
+    "paymentMethod": "card|cash|mobile_payment|metro_card"
+}
+```
 
 ### Fare Routes (`/v1/fares`)
 - `GET /` - Get all fare rules

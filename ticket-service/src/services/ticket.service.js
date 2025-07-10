@@ -151,12 +151,289 @@ class TicketService {
         }
     }
 
-    async createLongTermTicket(ticketData) {
+    /**
+     * Create a short-term ticket (oneway or return) based on station count and fare calculation
+     * @param {Object} ticketData - The ticket data
+     * @param {string} ticketData.routeId - The route ID
+     * @param {string} ticketData.passengerId - The passenger ID  
+     * @param {Object} ticketData.passengerInfo - The passenger info (including dateOfBirth)
+     * @param {string} ticketData.originStationId - The origin station ID
+     * @param {string} ticketData.destinationStationId - The destination station ID
+     * @param {string} ticketData.tripType - "Oneway" or "Return"
+     * @param {string} ticketData.promotionId - The promotion ID (optional)
+     * @param {string} ticketData.tripId - The specific trip ID (optional)
+     * @param {string} ticketData.paymentMethod - Payment method
+     * @param {string} ticketData.paymentId - Payment ID (optional)
+     * @returns {Promise<Object>} The created ticket
+     */
+    async createShortTermTicket(ticketData) {
         try {
             // Validate required fields
             if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
                 throw new Error('Route ID, origin station ID, and destination station ID are required');
             }
+
+            if (!ticketData.tripType || !['Oneway', 'Return'].includes(ticketData.tripType)) {
+                throw new Error('Trip type must be either "Oneway" or "Return"');
+            }
+
+            // Determine passenger type based on age
+            let passengerType = 'adult';
+            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
+                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
+                age = age.getUTCFullYear() - 1970;
+                
+                if (age < 12) {
+                    passengerType = 'child';
+                } else if (age < 18) {
+                    passengerType = 'teen';
+                } else if (age > 60) {
+                    passengerType = 'senior';
+                } else {
+                    passengerType = 'adult';
+                }
+            }
+
+            // Calculate fare based on station count and trip type
+            const fareCalculation = await this.fareService.calculateStationBasedFare(
+                ticketData.routeId,
+                ticketData.originStationId,
+                ticketData.destinationStationId,
+                passengerType,
+                ticketData.tripType
+            );
+
+            // Get fare record for association
+            const fare = await Fare.findOne({
+                where: {
+                    routeId: ticketData.routeId,
+                    isActive: true
+                }
+            });
+
+            if (!fare) {
+                throw new Error(`No active fare found for route ${ticketData.routeId}`);
+            }
+
+            // Use calculated fare
+            let originalPrice = fareCalculation.basePrice;
+            let discountAmount = 0;
+            let finalPrice = originalPrice;
+
+            // Apply promotion if provided
+            if (ticketData.promotionId) {
+                const promotion = await Promotion.findByPk(ticketData.promotionId);
+                if (promotion && promotion.isCurrentlyValid()) {
+                    // Validate promotion applicability for short-term tickets
+                    if (promotion.applicableTicketTypes.length === 0 || 
+                        promotion.applicableTicketTypes.includes(ticketData.tripType.toLowerCase())) {
+                        discountAmount = promotion.calculateDiscount(originalPrice);
+                        finalPrice = originalPrice - discountAmount;
+                        
+                        // Increment promotion usage
+                        await promotion.incrementUsage();
+                    } else {
+                        logger.warn('Promotion not applicable to ticket type', {
+                            promotionId: ticketData.promotionId,
+                            ticketType: ticketData.tripType
+                        });
+                        ticketData.promotionId = null;
+                    }
+                } else {
+                    logger.warn('Invalid promotion provided', { promotionId: ticketData.promotionId });
+                    ticketData.promotionId = null;
+                }
+            }
+
+            // Calculate validity period for short-term tickets (30 days validity)
+            const validFrom = new Date();
+            const validUntil = new Date(validFrom);
+            validUntil.setDate(validUntil.getDate() + 30);
+
+            // Create ticket
+            const ticket = await Ticket.create({
+                passengerId: ticketData.passengerId,
+                tripId: ticketData.tripId || null,
+                fareId: fare.fareId, // Link to fare for short-term tickets
+                promotionId: ticketData.promotionId || null,
+                originStationId: ticketData.originStationId,
+                destinationStationId: ticketData.destinationStationId,
+                originalPrice: originalPrice,
+                discountAmount: discountAmount,
+                finalPrice: finalPrice,
+                totalPrice: finalPrice,
+                validFrom: validFrom,
+                validUntil: validUntil,
+                ticketType: ticketData.tripType.toLowerCase(),
+                status: 'active',
+                stationCount: fareCalculation.stationCount,
+                fareBreakdown: fareCalculation.priceBreakdown,
+                paymentMethod: ticketData.paymentMethod || 'card',
+                paymentId: ticketData.paymentId || null
+            });
+
+            logger.info('Short-term ticket created successfully', { 
+                ticketId: ticket.ticketId, 
+                passengerId: ticket.passengerId, 
+                tripType: ticketData.tripType,
+                stationCount: fareCalculation.stationCount,
+                totalPrice: finalPrice,
+                passengerType: passengerType,
+                originStationId: ticketData.originStationId,
+                destinationStationId: ticketData.destinationStationId
+            });
+
+            return ticket;
+        } catch (error) {
+            logger.error('Error creating short-term ticket', { error: error.message, ticketData });
+            throw error;
+        }
+    }
+
+    /**
+     * Create a long-term ticket (pass-based) using TransitPass model pricing
+     * @param {Object} ticketData - The ticket data
+     * @param {string} ticketData.routeId - The route ID (optional for passes that work on all routes)
+     * @param {string} ticketData.passengerId - The passenger ID
+     * @param {Object} ticketData.passengerInfo - The passenger info (including dateOfBirth)
+     * @param {string} ticketData.passType - Pass type (day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass)
+     * @param {string} ticketData.promotionId - The promotion ID (optional)
+     * @param {string} ticketData.paymentMethod - Payment method
+     * @param {string} ticketData.paymentId - Payment ID (optional)
+     * @returns {Promise<Object>} The created ticket
+     */
+    async createLongTermTicket(ticketData) {
+        try {
+            // Validate required fields
+            if (!ticketData.passType) {
+                throw new Error('Pass type is required for long-term tickets');
+            }
+
+            const validPassTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
+            if (!validPassTypes.includes(ticketData.passType)) {
+                throw new Error(`Invalid pass type. Must be one of: ${validPassTypes.join(', ')}`);
+            }
+
+            // Get transit pass pricing from TransitPass model
+            const { TransitPass } = require('../models/index.model');
+            const transitPass = await TransitPass.findOne({
+                where: {
+                    transitPassType: ticketData.passType,
+                    isActive: true
+                }
+            });
+
+            if (!transitPass) {
+                throw new Error(`No active pricing found for pass type: ${ticketData.passType}`);
+            }
+
+            // Determine passenger type based on age
+            let passengerType = 'adult';
+            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
+                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
+                age = age.getUTCFullYear() - 1970;
+                
+                if (age < 12) {
+                    passengerType = 'child';
+                } else if (age < 18) {
+                    passengerType = 'teen';
+                } else if (age > 60) {
+                    passengerType = 'senior';
+                } else {
+                    passengerType = 'adult';
+                }
+            }
+
+            // Apply passenger type discount if applicable
+            let originalPrice = parseFloat(transitPass.price);
+            
+            // Apply passenger type discounts
+            switch(passengerType) {
+                case 'child':
+                    originalPrice = originalPrice * 0.5; // 50% discount for children
+                    break;
+                case 'teen':
+                    originalPrice = originalPrice * 0.7; // 30% discount for teenagers
+                    break;
+                case 'senior':
+                    originalPrice = originalPrice * 0.8; // 20% discount for seniors
+                    break;
+                default:
+                    // Adult price remains as is
+                    break;
+            }
+
+            let discountAmount = 0;
+            let finalPrice = originalPrice;
+
+            // Apply promotion if provided
+            if (ticketData.promotionId) {
+                const promotion = await Promotion.findByPk(ticketData.promotionId);
+                if (promotion && promotion.isCurrentlyValid()) {
+                    // Validate promotion applicability for long-term tickets
+                    if (promotion.applicableTicketTypes.length === 0 || 
+                        promotion.applicableTicketTypes.includes(ticketData.passType)) {
+                        discountAmount = promotion.calculateDiscount(originalPrice);
+                        finalPrice = originalPrice - discountAmount;
+                        
+                        // Increment promotion usage
+                        await promotion.incrementUsage();
+                    } else {
+                        logger.warn('Promotion not applicable to pass type', {
+                            promotionId: ticketData.promotionId,
+                            passType: ticketData.passType
+                        });
+                        ticketData.promotionId = null;
+                    }
+                } else {
+                    logger.warn('Invalid promotion provided', { promotionId: ticketData.promotionId });
+                    ticketData.promotionId = null;
+                }
+            }
+
+            // Calculate validity period based on pass type
+            const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.passType);
+
+            // Create ticket for long-term pass
+            const ticket = await Ticket.create({
+                passengerId: ticketData.passengerId,
+                tripId: null, // Passes are not tied to specific trips
+                fareId: null, // Long-term tickets don't use fare model
+                promotionId: ticketData.promotionId || null,
+                originStationId: null, // Passes work between any stations
+                destinationStationId: null, // Passes work between any stations
+                originalPrice: originalPrice,
+                discountAmount: discountAmount,
+                finalPrice: finalPrice,
+                totalPrice: finalPrice,
+                validFrom: validFrom,
+                validUntil: validUntil,
+                ticketType: ticketData.passType,
+                status: 'active',
+                stationCount: null, // Not applicable for passes
+                fareBreakdown: {
+                    passType: ticketData.passType,
+                    originalPassPrice: parseFloat(transitPass.price),
+                    passengerType: passengerType,
+                    passengerDiscount: originalPrice !== parseFloat(transitPass.price) ? parseFloat(transitPass.price) - originalPrice : 0,
+                    finalPrice: finalPrice,
+                    currency: transitPass.currency
+                },
+                paymentMethod: ticketData.paymentMethod || 'card',
+                paymentId: ticketData.paymentId || null
+            });
+
+            logger.info('Long-term ticket created successfully', { 
+                ticketId: ticket.ticketId, 
+                passengerId: ticket.passengerId, 
+                passType: ticketData.passType,
+                totalPrice: finalPrice,
+                passengerType: passengerType,
+                validFrom: validFrom,
+                validUntil: validUntil
+            });
+
+            return ticket;
         } catch (error) {
             logger.error('Error creating long-term ticket', { error: error.message, ticketData });
             throw error;
