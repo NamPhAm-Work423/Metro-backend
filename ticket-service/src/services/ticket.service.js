@@ -1,4 +1,4 @@
-const { Ticket, Fare, Promotion } = require('../models/index.model');
+const { Ticket, Fare, Promotion, TransitPass } = require('../models/index.model');
 const { Op } = require('sequelize');
 const { logger } = require('../config/logger');
 const FareService = require('./fare.service');
@@ -9,157 +9,18 @@ class TicketService {
     }
 
     /**
-     * Create a per-trip ticket with station-based fare calculation
-     * @param {Object} ticketData - The ticket data
-     * @description - Create a single-use ticket for one trip based on station count
-     * @param {Object} ticketData.routeId - The route ID
-     * @param {Object} ticketData.passengerId - The passenger ID
-     * @param {Object} ticketData.passengerInfo - The passenger info (including dateOfBirth)
-     * @param {Object} ticketData.promotionId - The promotion ID (optional)
-     * @param {Object} ticketData.originStationId - The origin station ID
-     * @param {Object} ticketData.destinationStationId - The destination station ID
-     * @param {Object} ticketData.tripId - The specific trip ID (optional)
-     * @returns {Promise<Object>} The created ticket
-     */
-    /**
-    TicketBookingData {
-        tripType: "Oneway" | "Return";
-        showPassengerModal: boolean;
-        numAdults: number;
-        numElder: number;
-        numTeenager: number;
-        numChild: number;
-        fromStation: string;
-        toStation: string;
-        }
-    */
-    async createTicket(ticketData) {
-        try {
-            // Validate required fields
-            if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
-                throw new Error('Route ID, origin station ID, and destination station ID are required');
-            }
-
-            // Determine if this is a pass-based ticket
-            const isPassTicket = ticketData.ticketType?.toLowerCase().includes('pass');
-
-            // Determine passenger type based on age
-            let passengerType = 'adult';
-            
-            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
-                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
-                age = age.getUTCFullYear() - 1970;
-                
-                if (age < 12) {
-                    passengerType = 'child';
-                } else if (age < 18) {
-                    passengerType = 'teen';
-                } else if (age > 60) {
-                    passengerType = 'senior';
-                } else {
-                    passengerType = 'adult';
-                }
-            }
-
-            // Calculate fare based on ticket type
-            let fareCalculation;
-            if (isPassTicket) {
-                fareCalculation = await this.fareService.calculatePassBasedFare(
-                    ticketData.routeId,
-                    ticketData.ticketType,
-                    passengerType
-                );
-            } else {
-                fareCalculation = await this.fareService.calculateStationBasedFare(
-                    ticketData.routeId,
-                    ticketData.originStationId,
-                    ticketData.destinationStationId,
-                    passengerType,
-                    ticketData.tripType || 'Oneway'
-                );
-            }
-
-            // Use calculated fare
-            let originalPrice = fareCalculation.basePrice;
-            let discountAmount = 0;
-            let totalPrice = originalPrice;
-
-            // Apply promotion if provided
-            if (ticketData.promotionId) {
-                const promotion = await Promotion.findByPk(ticketData.promotionId);
-                if (promotion && promotion.isCurrentlyValid()) {
-                    // Validate promotion applicability
-                    if (promotion.applicableTicketTypes.length === 0 || 
-                        promotion.applicableTicketTypes.includes(ticketData.ticketType)) {
-                        discountAmount = promotion.calculateDiscount(originalPrice);
-                        totalPrice = originalPrice - discountAmount;
-                        
-                        // Increment promotion usage
-                        await promotion.incrementUsage();
-                    } else {
-                        logger.warn('Promotion not applicable to ticket type', {
-                            promotionId: ticketData.promotionId,
-                            ticketType: ticketData.ticketType
-                        });
-                        ticketData.promotionId = null;
-                    }
-                } else {
-                    logger.warn('Invalid promotion provided', { promotionId: ticketData.promotionId });
-                    ticketData.promotionId = null;
-                }
-            }
-
-            // Calculate validity period
-            const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.ticketType);
-
-            // Create ticket with calculated pricing
-            const ticket = await Ticket.create({
-                passengerId: ticketData.passengerId,
-                tripId: ticketData.tripId || null,
-                promotionId: ticketData.promotionId || null,
-                originStationId: ticketData.originStationId,
-                destinationStationId: ticketData.destinationStationId,
-                originalPrice: originalPrice,
-                discountAmount: discountAmount,
-                finalPrice: totalPrice,
-                totalPrice: totalPrice,
-                validFrom: validFrom,
-                validUntil: validUntil,
-                numberOfUses: isPassTicket ? 'many' : 
-                            ticketData.tripType === 'Return' ? 'return' : 'single',
-                ticketType: ticketData.ticketType.toLowerCase(),
-                status: 'active',
-                stationCount: fareCalculation.stationCount,
-                fareBreakdown: fareCalculation.priceBreakdown,
-                paymentMethod: ticketData.paymentMethod || 'card',
-                paymentId: ticketData.paymentId || null
-            });
-
-            logger.info('Ticket created successfully', { 
-                ticketId: ticket.ticketId, 
-                passengerId: ticket.passengerId, 
-                ticketType: ticket.ticketType,
-                totalPrice: totalPrice,
-                passengerType: passengerType,
-                originStationId: ticketData.originStationId,
-                destinationStationId: ticketData.destinationStationId
-            });
-            return ticket;
-        } catch (error) {
-            logger.error('Error creating ticket', { error: error.message, ticketData });
-            throw error;
-        }
-    }
-
-    /**
      * Create a short-term ticket (oneway or return) based on station count and fare calculation
      * @param {Object} ticketData - The ticket data
      * @param {string} ticketData.routeId - The route ID
      * @param {string} ticketData.passengerId - The passenger ID  
      * @param {Object} ticketData.passengerInfo - The passenger info (including dateOfBirth)
-     * @param {string} ticketData.originStationId - The origin station ID
-     * @param {string} ticketData.destinationStationId - The destination station ID
+     * @param {string} ticketData.fromStation - The origin station ID
+     * @param {string} ticketData.toStation - The destination station ID
      * @param {string} ticketData.tripType - "Oneway" or "Return"
+     * @param {number} ticketData.numAdults - Number of adult passengers
+     * @param {number} ticketData.numElder - Number of elderly passengers
+     * @param {number} ticketData.numTeenager - Number of teenager passengers
+     * @param {number} ticketData.numChild - Number of child passengers
      * @param {string} ticketData.promotionId - The promotion ID (optional)
      * @param {string} ticketData.tripId - The specific trip ID (optional)
      * @param {string} ticketData.paymentMethod - Payment method
@@ -169,53 +30,45 @@ class TicketService {
     async createShortTermTicket(ticketData) {
         try {
             // Validate required fields
-            if (!ticketData.routeId || !ticketData.originStationId || !ticketData.destinationStationId) {
-                throw new Error('Route ID, origin station ID, and destination station ID are required');
+            if (!ticketData.fromStation || !ticketData.toStation) {
+                throw new Error('Origin station (fromStation) and destination station (toStation) are required');
             }
 
             if (!ticketData.tripType || !['Oneway', 'Return'].includes(ticketData.tripType)) {
                 throw new Error('Trip type must be either "Oneway" or "Return"');
             }
 
-            // Determine passenger type based on age
-            let passengerType = 'adult';
-            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
-                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
-                age = age.getUTCFullYear() - 1970;
-                
-                if (age < 12) {
-                    passengerType = 'child';
-                } else if (age < 18) {
-                    passengerType = 'teen';
-                } else if (age > 60) {
-                    passengerType = 'senior';
-                } else {
-                    passengerType = 'adult';
-                }
+            // Validate passenger counts
+            const totalPassengers = (ticketData.numAdults || 0) + (ticketData.numElder || 0) + 
+                                  (ticketData.numTeenager || 0) + (ticketData.numChild || 0);
+            if (totalPassengers === 0) {
+                throw new Error('At least one passenger is required');
             }
 
-            // Calculate fare based on station count and trip type
+            // Calculate fare based on station count and passenger types
             const fareCalculation = await this.fareService.calculateStationBasedFare(
-                ticketData.routeId,
-                ticketData.originStationId,
-                ticketData.destinationStationId,
-                passengerType,
+                ticketData.fromStation,
+                ticketData.toStation,
+                ticketData.numAdults || 0,
+                ticketData.numElder || 0,
+                ticketData.numTeenager || 0,
+                ticketData.numChild || 0,
                 ticketData.tripType
             );
 
-            // Get fare record for association
+            // Get fare record for association (using the routeId from fare calculation)
             const fare = await Fare.findOne({
                 where: {
-                    routeId: ticketData.routeId,
+                    routeId: fareCalculation.routeId,
                     isActive: true
                 }
             });
 
             if (!fare) {
-                throw new Error(`No active fare found for route ${ticketData.routeId}`);
+                throw new Error(`No active fare found for route ${fareCalculation.routeId}`);
             }
 
-            // Use calculated fare
+            // Use calculated total fare
             let originalPrice = fareCalculation.basePrice;
             let discountAmount = 0;
             let finalPrice = originalPrice;
@@ -250,14 +103,46 @@ class TicketService {
             const validUntil = new Date(validFrom);
             validUntil.setDate(validUntil.getDate() + 30);
 
-            // Create ticket
+            // Generate QR code data for the new ticket
+            const qrData = {
+                passengerId: ticketData.passengerId,
+                originStationId: fareCalculation.originStationId,
+                destinationStationId: fareCalculation.destinationStationId,
+                validFrom: validFrom,
+                validUntil: validUntil,
+                status: 'active',
+                ticketType: ticketData.tripType.toLowerCase(),
+                totalPrice: finalPrice,
+                totalPassengers: fareCalculation.totalPassengers,
+                passengerBreakdown: fareCalculation.passengerBreakdown,
+                createdAt: new Date().toISOString()
+            };
+
+            // Generate QR code as base64
+            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+
+            // Validate paymentId - only include if it's a valid UUID or null
+            let paymentIdToUse = null;
+            if (ticketData.paymentId) {
+                // Simple UUID format check (8-4-4-4-12 characters)
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (uuidRegex.test(ticketData.paymentId)) {
+                    paymentIdToUse = ticketData.paymentId;
+                } else {
+                    logger.warn('Invalid paymentId format, setting to null for now', { 
+                        paymentId: ticketData.paymentId 
+                    });
+                }
+            }
+
+            // Create ticket with QR code
             const ticket = await Ticket.create({
                 passengerId: ticketData.passengerId,
                 tripId: ticketData.tripId || null,
-                fareId: fare.fareId, // Link to fare for short-term tickets
+                fareId: fare.fareId,
                 promotionId: ticketData.promotionId || null,
-                originStationId: ticketData.originStationId,
-                destinationStationId: ticketData.destinationStationId,
+                originStationId: fareCalculation.originStationId,
+                destinationStationId: fareCalculation.destinationStationId,
                 originalPrice: originalPrice,
                 discountAmount: discountAmount,
                 finalPrice: finalPrice,
@@ -267,9 +152,14 @@ class TicketService {
                 ticketType: ticketData.tripType.toLowerCase(),
                 status: 'active',
                 stationCount: fareCalculation.stationCount,
-                fareBreakdown: fareCalculation.priceBreakdown,
+                fareBreakdown: {
+                    ...fareCalculation.priceBreakdown,
+                    passengerBreakdown: fareCalculation.passengerBreakdown,
+                    totalPassengers: fareCalculation.totalPassengers
+                },
                 paymentMethod: ticketData.paymentMethod || 'card',
-                paymentId: ticketData.paymentId || null
+                paymentId: paymentIdToUse,
+                qrCode: qrCodeData
             });
 
             logger.info('Short-term ticket created successfully', { 
@@ -278,9 +168,10 @@ class TicketService {
                 tripType: ticketData.tripType,
                 stationCount: fareCalculation.stationCount,
                 totalPrice: finalPrice,
-                passengerType: passengerType,
-                originStationId: ticketData.originStationId,
-                destinationStationId: ticketData.destinationStationId
+                totalPassengers: fareCalculation.totalPassengers,
+                passengerBreakdown: fareCalculation.passengerBreakdown,
+                originStationId: fareCalculation.originStationId,
+                destinationStationId: fareCalculation.destinationStationId
             });
 
             return ticket;
@@ -309,13 +200,12 @@ class TicketService {
                 throw new Error('Pass type is required for long-term tickets');
             }
 
-            const validPassTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
-            if (!validPassTypes.includes(ticketData.passType)) {
+            const validPassTypes = TransitPass.transitPassType;
+            if (!validPassTypes.includes(ticketData.passType.toLowerCase())) {
                 throw new Error(`Invalid pass type. Must be one of: ${validPassTypes.join(', ')}`);
             }
 
             // Get transit pass pricing from TransitPass model
-            const { TransitPass } = require('../models/index.model');
             const transitPass = await TransitPass.findOne({
                 where: {
                     transitPassType: ticketData.passType,
@@ -347,7 +237,6 @@ class TicketService {
             // Apply passenger type discount if applicable
             let originalPrice = parseFloat(transitPass.price);
             
-            // Apply passenger type discounts
             switch(passengerType) {
                 case 'child':
                     originalPrice = originalPrice * 0.5; // 50% discount for children
@@ -356,7 +245,7 @@ class TicketService {
                     originalPrice = originalPrice * 0.7; // 30% discount for teenagers
                     break;
                 case 'senior':
-                    originalPrice = originalPrice * 0.8; // 20% discount for seniors
+                    originalPrice = 0; // 100% discount for seniors
                     break;
                 default:
                     // Adult price remains as is
@@ -394,7 +283,22 @@ class TicketService {
             // Calculate validity period based on pass type
             const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.passType);
 
-            // Create ticket for long-term pass
+            // Generate QR code data for the new pass ticket
+            const qrData = {
+                passengerId: ticketData.passengerId,
+                passType: ticketData.passType,
+                validFrom: validFrom,
+                validUntil: validUntil,
+                status: 'active',
+                ticketType: ticketData.passType,
+                totalPrice: finalPrice,
+                createdAt: new Date().toISOString()
+            };
+
+            // Generate QR code as base64
+            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+
+            // Create ticket for long-term pass with QR code
             const ticket = await Ticket.create({
                 passengerId: ticketData.passengerId,
                 tripId: null, // Passes are not tied to specific trips
@@ -420,7 +324,8 @@ class TicketService {
                     currency: transitPass.currency
                 },
                 paymentMethod: ticketData.paymentMethod || 'card',
-                paymentId: ticketData.paymentId || null
+                paymentId: ticketData.paymentId || null,
+                qrCode: qrCodeData
             });
 
             logger.info('Long-term ticket created successfully', { 
@@ -768,7 +673,7 @@ class TicketService {
                 status: ticket.status
             };
             
-            // In real implementation, you would send SMS here
+            
             logger.info('Ticket sent to phone', { 
                 ticketId, 
                 phoneNumber: phoneNumber.replace(/\d(?=\d{4})/g, '*'), 

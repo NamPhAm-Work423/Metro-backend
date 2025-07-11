@@ -19,7 +19,7 @@ class PassengerEventProducer {
                 }
             };
 
-            await publish('passenger.deleted', eventData);
+            await publish('passenger.deleted', passengerData.passengerId, eventData);
             logger.info('Published passenger.deleted event', { 
                 passengerId: passengerData.passengerId,
                 userId: passengerData.userId 
@@ -45,16 +45,20 @@ class PassengerEventProducer {
                 data: {
                     passengerId: passengerData.passengerId,
                     userId: passengerData.userId,
-                    email: passengerData.email,
-                    fullName: passengerData.fullName,
+                    username: passengerData.username,
+                    firstName: passengerData.firstName,
+                    lastName: passengerData.lastName,
+                    fullName: `${passengerData.firstName || ''} ${passengerData.lastName || ''}`.trim(),
                     phoneNumber: passengerData.phoneNumber,
                     dateOfBirth: passengerData.dateOfBirth,
+                    gender: passengerData.gender,
+                    address: passengerData.address,
                     isActive: passengerData.isActive,
                     updatedAt: new Date().toISOString()
                 }
             };
 
-            await publish('passenger-cache-sync', eventData);
+            await publish('passenger-cache-sync', passengerData.passengerId, eventData);
             logger.info('Published passenger-cache-sync event', { 
                 passengerId: passengerData.passengerId,
                 userId: passengerData.userId 

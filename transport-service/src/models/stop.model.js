@@ -17,7 +17,7 @@ const Stop = sequelize.define('Stop', {
         },
     },
     stationId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Stations',

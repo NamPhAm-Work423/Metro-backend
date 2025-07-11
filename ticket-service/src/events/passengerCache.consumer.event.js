@@ -12,7 +12,9 @@ class PassengerCacheConsumer {
      * @param {Object} eventData - The event data
      */
     async handlePassengerCacheSync(eventData) {
-        const { passenger } = eventData;
+        // Support both old format (eventData.passenger) and new format (eventData.data)
+        const passenger = eventData.passenger || eventData.data;
+        
         if (!passenger || !passenger.passengerId) {
             logger.warn('Invalid passenger cache sync event data', eventData);
             return;
@@ -26,7 +28,8 @@ class PassengerCacheConsumer {
         if (success) {
             logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {
                 syncReason: eventData.syncReason || 'manual-sync',
-                source: eventData.source
+                source: eventData.source,
+                eventType: eventData.eventType
             });
         } else {
             logger.error(`Failed to sync passenger cache: ${passenger.passengerId}`);

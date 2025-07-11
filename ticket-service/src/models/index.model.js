@@ -14,6 +14,10 @@ Ticket.belongsTo(Fare, { foreignKey: 'fareId', as: 'fare' });
 Promotion.hasMany(Ticket, { foreignKey: 'promotionId', as: 'tickets' });
 Ticket.belongsTo(Promotion, { foreignKey: 'promotionId', as: 'promotion' });
 
+// Ticket-TransitPass relationship (Many tickets can use the same transit pass)
+TransitPass.hasMany(Ticket, { foreignKey: 'transitPassId', as: 'tickets' });
+Ticket.belongsTo(TransitPass, { foreignKey: 'transitPassId', as: 'transitPass' });
+
 // Note: Foreign key relationships to other services (passenger, trip, station, route)
 // are handled via foreign keys only since these models exist in different services
 // The actual joins would be handled at the application level or via federation

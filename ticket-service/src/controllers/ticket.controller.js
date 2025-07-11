@@ -1,20 +1,33 @@
 const ticketService = require('../services/ticket.service');
 const passengerCacheService = require('../services/passengerCache.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
+const { logger } = require('../config/logger');
 
 class TicketController {
     // Helper method to get passenger from cache
     async _getPassengerFromCache(req) {
-        const passengerId = req.headers['x-passenger-id'] || req.user?.passengerId;
-        
-        if (!passengerId) {
-            throw new Error('Passenger ID not found in request');
-        }
+        // Try to get passengerId from headers first (for direct access)
+        let passengerId = req.headers['x-passenger-id'];
+        let passenger;
 
-        const passenger = await passengerCacheService.getPassenger(passengerId);
+        if (passengerId) {
+            // Direct lookup by passengerId
+            passenger = await passengerCacheService.getPassenger(passengerId);
+        } else {
+            // Lookup by userId from JWT token
+            const userId = req.user?.id;
+            if (!userId) {
+                throw new Error('User ID not found in request');
+            }
+
+            passenger = await passengerCacheService.getPassengerByUserId(userId);
+            if (passenger) {
+                passengerId = passenger.passengerId;
+            }
+        }
         
         if (!passenger) {
-            throw new Error('Passenger not found in cache. Please authenticate again.');
+            throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
         }
 
         return { passengerId, passenger };
@@ -23,6 +36,14 @@ class TicketController {
     // POST /v1/tickets/create-short-term
     createShortTermTicket = asyncErrorHandler(async (req, res, next) => {
         const ticketData = req.body;
+        
+        // Debug: Log ticket creation request
+        logger.info('Creating short-term ticket', {
+            hasFromStation: !!ticketData.fromStation,
+            hasToStation: !!ticketData.toStation,
+            tripType: ticketData.tripType,
+            totalPassengers: (ticketData.numAdults || 0) + (ticketData.numElder || 0) + (ticketData.numTeenager || 0) + (ticketData.numChild || 0)
+        });
         
         // Get passenger from cache to validate existence
         const { passengerId, passenger } = await this._getPassengerFromCache(req);
@@ -161,6 +182,7 @@ class TicketController {
             count: tickets.length
         });
     });
+
 
     // GET /v1/tickets/:id/getTicket
     getTicket = asyncErrorHandler(async (req, res, next) => {

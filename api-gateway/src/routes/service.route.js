@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const serviceController = require('../controllers/service.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { apiRateLimiter } = require('../middlewares/rateLimiter');
 
+// Apply API rate limiting to all service management endpoints
+router.use(apiRateLimiter);
 
 router.get('/', authMiddleware.authenticate, serviceController.getAllService);
 router.post('/', authMiddleware.authenticate, serviceController.createService);

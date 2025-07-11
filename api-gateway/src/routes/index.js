@@ -6,6 +6,7 @@ const authRoutes = require('./auth.route');
 const serviceRoutes = require('./service.route');
 const routingRoutes = require('./routing.route');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { defaultRateLimiter } = require('../middlewares/rateLimiter');
 
 const config = require('../config')();
 
@@ -20,18 +21,19 @@ if (process.env.NEED_API_KEY === 'true') {
     router.use('/v1/auth', authRoutes);
 }
 
+
 // Service management routes - mounted at /v1/service
 router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
 
 //** ALL SERVICE WILL BE MOUNTED HERE, YOU HAVE TO CALL THE SERVICE ROUTE BY USING THE ENDPOINT v1/route/serviceName */
-// Dynamic service routing - mounted at /v1/route
+// Dynamic service routing - mounted at /v1/route (rate limiting applied in routing.route.js)
 router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
 
 // //**I CREATE A GUEST ROUTE FOR GUEST TO ACCESS THE SERVICE */
 // router.use('/v1/guest',process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
 
-// Health check endpoint
-router.get('/health', (req, res) => {
+// Health check endpoint - with rate limiting
+router.get('/health', defaultRateLimiter, (req, res) => {
     res.status(200).json({
         success: true,
         message: 'API Gateway is healthy',
@@ -46,8 +48,8 @@ router.get('/health', (req, res) => {
     });
 });
 
-// Service discovery endpoint
-router.get('/v1/discovery', (req, res) => {
+// Service discovery endpoint - with rate limiting
+router.get('/v1/discovery', defaultRateLimiter, (req, res) => {
     const activeServices = config.services 
         ? config.services
             .filter(s => s.status === 'active')

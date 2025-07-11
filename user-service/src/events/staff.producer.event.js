@@ -22,7 +22,7 @@ class StaffEventProducer {
                 }
             };
 
-            await publish('staff.deleted', eventData);
+            await publish('staff.deleted', staffData.staffId, eventData);
             logger.info('Published staff.deleted event', { 
                 staffId: staffData.staffId,
                 userId: staffData.userId,

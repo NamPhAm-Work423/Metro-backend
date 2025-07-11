@@ -72,6 +72,50 @@ class PassengerCacheService {
         }
     }
 
+    // Get passenger data from cache by userId
+    async getPassengerByUserId(userId) {
+        try {
+            const redis = getClient();
+            if (!redis) {
+                throw new Error('Redis client not available');
+            }
+
+            // Get all passenger cache keys
+            const pattern = `${this.keyPrefix}*`;
+            const keys = await redis.keys(pattern);
+            
+            if (keys.length === 0) {
+                logger.debug(`No passengers in cache to search for userId: ${userId}`);
+                return null;
+            }
+
+            // Search through cached passengers to find matching userId
+            for (const key of keys) {
+                const cachedData = await redis.get(key);
+                if (cachedData) {
+                    try {
+                        const passengerData = JSON.parse(cachedData);
+                        if (passengerData.userId === userId) {
+                            logger.debug(`Passenger found by userId: ${userId}`, {
+                                passengerId: passengerData.passengerId,
+                                cachedAt: passengerData.cachedAt
+                            });
+                            return passengerData;
+                        }
+                    } catch (parseError) {
+                        logger.error(`Error parsing cached passenger data for key: ${key}`, parseError);
+                    }
+                }
+            }
+
+            logger.debug(`Passenger not found in cache for userId: ${userId}`);
+            return null;
+        } catch (error) {
+            logger.error(`Error getting passenger by userId from cache: ${userId}`, error);
+            return null;
+        }
+    }
+
     // Get multiple passengers from cache
     async getPassengers(passengerIds) {
         try {

@@ -39,6 +39,13 @@ const Ticket = sequelize.define('Ticket', {
             isUUID: 4
         }
     },
+    transitPassId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        validate: {
+            isUUID: 4
+        }
+    },
     promotionId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -47,20 +54,20 @@ const Ticket = sequelize.define('Ticket', {
         }
     },
     originStationId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            notEmpty: true,
-            isUUID: 4
-        }
+            notEmpty: true
+        },
+        comment: 'Station identifier from transport service'
     },
     destinationStationId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            notEmpty: true,
-            isUUID: 4
-        }
+            notEmpty: true
+        },
+        comment: 'Station identifier from transport service'
     },
     purchaseDate: {
         type: DataTypes.DATE,
@@ -113,11 +120,9 @@ const Ticket = sequelize.define('Ticket', {
         defaultValue: 'card',
     },
     paymentId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         allowNull: true,
-        validate: {
-            isUUID: 4
-        }
+        comment: 'Payment reference ID - can be any format depending on payment provider'
     },
     status: {
         type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled'),

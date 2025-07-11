@@ -8,7 +8,7 @@ const Trip = sequelize.define('Trip', {
         primaryKey: true,
     },
     routeId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Routes',

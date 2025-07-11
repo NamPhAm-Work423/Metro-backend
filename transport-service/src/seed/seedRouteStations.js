@@ -173,6 +173,7 @@ const seedRouteStations = async () => {
         }
         
         routeStationsToCreate.push({
+          routeStationId: `${routeId}-${stationId}-${index + 1}`,
           routeId: routeId,
           stationId: stationId,
           sequence: index + 1

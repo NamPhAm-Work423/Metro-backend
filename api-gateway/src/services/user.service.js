@@ -105,7 +105,7 @@ class UserService {
         // ALL non-essential operations moved to setImmediate (after response sent)
         setImmediate(() => {
             const backgroundTasks = [];
-
+            //Dont need to return cookie here
             if(process.env.NEED_EMAIL_VERIFICATION === 'false'){
                 // Generate verification token
                 const verificationToken = jwt.sign(

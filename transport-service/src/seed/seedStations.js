@@ -1,5 +1,18 @@
 const { Station } = require('../models/index.model');
 
+
+function createStationId(name) {
+  return name
+    .toLowerCase()
+    .normalize('NFD') // Decompose Vietnamese characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/đ/g, 'd') // Replace đ with d
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters except spaces
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 const stationsData = [
   // Tuyến Metro số 1
   {
@@ -140,8 +153,9 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'shopping_center', 'parking'],
-    connections: ['metro_line_1', 'metro_line_2', 'metro_line_3a', 'metro_line_4', 'bus_station']
+    connections: ['metro_line_1', 'metro_line_2', 'metro_line_3a', 'metro_line_4', 'metro_line_5', 'bus_station']
   },
+  // Additional stations for Metro Line 1
   {
     name: 'Tao Đàn',
     location: 'Quận 1, TP.HCM',
@@ -190,7 +204,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_1', 'bus_station']
+    connections: ['metro_line_1', 'metro_line_4', 'bus_station']
   },
   {
     name: 'Nguyễn Kiệm',
@@ -252,197 +266,7 @@ const stationsData = [
     facilities: ['elevator', 'escalator', 'restroom', 'depot'],
     connections: ['metro_line_1', 'metro_line_4', 'bus_station']
   },
-  {
-    name: 'Văn Thánh',
-    location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 10.8016,
-    longitude: 106.7103,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['bus_station', 'metro_line_1', 'metro_line_5']
-  },
-  {
-    name: 'Tân Cảng',
-    location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 10.8067,
-    longitude: 106.7172,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'parking'],
-    connections: ['metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Thủ Thiêm',
-    location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 10.7889,
-    longitude: 106.7203,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'bus_station']
-  },
-  {
-    name: 'Tham Lương',
-    location: 'Quận 12, TP.HCM',
-    latitude: 10.8556,
-    longitude: 106.6264,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'depot'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Bến xe An Sương',
-    location: 'Quận 12, TP.HCM',
-    latitude: 10.8392,
-    longitude: 106.6169,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'bus_terminal'],
-    connections: ['bus_terminal']
-  },
-  {
-    name: 'Khu đô thị Tây Bắc Củ Chi',
-    location: 'Huyện Củ Chi, TP.HCM',
-    latitude: 10.9789,
-    longitude: 106.4903,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'parking'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Bến xe Miền Tây',
-    location: 'Quận Bình Tân, TP.HCM',
-    latitude: 10.7542,
-    longitude: 106.6097,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'bus_terminal'],
-    connections: ['bus_terminal']
-  },
-  {
-    name: 'Tân Kiên',
-    location: 'Huyện Bình Chánh, TP.HCM',
-    latitude: 10.7278,
-    longitude: 106.5833,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'depot'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Ngã 6 Cộng Hòa',
-    location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8006,
-    longitude: 106.6408,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3b', 'bus_station']
-  },
-  {
-    name: 'Sân bay Tân Sơn Nhất',
-    location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8187,
-    longitude: 106.6519,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'airport_connection'],
-    connections: ['airport', 'bus_station']
-  },
-  {
-    name: 'Hiệp Bình Phước',
-    location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 10.8442,
-    longitude: 106.7061,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'depot'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Khu đô thị Hiệp Phước',
-    location: 'Huyện Nhà Bè, TP.HCM',
-    latitude: 10.6889,
-    longitude: 106.7556,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Công Viên Gia Định',
-    location: 'Quận Gò Vấp, TP.HCM',
-    latitude: 10.8203,
-    longitude: 106.6797,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'metro_line_4b', 'bus_station']
-  },
-  {
-    name: 'Lăng Cha Cả',
-    location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8056,
-    longitude: 106.6633,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Ngã tư Bảy Hiền',
-    location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8000,
-    longitude: 106.6500,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Bến xe Cần Giuộc mới',
-    location: 'Huyện Cần Giuộc, Long An',
-    latitude: 10.6111,
-    longitude: 106.5111,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'bus_terminal'],
-    connections: ['bus_terminal']
-  },
-  {
-    name: 'Bà Quẹo',
-    location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8242,
-    longitude: 106.6506,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Tân Hòa Đông',
-    location: 'Quận 6, TP.HCM',
-    latitude: 10.7669,
-    longitude: 106.6347,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['bus_station']
-  },
-  {
-    name: 'Vòng xoay Phú Lâm',
-    location: 'Quận 6, TP.HCM',
-    latitude: 10.7389,
-    longitude: 106.6208,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'bus_station']
-  },
-  // Tuyến Metro số 2: BX. An Sương Mới - Cát Lái (21 ga)
+  // Additional stations for Metro Line 2
   {
     name: 'BX. An Sương Mới',
     location: 'Quận 12, TP.HCM',
@@ -484,14 +308,14 @@ const stationsData = [
     connections: ['metro_line_2', 'bus_station']
   },
   {
-    name: 'Bàu Cát',
+    name: 'Bà Quẹo',
     location: 'Quận Tân Bình, TP.HCM',
-    latitude: 10.8350,
-    longitude: 106.6400,
+    latitude: 10.8242,
+    longitude: 106.6506,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'bus_station']
+    connections: ['metro_line_2', 'metro_line_6', 'bus_station']
   },
   {
     name: 'Nguyễn Hồng Đào',
@@ -554,44 +378,64 @@ const stationsData = [
     connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
   },
   {
-    name: 'Khánh Hội',
-    location: 'Quận 4, TP.HCM',
-    latitude: 10.7600,
-    longitude: 106.7100,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Tân Hưng',
-    location: 'Quận 7, TP.HCM',
-    latitude: 10.7550,
-    longitude: 106.7150,
+    name: 'Quảng Trường Thủ Thiêm',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_2', 'bus_station']
   },
   {
-    name: 'Tân Phong',
-    location: 'Quận 7, TP.HCM',
-    latitude: 10.7500,
-    longitude: 106.7200,
+    name: 'Trần Não',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_2', 'bus_station']
   },
   {
-    name: 'Nguyễn Văn Linh',
-    location: 'Quận 7, TP.HCM',
-    latitude: 10.7450,
-    longitude: 106.7250,
+    name: 'Bình Khánh',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_2', 'bus_station']
+  },
+  {
+    name: 'Ga Thủ Thiêm',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 10.7889,
+    longitude: 106.7203,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_2', 'metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Bình Trưng',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 10.7850,
+    longitude: 106.7300,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_2', 'metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Đồng Văn Cống',
+    location: 'TP. Thủ Đức, TP.HCM',
+    latitude: 10.7800,
+    longitude: 106.7400,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom', 'parking'],
+    connections: ['metro_line_2', 'metro_line_5', 'bus_station']
   },
   {
     name: 'Cát Lái',
@@ -603,7 +447,7 @@ const stationsData = [
     facilities: ['elevator', 'escalator', 'restroom', 'parking'],
     connections: ['metro_line_2', 'bus_station', 'ferry_terminal']
   },
-  // Tuyến Metro số 3: BX. Miền Tây Mới - Ga Dĩ An (23 ga)
+  // Tuyến Metro số 3a
   {
     name: 'BX. Miền Tây Mới',
     location: 'Quận Bình Tân, TP.HCM',
@@ -612,7 +456,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'bus_terminal'],
-    connections: ['metro_line_3', 'bus_terminal']
+    connections: ['metro_line_3a', 'bus_terminal']
   },
   {
     name: 'Tân Kiệt',
@@ -622,7 +466,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
     name: 'An Lạc',
@@ -632,17 +476,17 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
-    name: 'C2, Phú Lâm',
+    name: 'Công Viên Phú Lâm',
     location: 'Quận 6, TP.HCM',
-    latitude: 10.7400,
-    longitude: 106.6250,
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
     name: 'Phú Lâm',
@@ -652,7 +496,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
     name: 'Cây Gõ',
@@ -662,77 +506,78 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
-    name: 'Lò Gốm',
+    name: 'Chợ Lớn',
     location: 'Quận 6, TP.HCM',
-    latitude: 10.7500,
-    longitude: 106.6350,
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
-    name: 'Hồng Bàng',
-    location: 'Quận 6, TP.HCM',
-    latitude: 10.7550,
-    longitude: 106.6400,
+    name: 'Thuận Kiều',
+    location: 'Quận 5, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3a', 'metro_line_5', 'bus_station']
   },
   {
-    name: 'Phú Thọ',
-    location: 'Quận 11, TP.HCM',
-    latitude: 10.7600,
-    longitude: 106.6450,
+    name: 'Văn Lang',
+    location: 'Quận 5, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
-    name: 'Thành Thái',
-    location: 'Quận 10, TP.HCM',
-    latitude: 10.7650,
-    longitude: 106.6500,
+    name: 'An Đông',
+    location: 'Quận 5, TP.HCM',
+    latitude: 10.6600,
+    longitude: 106.5600,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3a', 'metro_line_5', 'bus_station']
   },
   {
-    name: 'Lý Thái Tổ',
-    location: 'Quận 10, TP.HCM',
-    latitude: 10.7700,
-    longitude: 106.6550,
+    name: 'Cộng Hòa',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 10.8006,
+    longitude: 106.6408,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3a', 'metro_line_3b', 'metro_line_6', 'bus_station']
   },
   {
-    name: 'Bàn Cờ',
-    location: 'Quận 3, TP.HCM',
-    latitude: 10.7750,
-    longitude: 106.6600,
+    name: '23 Tháng 9',
+    location: 'Quận 1, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
+  // Tuyến Metro số 3b
   {
-    name: 'Nguyễn Đình Chiểu',
-    location: 'Quận 3, TP.HCM',
-    latitude: 10.7800,
-    longitude: 106.6650,
+    name: 'Dinh Độc Lập',
+    location: 'Quận 1, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Hồ Con Rùa',
@@ -742,7 +587,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3b', 'metro_line_4', 'bus_station']
   },
   {
     name: 'Thảo Cầm Viên',
@@ -752,17 +597,17 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_5', 'bus_station']
+    connections: ['metro_line_3b', 'metro_line_5', 'bus_station']
   },
   {
-    name: 'Tân Định',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7950,
-    longitude: 106.6800,
+    name: 'Thị Nghè',
+    location: 'Quận Bình Thạnh, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_5', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Hàng Xanh',
@@ -772,7 +617,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'metro_line_5', 'bus_station']
+    connections: ['metro_line_3b', 'metro_line_5', 'bus_station']
   },
   {
     name: 'Xô Viết Nghệ Tĩnh',
@@ -782,7 +627,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Bình Triệu',
@@ -792,7 +637,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Hiệp Bình Phước',
@@ -802,7 +647,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'depot'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Tam Bình – Gò Dưa',
@@ -812,7 +657,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Sóng Thần',
@@ -822,7 +667,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3', 'bus_station']
+    connections: ['metro_line_3b', 'bus_station']
   },
   {
     name: 'Ga Dĩ An',
@@ -832,9 +677,9 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'train_station'],
-    connections: ['metro_line_3', 'train_station', 'bus_station']
+    connections: ['metro_line_3b', 'train_station', 'bus_station']
   },
-  // Tuyến Metro số 4: Thuận An - Nhà Bè (19 ga)
+  // Tuyến Metro số 4
   {
     name: 'Thuận An',
     location: 'TP. Thuận An, Bình Dương',
@@ -876,16 +721,6 @@ const stationsData = [
     connections: ['metro_line_4', 'bus_station']
   },
   {
-    name: 'Xóm Mới',
-    location: 'Quận 12, TP.HCM',
-    latitude: 10.8300,
-    longitude: 106.6575,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
-  },
-  {
     name: 'Bệnh Viện Gò Vấp',
     location: 'Quận Gò Vấp, TP.HCM',
     latitude: 10.8225,
@@ -906,30 +741,10 @@ const stationsData = [
     connections: ['metro_line_4', 'bus_station']
   },
   {
-    name: 'Quang Trung',
-    location: 'Quận Gò Vấp, TP.HCM',
-    latitude: 10.8075,
-    longitude: 106.6650,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
-  },
-  {
     name: 'Công Viên Gia Định',
     location: 'Quận Gò Vấp, TP.HCM',
     latitude: 10.8203,
     longitude: 106.6797,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
-  },
-  {
-    name: 'Nguyễn Kiệm',
-    location: 'Quận Gò Vấp, TP.HCM',
-    latitude: 10.8000,
-    longitude: 106.6675,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -946,26 +761,6 @@ const stationsData = [
     connections: ['metro_line_4', 'metro_line_5', 'bus_station']
   },
   {
-    name: 'Cầu Kiệu',
-    location: 'Quận Phú Nhuận, TP.HCM',
-    latitude: 10.7925,
-    longitude: 106.6700,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
-  },
-  {
-    name: 'Công Viên Lê Văn Tám',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7850,
-    longitude: 106.6725,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
-  },
-  {
     name: 'Khánh Hội',
     location: 'Quận 4, TP.HCM',
     latitude: 10.7600,
@@ -973,7 +768,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
+    connections: ['metro_line_4', 'metro_line_2', 'metro_line_6', 'bus_station']
   },
   {
     name: 'Tân Hưng',
@@ -983,7 +778,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
+    connections: ['metro_line_4', 'metro_line_2', 'bus_station']
   },
   {
     name: 'Nguyễn Văn Linh',
@@ -993,7 +788,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'bus_station']
+    connections: ['metro_line_4', 'metro_line_2', 'metro_line_6', 'bus_station']
   },
   {
     name: 'Hồ Bán Nguyệt',
@@ -1008,8 +803,8 @@ const stationsData = [
   {
     name: 'Nam Sài Gòn',
     location: 'Quận 7, TP.HCM',
-    latitude: 10.7300,
-    longitude: 106.7300,
+    latitude: 10.7250,
+    longitude: 106.7350,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -1035,9 +830,9 @@ const stationsData = [
     facilities: ['elevator', 'escalator', 'restroom', 'parking'],
     connections: ['metro_line_4', 'bus_station']
   },
-  // Tuyến Metro số 5: BX. Cần Giuộc - Đông Văn Cống (18 ga)
+  // Tuyến Metro số 5
   {
-    name: 'BX. Cần Giuộc',
+    name: 'Bến Xe Cần Giuộc',
     location: 'Huyện Cần Giuộc, Long An',
     latitude: 10.6111,
     longitude: 106.5111,
@@ -1047,10 +842,10 @@ const stationsData = [
     connections: ['metro_line_5', 'bus_terminal']
   },
   {
-    name: 'Xóm Cùi',
+    name: 'Bình Hưng',
     location: 'Huyện Bình Chánh, TP.HCM',
-    latitude: 10.6200,
-    longitude: 106.5200,
+    latitude: 10.6400,
+    longitude: 106.5400,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -1067,156 +862,86 @@ const stationsData = [
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Bình Hưng',
+    name: 'Xóm Cùi',
     location: 'Huyện Bình Chánh, TP.HCM',
-    latitude: 10.6400,
-    longitude: 106.5400,
+    latitude: 10.6200,
+    longitude: 106.5200,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Võ Văn Kiệt',
-    location: 'Quận 6, TP.HCM',
-    latitude: 10.6500,
-    longitude: 106.5500,
+    name: 'Bách Khoa',
+    location: 'Quận 10, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'An Đông',
-    location: 'Quận 5, TP.HCM',
-    latitude: 10.6600,
-    longitude: 106.5600,
+    name: 'Bắc Hải',
+    location: 'Quận 10, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Trần Phú',
-    location: 'Quận 5, TP.HCM',
-    latitude: 10.6700,
-    longitude: 106.5700,
+    name: 'Chợ Tân Bình',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Trương Định',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.6800,
-    longitude: 106.5800,
+    name: 'Lăng Cha Cả',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 10.8056,
+    longitude: 106.6633,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Bến Thành',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7727,
-    longitude: 106.6980,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'shopping_center', 'parking'],
-    connections: ['metro_line_1', 'metro_line_2', 'metro_line_3a', 'metro_line_4', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Thảo Cầm Viên',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7900,
-    longitude: 106.6750,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3b', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Tân Định',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7950,
-    longitude: 106.6800,
+    name: 'Hoàng Văn Thụ',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Hàng Xanh',
+    name: 'Nguyễn Văn Đậu',
     location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 10.8000,
-    longitude: 106.6850,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3b', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Cầu Sài Gòn',
-    location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 10.8050,
-    longitude: 106.6900,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_1', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Văn Thánh',
-    location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 10.8016,
-    longitude: 106.7103,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_1', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Ba Son',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7886,
-    longitude: 106.7063,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_1', 'metro_line_5', 'bus_station', 'ferry_terminal']
-  },
-  {
-    name: 'Ga Thủ Thiêm',
-    location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 10.7889,
-    longitude: 106.7203,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_5', 'bus_station']
-  },
-  {
-    name: 'Bình Trưng',
-    location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 10.7850,
-    longitude: 106.7300,
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Đồng Văn Cống',
-    location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 10.7800,
-    longitude: 106.7400,
+    name: 'Bà Chiểu',
+    location: 'Quận Bình Thạnh, TP.HCM',
+    latitude: 0,
+    longitude: 0,
     openTime: '05:00:00',
     closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'parking'],
+    facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_5', 'bus_station']
   },
-  // Tuyến Metro số 6: Quốc Lộ 1A - Nguyễn Văn Linh (19 ga)
+  // Tuyến Metro số 6
   {
     name: 'Quốc Lộ 1A',
     location: 'Quận 12, TP.HCM',
@@ -1258,14 +983,14 @@ const stationsData = [
     connections: ['metro_line_6', 'bus_station']
   },
   {
-    name: 'Bến Xe',
+    name: 'Bốn Xã',
     location: 'Quận Tân Phú, TP.HCM',
-    latitude: 10.8200,
-    longitude: 106.6500,
+    latitude: 10.8250,
+    longitude: 106.6475,
     openTime: '05:00:00',
     closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom', 'bus_terminal'],
-    connections: ['metro_line_6', 'bus_terminal']
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_6', 'bus_station']
   },
   {
     name: 'Hòa Bình',
@@ -1305,7 +1030,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'metro_line_6', 'bus_station']
+    connections: ['metro_line_3a', 'metro_line_5', 'metro_line_6', 'bus_station']
   },
   {
     name: 'Thành Thái',
@@ -1327,85 +1052,146 @@ const stationsData = [
     facilities: ['elevator', 'escalator', 'restroom'],
     connections: ['metro_line_3a', 'metro_line_6', 'bus_station']
   },
+  // Additional stations not tied to specific routes but present in original stationsData
   {
-    name: 'Bàn Cờ',
-    location: 'Quận 3, TP.HCM',
-    latitude: 10.7750,
-    longitude: 106.6600,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Nguyễn Đình Chiểu',
-    location: 'Quận 3, TP.HCM',
-    latitude: 10.7800,
-    longitude: 106.6650,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Hồ Con Rùa',
-    location: 'Quận 3, TP.HCM',
-    latitude: 10.7850,
-    longitude: 106.6700,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Đinh Tiên Hoàng',
-    location: 'Quận 1, TP.HCM',
-    latitude: 10.7800,
-    longitude: 106.6800,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_4', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Mễ Linh',
-    location: 'Quận 4, TP.HCM',
-    latitude: 10.7650,
-    longitude: 106.7050,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Khánh Hội',
-    location: 'Quận 4, TP.HCM',
-    latitude: 10.7600,
-    longitude: 106.7100,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Nguyễn Văn Linh',
-    location: 'Quận 7, TP.HCM',
-    latitude: 10.7450,
-    longitude: 106.7250,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_2', 'metro_line_4', 'metro_line_6', 'bus_station']
-  },
-  {
-    name: 'Công Hòa',
-    location: 'Quận 7, TP.HCM',
-    latitude: 10.7400,
-    longitude: 106.7300,
+    name: 'Tân Cảng',
+    location: 'Quận Bình Thạnh, TP.HCM',
+    latitude: 10.8067,
+    longitude: 106.7172,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'parking'],
-    connections: ['metro_line_6', 'bus_station']
+    connections: ['metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Khu đô thị Tây Bắc Củ Chi',
+    location: 'Huyện Củ Chi, TP.HCM',
+    latitude: 10.9789,
+    longitude: 106.4903,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom', 'parking'],
+    connections: ['bus_station']
+  },
+  {
+    name: 'Tân Kiên',
+    location: 'Huyện Bình Chánh, TP.HCM',
+    latitude: 10.7278,
+    longitude: 106.5833,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom', 'depot'],
+    connections: ['bus_station']
+  },
+  {
+    name: 'Sân bay Tân Sơn Nhất',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 10.8187,
+    longitude: 106.6519,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom', 'airport_connection'],
+    connections: ['airport', 'bus_station']
+  },
+  {
+    name: 'Khu đô thị Hiệp Phước',
+    location: 'Huyện Nhà Bè, TP.HCM',
+    latitude: 10.6889,
+    longitude: 106.7556,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['bus_station']
+  },
+  {
+    name: 'Ngã tư Bảy Hiền',
+    location: 'Quận Tân Bình, TP.HCM',
+    latitude: 10.8000,
+    longitude: 106.6500,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['bus_station']
+  },
+  {
+    name: 'Tân Hòa Đông',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.7669,
+    longitude: 106.6347,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['bus_station']
+  },
+  {
+    name: 'Vòng xoay Phú Lâm',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.7389,
+    longitude: 106.6208,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_3a', 'bus_station']
+  },
+  {
+    name: 'Võ Văn Kiệt',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.6500,
+    longitude: 106.5500,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Trần Phú',
+    location: 'Quận 5, TP.HCM',
+    latitude: 10.6700,
+    longitude: 106.5700,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Trương Định',
+    location: 'Quận 1, TP.HCM',
+    latitude: 10.6800,
+    longitude: 106.5800,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_5', 'bus_station']
+  },
+  {
+    name: 'Hồng Bàng',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.7550,
+    longitude: 106.6400,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_3a', 'bus_station']
+  },
+  {
+    name: 'Lò Gốm',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.7500,
+    longitude: 106.6350,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_3a', 'bus_station']
+  },
+  {
+    name: 'C2, Phú Lâm',
+    location: 'Quận 6, TP.HCM',
+    latitude: 10.7400,
+    longitude: 106.6250,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_3a', 'bus_station']
   }
 ];
 
@@ -1431,13 +1217,13 @@ requiredStationNames.forEach((name) => {
   if (!existingStationNames.has(name)) {
     stationsData.push({
       name,
-      location: '',
+      location: 'TP.HCM',
       latitude: 0,
       longitude: 0,
       openTime: '05:00:00',
       closeTime: '23:00:00',
-      facilities: [],
-      connections: []
+      facilities: ['elevator', 'escalator', 'restroom'],
+      connections: ['bus_station']
     });
   }
 });
@@ -1449,13 +1235,19 @@ const seedStations = async () => {
     // Xóa dữ liệu cũ nếu có
     await Station.destroy({ where: {} });
     
+    // Tạo dữ liệu với simple station IDs
+    const stationsWithIds = stationsData.map(station => ({
+      ...station,
+      stationId: createStationId(station.name)
+    }));
+    
     // Thêm dữ liệu mới
-    const stations = await Station.bulkCreate(stationsData);
+    const stations = await Station.bulkCreate(stationsWithIds);
     
     console.log(`✅ Đã tạo thành công ${stations.length} ga Metro TPHCM`);
-    console.log('📍 Các ga đã tạo:');
+    console.log('📍 Các ga đã tạo với simple IDs:');
     stations.forEach((station, index) => {
-      console.log(`   ${index + 1}. ${station.name} - ${station.location}`);
+      console.log(`   ${index + 1}. ${station.stationId} -> ${station.name}`);
     });
     
     return stations;
@@ -1465,4 +1257,4 @@ const seedStations = async () => {
   }
 };
 
-module.exports = { seedStations, stationsData }; 
+module.exports = { seedStations, stationsData };

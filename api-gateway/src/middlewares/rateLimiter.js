@@ -1,15 +1,22 @@
 const rateLimit = require('express-rate-limit');
-const redis = require('../config/redis');
+const { getClient } = require('../config/redis');
 const config = require('..');
 const { logger } = require('../config/logger');
 
 // Redis store for rate limiter
 class RedisStore {
   constructor(options = {}) {
-    this.redis = redis;
     this.keyPrefix = options.prefix || 'rl:';
     this.windowMs = options.windowMs || 60000;
   }
+
+  /**
+   * Get Redis client
+   */
+  getRedisClient() {
+    return getClient();
+  }
+
   /**
    * Increment the rate limiter
    * @param {string} key - The key to increment
@@ -17,11 +24,20 @@ class RedisStore {
    */
   async increment(key) {
     try {
+      const redis = this.getRedisClient();
+      if (!redis) {
+        logger.warn('Redis client not available, allowing request');
+        return {
+          totalHits: 1,
+          resetTime: new Date(Date.now() + this.windowMs)
+        };
+      }
+
       const fullKey = this.keyPrefix + key;
-      const current = await this.redis.incr(fullKey);
+      const current = await redis.incr(fullKey);
       
       if (current === 1) {
-        await this.redis.expire(fullKey, Math.ceil(this.windowMs / 1000));
+        await redis.expire(fullKey, Math.ceil(this.windowMs / 1000));
       }
       
       return {
@@ -44,8 +60,13 @@ class RedisStore {
    */
   async decrement(key) {
     try {
+      const redis = this.getRedisClient();
+      if (!redis) {
+        return;
+      }
+
       const fullKey = this.keyPrefix + key;
-      await this.redis.decr(fullKey);
+      await redis.decr(fullKey);
     } catch (error) {
       logger.error('Redis rate limiter decrement error:', error);
     }
@@ -57,8 +78,13 @@ class RedisStore {
    */
   async resetKey(key) {
     try {
+      const redis = this.getRedisClient();
+      if (!redis) {
+        return;
+      }
+
       const fullKey = this.keyPrefix + key;
-      await this.redis.del(fullKey);
+      await redis.del(fullKey);
     } catch (error) {
       logger.error('Redis rate limiter reset error:', error);
     }
@@ -87,6 +113,17 @@ const keyGenerator = (req) => {
  */
 const skipSuccessfulRequests = (req, res) => res.statusCode < 400;
 
+// Handler function to replace deprecated onLimitReached
+const handleLimitReached = (req, res, options) => {
+  logger.warn('Rate limit reached', {
+    ip: req.ip,
+    userId: req.user?.id,
+    endpoint: req.originalUrl,
+    method: req.method,
+    userAgent: req.headers['user-agent']
+  });
+};
+
 // Default rate limiter
 /**
  * Default rate limiter
@@ -107,14 +144,9 @@ const defaultRateLimiter = rateLimit({
     success: false,
     message: 'Too many requests from this IP, please try again later.'
   },
-  onLimitReached: (req, res, options) => {
-    logger.warn('Rate limit reached', {
-      ip: req.ip,
-      userId: req.user?.id,
-      endpoint: req.originalUrl,
-      method: req.method,
-      userAgent: req.headers['user-agent']
-    });
+  handler: (req, res, next, options) => {
+    handleLimitReached(req, res, options);
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -138,7 +170,7 @@ const authRateLimiter = rateLimit({
     success: false,
     message: 'Too many authentication attempts, please try again later.'
   },
-  onLimitReached: (req, res, options) => {
+  handler: (req, res, next, options) => {
     logger.warn('Auth rate limit reached', {
       ip: req.ip,
       userId: req.user?.id,
@@ -146,6 +178,7 @@ const authRateLimiter = rateLimit({
       method: req.method,
       userAgent: req.headers['user-agent']
     });
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -169,7 +202,7 @@ const sensitiveRateLimiter = rateLimit({
     success: false,
     message: 'Too many sensitive operations, please try again later.'
   },
-  onLimitReached: (req, res, options) => {
+  handler: (req, res, next, options) => {
     logger.warn('Sensitive operations rate limit reached', {
       ip: req.ip,
       userId: req.user?.id,
@@ -177,6 +210,7 @@ const sensitiveRateLimiter = rateLimit({
       method: req.method,
       userAgent: req.headers['user-agent']
     });
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -199,7 +233,7 @@ const apiRateLimiter = rateLimit({
     success: false,
     message: 'API rate limit exceeded, please try again later.'
   },
-  onLimitReached: (req, res, options) => {
+  handler: (req, res, next, options) => {
     logger.warn('API rate limit reached', {
       ip: req.ip,
       userId: req.user?.id,
@@ -207,6 +241,7 @@ const apiRateLimiter = rateLimit({
       method: req.method,
       userAgent: req.headers['user-agent']
     });
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -233,12 +268,13 @@ const createUserRateLimiter = (windowMs = 60 * 1000, max = 60) => {
       message: 'User rate limit exceeded, please slow down.'
     },
     skip: (req) => !req.user, // Skip if user not authenticated
-    onLimitReached: (req, res, options) => {
+    handler: (req, res, next, options) => {
       logger.warn('User rate limit reached', {
         userId: req.user?.id,
         endpoint: req.originalUrl,
         method: req.method
       });
+      res.status(options.statusCode).json(options.message);
     }
   });
 };
@@ -273,6 +309,11 @@ const burstProtection = rateLimit({
 const createProgressiveRateLimiter = (baseWindowMs = 15 * 60 * 1000, baseMax = 100) => {
   return async (req, res, next) => {
     try {
+      const redis = getClient();
+      if (!redis) {
+        return next(); // Continue if Redis not available
+      }
+
       const key = `progressive:${keyGenerator(req)}`;
       const violationKey = `violations:${keyGenerator(req)}`;
       
@@ -296,9 +337,10 @@ const createProgressiveRateLimiter = (baseWindowMs = 15 * 60 * 1000, baseMax = 1
           success: false,
           message: `Rate limit exceeded. Current limit: ${adjustedMax} requests per ${Math.round(adjustedWindow / 60000)} minutes.`
         },
-        onLimitReached: async () => {
+        handler: async (req, res, next, options) => {
           // Increment violation count
-          await redis.setex(violationKey, 24 * 60 * 60, parseInt(violations) + 1); // 24 hour expiry
+          await redis.setEx(violationKey, 24 * 60 * 60, parseInt(violations) + 1); // 24 hour expiry
+          res.status(options.statusCode).json(options.message);
         }
       });
       

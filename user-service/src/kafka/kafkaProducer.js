@@ -1,4 +1,4 @@
-const { Kafka } = require('kafkajs');
+const { Kafka, Partitioners } = require('kafkajs');
 const { logger } = require('../config/logger');
 require('dotenv').config();
 
@@ -12,7 +12,9 @@ const kafka = new Kafka({
     }
 });
 
-const producer = kafka.producer();
+const producer = kafka.producer({
+    createPartitioner: Partitioners.LegacyPartitioner
+});
 const admin = kafka.admin();
 let connected = false;
 const ensuredTopics = new Set();

@@ -3,8 +3,7 @@ const sequelize = require('../config/database');
 
 const Route = sequelize.define('Route', {
     routeId: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.STRING(100),
         primaryKey: true,
     },
     name: {
@@ -12,7 +11,7 @@ const Route = sequelize.define('Route', {
         allowNull: false,
     },
     originId: { 
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Stations',
@@ -20,7 +19,7 @@ const Route = sequelize.define('Route', {
         },
     },
     destinationId: { 
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Stations',

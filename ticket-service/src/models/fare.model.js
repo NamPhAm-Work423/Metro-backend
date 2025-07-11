@@ -9,12 +9,12 @@ const Fare = sequelize.define('Fare', {
         primaryKey: true,
     },
     routeId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            notEmpty: true,
-            isUUID: 4
-        }
+            notEmpty: true
+        },
+        comment: 'Route identifier from transport service'
     },
     basePrice: {
         type: DataTypes.DECIMAL(10, 2),
@@ -52,10 +52,7 @@ Fare.prototype.toJSON = function() {
 };
 
 Fare.prototype.isCurrentlyValid = function() {
-    const now = new Date();
-    return this.effectiveFrom <= now && 
-           (this.effectiveUntil === null || this.effectiveUntil >= now) &&
-           this.isActive;
+    return this.isActive;
 };
 
 /**

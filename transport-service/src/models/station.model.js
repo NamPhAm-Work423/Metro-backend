@@ -3,8 +3,8 @@ const sequelize = require('../config/database');
 
 const Station = sequelize.define('Station', {
     stationId: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        // Simple string ID based on station name
+        type: DataTypes.STRING(100),
         primaryKey: true,
     },
     name: {

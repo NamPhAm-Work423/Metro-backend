@@ -1,5 +1,18 @@
 const { Route, Station } = require('../models/index.model');
 
+// Function to create simple route IDs
+function createRouteId(name) {
+  return name
+    .toLowerCase()
+    .normalize('NFD') // Decompose Vietnamese characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/đ/g, 'd') // Replace đ with d
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters except spaces
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 const routesData = [
   {
     name: 'Tuyến Metro số 1 (Bến Thành - Suối Tiên)',
@@ -88,6 +101,7 @@ const seedRoutes = async () => {
       }
       
       return {
+        routeId: createRouteId(route.name),
         name: route.name,
         originId: originId,
         destinationId: destinationId,

@@ -4,12 +4,11 @@ const sequelize = require('../config/database');
 const RouteStation = sequelize.define('RouteStation', {
     /** This model is used to store the route and station relationship, that mean all stations in a specific route will be stored in this model */
     routeStationId: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.STRING(150),
         primaryKey: true,
     },
     routeId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Routes',
@@ -17,7 +16,7 @@ const RouteStation = sequelize.define('RouteStation', {
         },
     },
     stationId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING(100),
         allowNull: false,
         references: {
             model: 'Stations',

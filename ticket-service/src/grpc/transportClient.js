@@ -17,6 +17,14 @@ const transportProto = grpc.loadPackageDefinition(packageDefinition).transport;
 
 // Create client
 const TRANSPORT_SERVICE_URL = process.env.TRANSPORT_GRPC_URL || 'localhost:50051';
+
+// Log gRPC configuration for debugging
+logger.info('gRPC Transport Client Configuration', {
+    TRANSPORT_GRPC_URL: TRANSPORT_SERVICE_URL,
+    PROTO_PATH,
+    serviceAvailable: !!transportProto.TransportService
+});
+
 const transportClient = new transportProto.TransportService(
     TRANSPORT_SERVICE_URL,
     grpc.credentials.createInsecure()
@@ -35,21 +43,35 @@ async function retryGrpcCall(operation, maxRetries = 5, delayMs = 2000) {
             return result;
         } catch (error) {
             if (attempt === maxRetries) {
-                logger.error(`gRPC call failed after ${maxRetries} attempts:`, error);
+                logger.error(`gRPC call failed after ${maxRetries} attempts:`, {
+                    error: error.message,
+                    code: error.code,
+                    details: error.details,
+                    transportUrl: TRANSPORT_SERVICE_URL
+                });
                 throw error;
             }
             
             if (error.code === grpc.status.UNAVAILABLE || 
                 error.message.includes('Name resolution failed') ||
-                error.message.includes('UNAVAILABLE')) {
+                error.message.includes('UNAVAILABLE') ||
+                error.message.includes('ECONNREFUSED')) {
                 logger.warn(`gRPC call attempt ${attempt}/${maxRetries} failed, retrying in ${delayMs}ms...`, {
                     error: error.message,
-                    code: error.code
+                    code: error.code,
+                    transportUrl: TRANSPORT_SERVICE_URL,
+                    attempt,
+                    maxRetries
                 });
                 await sleep(delayMs);
                 delayMs *= 1.5; // Exponential backoff
             } else {
                 // For other errors, don't retry
+                logger.error('gRPC call failed with non-retryable error:', {
+                    error: error.message,
+                    code: error.code,
+                    transportUrl: TRANSPORT_SERVICE_URL
+                });
                 throw error;
             }
         }
@@ -150,22 +172,62 @@ class TransportClient {
         });
     }
 
+    static async calculateStationCount(routeId, originStationId, destinationStationId) {
+        return retryGrpcCall(() => {
+            return new Promise((resolve, reject) => {
+                transportClient.CalculateStationCount({ 
+                    routeId, 
+                    originStationId, 
+                    destinationStationId 
+                }, (error, response) => {
+                    if (error) {
+                        logger.error('Transport CalculateStationCount error:', error);
+                        reject(error);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
+        });
+    }
+
     // Health check method to test connectivity
     static async isTransportServiceReady() {
         try {
+            logger.info('🔄 Testing transport service connectivity...', {
+                transportUrl: TRANSPORT_SERVICE_URL
+            });
+
             await retryGrpcCall(() => {
                 return new Promise((resolve, reject) => {
                     transportClient.ListRoutes({}, (error, response) => {
                         if (error) {
+                            logger.debug('Transport service health check failed:', {
+                                error: error.message,
+                                code: error.code,
+                                transportUrl: TRANSPORT_SERVICE_URL
+                            });
                             reject(error);
                         } else {
+                            logger.info('✅ Transport service health check successful', {
+                                routeCount: response?.routes?.length || 0,
+                                transportUrl: TRANSPORT_SERVICE_URL
+                            });
                             resolve(response);
                         }
                     });
                 });
             }, 3, 1000); // Fewer retries for health check
+            
+            logger.info('✅ Transport service is ready and accessible');
             return true;
         } catch (error) {
+            logger.error('❌ Transport service is not available:', {
+                error: error.message,
+                code: error.code,
+                transportUrl: TRANSPORT_SERVICE_URL,
+                suggestion: 'Check if transport-service is running and accessible at the configured URL'
+            });
             return false;
         }
     }
