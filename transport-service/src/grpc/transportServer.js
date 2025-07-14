@@ -4,10 +4,7 @@ const path = require('path');
 const { logger } = require('../config/logger');
 
 // Import models
-const Route = require('../models/route.model');
-const Station = require('../models/station.model');
-const Trip = require('../models/trip.model');
-const RouteStation = require('../models/routeStation.model');
+const { Route, Station, Trip, RouteStation } = require('../models/index.model');
 
 // Load the protobuf
 const PROTO_PATH = path.join(__dirname, '../proto/transport.proto');
@@ -373,7 +370,7 @@ function startGrpcServer() {
         logger.info('Adding service to gRPC server...');
         server.addService(transportProto.TransportService.service, transportService);
 
-        const port = process.env.GRPC_PORT || '50051';
+        const port = process.env.TRANSPORT_GRPC_PORT;
         logger.info(`Attempting to bind gRPC server to port ${port}...`);
         
         server.bindAsync(`0.0.0.0:${port}`, grpc.ServerCredentials.createInsecure(), (err, boundPort) => {

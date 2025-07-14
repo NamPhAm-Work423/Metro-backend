@@ -4,7 +4,7 @@ const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Route, Station, Stop, Train, Trip, RouteStation } = require('./models/index.model');
-const { startGrpcServer } = require('./grpc/server');
+const { startGrpcServer } = require('./grpc/transportServer');
 const { runAllSeeds } = require('./seed');
 
 const PORT = process.env.PORT || 3002;

@@ -6,8 +6,7 @@ const sequelize = require('./config/database');
 const { Ticket, Fare, Promotion } = require('./models/index.model');
 const { initializeRedis } = require('./config/redis');
 const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
-const { runSeeds } = require('./seed');
-
+const { startServer } = require('./grpc/fareSever');
 
 const PORT = process.env.PORT || 3003;
 const SERVICE_NAME = 'ticket-service';

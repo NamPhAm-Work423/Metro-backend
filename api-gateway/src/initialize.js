@@ -3,6 +3,7 @@ const { logger } = require('./config/logger');
 const Service = require('./models/service.model');
 const ServiceInstance = require('./models/serviceInstance.model');
 const { storeInstances } = require('./services/loadBalancer.service');
+const routeCache = require('./services/routeCache.service');
 const config = require('./config.json');
 
 async function initializeServices() {
@@ -95,4 +96,22 @@ async function initializeServices() {
 module.exports = async function initialize() {
     await initializeRedis();
     await initializeServices();
+    
+    // Preload cache for all active services after initialization
+    try {
+        logger.info('Starting cache preload for active services...');
+        // Small delay to ensure all services are fully initialized
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const preloadResult = await routeCache.preloadAllActiveServices();
+        
+        if (preloadResult.success) {
+            logger.info(`Cache preload successful: ${preloadResult.preloaded}/${preloadResult.total} services cached`);
+        } else {
+            logger.warn('Cache preload failed', { error: preloadResult.error });
+        }
+    } catch (error) {
+        logger.error('Error during cache preload:', error);
+        // Don't throw - cache preload failure shouldn't prevent API Gateway startup
+    }
 };

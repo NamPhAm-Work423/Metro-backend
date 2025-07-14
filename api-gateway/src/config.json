@@ -65,6 +65,16 @@
                     "port": 3006
                 }
             ]
+        },
+        {
+            "name": "public-service",
+            "endPoint": "public",
+            "instances": [
+                {
+                    "host": "public-service",
+                    "port": 3007
+                }
+            ]
         }
     ]
 }

@@ -5,6 +5,7 @@ const Service = require('../models/service.model');
 const ServiceInstance = require('../models/serviceInstance.model');
 const { logger } = require('../config/logger');
 const jwt = require('jsonwebtoken');
+const routeCache = require('./routeCache.service');
 
 class RoutingService {
     constructor() {
@@ -52,35 +53,46 @@ class RoutingService {
     }
 
     /**
-     * Find service instance by endpoint
+     * Find service instance by endpoint (preloaded cache only)
      */
     async findServiceInstanceByEndpoint(endPoint) {
-        try {
-            const service = await Service.findOne({
-                where: { 
-                    endPoint: endPoint,
-                    status: 'active'
-                },
-                include: [{
-                    model: ServiceInstance,
-                    as: 'instances',
-                    where: { 
-                        status: 'active',
-                        isHealthy: true 
-                    },
-                    required: false
-                }]
-            });
-
-            if (!service || !service.instances || service.instances.length === 0) {
-                return null;
-            }
-
-            return service;
-        } catch (error) {
-            logger.error('Error finding service instance:', error);
-            throw new CustomError('Error finding service instance', 500);
+        // Only use preloaded cache - no database fallback
+        const cachedRoute = await routeCache.getRoute(endPoint);
+        const healthyInstances = await routeCache.getHealthyServiceInstances(endPoint);
+        
+        if (!cachedRoute) {
+            logger.warn('Service not found in cache - not healthy or doesn\'t exist', { endPoint });
+            return null;
         }
+
+        if (!healthyInstances || healthyInstances.length === 0) {
+            logger.warn('No healthy instances available', { endPoint });
+            return null;
+        }
+
+        logger.debug('Service found from preloaded cache', { 
+            endPoint, 
+            healthyInstances: healthyInstances.length,
+            cacheSource: 'preloaded'
+        });
+
+        // Return service with healthy instances
+        return {
+            id: cachedRoute.serviceKey,
+            name: cachedRoute.serviceName,
+            endPoint: cachedRoute.serviceKey,
+            timeout: parseInt(cachedRoute.timeout) || 5000,
+            retries: parseInt(cachedRoute.retries) || 3,
+            instances: healthyInstances.map(instance => ({
+                id: instance.id,
+                host: instance.host,
+                port: instance.port,
+                weight: instance.weight || 1,
+                region: instance.region || 'default',
+                isHealthy: true, // Already filtered by loadbalancer
+                status: 'active'
+            }))
+        };
     }
 
     /**
@@ -248,39 +260,64 @@ class RoutingService {
     }
 
     /**
-     * Check service health
+     * Check service health (preloaded cache only)
      */
     async checkServiceHealth(endPoint) {
-        try {
-            const service = await this.findServiceInstanceByEndpoint(endPoint);
-            
-            if (!service) {
-                return {
-                    healthy: false,
-                    message: 'Service not found'
-                };
-            }
-
-            const healthyInstances = service.instances.filter(instance => instance.isHealthy);
-            
-            return {
-                healthy: healthyInstances.length > 0,
-                totalInstances: service.instances.length,
-                healthyInstances: healthyInstances.length,
-                instances: service.instances.map(instance => ({
-                    id: instance.id,
-                    host: instance.host,
-                    port: instance.port,
-                    isHealthy: instance.isHealthy,
-                    status: instance.status
-                }))
-            };
-        } catch (error) {
-            logger.error('Health check error:', error);
+        const service = await this.findServiceInstanceByEndpoint(endPoint);
+        
+        if (!service) {
             return {
                 healthy: false,
-                message: error.message
+                message: 'Service not found - not healthy or doesn\'t exist',
+                cached: true
             };
+        }
+
+        const healthyInstances = service.instances.filter(instance => instance.isHealthy);
+        
+        return {
+            healthy: healthyInstances.length > 0,
+            totalInstances: service.instances.length,
+            healthyInstances: healthyInstances.length,
+            instances: service.instances.map(instance => ({
+                id: instance.id,
+                host: instance.host,
+                port: instance.port,
+                isHealthy: instance.isHealthy,
+                status: instance.status
+            })),
+            cached: true
+        };
+    }
+
+    /**
+     * Invalidate route cache (for admin/management use)
+     */
+    async invalidateRouteCache(endPoint) {
+        try {
+            if (endPoint) {
+                await routeCache.invalidateRoute(endPoint);
+                logger.info('Route cache invalidated', { endPoint });
+            } else {
+                await routeCache.invalidateAllRoutes();
+                logger.info('All route caches invalidated');
+            }
+            return true;
+        } catch (error) {
+            logger.error('Error invalidating route cache', { endPoint, error: error.message });
+            return false;
+        }
+    }
+
+    /**
+     * Get cache statistics
+     */
+    async getCacheStats() {
+        try {
+            return await routeCache.getCacheStats();
+        } catch (error) {
+            logger.error('Error getting cache stats', { error: error.message });
+            return { error: error.message };
         }
     }
 }

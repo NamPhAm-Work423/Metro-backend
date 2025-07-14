@@ -3,328 +3,217 @@ const { logger } = require('../config/logger');
 
 class PassengerCacheService {
     constructor() {
-        this.keyPrefix = 'ticket-service:passenger-cache:';
-        this.defaultTTL = 24 * 60 * 60; // 24 hours in seconds
+        // Use configurable prefix for different environments
+        // Default: service:ticket:passenger:{passengerId}
+        // Can override: REDIS_KEY_PREFIX=dev: -> dev:ticket:passenger:{passengerId}
+        const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+        this.keyPrefix = `${SERVICE_PREFIX}ticket:passenger:`;
+        this.defaultTTL = 24 * 60 * 60; // 24 hours
     }
 
-    // Generate cache key for passenger
     _getCacheKey(passengerId) {
         return `${this.keyPrefix}${passengerId}`;
     }
 
-    // Set passenger data in cache
     async setPassenger(passengerId, passengerData, ttl = this.defaultTTL) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
             const cacheKey = this._getCacheKey(passengerId);
-            const serializedData = JSON.stringify({
+            const data = JSON.stringify({
                 ...passengerData,
                 cachedAt: new Date().toISOString(),
-                ttl: ttl
+                ttl
             });
 
-            await redis.set(cacheKey, serializedData, { EX: ttl });
-            
-            logger.info(`Passenger cached successfully: ${passengerId}`, {
-                passengerId,
-                ttl,
-                cacheKey
-            });
-
+            await redis.set(cacheKey, data, { EX: ttl });
+            logger.info(`Passenger cached: ${passengerId}`, { cacheKey, ttl });
             return true;
         } catch (error) {
-            logger.error(`Error setting passenger cache: ${passengerId}`, error);
+            logger.error(`Cache SET error for passenger ${passengerId}`, error);
             return false;
         }
     }
 
-    // Get passenger data from cache
     async getPassenger(passengerId) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
-            const cacheKey = this._getCacheKey(passengerId);
-            const cachedData = await redis.get(cacheKey);
+            const data = await redis.get(this._getCacheKey(passengerId));
+            if (!data) return null;
 
-            if (!cachedData) {
-                logger.debug(`Passenger cache miss: ${passengerId}`);
-                return null;
-            }
-
-            const passengerData = JSON.parse(cachedData);
-            
-            logger.debug(`Passenger cache hit: ${passengerId}`, {
-                passengerId,
-                cachedAt: passengerData.cachedAt
-            });
-
-            return passengerData;
+            const passenger = JSON.parse(data);
+            logger.debug(`Passenger cache HIT: ${passengerId}`, { cachedAt: passenger.cachedAt });
+            return passenger;
         } catch (error) {
-            logger.error(`Error getting passenger cache: ${passengerId}`, error);
+            logger.error(`Cache GET error for passenger ${passengerId}`, error);
             return null;
         }
     }
 
-    // Get passenger data from cache by userId
-    async getPassengerByUserId(userId) {
-        try {
-            const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
-
-            // Get all passenger cache keys
-            const pattern = `${this.keyPrefix}*`;
-            const keys = await redis.keys(pattern);
-            
-            if (keys.length === 0) {
-                logger.debug(`No passengers in cache to search for userId: ${userId}`);
-                return null;
-            }
-
-            // Search through cached passengers to find matching userId
-            for (const key of keys) {
-                const cachedData = await redis.get(key);
-                if (cachedData) {
-                    try {
-                        const passengerData = JSON.parse(cachedData);
-                        if (passengerData.userId === userId) {
-                            logger.debug(`Passenger found by userId: ${userId}`, {
-                                passengerId: passengerData.passengerId,
-                                cachedAt: passengerData.cachedAt
-                            });
-                            return passengerData;
-                        }
-                    } catch (parseError) {
-                        logger.error(`Error parsing cached passenger data for key: ${key}`, parseError);
-                    }
-                }
-            }
-
-            logger.debug(`Passenger not found in cache for userId: ${userId}`);
-            return null;
-        } catch (error) {
-            logger.error(`Error getting passenger by userId from cache: ${userId}`, error);
-            return null;
-        }
-    }
-
-    // Get multiple passengers from cache
     async getPassengers(passengerIds) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
-            const cacheKeys = passengerIds.map(id => this._getCacheKey(id));
-            const cachedData = await redis.mGet(cacheKeys);
+            const keys = passengerIds.map(id => this._getCacheKey(id));
+            const dataArr = await redis.mGet(keys);
 
-            const passengers = {};
-            const missingIds = [];
+            const result = {};
+            const missing = [];
 
-            cachedData.forEach((data, index) => {
-                const passengerId = passengerIds[index];
-                
+            dataArr.forEach((data, i) => {
+                const id = passengerIds[i];
                 if (data) {
                     try {
-                        passengers[passengerId] = JSON.parse(data);
-                    } catch (parseError) {
-                        logger.error(`Error parsing cached passenger data: ${passengerId}`, parseError);
-                        missingIds.push(passengerId);
+                        result[id] = JSON.parse(data);
+                    } catch {
+                        missing.push(id);
                     }
                 } else {
-                    missingIds.push(passengerId);
+                    missing.push(id);
                 }
             });
 
-            logger.debug(`Passengers cache lookup`, {
-                requested: passengerIds.length,
-                found: Object.keys(passengers).length,
-                missing: missingIds.length,
-                missingIds
+            logger.debug('Bulk passenger cache lookup', {
+                total: passengerIds.length,
+                hit: Object.keys(result).length,
+                miss: missing.length
             });
 
-            return { passengers, missingIds };
+            return { passengers: result, missingIds: missing };
         } catch (error) {
-            logger.error('Error getting multiple passengers from cache', error);
+            logger.error('Cache MGET error for passengers', error);
             return { passengers: {}, missingIds: passengerIds };
         }
     }
 
-    // Remove passenger from cache
-    async removePassenger(passengerId) {
+    async getPassengerByUserId(userId) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
+            if (!redis) throw new Error('Redis client not available');
+
+            const keys = await redis.keys(`${this.keyPrefix}*`);
+            for (const key of keys) {
+                const data = await redis.get(key);
+                if (data) {
+                    try {
+                        const passenger = JSON.parse(data);
+                        if (passenger.userId === userId) {
+                            logger.debug(`Found passenger by userId ${userId}`, { id: passenger.passengerId });
+                            return passenger;
+                        }
+                    } catch {}
+                }
             }
 
-            const cacheKey = this._getCacheKey(passengerId);
-            const result = await redis.del(cacheKey);
-
-            if (result > 0) {
-                logger.info(`Passenger removed from cache: ${passengerId}`);
-                return true;
-            } else {
-                logger.debug(`Passenger not found in cache for removal: ${passengerId}`);
-                return false;
-            }
+            return null;
         } catch (error) {
-            logger.error(`Error removing passenger from cache: ${passengerId}`, error);
-            return false;
+            logger.error(`Cache search error for userId ${userId}`, error);
+            return null;
         }
     }
 
-    // Check if passenger exists in cache
     async hasPassenger(passengerId) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
-            const cacheKey = this._getCacheKey(passengerId);
-            const exists = await redis.exists(cacheKey);
+            const exists = await redis.exists(this._getCacheKey(passengerId));
             return exists === 1;
         } catch (error) {
-            logger.error(`Error checking passenger existence in cache: ${passengerId}`, error);
+            logger.error(`Cache EXISTS error for ${passengerId}`, error);
             return false;
         }
     }
 
-    // Refresh passenger TTL
+    async removePassenger(passengerId) {
+        try {
+            const redis = getClient();
+            if (!redis) throw new Error('Redis client not available');
+
+            const result = await redis.del(this._getCacheKey(passengerId));
+            return result > 0;
+        } catch (error) {
+            logger.error(`Cache DEL error for passenger ${passengerId}`, error);
+            return false;
+        }
+    }
+
     async refreshPassengerTTL(passengerId, ttl = this.defaultTTL) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
-            const cacheKey = this._getCacheKey(passengerId);
-            const result = await redis.expire(cacheKey, ttl);
-            
-            if (result === 1) {
-                logger.debug(`Passenger TTL refreshed: ${passengerId}`, { ttl });
-                return true;
-            } else {
-                logger.debug(`Passenger not found for TTL refresh: ${passengerId}`);
-                return false;
-            }
+            const result = await redis.expire(this._getCacheKey(passengerId), ttl);
+            return result === 1;
         } catch (error) {
-            logger.error(`Error refreshing passenger TTL: ${passengerId}`, error);
+            logger.error(`Cache EXPIRE error for passenger ${passengerId}`, error);
             return false;
         }
     }
 
-    // Get cache statistics
-    async getCacheStats() {
+    async setPassengers(passengerMap, ttl = this.defaultTTL) {
         try {
             const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
-
-            const pattern = `${this.keyPrefix}*`;
-            const keys = await redis.keys(pattern);
-            
-            const stats = {
-                totalPassengers: keys.length,
-                keyPrefix: this.keyPrefix,
-                defaultTTL: this.defaultTTL,
-                timestamp: new Date().toISOString()
-            };
-
-            // Get TTL info for first few keys as sample
-            if (keys.length > 0) {
-                const sampleKeys = keys.slice(0, 5);
-                const ttlInfo = await Promise.all(
-                    sampleKeys.map(async (key) => {
-                        const ttl = await redis.ttl(key);
-                        return { key, ttl };
-                    })
-                );
-                stats.sampleTTLs = ttlInfo;
-            }
-
-            return stats;
-        } catch (error) {
-            logger.error('Error getting cache stats', error);
-            return { error: error.message };
-        }
-    }
-
-    // Clear all passenger cache
-    async clearCache() {
-        try {
-            const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
-
-            const pattern = `${this.keyPrefix}*`;
-            const keys = await redis.keys(pattern);
-            
-            if (keys.length > 0) {
-                await redis.del(...keys);
-                logger.info(`Cleared ${keys.length} passenger cache entries`);
-                return { cleared: keys.length };
-            } else {
-                logger.info('No passenger cache entries to clear');
-                return { cleared: 0 };
-            }
-        } catch (error) {
-            logger.error('Error clearing passenger cache', error);
-            return { error: error.message };
-        }
-    }
-
-    // Batch set multiple passengers
-    async setPassengers(passengersData, ttl = this.defaultTTL) {
-        try {
-            const redis = getClient();
-            if (!redis) {
-                throw new Error('Redis client not available');
-            }
+            if (!redis) throw new Error('Redis client not available');
 
             const multi = redis.multi();
-            const results = [];
+            const ids = [];
 
-            for (const [passengerId, passengerData] of Object.entries(passengersData)) {
-                const cacheKey = this._getCacheKey(passengerId);
-                const serializedData = JSON.stringify({
-                    ...passengerData,
-                    cachedAt: new Date().toISOString(),
-                    ttl: ttl
-                });
-
-                multi.set(cacheKey, serializedData, { EX: ttl });
-                results.push(passengerId);
+            for (const [passengerId, data] of Object.entries(passengerMap)) {
+                const key = this._getCacheKey(passengerId);
+                const serialized = JSON.stringify({ ...data, cachedAt: new Date().toISOString(), ttl });
+                multi.set(key, serialized, { EX: ttl });
+                ids.push(passengerId);
             }
 
             await multi.exec();
-
-            logger.info(`Batch cached ${results.length} passengers`, {
-                passengerIds: results,
-                ttl
-            });
-
-            return { success: true, count: results.length, passengerIds: results };
+            logger.info(`Batch cached ${ids.length} passengers`);
+            return { success: true, passengerIds: ids };
         } catch (error) {
-            logger.error('Error batch setting passengers cache', error);
+            logger.error('Batch cache SET error', error);
             return { success: false, error: error.message };
+        }
+    }
+
+    async clearCache() {
+        try {
+            const redis = getClient();
+            if (!redis) throw new Error('Redis client not available');
+
+            const keys = await redis.keys(`${this.keyPrefix}*`);
+            if (keys.length > 0) await redis.del(...keys);
+            return { cleared: keys.length };
+        } catch (error) {
+            logger.error('Cache CLEAR error', error);
+            return { error: error.message };
+        }
+    }
+
+    async getCacheStats() {
+        try {
+            const redis = getClient();
+            if (!redis) throw new Error('Redis client not available');
+
+            const keys = await redis.keys(`${this.keyPrefix}*`);
+            const sample = keys.slice(0, 5);
+            const ttls = await Promise.all(sample.map(async k => ({ key: k, ttl: await redis.ttl(k) })));
+
+            return {
+                keyPrefix: this.keyPrefix,
+                count: keys.length,
+                sampleTTLs: ttls,
+                checkedAt: new Date().toISOString()
+            };
+        } catch (error) {
+            logger.error('Cache STATS error', error);
+            return { error: error.message };
         }
     }
 }
 
-// Create singleton instance
 const passengerCacheService = new PassengerCacheService();
-
-module.exports = passengerCacheService; 
+module.exports = passengerCacheService;

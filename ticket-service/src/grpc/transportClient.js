@@ -16,11 +16,18 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const transportProto = grpc.loadPackageDefinition(packageDefinition).transport;
 
 // Create client
-const TRANSPORT_SERVICE_URL = process.env.TRANSPORT_GRPC_URL || 'localhost:50051';
+// Resolve gRPC target: allow both combined URL or separate host/port env vars
+let TRANSPORT_SERVICE_URL = process.env.TRANSPORT_GRPC_URL;
+
+if (!TRANSPORT_SERVICE_URL || TRANSPORT_SERVICE_URL.trim() === '') {
+    const host = process.env.TRANSPORT_GRPC_HOST || 'transport-service';
+    const port = process.env.TRANSPORT_GRPC_PORT || '50051';
+    TRANSPORT_SERVICE_URL = `${host}:${port}`;
+}
 
 // Log gRPC configuration for debugging
 logger.info('gRPC Transport Client Configuration', {
-    TRANSPORT_GRPC_URL: TRANSPORT_SERVICE_URL,
+    TRANSPORT_SERVICE_URL: TRANSPORT_SERVICE_URL,
     PROTO_PATH,
     serviceAvailable: !!transportProto.TransportService
 });

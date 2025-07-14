@@ -72,9 +72,6 @@ services:
       - "3002:3002"
     env_file:
       - ./transport-service/.env
-    environment:
-      - GRPC_HOST=transport-service
-      - GRPC_PORT=50051
     volumes:
       - ./transport-service:/app
       - /app/node_modules
@@ -100,10 +97,6 @@ services:
       - "3003:3003"
     env_file:
       - ./ticket-service/.env
-    environment:
-      - GRPC_HOST=transport-service
-      - GRPC_PORT=50051
-      - TRANSPORT_GRPC_URL=transport-service:50051
     volumes:
       - ./ticket-service:/app
       - /app/node_modules

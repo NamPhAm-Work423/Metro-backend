@@ -3,10 +3,11 @@ const { getClient } = require('../config/redis');
 const config = require('..');
 const { logger } = require('../config/logger');
 
-// Redis store for rate limiter
+// Redis store for rate limiter using clean tree structure
 class RedisStore {
   constructor(options = {}) {
-    this.keyPrefix = options.prefix || 'rl:';
+    // Follow clean tree structure: rate-limiter:{type}:{key}
+    this.keyPrefix = options.prefix || 'rate-limiter:';
     this.windowMs = options.windowMs || 60000;
   }
 
@@ -135,7 +136,7 @@ const defaultRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: new RedisStore({
-    prefix: 'rl:default:',
+    prefix: 'rate-limiter:default:',
     windowMs: 15 * 60 * 1000
   }),
   keyGenerator,
@@ -161,7 +162,7 @@ const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: new RedisStore({
-    prefix: 'rl:auth:',
+    prefix: 'rate-limiter:auth:',
     windowMs: 15 * 60 * 1000
   }),
   keyGenerator,
@@ -193,7 +194,7 @@ const sensitiveRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: new RedisStore({
-    prefix: 'rl:sensitive:',
+    prefix: 'rate-limiter:sensitive:',
     windowMs: 60 * 60 * 1000
   }),
   keyGenerator,
@@ -224,7 +225,7 @@ const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: new RedisStore({
-    prefix: 'rl:api:',
+    prefix: 'rate-limiter:api:',
     windowMs: 60 * 60 * 1000
   }),
   keyGenerator,
@@ -258,7 +259,7 @@ const createUserRateLimiter = (windowMs = 60 * 1000, max = 60) => {
     standardHeaders: true,
     legacyHeaders: false,
     store: new RedisStore({
-      prefix: 'rl:user:',
+      prefix: 'rate-limiter:user:',
       windowMs
     }),
     keyGenerator: (req) => req.user?.id || req.ip,
@@ -289,7 +290,7 @@ const burstProtection = rateLimit({
   standardHeaders: false,
   legacyHeaders: false,
   store: new RedisStore({
-    prefix: 'rl:burst:',
+    prefix: 'rate-limiter:burst:',
     windowMs: 1000
   }),
   keyGenerator,
@@ -329,7 +330,7 @@ const createProgressiveRateLimiter = (baseWindowMs = 15 * 60 * 1000, baseMax = 1
         windowMs: adjustedWindow,
         max: adjustedMax,
         store: new RedisStore({
-          prefix: 'rl:progressive:',
+          prefix: 'rate-limiter:progressive:',
           windowMs: adjustedWindow
         }),
         keyGenerator,

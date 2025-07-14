@@ -3,12 +3,19 @@ const { hashToken, createAPIToken } = require('../helpers/crypto.helper');
 const { logger } = require('../config/logger');
 const Key = require('../models/key.model');
 
-const KEY_PREFIX = {
-    API_KEY: 'api_key:',
+// -----------------------------------------------------------------------------
+// Redis key prefixing following clean tree structure
+// -----------------------------------------------------------------------------
+// Use configurable prefix for different environments (dev, staging, prod)
+const API_GATEWAY_PREFIX = process.env.REDIS_KEY_PREFIX || 'api-gateway:';
+
+// Clean tree pattern: {prefix}auth-cache:{key}, {prefix}session:{userId}:{keyId}
+function formatAPIKey(key) {
+    return `${API_GATEWAY_PREFIX}auth-cache:${key}`;
 }
 
-function formatAPIKey(key) {
-    return `${KEY_PREFIX.API_KEY}${key}`;
+function formatSessionKey(userId, keyId) {
+    return `${API_GATEWAY_PREFIX}session:${userId}:${keyId}`;
 }
 
 /**
@@ -20,7 +27,7 @@ function formatAPIKey(key) {
 async function storeAPIKey(apiKey, metadata = {}, expirySeconds = 24 * 3600) {
     try {
         await withRedisClient(async (client) => {
-            const hashKey = hashToken(apiKey, process.env.HASH_SECRET);
+            const hashKey = hashToken(apiKey, process.env.API_KEY_HASH_SECRET);
             const redisKey = formatAPIKey(hashKey);
             
             await client.hSet(redisKey, {
@@ -51,7 +58,7 @@ async function storeAPIKey(apiKey, metadata = {}, expirySeconds = 24 * 3600) {
  */
 async function validateAPIKey(apiKey) {
     try {
-        const hashKey = hashToken(apiKey, process.env.HASH_SECRET);
+        const hashKey = hashToken(apiKey, process.env.API_KEY_HASH_SECRET);
         const redisKey = formatAPIKey(hashKey);
         
         // Step 1: Check Redis cache first
@@ -182,7 +189,7 @@ async function getActiveAPIKeyForUser(userId) {
         }
 
         // Check if we have a cached API key for this session
-        const sessionCacheKey = `session_api_key:${userId}:${existingKey.id}`;
+        const sessionCacheKey = formatSessionKey(userId, existingKey.id);
         
         logger.info('Checking cache for API key', {
             userId,
@@ -217,7 +224,7 @@ async function getActiveAPIKeyForUser(userId) {
         // If no cached key, generate a new one and cache it for this session
         const { createAPIToken, hashToken } = require('../helpers/crypto.helper');
         const newApiToken = createAPIToken();
-        const hashedToken = hashToken(newApiToken, process.env.HASH_SECRET);
+        const hashedToken = hashToken(newApiToken, process.env.API_KEY_HASH_SECRET);
         
         // Update the existing key record with new token
         await existingKey.update({
