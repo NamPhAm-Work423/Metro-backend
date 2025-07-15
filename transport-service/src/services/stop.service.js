@@ -37,10 +37,12 @@ class StopService {
                 include: [
                     {
                         model: Trip,
+                        as: 'trip',
                         attributes: ['tripId', 'routeId', 'trainId', 'departureTime', 'arrivalTime', 'dayOfWeek']
                     },
                     {
                         model: Station,
+                        as: 'station',
                         attributes: ['stationId', 'name', 'location', 'openTime', 'closeTime']
                     }
                 ],
