@@ -291,7 +291,7 @@ class UserService {
             { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
         );
 
-        return { accessToken };
+        return { accessToken, user };
     }
 
     /**
