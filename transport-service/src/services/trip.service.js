@@ -56,6 +56,7 @@ class TripService {
                         include: [
                             {
                                 model: Station,
+                                as: 'station',
                                 attributes: ['stationId', 'name', 'location']
                             }
                         ],
