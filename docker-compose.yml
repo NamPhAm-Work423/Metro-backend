@@ -226,7 +226,7 @@ services:
       - backend-network
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./servers.json:/servers.json:ro
 
   # Zookeeper service
   zookeeper:
@@ -345,10 +345,12 @@ services:
     ports:
       - "9000:9000"
     environment:
-      KAFKA_BROKERCONNECT: kafka-1:19092
-      JVM_OPTS: '-Xms32M -Xmx64M'
+      KAFKA_BROKERCONNECT: kafka-1:19092,kafka-2:19093,kafka-3:19094
+      JVM_OPTS: '-Xms128M -Xmx256M'
     depends_on:
       - kafka-1
+      - kafka-2
+      - kafka-3
     networks:
       - backend-network
 

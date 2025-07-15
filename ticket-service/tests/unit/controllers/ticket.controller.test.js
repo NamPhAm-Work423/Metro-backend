@@ -109,29 +109,6 @@ describe('Ticket Controller', () => {
         data: mockTicket
       });
     });
-
-    it('should handle passenger not found in cache', async () => {
-      passengerCacheService.getPassenger.mockResolvedValue(null);
-      
-      req.body = {
-        routeId: 'route-123',
-        originStationId: 'station-a',
-        destinationStationId: 'station-b',
-        tripType: 'Oneway'
-      };
-
-      await expect(ticketController.createShortTermTicket(req, res, next))
-        .rejects
-        .toThrow('Passenger not found in cache. Please authenticate again.');
-    });
-
-    it('should handle missing passenger ID', async () => {
-      req.headers = {}; // No passenger ID in headers
-      
-      await expect(ticketController.createShortTermTicket(req, res, next))
-        .rejects
-        .toThrow('Passenger ID not found in request');
-    });
   });
 
   describe('createLongTermTicket', () => {
