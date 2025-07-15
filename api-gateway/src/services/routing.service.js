@@ -133,14 +133,28 @@ class RoutingService {
                     
                     let newPathPart;
                     
-                    if (proxyEndpoint) {
-                        newPathPart = `/v1/${endPoint}/${proxyEndpoint}`;
+                    // Check if this is a guest route using the flag set by guest route middleware
+                    const isGuestRoute = req.isGuestRoute === true;
+                    
+                    if (isGuestRoute) {
+                        // For guest routes, proxy directly to the service's root paths
+                        // The service handles its own route structure (e.g., /cache/status, /transport/routes)
+                        if (proxyEndpoint) {
+                            newPathPart = `/${proxyEndpoint}`;
+                        } else {
+                            newPathPart = `/`;
+                        }
                     } else {
-                        newPathPart = `/v1/${endPoint}`;
+                        // For regular service routes, maintain the /v1/endPoint/ structure
+                        if (proxyEndpoint) {
+                            newPathPart = `/v1/${endPoint}/${proxyEndpoint}`;
+                        } else {
+                            newPathPart = `/v1/${endPoint}`;
+                        }
                     }
                     
                     const newPath = newPathPart + queryString;
-                    console.log(`Proxying: ${originalPath} -> ${newPath}`);
+                    console.log(`Proxying: ${originalPath} -> ${newPath} (isGuestRoute: ${isGuestRoute})`);
                     return newPath;
                 },
                 onProxyReq: function(proxyReq, req, res) {

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package fare;
+
+service FareService {
+    rpc GetFare(GetFareRequest) returns (GetFareResponse);
+    rpc GetTransitPass(GetTransitPassRequest) returns (GetTransitPassResponse);
+    rpc ListFares(ListFaresRequest) returns (ListFaresResponse);
+    rpc ListTransitPasses(ListTransitPassesRequest) returns (ListTransitPassesResponse);
+}
+
+message GetFareRequest {
+    string fareId = 1;
+}
+
+message GetTransitPassRequest {
+    string transitPassId = 1;
+}
+
+message ListFaresRequest {
+    string routeId = 1;
+    bool includeInactive = 2;
+}
+
+message ListTransitPassesRequest {
+    string transitPassType = 1;
+    bool includeInactive = 2;
+}
+
+message GetFareResponse {
+    string fareId = 1;
+    string routeId = 2;
+    double basePrice = 3;
+    string currency = 4;
+    bool isActive = 5;
+}
+
+message GetTransitPassResponse {
+    string transitPassId = 1;
+    string transitPassType = 2;
+    double price = 3;
+    string currency = 4;
+    bool isActive = 5;
+}
+
+message ListFaresResponse {
+    repeated GetFareResponse fares = 1;
+    int32 total = 2;
+}
+
+message ListTransitPassesResponse {
+    repeated GetTransitPassResponse transitPasses = 1;
+    int32 total = 2;
+}

@@ -61,6 +61,12 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   # Transport Service - handles stations, routes, trains, trips, and schedules
@@ -72,6 +78,8 @@ services:
       - "3002:3002"
     env_file:
       - ./transport-service/.env
+    environment:
+      - TRANSPORT_GRPC_PORT=50051
     volumes:
       - ./transport-service:/app
       - /app/node_modules
@@ -86,6 +94,12 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   # Ticket Service - handles tickets, fares, and promotions
@@ -107,6 +121,45 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Public Service - caches data from transport and ticket services via gRPC
+  public-service:
+    build:
+      context: ./public-service
+    container_name: public-service
+    ports:
+      - "3007:3007"
+    env_file:
+      - ./public-service/.env
+    environment:
+      - SCHEDULER_ENABLED=true
+      - TRANSPORT_SERVICE_GRPC_URL=transport-service:50051
+      - TICKET_SERVICE_GRPC_URL=ticket-service:50052
+    volumes:
+      - ./public-service:/app
+      - /app/node_modules
+    depends_on:
+      transport-service:
+        condition: service_healthy
+      ticket-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   # PostgreSQL Database

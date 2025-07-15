@@ -1,6 +1,42 @@
 const express = require('express');
 const request = require('supertest');
 
+// Mock all dependencies before importing anything
+jest.mock('../../../src/config/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn()
+  }
+}));
+
+// Mock rate limiter
+jest.mock('../../../src/middlewares/rateLimiter', () => ({
+  apiRateLimiter: (req, res, next) => next(),
+  burstProtection: (req, res, next) => next(),
+  defaultRateLimiter: (req, res, next) => next(),
+  authRateLimiter: (req, res, next) => next(),
+  sensitiveRateLimiter: (req, res, next) => next()
+}));
+
+// Mock database and other dependencies
+jest.mock('../../../src/config/database', () => {
+  const { Sequelize } = require('sequelize');
+  return new Sequelize('sqlite::memory:', { logging: false });
+});
+
+jest.mock('../../../src/models/index.model', () => ({
+  User: {},
+  Key: {}
+}));
+
+jest.mock('../../../src/services/user.service', () => ({}));
+jest.mock('../../../src/controllers/user.controller', () => ({
+  signup: jest.fn(),
+  login: jest.fn(),
+  logout: jest.fn()
+}));
+
 // Mock authentication middleware to bypass authentication
 jest.mock('../../../src/middlewares/auth.middleware', () => ({
   authenticate: (req, res, next) => {

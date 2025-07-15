@@ -3,11 +3,10 @@ require('dotenv').config();
 const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
-const { Ticket, Fare, Promotion } = require('./models/index.model');
 const { initializeRedis } = require('./config/redis');
 const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
 const { startServer } = require('./grpc/fareSever');
-
+const { runSeeds } = require('./seed/index');
 const PORT = process.env.PORT || 3003;
 const SERVICE_NAME = 'ticket-service';
 
@@ -81,6 +80,10 @@ async function startApplication() {
             await passengerCacheConsumer.start();
             logger.info('Passenger cache consumer started successfully');
         }
+        
+        // Start gRPC server
+        await startServer();
+        logger.info('gRPC server started successfully');
         
         // Start HTTP server
         app.listen(PORT, () => {

@@ -38,7 +38,7 @@ const fareService = {
             }
 
             callback(null, {
-                fareId: fare.id,
+                fareId: fare.fareId,
                 routeId: fare.routeId,
                 basePrice: fare.basePrice,
                 currency: fare.currency,
@@ -63,14 +63,88 @@ const fareService = {
             }
 
             callback(null, {
-                transitPassId: transitPass.id,
-                transitPassType: transitPass.type,
+                transitPassId: transitPass.transitPassId,
+                transitPassType: transitPass.transitPassType,
                 price: transitPass.price,
                 currency: transitPass.currency,
                 isActive: transitPass.isActive
             });
         } catch (error) {
             logger.error('Error getting transit pass:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+        }
+    },
+
+    async ListFares(call, callback) {
+        try {
+            const { routeId, includeInactive } = call.request;
+            
+            // Build where clause
+            const where = {};
+            if (routeId) {
+                where.routeId = routeId;
+            }
+            if (!includeInactive) {
+                where.isActive = true;
+            }
+
+            const fares = await Fare.findAll({
+                where,
+                order: [['routeId', 'ASC']]
+            });
+
+            const fareResponses = fares.map(fare => ({
+                fareId: fare.fareId,
+                routeId: fare.routeId,
+                basePrice: fare.basePrice,
+                currency: fare.currency,
+                isActive: fare.isActive
+            }));
+
+            callback(null, {
+                fares: fareResponses,
+                total: fareResponses.length
+            });
+
+        } catch (error) {
+            logger.error('Error listing fares:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+        }
+    },
+
+    async ListTransitPasses(call, callback) {
+        try {
+            const { transitPassType, includeInactive } = call.request;
+            
+            // Build where clause
+            const where = {};
+            if (transitPassType) {
+                where.transitPassType = transitPassType;
+            }
+            if (!includeInactive) {
+                where.isActive = true;
+            }
+
+            const transitPasses = await TransitPass.findAll({
+                where,
+                order: [['transitPassType', 'ASC']]
+            });
+
+            const transitPassResponses = transitPasses.map(transitPass => ({
+                transitPassId: transitPass.transitPassId,
+                transitPassType: transitPass.transitPassType,
+                price: transitPass.price,
+                currency: transitPass.currency,
+                isActive: transitPass.isActive
+            }));
+
+            callback(null, {
+                transitPasses: transitPassResponses,
+                total: transitPassResponses.length
+            });
+
+        } catch (error) {
+            logger.error('Error listing transit passes:', error);
             callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
         }
     }

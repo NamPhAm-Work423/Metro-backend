@@ -23,42 +23,28 @@ jest.mock('../src/config/logger', () => ({
 }));
 
 // Mock database (this file exists)
-jest.mock('../src/config/database', () => ({
-  sequelize: {
-    authenticate: jest.fn().mockResolvedValue(),
-    sync: jest.fn().mockResolvedValue(),
-    close: jest.fn().mockResolvedValue(),
-    define: jest.fn().mockReturnValue({
-      hasOne: jest.fn(),
-      hasMany: jest.fn(),
-      belongsTo: jest.fn(),
-      belongsToMany: jest.fn()
-    })
-  },
-  User: {
+jest.mock('../src/config/database', () => {
+  const { Sequelize } = require('sequelize');
+  const sequelize = new Sequelize('sqlite::memory:', { logging: false });
+  
+  // Mock the sequelize instance methods
+  sequelize.authenticate = jest.fn().mockResolvedValue();
+  sequelize.sync = jest.fn().mockResolvedValue();
+  sequelize.close = jest.fn().mockResolvedValue();
+  sequelize.define = jest.fn().mockReturnValue({
+    hasOne: jest.fn(),
+    hasMany: jest.fn(),
+    belongsTo: jest.fn(),
+    belongsToMany: jest.fn(),
     findOne: jest.fn(),
     findByPk: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     destroy: jest.fn()
-  },
-  Service: {
-    findOne: jest.fn(),
-    findByPk: jest.fn(),
-    findAll: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    destroy: jest.fn()
-  },
-  ServiceInstance: {
-    findOne: jest.fn(),
-    findByPk: jest.fn(),
-    findAll: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    destroy: jest.fn()
-  }
-}));
+  });
+  
+  return sequelize;
+});
 
 // Mock Redis if it exists
 jest.mock('../src/config/redis', () => ({
@@ -73,6 +59,15 @@ jest.mock('../src/config/redis', () => ({
     on: jest.fn(),
     isReady: true
   },
+  getClient: jest.fn(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    exists: jest.fn(),
+    expire: jest.fn(),
+    incr: jest.fn(),
+    keys: jest.fn()
+  })),
   setWithExpiry: jest.fn(),
   initializeRedis: jest.fn().mockResolvedValue()
 }), { virtual: true });

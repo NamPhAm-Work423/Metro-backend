@@ -51,7 +51,7 @@ const User = sequelize.define('User', {
     allowNull: true
   },
   roles: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
+    type: process.env.NODE_ENV === 'test' ? DataTypes.JSON : DataTypes.ARRAY(DataTypes.STRING),
     defaultValue: ['user'],
     validate: {
       isArrayOfStrings(value) {

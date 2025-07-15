@@ -33,7 +33,5 @@ ticketServiceRouter.get('/health', (req, res) => {
 // Mount ticket service router under /ticket prefix
 router.use('/ticket', ticketServiceRouter);
 
-// Legacy route for backward compatibility (if needed)
-router.use('/ticketing', ticketServiceRouter);
 
 module.exports = router;

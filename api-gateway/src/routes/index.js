@@ -5,6 +5,7 @@ const router = express.Router();
 const authRoutes = require('./auth.route');
 const serviceRoutes = require('./service.route');
 const routingRoutes = require('./routing.route');
+const guestRoutes = require('./guest.route');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { defaultRateLimiter } = require('../middlewares/rateLimiter');
 
@@ -21,16 +22,15 @@ if (process.env.NEED_API_KEY === 'true') {
     router.use('/v1/auth', authRoutes);
 }
 
-
 // Service management routes - mounted at /v1/service
 router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
+
+// Guest routes - mounted at /v1/guest (NO authentication required, only public service access)
+router.use('/v1/guest', guestRoutes);
 
 //** ALL SERVICE WILL BE MOUNTED HERE, YOU HAVE TO CALL THE SERVICE ROUTE BY USING THE ENDPOINT v1/route/serviceName */
 // Dynamic service routing - mounted at /v1/route (rate limiting applied in routing.route.js)
 router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
-
-// //**I CREATE A GUEST ROUTE FOR GUEST TO ACCESS THE SERVICE */
-// router.use('/v1/guest',process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
 
 // Health check endpoint - with rate limiting
 router.get('/health', defaultRateLimiter, (req, res) => {
@@ -63,6 +63,24 @@ router.get('/v1/discovery', defaultRateLimiter, (req, res) => {
                 timeout: s.timeout || 5000
             }))
         : [];
+
+    // Add guest route information for public service
+    const publicService = config.services?.find(s => s.endPoint === 'public');
+    const guestRoutes = publicService ? [{
+        name: 'public-service',
+        endpoint: '/v1/guest/public',
+        description: 'Public service accessible without authentication',
+        version: '1.0.0',
+        authentication: { required: false },
+        instances: publicService.instances ? publicService.instances.length : 0,
+        timeout: 5000,
+        access: 'guest',
+        rateLimits: {
+            window: '15 minutes',
+            maxRequests: 100,
+            burstProtection: true
+        }
+    }] : [];
         
     res.json({
         success: true,
@@ -75,8 +93,10 @@ router.get('/v1/discovery', defaultRateLimiter, (req, res) => {
                 timestamp: new Date().toISOString()
             },
             services: activeServices,
+            guestServices: guestRoutes,
             totalServices: config.services ? config.services.length : 0,
-            activeServices: activeServices.length
+            activeServices: activeServices.length,
+            guestServicesCount: guestRoutes.length
         }
     });
 });
