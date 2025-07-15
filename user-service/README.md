@@ -44,7 +44,7 @@ By merging these services, we reduce the operational complexity and resource usa
 
 ## API Endpoints
 
-### Admin Routes (`/v1/admins`)
+### Admin Routes (`/v1/user/admin`)
 - `GET /getAllAdmins` - Get all admins (admin only)
 - `GET /getAdminById/:id` - Get admin by ID (admin only)
 - `PUT /updateAdmin/:id` - Update admin (admin only)
@@ -52,7 +52,7 @@ By merging these services, we reduce the operational complexity and resource usa
 - `GET /me` - Get current admin profile
 - `DELETE /me` - Delete current admin profile
 
-### Passenger Routes (`/v1/passengers`)
+### Passenger Routes (`/v1/user/passenger`)
 - `GET /getallPassengers` - Get all passengers (staff/admin only)
 - `GET /getPassengerById/:id` - Get passenger by ID (staff/admin only)
 - `POST /createPassenger` - Create passenger (staff/admin only)
@@ -62,7 +62,7 @@ By merging these services, we reduce the operational complexity and resource usa
 - `PUT /me` - Update current passenger profile
 - `DELETE /me` - Delete current passenger profile
 
-### Staff Routes (`/v1/staff`)
+### Staff Routes (`/v1/user/staff`)
 - `GET /getAllStaff` - Get all staff (staff/admin only)
 - `GET /getStaffById/:id` - Get staff by ID (staff/admin only)
 - `POST /createStaff` - Create staff (staff/admin only)

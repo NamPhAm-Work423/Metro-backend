@@ -321,6 +321,10 @@ This API uses **cookie-based authentication** for maximum security and ease of u
         {
             name: 'System',
             description: 'System health and discovery endpoints'
+        },
+        {
+            name: 'Public API',
+            description: 'Public caching service for transport and ticket data'
         }
     ]
 }
@@ -329,7 +333,8 @@ const options = {
     definition: swaggerDefinition,
     apis: [
         path.join(__dirname, '..', 'routes', '**/*.js'),
-        path.join(__dirname, '..', 'swagger', '**/*.js')
+        path.join(__dirname, '..', 'swagger', '**/*.js'),
+        path.join(__dirname, '..', 'swagger', 'public-service.swagger.js')
     ],
 };
 

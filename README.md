@@ -10,7 +10,8 @@ The Metro Backend is organized into logical service domains, each handling speci
 |--------|----------|-------------|--------|
 | 🧑‍✈️ **User Management** | `user-service` | admin, passenger, staff | ✅ Active |
 | 🚆 **Transport Operations** | `transport-service` | station, schedule, route | 🏗️ Done CRUD, will add more in future |
-| 🎫 **Ticket & Pricing** | `ticket-service` | ticket, fare, promotion | 🏗️ In developing |
+| 🎫 **Ticket & Pricing** | `ticket-service` | ticket, fare, promotion | 🏗️ Done CRUD |
+| 📡 **Public API** | `public-service` | cache, health, transport, ticket | ✅ Active |
 | 📞 **Customer Support** | `customer-support-service` | supportReq, guide, chat, call | 📋 Planned |
 | 💳 **Payment Processing** | `payment-service` | Single unified payment service | 📋 Planned |
 | 📊 **Analytics & Reporting** | `report-service` | Single reporting service | 📋 Planned |

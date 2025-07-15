@@ -54,7 +54,7 @@ The Transport Service manages the core transportation infrastructure including:
 
 ## API Endpoints
 
-### Route Routes (`/v1/routes`)
+### Route Routes (`/v1/transport/route`)
 - `GET /` - Get all routes
 - `GET /:id` - Get route details
 - `POST /` - Create new route (admin only)
@@ -62,7 +62,7 @@ The Transport Service manages the core transportation infrastructure including:
 - `DELETE /:id` - Delete route (admin only)
 - `GET /:id/stations` - Get stations on route
 
-### Station Routes (`/v1/stations`)
+### Station Routes (`/v1/transport/station`)
 - `GET /` - Get all stations
 - `GET /:id` - Get station details
 - `POST /` - Create new station (admin only)
@@ -70,7 +70,7 @@ The Transport Service manages the core transportation infrastructure including:
 - `DELETE /:id` - Delete station (admin only)
 - `GET /:id/routes` - Get routes serving station
 
-### Train Routes (`/v1/trains`)
+### Train Routes (`/v1/transport/train`)
 - `GET /` - Get all trains
 - `GET /:id` - Get train details
 - `POST /` - Create new train (admin only)
@@ -78,7 +78,7 @@ The Transport Service manages the core transportation infrastructure including:
 - `DELETE /:id` - Delete train (admin only)
 - `GET /:id/schedule` - Get train schedule
 
-### Trip Routes (`/v1/trips`)
+### Trip Routes (`/v1/transport/trip`)
 - `GET /` - Get all trips
 - `GET /:id` - Get trip details
 - `POST /` - Create new trip (admin only)
@@ -86,14 +86,14 @@ The Transport Service manages the core transportation infrastructure including:
 - `DELETE /:id` - Delete trip (admin only)
 - `GET /schedule` - Get trip schedules
 
-### Stop Routes (`/v1/stops`)
+### Stop Routes (`/v1/transport/stop`)
 - `GET /` - Get all stops
 - `GET /:id` - Get stop details
 - `POST /` - Create new stop (admin only)
 - `PUT /:id` - Update stop (admin only)
 - `DELETE /:id` - Delete stop (admin only)
 
-### Route-Station Routes (`/v1/route-stations`)
+### Route-Station Routes (`/v1/transport/route-station`)
 - `GET /` - Get all route-station relationships
 - `POST /` - Create route-station relationship (admin only)
 - `PUT /:id` - Update relationship (admin only)

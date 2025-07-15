@@ -107,14 +107,14 @@ const pass = await ticketService.createLongTermTicket(longTermTicketData);
 
 ## API Endpoints
 
-### Ticket Routes (`/v1/tickets`)
+### Ticket Routes (`/v1/ticket/tickets`)
 - `POST /create` - Create new ticket
 - `GET /:id` - Get ticket details
 - `PUT /:id/validate` - Validate ticket for use
 - `GET /passenger/:passengerId` - Get passenger tickets
 - `DELETE /:id` - Cancel/refund ticket
 
-### POST `/v1/tickets/create-short-term`
+### POST `/v1/ticket/tickets/create-short-term`
 Creates a short-term ticket (one-way or return) with station-based pricing.
 
 **Request Body:**
@@ -129,7 +129,7 @@ Creates a short-term ticket (one-way or return) with station-based pricing.
 }
 ```
 
-### POST `/v1/tickets/create-long-term`  
+### POST `/v1/ticket/tickets/create-long-term`  
 Creates a long-term pass ticket with preset pricing.
 
 **Request Body:**
@@ -141,7 +141,7 @@ Creates a long-term pass ticket with preset pricing.
 }
 ```
 
-### Fare Routes (`/v1/fares`)
+### Fare Routes (`/v1/ticket/fares`)
 - `GET /` - Get all fare rules
 - `POST /calculate` - Calculate fare for route
 - `GET /zones` - Get zone information
@@ -149,7 +149,7 @@ Creates a long-term pass ticket with preset pricing.
 - `PUT /:id` - Update fare rule (admin only)
 - `DELETE /:id` - Delete fare rule (admin only)
 
-### Promotion Routes (`/v1/promotions`)
+### Promotion Routes (`/v1/ticket/promotions`)
 - `GET /` - Get active promotions
 - `POST /apply` - Apply promotion code
 - `GET /:code` - Get promotion details
