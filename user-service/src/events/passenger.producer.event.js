@@ -45,15 +45,11 @@ class PassengerEventProducer {
                 data: {
                     passengerId: passengerData.passengerId,
                     userId: passengerData.userId,
-                    username: passengerData.username,
                     firstName: passengerData.firstName,
                     lastName: passengerData.lastName,
-                    fullName: `${passengerData.firstName || ''} ${passengerData.lastName || ''}`.trim(),
                     phoneNumber: passengerData.phoneNumber,
                     dateOfBirth: passengerData.dateOfBirth,
                     gender: passengerData.gender,
-                    address: passengerData.address,
-                    isActive: passengerData.isActive,
                     updatedAt: new Date().toISOString()
                 }
             };

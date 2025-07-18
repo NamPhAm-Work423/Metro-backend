@@ -1,5 +1,6 @@
 const passengerService = require('../services/passenger.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
+const passengerProducer = require('../events/passenger.producer.event');
 
 // GET /v1/passengers/getallPassengers
 const getAllPassengers = asyncErrorHandler(async (req, res, next) => {
@@ -72,7 +73,7 @@ const deletePassenger = asyncErrorHandler(async (req, res, next) => {
 });
 
 // POST /v1/passengers/createPassenger
-const createPassenger = async (req, res, next) => {
+const createPassenger = asyncErrorHandler(async (req, res, next) => {
     try {
         const { firstName, lastName, username, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
         const userId = req.headers['x-user-id'] || req.user?.id;
@@ -115,7 +116,7 @@ const createPassenger = async (req, res, next) => {
         }
         next(err);
     }
-};
+});
 
 // GET /v1/passengers/me
 const getMe = async (req, res, next) => {
@@ -220,7 +221,6 @@ const syncPassenger = asyncErrorHandler(async (req, res, next) => {
     }
 
     // Import passenger producer
-    const passengerProducer = require('../events/passenger.producer.event');
     
     // Send passenger data to ticket-service cache via Kafka
     await passengerProducer.publishPassengerCacheSync(passenger);

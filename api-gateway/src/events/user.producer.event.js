@@ -1,6 +1,5 @@
 const { publish } = require('../kafka/kafkaProducer');
 const { logger } = require('../config/logger');
-
 class UserEventProducer {
     /**
      * Publish user.created event
@@ -70,6 +69,30 @@ class UserEventProducer {
             });
         } catch (error) {
             logger.error('Failed to publish user.deleted event', { 
+                error: error.message,
+                userId: userData.userId
+            });
+            throw error;
+        }
+    }
+    /** 
+     * Publish user.login event
+     * @param {Object} userData - User login data
+     */
+    async publishUserLogin(userData) {
+        try {
+            await publish(
+                process.env.USER_LOGIN_TOPIC || 'user.login', 
+                userData.userId, 
+                userData
+            );
+            
+            logger.info('User.login event published successfully', { 
+                userId: userData.userId,
+                username: userData.username
+            });
+        } catch (error) {
+            logger.error('Failed to publish user.login event', { 
                 error: error.message,
                 userId: userData.userId
             });

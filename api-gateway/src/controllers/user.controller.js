@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const { logger } = require('../config/logger');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const userService = require('../services/user.service');
+const userProducer = require('../events/user.producer.event');
+
 
 const userController = {
   /**
@@ -69,7 +71,12 @@ const userController = {
       };
 
       logger.info('User logged in successfully', { userId: user.id, email });
-
+      await userProducer.publishUserLogin({
+        userId: user.id,
+        email: user.email,
+        username: user.username,
+        roles: user.roles
+      });
 
 
       //If flag is true, send access token to client

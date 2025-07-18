@@ -1,6 +1,11 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { Passenger, Staff } = require('../models/index.model');
+const passengerService = require('../services/passenger.service');
+const { getClient } = require('../config/redis');
+const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+
+const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
 class UserEventConsumer {
     constructor() {
@@ -181,7 +186,72 @@ class UserEventConsumer {
             });
         }
     }
-
+    /**
+     * Publish user.login event
+     * @param {Object} userData - New user data
+     */
+    async handleUserLoginEvent(userData) {
+        try {
+            logger.info('Handling user.login event', {
+                userId: userData.userId,
+                username: userData.username,
+                roles: userData.roles
+            });
+    
+            if (!userData.roles || !Array.isArray(userData.roles)) {
+                logger.warn('User login event has no roles defined', {
+                    userId: userData.userId
+                });
+                return;
+            }
+    
+            if (!userData.roles.includes('passenger')) {
+                logger.info('User is not a passenger, skipping passenger cache sync', {
+                    userId: userData.userId
+                });
+                return;
+            }
+    
+            const passenger = await passengerService.getPassengerByUserId(userData.userId);
+    
+            if (!passenger) {
+                logger.error('Passenger profile not found during login event', {
+                    userId: userData.userId
+                });
+                return;
+            }
+    
+            const redisClient = getClient();
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+    
+            const passengerData = {
+                passengerId: passenger.passengerId,
+                userId: passenger.userId,
+                firstName: passenger.firstName,
+                lastName: passenger.lastName,
+                phoneNumber: passenger.phoneNumber,
+                dateOfBirth: passenger.dateOfBirth,
+                gender: passenger.gender,
+                updatedAt: new Date().toISOString()
+            };
+    
+            await passengerCache.setPassenger(passengerData);
+            logger.info('Passenger cache successfully synced on login', {
+                passengerId: passenger.passengerId,
+                userId: passenger.userId,
+                syncSource: 'user-login-event'
+            });
+    
+            
+    
+        } catch (error) {
+            logger.error('Error during handleUserLoginEvent', {
+                error: error.message,
+                stack: error.stack,
+                userData
+            });
+        }
+    }
     /**
      * Process incoming Kafka messages
      * @param {Object} messageData - Raw message data from Kafka
@@ -208,10 +278,19 @@ class UserEventConsumer {
         
         const payload = data.payload || data;
         
-        // Route to appropriate handler based on topic
+        const handledTopics = [];
+
         if (topic === (process.env.USER_CREATED_TOPIC || 'user.created')) {
             await this.handleUserCreatedEvent(payload);
-        } else {
+            handledTopics.push('user.created');
+        }
+
+        if (topic === (process.env.USER_LOGIN_TOPIC || 'user.login')) {
+            await this.handleUserLoginEvent(payload);
+            handledTopics.push('user.login');
+        }
+
+        if (handledTopics.length === 0) {
             logger.warn('Unhandled topic', { topic });
         }
     }
@@ -221,7 +300,8 @@ class UserEventConsumer {
      */
     async start() {
         const topics = [
-            process.env.USER_CREATED_TOPIC || 'user.created'
+            process.env.USER_CREATED_TOPIC || 'user.created',
+            process.env.USER_LOGIN_TOPIC || 'user.login'
         ];
 
         this.eventConsumer = new KafkaEventConsumer({

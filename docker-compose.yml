@@ -50,6 +50,7 @@ services:
     volumes:
       - ./user-service:/app
       - /app/node_modules
+      - ./libs:/libs
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -114,6 +115,7 @@ services:
     volumes:
       - ./ticket-service:/app
       - /app/node_modules
+      - ./libs:/libs
     depends_on:
       kafka-1:
         condition: service_healthy

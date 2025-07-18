@@ -1,32 +1,46 @@
 const ticketService = require('../services/ticket.service');
-const passengerCacheService = require('../services/passengerCache.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
+const { getClient } = require('../config/redis');
+const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+
+
+const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+
+
 
 class TicketController {
     // Helper method to get passenger from cache
     async _getPassengerFromCache(req) {
-        // Try to get passengerId from headers first (for direct access)
         let passengerId = req.headers['x-passenger-id'];
         let passenger;
+        let userId; // Declare userId at the top
 
         if (passengerId) {
             // Direct lookup by passengerId
-            passenger = await passengerCacheService.getPassenger(passengerId);
+            const redisClient = getClient();
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+            passenger = await passengerCache.getPassenger(passengerId);
         } else {
             // Lookup by userId from JWT token
-            const userId = req.user?.id;
+            userId = req.user?.id;
             if (!userId) {
+                logger.error('User ID not found in request');
                 throw new Error('User ID not found in request');
             }
-
-            passenger = await passengerCacheService.getPassengerByUserId(userId);
+            const redisClient = getClient();
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+            passenger = await passengerCache.getPassengerByUserId(userId);
             if (passenger) {
                 passengerId = passenger.passengerId;
             }
         }
         
         if (!passenger) {
+            logger.error('Passenger not found in cache. Please sync your passenger profile or authenticate again.', {
+                passengerId,
+                userId
+            });
             throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
         }
 

@@ -1,7 +1,14 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
-const PassengerCacheService = require('../services/passengerCache.service');
 const { logger } = require('../config/logger');
+const { getClient } = require('../config/redis');
+const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
+/**
+ * Passenger cache consumer event for LEGACY CODE
+ * This class is used to consume passenger cache sync events from Kafka
+ * and sync the passenger data to the cache
+ */
 class PassengerCacheConsumer {
     constructor() {
         this.eventConsumer = null;
@@ -19,8 +26,9 @@ class PassengerCacheConsumer {
             logger.warn('Invalid passenger cache sync event data', eventData);
             return;
         }
-
-        const success = await PassengerCacheService.setPassenger(
+        const redisClient = getClient();
+        const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+        const success = await passengerCache.setPassenger(
             passenger.passengerId, 
             passenger
         );

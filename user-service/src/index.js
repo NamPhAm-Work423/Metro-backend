@@ -6,6 +6,7 @@ const sequelize = require('./config/database');
 const { Admin, Passenger, Staff } = require('./models/index.model');
 const userEventConsumer = require('./events/user.consumer.event');
 const seedAdminProfile = require('./utils/seedAdmin');
+const { initializeRedis } = require('./config/redis');
 
 const PORT = process.env.PORT || 3001;
 const SERVICE_NAME = 'user-service';
@@ -69,6 +70,9 @@ async function startApplication() {
         
         // Seed admin profile if configured
         await seedAdminProfile();
+        
+        // Initialize Redis before starting event consumer
+        await initializeRedis();
         
         // Start event consumer
         if (userEventConsumer) {

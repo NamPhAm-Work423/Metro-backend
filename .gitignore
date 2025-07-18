@@ -5,7 +5,6 @@ gateway
 
 # Logs
 
-
 logs
 logs/*
 *.log

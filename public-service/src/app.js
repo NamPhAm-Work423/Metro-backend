@@ -158,10 +158,7 @@ class App {
     async shutdown() {
         logger.info('Starting application shutdown');
 
-        try {
-            // Perform any cleanup operations here
-            // (No Redis connections to close since we're using gRPC-only approach)
-            
+        try {            
             logger.info('Application shutdown completed successfully');
         } catch (error) {
             logger.error('Error during application shutdown', { error: error.message });
