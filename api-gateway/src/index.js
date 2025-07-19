@@ -23,7 +23,7 @@ sequelize.sync({ force: false }).then(() => {
 
         await seedAdmin();
 
-        const PORT = config.gateway.port || 3000;
+        const PORT = config.gateway.port || 8000;
 
         const sever = http.createServer(app);
 

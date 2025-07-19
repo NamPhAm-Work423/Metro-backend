@@ -167,7 +167,7 @@ class RoutingService {
                     
                     // Override origin header: Backend services should only accept requests from API Gateway
                     // This prevents frontend origin (localhost:5173) from being forwarded to backend services
-                    proxyReqOpts.headers['origin'] = process.env.API_GATEWAY_ORIGIN || 'http://localhost:3000';
+                    proxyReqOpts.headers['origin'] = process.env.API_GATEWAY_ORIGIN || 'http://localhost:8000';
                     
                     // SECURITY: Generate secure service-to-service JWT
                     if (srcReq.user) {

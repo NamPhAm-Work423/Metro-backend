@@ -3,7 +3,7 @@ const { logger } = require('../config/logger');
 
 class TransportService {
     constructor() {
-        this.baseURL = process.env.TRANSPORT_SERVICE_URL || 'http://transport-service:3000';
+        this.baseURL = process.env.TRANSPORT_SERVICE_URL || 'http://transport-service:8000';
         this.timeout = parseInt(process.env.TRANSPORT_TIMEOUT) || 5000;
         this.retries = parseInt(process.env.TRANSPORT_RETRIES) || 3;
         this.retryDelayMs = parseInt(process.env.TRANSPORT_RETRY_DELAY) || 1000;
@@ -283,7 +283,7 @@ class TransportService {
      */
     async healthCheck() {
         try {
-            const response = await this.client.get('/health', { timeout: 3000 });
+            const response = await this.client.get('/health', { timeout: 8000 });
             return {
                 status: 'healthy',
                 service: 'transport-service',

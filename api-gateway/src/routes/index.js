@@ -88,7 +88,7 @@ router.get('/v1/discovery', defaultRateLimiter, (req, res) => {
             gateway: {
                 name: config.gateway?.name || 'Metro API Gateway',
                 version: config.gateway?.version || '1.0.0',
-                port: config.gateway?.port || 3000,
+                port: config.gateway?.port || 8000,
                 uptime: process.uptime(),
                 timestamp: new Date().toISOString()
             },

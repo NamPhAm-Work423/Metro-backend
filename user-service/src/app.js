@@ -56,9 +56,8 @@ const validateNetworkSource = (req, res, next) => {
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
-            'http://localhost:3000',    // API Gateway
-            'http://api-gateway:3000',  // Docker service
-            'http://localhost:5173',  // ✅ Thêm dòng này
+            'http://localhost:8000',    // API Gateway
+            'http://api-gateway:8000',  // Docker service
             undefined                   // For same-origin requests
         ];
         

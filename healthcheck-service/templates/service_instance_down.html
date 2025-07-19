@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Service Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .alert-header {
+            background-color: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .alert-content {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .service-info {
+            margin: 15px 0;
+        }
+        .service-info strong {
+            color: #dc3545;
+        }
+        .confirm-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .confirm-button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-header">
+        <h2>🚨 ALERT: {{ job }} is DOWN</h2>
+    </div>
+    
+    <div class="alert-content">
+        <div class="service-info">
+            <p><strong>Service:</strong> {{ job }}</p>
+            <p><strong>Instance:</strong> {{ instance }}</p>
+            <p><strong>Summary:</strong> {{ summary }}</p>
+        </div>
+        
+        <p>This service has been detected as down. Please click the button below to confirm that you have received this alert.</p>
+        
+        <a href="{{ link }}" class="confirm-button">Confirm Alert Received</a>
+        
+        <p><small>If you don't confirm within 5 minutes, you will receive another alert.</small></p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated alert from the Metro System monitoring service.</p>
+        <p>Time: {{ moment().format('YYYY-MM-DD HH:mm:ss') }}</p>
+    </div>
+</body>
+</html> <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Service Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .alert-header {
+            background-color: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .alert-content {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .service-info {
+            margin: 15px 0;
+        }
+        .service-info strong {
+            color: #dc3545;
+        }
+        .confirm-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .confirm-button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-header">
+        <h2>🚨 ALERT: {{ job }} is DOWN</h2>
+    </div>
+    
+    <div class="alert-content">
+        <div class="service-info">
+            <p><strong>Service:</strong> {{ job }}</p>
+            <p><strong>Instance:</strong> {{ instance }}</p>
+            <p><strong>Summary:</strong> {{ summary }}</p>
+        </div>
+        
+        <p>This service has been detected as down. Please click the button below to confirm that you have received this alert.</p>
+        
+        <a href="{{ link }}" class="confirm-button">Confirm Alert Received</a>
+        
+        <p><small>If you don't confirm within 5 minutes, you will receive another alert.</small></p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated alert from the Metro System monitoring service.</p>
+        <p>Time: {{ moment().format('YYYY-MM-DD HH:mm:ss') }}</p>
+    </div>
+</body>
+</html> 

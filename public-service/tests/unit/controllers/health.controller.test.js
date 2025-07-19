@@ -1,14 +1,3 @@
-const HealthController = require('../../../src/controllers/health.controller');
-
-// Mock dependencies
-jest.mock('../../../src/services/transport.service');
-jest.mock('../../../src/services/ticket.service');
-jest.mock('../../../src/services/cache.service');
-jest.mock('../../../src/services/scheduler.service');
-
-const CacheService = require('../../../src/services/cache.service');
-const SchedulerService = require('../../../src/services/scheduler.service');
-
 describe('Health Controller', () => {
   let healthController;
   let req, res, next;
@@ -16,6 +5,9 @@ describe('Health Controller', () => {
   let mockSchedulerService;
 
   beforeEach(() => {
+    // Clear all mocks
+    jest.resetModules();
+    
     mockCacheService = {
       checkDataAvailability: jest.fn(),
       getTransportData: jest.fn(),
@@ -25,10 +17,17 @@ describe('Health Controller', () => {
       healthCheck: jest.fn()
     };
 
-    CacheService.mockImplementation(() => mockCacheService);
-    SchedulerService.mockImplementation(() => mockSchedulerService);
+    // Mock the services
+    jest.doMock('../../../src/services/cache.service', () => {
+      return jest.fn().mockImplementation(() => mockCacheService);
+    });
+    
+    jest.doMock('../../../src/services/scheduler.service', () => {
+      return jest.fn().mockImplementation(() => mockSchedulerService);
+    });
 
-    healthController = new HealthController();
+    // Import the controller after setting up mocks
+    healthController = require('../../../src/controllers/health.controller');
     req = {
       headers: {},
       ip: '127.0.0.1',

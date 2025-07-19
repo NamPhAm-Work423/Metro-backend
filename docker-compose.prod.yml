@@ -1,11 +1,13 @@
+version: '3.8'
+
 services:
-  # NGINX - Optional
+  # NGINX Reverse Proxy - Only ports 80/443 exposed
   nginx-proxy:
     image: nginx
     container_name: nginx-proxy
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"   # HTTP (redirect to HTTPS)
+      - "443:443" # HTTPS only
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/certs:/etc/nginx/certs
@@ -13,23 +15,23 @@ services:
       - api-gateway
     networks:
       - backend-network
+      - frontend-network
     restart: unless-stopped
-    profiles:
-      - nginx  # Optional: docker-compose --profile nginx up
 
-  # API Gateway - ONLY service with external port
+  # API Gateway - Internal only, no external ports
   api-gateway:
     build:
       context: ./api-gateway
     container_name: api-gateway
-    ports:
-      - "8000:8000"  # External port for Postman/Frontend
+    # NO external ports - only accessible via nginx
+    expose:
+      - "8000"
     env_file:
       - ./api-gateway/.env
     environment:
-      - NEED_EMAIL_VERIFICATION=false  # Easier for dev
-      - NEED_API_KEY=false
-      - SEND_ACCESS_TOKEN_TO_CLIENT=true  # For dev testing
+      - NEED_EMAIL_VERIFICATION=true
+      - NEED_API_KEY=true  # Enable for production
+      - SEND_ACCESS_TOKEN_TO_CLIENT=false
     volumes:
       - ./api-gateway:/app
       - /app/node_modules
@@ -37,7 +39,7 @@ services:
       kafka-1:
         condition: service_started
       kafka-2:
-        condition: service_started
+        condition: service_started  
       kafka-3:
         condition: service_started
       postgres:
@@ -54,13 +56,13 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # All microservices - EXPOSE ONLY (no external ports)
+  # All microservices - Internal only
   user-service:
     build:
       context: ./user-service
     container_name: user-service
     expose:
-      - "8001"  # Internal only - API Gateway sẽ gọi vào user-service:3001
+      - "8001"  # Internal only
     env_file:
       - ./user-service/.env
     volumes:
@@ -91,8 +93,8 @@ services:
       context: ./transport-service
     container_name: transport-service
     expose:
-      - "8002"    # Internal HTTP
-      - "50051"   # Internal gRPC
+      - "8002"    # HTTP
+      - "50051"   # gRPC
     env_file:
       - ./transport-service/.env
     environment:
@@ -124,8 +126,8 @@ services:
       context: ./ticket-service
     container_name: ticket-service
     expose:
-      - "8003"    # Internal HTTP
-      - "50052"   # Internal gRPC
+      - "8003"    # HTTP
+      - "50052"   # gRPC
     env_file:
       - ./ticket-service/.env
     volumes:
@@ -147,82 +149,82 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # customer-support-service:
-  #   build:
-  #     context: ./customer-support-service
-  #   container_name: customer-support-service
-  #   expose:
-  #     - "8004"  # Internal only
-  #   env_file:
-  #     - ./customer-support-service/.env
-  #   volumes:
-  #     - ./customer-support-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8004/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
+  customer-support-service:
+    build:
+      context: ./customer-support-service
+    container_name: customer-support-service
+    expose:
+      - "8004"
+    env_file:
+      - ./customer-support-service/.env
+    volumes:
+      - ./customer-support-service:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
-  # payment-service:
-  #   build:
-  #     context: ./payment-service
-  #   container_name: payment-service
-  #   expose:
-  #     - "8005"  # Internal only
-  #   env_file:
-  #     - ./payment-service/.env
-  #   volumes:
-  #     - ./payment-service:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    expose:
+      - "8005"
+    env_file:
+      - ./payment-service/.env
+    volumes:
+      - ./payment-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
-  # report-service:
-  #   build:
-  #     context: ./report-service
-  #   container_name: report-service
-  #   expose:
-  #     - "8006"  # Internal only
-  #   env_file:
-  #     - ./report-service/.env
-  #   volumes:
-  #     - ./report-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
+  report-service:
+    build:
+      context: ./report-service
+    container_name: report-service
+    expose:
+      - "8006"
+    env_file:
+      - ./report-service/.env
+    volumes:
+      - ./report-service:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   public-service:
     build:
       context: ./public-service
     container_name: public-service
     expose:
-      - "8007"  # Internal only
+      - "8007"
     env_file:
       - ./public-service/.env
     environment:
@@ -249,6 +251,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Health monitoring - Internal access only
   healthcheck-service:
     build:
       context: ./healthcheck-service
@@ -272,72 +275,81 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Infrastructure - External ports for dev tools
+  # Database - Custom non-standard port, internal only
   postgres:
     image: postgres:15-alpine
     container_name: postgres
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"  # External cho dev tools (pgAdmin, DBeaver, etc.)
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-railway_system}
+    expose:
+      - "5432"  # Internal only
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
+  # Redis - Custom non-standard port, internal only  
   redis:
     image: redis:7-alpine
     container_name: redis
-    ports:
-      - "6379:6379"  # External cho dev tools (RedisInsight, etc.)
+    expose:
+      - "6379"  # Internal only
     volumes:
       - redis_data:/data
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: ["redis-server", "--requirepass", "redispass123"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    restart: unless-stopped
 
-  # Management UIs - External ports
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: redis-commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379:0:redispass123
-    ports:
-      - "8081:8081"  # External cho dev
-    depends_on:
-      - redis
-    networks:
-      - backend-network
+  # Management UIs - Separate compose file hoặc chỉ enable khi cần
+  # Uncomment below for development/debugging only
+  
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: redis-commander
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD}
+  #   ports:
+  #     - "127.0.0.1:8081:8081"  # Bind to localhost only
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - backend-network
+  #   profiles:
+  #     - debug
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
-    ports:
-      - "5050:80"  # External cho dev
-    depends_on:
-      - postgres
-    networks:
-      - backend-network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./servers.json:/servers.json:ro
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: pgadmin
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+  #     - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+  #   ports:
+  #     - "127.0.0.1:5050:80"  # Bind to localhost only
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - backend-network
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   profiles:
+  #     - debug
 
-  # Kafka - Internal only (API Gateway không cần gọi trực tiếp)
+  # Kafka Cluster - Internal only
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
     container_name: zookeeper
@@ -347,16 +359,19 @@ services:
       ZOOKEEPER_SYNC_LIMIT: 5
       ZOOKEEPER_INIT_LIMIT: 10
     expose:
-      - "2181"  # Internal only
+      - "2181"
     networks:
       - backend-network
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    restart: unless-stopped
 
   kafka-1:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-1
     expose:
-      - "9092"   # Internal only
-      - "19092"  # Internal only
+      - "9092"
+      - "19092"
     environment:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:19092,EXTERNAL://kafka-1:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
@@ -364,23 +379,25 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
-      # Dev settings
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'  # Disable for production
     depends_on:
       - zookeeper
     networks:
       - backend-network
+    volumes:
+      - kafka1_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
+    restart: unless-stopped
 
   kafka-2:
     image: confluentinc/cp-kafka:7.5.3
@@ -395,22 +412,25 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 2
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19093,EXTERNAL://0.0.0.0:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
     depends_on:
       - zookeeper
     networks:
       - backend-network
+    volumes:
+      - kafka2_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
+    restart: unless-stopped
 
   kafka-3:
     image: confluentinc/cp-kafka:7.5.3
@@ -425,38 +445,43 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 3
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19094,EXTERNAL://0.0.0.0:9094
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
     depends_on:
       - zookeeper
     networks:
       - backend-network
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9094", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
+    restart: unless-stopped
 
-  # Kafdrop - External port cho dev
-  kafdrop:
-    image: obsidiandynamics/kafdrop
-    container_name: kafdrop
-    ports:
-      - "9000:9000"  # External cho dev
-    environment:
-      KAFKA_BROKERCONNECT: kafka-1:19092,kafka-2:19093,kafka-3:19094
-      JVM_OPTS: '-Xms128M -Xmx256M'
-    depends_on:
-      - kafka-1
-      - kafka-2
-      - kafka-3
-    networks:
-      - backend-network
+  # Kafka UI - Only for debugging, disable in production
+  # kafdrop:
+  #   image: obsidiandynamics/kafdrop
+  #   container_name: kafdrop
+  #   ports:
+  #     - "127.0.0.1:9000:9000"  # Localhost only
+  #   environment:
+  #     KAFKA_BROKERCONNECT: kafka-1:19092,kafka-2:19093,kafka-3:19094
+  #     JVM_OPTS: '-Xms128M -Xmx256M'
+  #   depends_on:
+  #     - kafka-1
+  #     - kafka-2
+  #     - kafka-3
+  #   networks:
+  #     - backend-network
+  #   profiles:
+  #     - debug
 
 volumes:
   postgres_data:
@@ -465,7 +490,19 @@ volumes:
     driver: local
   pgadmin_data:
     driver: local
+  zookeeper_data:
+    driver: local
+  kafka1_data:
+    driver: local
+  kafka2_data:
+    driver: local
+  kafka3_data:
+    driver: local
 
 networks:
   backend-network:
     driver: bridge
+    internal: true  # Internal only network
+  frontend-network:
+    driver: bridge
+    # External network for nginx only

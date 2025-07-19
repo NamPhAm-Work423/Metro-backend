@@ -13,7 +13,7 @@ RUN npm install -g pm2
 COPY . /app
 
 # Expose the port the app runs on
-EXPOSE 3000
+EXPOSE 8000
 
 # Start the application
 CMD ["pm2-runtime", "start", "src/index.js", "--name", "api-gateway", "--env", "production"] 

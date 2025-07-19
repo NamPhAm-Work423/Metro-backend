@@ -1,6 +1,6 @@
 {
     "gateway": {
-        "port": 3000,
+        "port": 8000,
         "secure": false,
         "version": "1.0.0",
         "name": "Metro API Gateway"
@@ -12,7 +12,7 @@
             "instances": [
                 {
                     "host": "user-service",
-                    "port": 3001
+                    "port": 8001
                 }
             ]
         },
@@ -22,7 +22,7 @@
             "instances": [
                 {
                     "host": "transport-service",
-                    "port": 3002
+                    "port": 8002
                 }
             ]
         },
@@ -32,7 +32,7 @@
             "instances": [
                 {
                     "host": "ticket-service",
-                    "port": 3003
+                    "port": 8003
                 }
             ]
         },
@@ -42,7 +42,7 @@
             "instances": [
                 {
                     "host": "customer-support-service",
-                    "port": 3004
+                    "port": 8004
                 }
             ]
         },
@@ -52,7 +52,7 @@
             "instances": [
                 {
                     "host": "payment-service",
-                    "port": 3005
+                    "port": 8005
                 }
             ]
         },
@@ -62,7 +62,7 @@
             "instances": [
                 {
                     "host": "report-service",
-                    "port": 3006
+                    "port": 8006
                 }
             ]
         },
@@ -72,7 +72,7 @@
             "instances": [
                 {
                     "host": "public-service",
-                    "port": 3007
+                    "port": 8007
                 }
             ]
         }

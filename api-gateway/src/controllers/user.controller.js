@@ -84,7 +84,7 @@ const userController = {
       res.cookie('accessToken', tokens.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-          // Use Lax during development so cookies are sent on cross-site requests from localhost:5173 → localhost:3000
+          // Use Lax during development so cookies are sent on cross-site requests from localhost:5173 → localhost:8000
           sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
           maxAge: 60 * 60 * 1000,
           path: '/'
@@ -355,7 +355,7 @@ const userController = {
               <div class="error-icon">❌</div>
               <h1>Verification Failed</h1>
               <p>${result.message}</p>
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/resend-verification" class="btn">Request New Link</a>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/resend-verification" class="btn">Request New Link</a>
             </div>
           </body>
           </html>
@@ -420,7 +420,7 @@ const userController = {
             <div class="success-icon">✅</div>
             <h1>Email Verified Successfully!</h1>
             <p>Your email address has been verified. You can now use all features of Metro System.</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" class="btn">Go to Login</a>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/login" class="btn">Go to Login</a>
           </div>
         </body>
         </html>
@@ -484,7 +484,7 @@ const userController = {
             <div class="error-icon">❌</div>
             <h1>Verification Failed</h1>
             <p>The verification link is invalid or has expired. Please request a new verification email.</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/resend-verification" class="btn">Request New Link</a>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/resend-verification" class="btn">Request New Link</a>
           </div>
         </body>
         </html>

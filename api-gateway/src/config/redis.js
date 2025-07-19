@@ -2,7 +2,6 @@ const redis = require('redis');
 
 let client = null;
 // let redisAvailable = false;
-// const RECONNECT_INTERVAL = 30000;
 
 async function setupRedisClient() {
     const host = process.env.REDIS_HOST || '127.0.0.1';

@@ -1,13 +1,11 @@
 const { logger } = require('../config/logger');
 const TransportService = require('../services/transport.service');
-const TicketService = require('../services/ticket.service');
 const CacheService = require('../services/cache.service');
 const SchedulerService = require('../services/scheduler.service');
 
 class HealthController {
     constructor() {
         this.transportService = new TransportService();
-        this.ticketService = new TicketService();
         this.cacheService = new CacheService();
         this.schedulerService = new SchedulerService();
         this.serviceStartTime = Date.now();

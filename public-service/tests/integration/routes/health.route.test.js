@@ -11,14 +11,7 @@ jest.mock('../../../src/services/transport.service', () => {
   }));
 });
 
-jest.mock('../../../src/services/ticket.service', () => {
-  return jest.fn().mockImplementation(() => ({
-    getTicketData: jest.fn(() => Promise.resolve({
-      fares: [{ fareId: 'F1' }],
-      transitPasses: [{ transitPassId: 'T1' }]
-    }))
-  }));
-});
+
 
 jest.mock('../../../src/services/cache.service', () => {
   return jest.fn().mockImplementation(() => ({

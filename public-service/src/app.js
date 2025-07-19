@@ -177,7 +177,7 @@ class App {
      * Simple configuration validation
      */
     validateConfiguration() {
-        const port = process.env.PORT || 3000;
+        const port = process.env.PORT || 8000;
         if (!port) {
             logger.error('PORT is required');
             throw new Error('PORT is required');
