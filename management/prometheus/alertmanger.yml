@@ -1,0 +1,10 @@
+global:
+  resolve_timeout: 1m
+
+route:
+  receiver: 'default'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://healthcheck:3000/alert'

@@ -1,0 +1,67 @@
+[
+    {
+        "targets": [
+            "api-gateway:8000"
+        ],
+        "labels": {
+            "job": "api-gateway"
+        }
+    },
+    {
+        "targets": [
+            "user-service:8001"
+        ],
+        "labels": {
+            "job": "user-service"
+        }
+    },
+    {
+        "targets": [
+            "transport-service:8002"
+        ],
+        "labels": {
+            "job": "transport-service"
+        }
+    },
+    {
+        "targets": [
+            "ticket-service:8003"
+        ],
+        "labels": {
+            "job": "ticket-service"
+        }
+    },
+    {
+        "targets": [
+            "customer-support-service:8004"
+          ],
+          "labels": {
+            "job": "customer-support-service"
+          }
+    },
+    {
+        "targets": [
+            "payment-service:8005"
+          ],
+          "labels": {
+            "job": "payment-service"
+          }
+    },
+    {
+        "targets": [
+            "report-service:8006"
+          ],
+          "labels": {
+            "job": "report-service"
+          }
+    },
+    {
+      "targets": [
+        "public-service:8007"
+      ],
+      "labels": {
+        "job": "public-service"
+      }
+    }
+  ]
+  

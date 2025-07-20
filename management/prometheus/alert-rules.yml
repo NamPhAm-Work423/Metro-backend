@@ -1,0 +1,11 @@
+groups:
+  - name: all-services-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "⚠️ Service {{ $labels.job }} on {{ $labels.instance }} is DOWN"
+          description: "Prometheus cannot scrape metrics from {{ $labels.job }} ({{ $labels.instance }})."
