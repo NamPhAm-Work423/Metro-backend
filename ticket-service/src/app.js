@@ -3,7 +3,12 @@ const helmet = require('helmet');
 const cors = require('cors');
 const { requestLogger, logger } = require('./config/logger');
 const routes = require('./routes');
+const { register, errorCount } = require('./config/metrics');
+const metricsMiddleware = require('./middlewares/metrics.middleware');
+
 const app = express();
+
+app.use(metricsMiddleware);
 
 // Security middleware
 app.use(helmet());
@@ -100,15 +105,11 @@ app.get('/health', (req, res) => {
 });
 
 // Metrics endpoint for API Gateway
-app.get('/metrics', (req, res) => {
-    res.status(200).json({
-        status: 'healthy',
-        service: 'ticket-service',
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-        memory: process.memoryUsage()
-    });
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
 });
+
 
 // Global error handler
 app.use((error, req, res, next) => {

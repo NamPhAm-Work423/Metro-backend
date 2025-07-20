@@ -6,10 +6,13 @@ const compression = require('compression');
 const { logger } = require('./config/logger');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler.middleware');
 const routes = require('./routes');
+const { register, errorCount } = require('./config/metrics');
+const metricsMiddleware = require('./middlewares/metrics.middleware');
 
 class App {
     constructor() {
         this.app = express();
+        this.app.use(metricsMiddleware);
         this.setupMiddleware();
         this.setupRoutes();
         this.setupErrorHandling();
@@ -82,6 +85,11 @@ class App {
                 timestamp: new Date().toISOString()
             });
         });
+
+        this.app.get('/metrics', async (req, res) => {
+            res.set('Content-Type', register.contentType);
+            res.end(await register.metrics());
+          });
 
         logger.info('Middleware setup completed');
     }

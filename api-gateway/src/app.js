@@ -8,6 +8,11 @@ const { swaggerUi, swaggerSpec } = require('./swagger/swagger');
 const cookieParser = require('cookie-parser');
 const { logger, requestLogger } = require('./config/logger');
 const dotenv = require('dotenv');
+const { register, errorCount } = require('./config/metrics');
+const metricsMiddleware = require('./middlewares/metrics.middleware');
+
+app.use(metricsMiddleware);
+
 dotenv.config();
 
 // CORS options
@@ -43,6 +48,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/', (req, res) => {
     res.send('Apis are ready!');
 });
+
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  });
 
 app.use(globalErrorHandler);
 

@@ -1,7 +1,6 @@
-service-manager
 card-service
 auth-service
-gateway
+notification-service
 
 # Logs
 

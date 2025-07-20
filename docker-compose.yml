@@ -249,16 +249,16 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  healthcheck-service:
+  healthcheck:
     build:
-      context: ./healthcheck-service
-    container_name: healthcheck-service
+      context: ./healthcheck
+    container_name: healthcheck
     expose:
       - "3000"  # Internal only
     env_file:
-      - ./healthcheck-service/.env
+      - ./healthcheck/.env
     volumes:
-      - ./healthcheck-service:/app
+      - ./healthcheck:/app
     depends_on:
       redis:
         condition: service_healthy

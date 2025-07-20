@@ -1,8 +1,6 @@
 -- ------------------------------------------------------------
 -- init_db.sql (mounted to /docker-entrypoint-initdb.d/)
 -- One-time bootstrap script. It creates service databases
---   1) auth_db          – used by API-Gateway
---   2) user_db     – used by User-Service
 -- plus application roles with the required privileges.
 -- ------------------------------------------------------------
 
@@ -102,31 +100,9 @@ GRANT ALL ON SCHEMA public TO report_service;
 -- Back to default database
 \c postgres
 
--- -----------------------------------------------------------------
--- 2.  Bootstrap default ADMIN account (application-level)
--- -----------------------------------------------------------------
-
--- NOTE: Admin accounts cannot be created through public API registration.
---       This script seeds a single initial admin so that the system can
---       be accessed after first deployment. Credentials:
---         Email    : admin@metro.com
---         Username : admin
---         Password : Admin@123 (bcrypt-hashed below)
---       CHANGE THE PASSWORD IMMEDIATELY AFTER FIRST LOGIN IN PRODUCTION!
-
--- ---------- Seed admin in AUTH SERVICE database ----------
-\c auth_db
 
 -- Enable uuid extension (if not already)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- -----------------------------------------------------------------
--- Let the application (Sequelize) create the users table so that
--- it is owned by the connection role (auth_user) – avoids "must be owner"
--- errors during ALTERs/INDEX creation.
--- -----------------------------------------------------------------
-
--- Admin seeding moved to application layer (api-gateway/src/utils/seedAdmin.js)
 
 -- Back to default database
 \c postgres

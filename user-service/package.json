@@ -23,7 +23,8 @@
     "node-fetch": "^2.7.0",
     "cors": "^2.8.5",
     "jsonwebtoken": "^9.0.2",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "prom-client": "^15.1.0"
   },  
   "devDependencies": {
     "jest": "^29.7.0",

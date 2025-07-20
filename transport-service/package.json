@@ -24,7 +24,8 @@
     "cors": "^2.8.5",
     "jsonwebtoken": "^9.0.2",
     "@grpc/grpc-js": "^1.10.1",
-    "@grpc/proto-loader": "^0.7.10"
+    "@grpc/proto-loader": "^0.7.10",
+    "prom-client": "^15.1.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
