@@ -7,3 +7,4 @@ cryptography
 confluent-kafka
 prometheus-client
 psutil
+docker
