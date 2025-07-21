@@ -1,0 +1,9 @@
+Flask
+docker
+python-dotenv
+sqlalchemy
+psycopg2-binary
+cryptography
+confluent-kafka
+prometheus-client
+psutil
