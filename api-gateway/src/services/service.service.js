@@ -1,11 +1,5 @@
 const Service = require('../models/service.model');
 const ServiceInstance = require('../models/serviceInstance.model');
-const redis = require('../config/redis');
-const config = require('..');
-const { logger } = require('../config/logger');
-const axios = require('axios');
-
-require('dotenv').config();
 
 class ServiceService {
     findServiceById = async (id) => {

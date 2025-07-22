@@ -1,13 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const getConfig = require('../config');
-const axios = require('axios');
 const { logger } = require('../config/logger');
 const emailService = require('./email.service');
-const keyService = require('./key.service');
-const { createAPIToken, hashToken, sha256, generateResetToken } = require('../helpers/crypto.helper');
-const { Key } = require('../models/index.model');
+const { sha256, generateResetToken } = require('../helpers/crypto.helper');
 const { setImmediate } = require('timers');
 const { withRedisClient } = require('../config/redis');
 const userEventProducer = require('../events/user.producer.event');
@@ -17,8 +13,6 @@ const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
 const ACCESS_TOKEN_EXPIRES_IN = '1h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
-
-const gatewayConfig = getConfig();
 
 
 class UserService {

@@ -102,14 +102,14 @@ GRANT ALL ON SCHEMA public TO report_service;
 
 -- ---------- MANAGEMENT SERVICE (Management-Service) ----------
 CREATE DATABASE management_db;
-CREATE ROLE management WITH LOGIN PASSWORD '1';
-GRANT ALL PRIVILEGES ON DATABASE management_db TO management;
+CREATE ROLE management_service WITH LOGIN PASSWORD '1';
+GRANT ALL PRIVILEGES ON DATABASE management_db TO management_service;
 
 -- Connect to management_db and fix schema ownership
 
 \c management_db
-ALTER SCHEMA public OWNER TO management;
-GRANT ALL ON SCHEMA public TO management;
+ALTER SCHEMA public OWNER TO management_service;
+GRANT ALL ON SCHEMA public TO management_service;
 
 -- Back to default database
 \c postgres

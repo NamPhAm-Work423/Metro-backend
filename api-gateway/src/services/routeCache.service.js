@@ -1,7 +1,7 @@
 const redis = require('../config/redis');
 const { logger } = require('../config/logger');
-const Service = require('../models/service.model');
-const ServiceInstance = require('../models/serviceInstance.model');
+const Config = require('../config');
+const config = Config();
 
 class RouteCacheService {
     constructor() {
@@ -275,10 +275,7 @@ class RouteCacheService {
             logger.info('Starting preload of all active services...');
             
             // Get all active services from database
-            const activeServices = await Service.findAll({
-                where: { status: 'active' },
-                attributes: ['endPoint']
-            });
+            const activeServices = config.services.filter(s => s.status === 'active');
 
             if (!activeServices || activeServices.length === 0) {
                 logger.warn('No active services found to preload');
@@ -326,50 +323,39 @@ class RouteCacheService {
     // Private helper methods
     async _getRouteFromDB(serviceKey) {
         try {
-            const service = await Service.findOne({
-                where: { endPoint: serviceKey, status: 'active' }
-            });
-
+            const service = config.services.find(s => s.endPoint === serviceKey);
             if (!service) return null;
-
             return {
                 serviceKey: service.endPoint,
                 serviceName: service.name,
-                description: service.description,
-                version: service.version,
-                timeout: service.timeout,
-                retries: service.retries,
-                status: service.status
+                description: service.description || '',
+                version: service.version || '',
+                timeout: service.timeout || '',
+                retries: service.retries || '',
+                status: 'active'
             };
         } catch (error) {
-            logger.error(`Database error for route ${serviceKey}`, error);
+            logger.error(`Config error for route ${serviceKey}`, error);
             return null;
         }
     }
 
     async _getInstancesFromDB(serviceKey) {
         try {
-            const instances = await ServiceInstance.findAll({
-                include: [{
-                    model: Service,
-                    as: 'service',
-                    where: { endPoint: serviceKey, status: 'active' }
-                }],
-                where: { status: 'active' }
-            });
-
-            return instances.map(instance => ({
-                id: instance.id,
+            const service = config.services.find(s => s.endPoint === serviceKey);
+            if (!service || !service.instances) return [];
+            return service.instances.map((instance, idx) => ({
+                id: idx + 1,
                 host: instance.host,
                 port: instance.port,
-                weight: instance.weight,
-                region: instance.region,
-                isActive: instance.status === 'active',
-                healthStatus: instance.isHealthy ? 'healthy' : 'unhealthy',
-                lastHealthCheck: instance.lastHealthCheck
+                weight: instance.weight || 1,
+                region: instance.region || '',
+                isActive: true,
+                healthStatus: 'unknown',
+                lastHealthCheck: null
             }));
         } catch (error) {
-            logger.error(`Database error for instances ${serviceKey}`, error);
+            logger.error(`Config error for instances ${serviceKey}`, error);
             return [];
         }
     }

@@ -1,8 +1,6 @@
 const httpProxy = require('express-http-proxy');
 const CircuitBreaker = require('opossum');
 const CustomError = require('../utils/customError');
-const Service = require('../models/service.model');
-const ServiceInstance = require('../models/serviceInstance.model');
 const { logger } = require('../config/logger');
 const jwt = require('jsonwebtoken');
 const routeCache = require('./routeCache.service');
