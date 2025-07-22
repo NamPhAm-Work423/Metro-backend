@@ -97,7 +97,7 @@ class UserService {
             email,
             username,
             password: passwordHash,
-            isVerified: process.env.NEED_EMAIL_VERIFICATION,
+            isVerified: process.env.NEED_EMAIL_VERIFICATION === 'true' ? 'false' : 'true',
             roles: roles || ['passenger'], // Default role is passenger
             loginAttempts: 0
         });
@@ -106,7 +106,7 @@ class UserService {
         setImmediate(() => {
             const backgroundTasks = [];
             //Dont need to return cookie here
-            if(process.env.NEED_EMAIL_VERIFICATION === 'false'){
+            if(process.env.NEED_EMAIL_VERIFICATION === 'true'){
                 // Generate verification token
                 const verificationToken = jwt.sign(
                     { userId: user.id },
@@ -197,7 +197,7 @@ class UserService {
         }
 
         // Check if user is verified
-        if (process.env.NEED_EMAIL_VERIFICATION === 'false' && user.isVerified === 'false') {
+        if (process.env.NEED_EMAIL_VERIFICATION === 'true' && user.isVerified === 'false') {
             throw new Error('Please verify your email address');
         }
 
