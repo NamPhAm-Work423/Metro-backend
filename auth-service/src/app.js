@@ -1,0 +1,51 @@
+const express = require('express');
+const app = express();
+const helmet = require('helmet');
+const { errorHandler: globalErrorHandler } = require('./controllers/error.controller');
+const cors = require('cors');
+const routing = require('./routes');
+const cookieParser = require('cookie-parser');
+const dotenv = require('dotenv');
+const { register } = require('./config/metrics');
+const metricsMiddleware = require('./middlewares/metrics.middleware');
+
+app.use(metricsMiddleware);
+
+dotenv.config();
+
+// CORS options
+const corsOptions = {
+    origin: [
+        process.env.UV_DESK_CLIENT, 
+        process.env.UI_CLIENT,
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key', 'X-Service-Auth'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.use(cookieParser());
+
+app.use(helmet());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Mount all API routes
+app.use(routing);
+
+app.get('/', (req, res) => {
+    res.send('Apis are ready!');
+});
+
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  });
+
+app.use(globalErrorHandler);
+
+module.exports = app;

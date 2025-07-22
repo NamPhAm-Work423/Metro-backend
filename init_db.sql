@@ -8,18 +8,32 @@
 -- 1.  Service databases & owners
 -- -----------------------------------------------------------------
 
--- ---------- AUTH SERVICE (API-Gateway) ----------
-CREATE DATABASE auth_db;
-CREATE ROLE auth_user WITH LOGIN PASSWORD '1';
-GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_user;
+-- ---------- GATEWAY SERVICE (API-Gateway) ----------
+CREATE DATABASE gateway_db;
+CREATE ROLE gateway_service WITH LOGIN PASSWORD '1';
+GRANT ALL PRIVILEGES ON DATABASE gateway_db TO gateway_service;
 
--- Connect to auth_db and fix schema ownership
-\c auth_db
-ALTER SCHEMA public OWNER TO auth_user;
-GRANT ALL ON SCHEMA public TO auth_user;
+-- Connect to gateway_db and fix schema ownership
+\c gateway_db
+ALTER SCHEMA public OWNER TO gateway_service;
+GRANT ALL ON SCHEMA public TO gateway_service;
 
 -- Back to default database  
 \c postgres
+
+-- ---------- AUTH SERVICE (Auth-Service) ----------
+CREATE DATABASE auth_db;
+CREATE ROLE auth_service WITH LOGIN PASSWORD '1';
+GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_service;
+
+-- Connect to auth_db and fix schema ownership
+\c auth_db
+ALTER SCHEMA public OWNER TO auth_service;
+GRANT ALL ON SCHEMA public TO auth_service;
+
+-- Back to default database
+\c postgres
+
 
 -- ---------- USER SERVICE (User-Service) ----------
 CREATE DATABASE user_db;
@@ -59,20 +73,7 @@ ALTER SCHEMA public OWNER TO ticket_service;
 GRANT ALL ON SCHEMA public TO ticket_service;
 
 -- Back to default database
-\c postgres
-
--- ---------- CUSTOMER SUPPORT SERVICE (Customer-Support-Service) ----------
-CREATE DATABASE customer_support_db;
-CREATE ROLE customer_support_service WITH LOGIN PASSWORD '1';
-GRANT ALL PRIVILEGES ON DATABASE customer_support_db TO customer_support_service;
-
--- Connect to customer_support_db and fix schema ownership
-\c customer_support_db
-ALTER SCHEMA public OWNER TO customer_support_service;
-GRANT ALL ON SCHEMA public TO customer_support_service;
-
--- Back to default database
-\c postgres
+\c postgres 
 
 -- ---------- PAYMENT SERVICE (Payment-Service) ----------
 CREATE DATABASE payment_db;

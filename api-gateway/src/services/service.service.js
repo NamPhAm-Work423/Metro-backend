@@ -1,5 +1,4 @@
-const Service = require('../models/service.model');
-const ServiceInstance = require('../models/serviceInstance.model');
+const { Service, ServiceInstance } = require('../models/index.model');
 
 class ServiceService {
     findServiceById = async (id) => {

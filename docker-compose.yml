@@ -55,12 +55,47 @@ services:
     restart: unless-stopped
 
   # All microservices - EXPOSE ONLY (no external ports)
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    expose:
+      - "8001"  # External port for Postman/Frontend
+    env_file:
+      - ./auth-service/.env
+    environment:
+      - NEED_EMAIL_VERIFICATION=false  # Easier for dev
+      - NEED_API_KEY=false
+      - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
+    volumes:
+      - ./auth-service:/app
+      - /app/node_modules
+    depends_on:
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+      kafka-3:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
   user-service:
     build:
       context: ./user-service
     container_name: user-service
     expose:
-      - "8001"  # Internal only - API Gateway sẽ gọi vào user-service:3001
+      - "8002" 
     env_file:
       - ./user-service/.env
     volumes:
@@ -79,7 +114,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -91,7 +126,7 @@ services:
       context: ./transport-service
     container_name: transport-service
     expose:
-      - "8002"    # Internal HTTP
+      - "8003"    # Internal HTTP
       - "50051"   # Internal gRPC
     env_file:
       - ./transport-service/.env
@@ -112,7 +147,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -124,7 +159,7 @@ services:
       context: ./ticket-service
     container_name: ticket-service
     expose:
-      - "8003"    # Internal HTTP
+      - "8004"    # Internal HTTP
       - "50052"   # Internal gRPC
     env_file:
       - ./ticket-service/.env
@@ -140,89 +175,19 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
 
-  # customer-support-service:
-  #   build:
-  #     context: ./customer-support-service
-  #   container_name: customer-support-service
-  #   expose:
-  #     - "8004"  # Internal only
-  #   env_file:
-  #     - ./customer-support-service/.env
-  #   volumes:
-  #     - ./customer-support-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8004/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
-
-  # payment-service:
-  #   build:
-  #     context: ./payment-service
-  #   container_name: payment-service
-  #   expose:
-  #     - "8005"  # Internal only
-  #   env_file:
-  #     - ./payment-service/.env
-  #   volumes:
-  #     - ./payment-service:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
-
-  # report-service:
-  #   build:
-  #     context: ./report-service
-  #   container_name: report-service
-  #   expose:
-  #     - "8006"  # Internal only
-  #   env_file:
-  #     - ./report-service/.env
-  #   volumes:
-  #     - ./report-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
-
   public-service:
     build:
       context: ./public-service
     container_name: public-service
     expose:
-      - "8007"  # Internal only
+      - "8005"  # Internal only
     env_file:
       - ./public-service/.env
     environment:
@@ -242,12 +207,62 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8007/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
+
+
+  # payment-service:
+  #   build:
+  #     context: ./payment-service
+  #   container_name: payment-service
+  #   expose:
+  #     - "8006"  # Internal only
+  #   env_file:
+  #     - ./payment-service/.env
+  #   volumes:
+  #     - ./payment-service:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - backend-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+  #   restart: unless-stopped
+
+  # report-service:
+  #   build:
+  #     context: ./report-service
+  #   container_name: report-service
+  #   expose:
+  #     - "8007"  # Internal only
+  #   env_file:
+  #     - ./report-service/.env
+  #   volumes:
+  #     - ./report-service:/app
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - backend-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8007/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+  #   restart: unless-stopped
+
+  
 
   healthcheck:
     build:

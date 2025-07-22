@@ -7,12 +7,22 @@
     },
     "services": [
         {
+            "name": "auth-service",
+            "endPoint": "auth",
+            "instances": [
+                {
+                    "host": "auth-service",
+                    "port": 8001
+                }
+            ]
+        },
+        {
             "name": "user-service",
             "endPoint": "user",
             "instances": [
                 {
                     "host": "user-service",
-                    "port": 8001
+                    "port": 8002
                 }
             ]
         },
@@ -22,7 +32,7 @@
             "instances": [
                 {
                     "host": "transport-service",
-                    "port": 8002
+                    "port": 8003
                 }
             ]
         },
@@ -32,37 +42,7 @@
             "instances": [
                 {
                     "host": "ticket-service",
-                    "port": 8003
-                }
-            ]
-        },
-        {
-            "name": "customer-support-service",
-            "endPoint": "customer-support",
-            "instances": [
-                {
-                    "host": "customer-support-service",
                     "port": 8004
-                }
-            ]
-        },
-        {
-            "name": "payment-service",
-            "endPoint": "payment",
-            "instances": [
-                {
-                    "host": "payment-service",
-                    "port": 8005
-                }
-            ]
-        },
-        {
-            "name": "report-service",
-            "endPoint": "report",
-            "instances": [
-                {
-                    "host": "report-service",
-                    "port": 8006
                 }
             ]
         },
@@ -72,6 +52,26 @@
             "instances": [
                 {
                     "host": "public-service",
+                    "port": 8005
+                }
+            ]
+        },
+        {
+            "name": "payment-service",
+            "endPoint": "payment",
+            "instances": [
+                {
+                    "host": "payment-service",
+                    "port": 8006
+                }
+            ]
+        },
+        {
+            "name": "report-service",
+            "endPoint": "report",
+            "instances": [
+                {
+                    "host": "report-service",
                     "port": 8007
                 }
             ]
