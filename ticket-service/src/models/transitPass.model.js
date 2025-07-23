@@ -16,7 +16,6 @@ const TransitPass = sequelize.define('TransitPass', {
         allowNull: false,
     },
     currency: {
-        type: DataTypes.STRING(3),
         allowNull: false,
         defaultValue: 'VND',
         type: DataTypes.ENUM('VND', 'USD', 'CNY'),
@@ -37,3 +36,7 @@ const TransitPass = sequelize.define('TransitPass', {
 });
 
 module.exports = TransitPass;
+
+TransitPass.transitPassType = [
+  'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'
+];

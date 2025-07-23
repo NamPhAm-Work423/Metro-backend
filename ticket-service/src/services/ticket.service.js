@@ -389,7 +389,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType', 'distance']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
                     },
                     {
                         model: Promotion,
@@ -455,7 +455,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
                     },
                     {
                         model: Promotion,
@@ -488,7 +488,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                        attributes: ['fareId', 'basePrice']
                     }
                 ],
                 order: [['validFrom', 'ASC']]
@@ -512,7 +512,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
                     },
                     {
                         model: Promotion,
@@ -542,7 +542,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
                     },
                     {
                         model: Promotion,
@@ -578,7 +578,7 @@ class TicketService {
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
                     },
                     {
                         model: Promotion,

@@ -1,6 +1,6 @@
 /**
  * @swagger
- * /v1/auth/register:
+ * /v1/auth/auth/register:
  *   post:
  *     summary: Register a new user
  *     description: |
@@ -117,7 +117,7 @@
 
 /**
  * @swagger
- * /v1/auth/login:
+ * /v1/auth/auth/login:
  *   post:
  *     summary: Login user
  *     tags: [Authentication]
@@ -128,12 +128,12 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
- *                 example: johndoe
+ *                 example: user@example.com
  *               password:
  *                 type: string
  *                 example: Password123!
@@ -174,7 +174,7 @@
 
 /**
  * @swagger
- * /v1/auth/logout:
+ * /v1/auth/auth/logout:
  *   post:
  *     summary: Logout user
  *     tags: [Authentication]
@@ -197,7 +197,7 @@
 
 /**
  * @swagger
- * /v1/auth/refresh:
+ * /v1/auth/auth/refresh:
  *   post:
  *     summary: Refresh access token
  *     tags: [Authentication]
@@ -242,7 +242,7 @@
 
 /**
  * @swagger
- * /v1/auth/verify:
+ * /v1/auth/auth/verify:
  *   post:
  *     summary: Verify email with token
  *     tags: [Authentication]
@@ -281,7 +281,7 @@
 
 /**
  * @swagger
- * /v1/auth/resend-verification:
+ * /v1/auth/auth/resend-verification:
  *   post:
  *     summary: Resend verification email
  *     tags: [Authentication]
@@ -315,7 +315,7 @@
 
 /**
  * @swagger
- * /v1/auth/forgot-password:
+ * /v1/auth/auth/forgot-password:
  *   post:
  *     summary: Request password reset
  *     tags: [Authentication]
@@ -349,7 +349,7 @@
 
 /**
  * @swagger
- * /v1/auth/reset-password:
+ * /v1/auth/auth/reset-password:
  *   post:
  *     summary: Reset password with token
  *     tags: [Authentication]
@@ -387,7 +387,7 @@
 
 /**
  * @swagger
- * /v1/auth/change-password:
+ * /v1/auth/auth/change-password:
  *   post:
  *     summary: Change password (authenticated user)
  *     tags: [Authentication]
@@ -433,7 +433,7 @@
 
 /**
  * @swagger
- * /v1/auth/key/{userId}:
+ * /v1/auth/auth/key/{userId}:
  *   get:
  *     summary: Get API key for user (admin only)
  *     tags: [Authentication]

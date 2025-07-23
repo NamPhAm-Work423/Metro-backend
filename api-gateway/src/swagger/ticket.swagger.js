@@ -80,40 +80,14 @@
  *           format: uuid
  *         routeId:
  *           type: string
- *           format: uuid
- *         originStationId:
- *           type: string
- *           format: uuid
- *         destinationStationId:
- *           type: string
- *           format: uuid
- *         ticketType:
- *           type: string
- *           enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *         passengerType:
- *           type: string
- *           enum: ['adult', 'child', 'senior', 'student', 'disabled']
+ *           description: Route identifier from transport service
  *         basePrice:
  *           type: number
  *           format: decimal
- *         peakHourMultiplier:
- *           type: number
- *           format: decimal
- *         distance:
- *           type: number
- *           format: float
- *         zones:
- *           type: integer
- *         effectiveFrom:
- *           type: string
- *           format: date-time
- *         effectiveUntil:
- *           type: string
- *           format: date-time
- *           nullable: true
  *         currency:
  *           type: string
- *           default: 'USD'
+ *           enum: [VND, USD, CNY]
+ *           default: 'VND'
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -137,28 +111,20 @@
  *           type: string
  *         type:
  *           type: string
- *           enum: ['percentage', 'fixed_amount', 'buy_one_get_one']
+ *           enum: [percentage, fixed_amount, buy_one_get_one, free_upgrade]
  *         value:
  *           type: number
  *           format: decimal
- *         maxDiscountAmount:
- *           type: number
- *           format: decimal
- *           nullable: true
- *         minPurchaseAmount:
- *           type: number
- *           format: decimal
- *           nullable: true
  *         applicableTicketTypes:
  *           type: array
  *           items:
  *             type: string
- *             enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
+ *             enum: [oneway, return, day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
  *         applicablePassengerTypes:
  *           type: array
  *           items:
  *             type: string
- *             enum: ['adult', 'child', 'senior', 'student', 'disabled']
+ *             enum: [adult, child, student, senior, disabled]
  *         applicableRoutes:
  *           type: array
  *           items:
@@ -179,22 +145,6 @@
  *         validUntil:
  *           type: string
  *           format: date-time
- *         daysOfWeek:
- *           type: array
- *           items:
- *             type: string
- *             enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
- *         timeSlots:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               start:
- *                 type: string
- *                 format: time
- *               end:
- *                 type: string
- *                 format: time
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -207,92 +157,9 @@
 
 /**
  * @swagger
- * /v1/route/ticket/health:
- *   get:
- *     summary: Ticket service health check
- *     tags: [Tickets]
- *     responses:
- *       200:
- *         description: Service is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "healthy"
- *                 service:
- *                   type: string
- *                   example: "ticket-service"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets:
- *   get:
- *     summary: Get all tickets (Admin only)
- *     tags: [Tickets]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['active', 'used', 'expired', 'cancelled', 'refunded']
- *         description: Filter by ticket status
- *       - in: query
- *         name: ticketType
- *         schema:
- *           type: string
- *           enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *         description: Filter by ticket type
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Items per page
- *     responses:
- *       200:
- *         description: List of tickets
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         tickets:
- *                           type: array
- *                           items:
- *                             $ref: '#/components/schemas/Ticket'
- *                         pagination:
- *                           type: object
- *                           properties:
- *                             total:
- *                               type: integer
- *                             page:
- *                               type: integer
- *                             limit:
- *                               type: integer
- *                             pages:
- *                               type: integer
+ * /v1/route/ticket/tickets/create-short-term:
  *   post:
- *     summary: Create a new ticket
+ *     summary: Create a short-term ticket
  *     tags: [Tickets]
  *     security:
  *       - cookieAuth: []
@@ -303,102 +170,173 @@
  *           schema:
  *             type: object
  *             required:
- *               - tripId
- *               - originStationId
- *               - destinationStationId
- *               - ticketType
+ *               - routeId
+ *               - fromStation
+ *               - toStation
+ *               - tripType
  *               - paymentMethod
- *               - paymentId
  *             properties:
+ *               routeId:
+ *                 type: string
+ *               fromStation:
+ *                 type: string
+ *               toStation:
+ *                 type: string
+ *               tripType:
+ *                 type: string
+ *                 enum: [Oneway, Return]
+ *               numAdults:
+ *                 type: number
+ *               numElder:
+ *                 type: number
+ *               numTeenager:
+ *                 type: number
+ *               numChild:
+ *                 type: number
+ *               promotionId:
+ *                 type: string
+ *                 nullable: true
  *               tripId:
  *                 type: string
- *                 format: uuid
- *               originStationId:
- *                 type: string
- *                 format: uuid
- *               destinationStationId:
- *                 type: string
- *                 format: uuid
- *               ticketType:
- *                 type: string
- *                 enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
+ *                 nullable: true
  *               paymentMethod:
  *                 type: string
- *                 enum: ['credit_card', 'debit_card', 'cash', 'digital_wallet', 'bank_transfer']
  *               paymentId:
  *                 type: string
- *               promotionCode:
- *                 type: string
- *                 description: Optional promotion code for discount
+ *                 nullable: true
+ *           example:
+ *             fromStation: an-dong
+ *             toStation: ba-son
+ *             tripType: Oneway
+ *             numAdults: 2
+ *             numElder: 1
+ *             numTeenager: 0
+ *             numChild: 1
+ *             promotionId: null
+ *             paymentMethod: card
+ *             paymentId: payment_abc123
  *     responses:
  *       201:
  *         description: Ticket created successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Ticket'
- *       400:
- *         description: Invalid input data
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets/me:
- *   get:
- *     summary: Get current user's tickets
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/create-long-term:
+ *   post:
+ *     summary: Create a long-term ticket
  *     tags: [Tickets]
  *     security:
  *       - cookieAuth: []
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['active', 'used', 'expired', 'cancelled', 'refunded']
- *         description: Filter by ticket status
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - passType
+ *               - paymentMethod
+ *             properties:
+ *               routeId:
+ *                 type: string
+ *                 nullable: true
+ *               passType:
+ *                 type: string
+ *                 enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *               promotionId:
+ *                 type: string
+ *                 nullable: true
+ *               paymentMethod:
+ *                 type: string
+ *               paymentId:
+ *                 type: string
+ *                 nullable: true
+ *           example:
+ *             passType: monthly_pass
+ *             paymentMethod: card
+ *             promotionId: null
+ *             paymentId: payment_xyz456
  *     responses:
- *       200:
- *         description: User's tickets
+ *       201:
+ *         description: Ticket created successfully
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         tickets:
- *                           type: array
- *                           items:
- *                             $ref: '#/components/schemas/Ticket'
- *                         pagination:
- *                           type: object
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets/{id}:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/me:
+ *   get:
+ *     summary: Get all tickets of current user
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/me/unused:
+ *   get:
+ *     summary: Get unused tickets of current user
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of unused tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/me/used:
+ *   get:
+ *     summary: Get used tickets of current user
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of used tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/me/cancelled:
+ *   get:
+ *     summary: Get cancelled tickets of current user
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of cancelled tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/me/expired:
+ *   get:
+ *     summary: Get expired tickets of current user
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of expired tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/getTicket:
  *   get:
  *     summary: Get ticket by ID
  *     tags: [Tickets]
@@ -410,69 +348,17 @@
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Ticket ID
  *     responses:
  *       200:
  *         description: Ticket details
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Ticket'
- *       404:
- *         description: Ticket not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets/{id}/use:
- *   patch:
- *     summary: Use a ticket (Staff only)
- *     tags: [Tickets]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Ticket ID
- *     responses:
- *       200:
- *         description: Ticket used successfully
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Ticket'
- *       400:
- *         description: Ticket cannot be used (expired, already used, etc.)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-/**
- * @swagger
+ *               $ref: '#/components/schemas/Success'
+ *
  * /v1/route/ticket/tickets/{id}/cancel:
- *   patch:
- *     summary: Cancel a ticket
+ *   post:
+ *     summary: Cancel ticket by ID
  *     tags: [Tickets]
  *     security:
  *       - cookieAuth: []
@@ -482,40 +368,8 @@
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Ticket ID
- *     responses:
- *       200:
- *         description: Ticket cancelled successfully
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Ticket'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets/{id}/refund:
- *   patch:
- *     summary: Refund a ticket (Staff only)
- *     tags: [Tickets]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Ticket ID
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
@@ -523,66 +377,346 @@
  *             properties:
  *               reason:
  *                 type: string
- *                 description: Reason for refund
- *               refundAmount:
- *                 type: number
- *                 format: decimal
- *                 description: Amount to refund (optional, defaults to full amount)
+ *           example:
+ *             reason: "Change of plans"
  *     responses:
  *       200:
- *         description: Ticket refunded successfully
+ *         description: Ticket cancelled
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Ticket'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/fares:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/phoneTicket:
+ *   post:
+ *     summary: Send ticket to phone
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *           example:
+ *             phoneNumber: "+84987654321"
+ *     responses:
+ *       200:
+ *         description: Ticket sent to phone
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/mailTicket:
+ *   post:
+ *     summary: Send ticket to email
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *           example:
+ *             email: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: Ticket sent to email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/validate:
+ *   get:
+ *     summary: Validate ticket by ID
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/detail:
+ *   get:
+ *     summary: Get ticket detail (staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/update:
+ *   put:
+ *     summary: Update ticket (staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *               specialRequests:
+ *                 type: string
+ *           example:
+ *             notes: "Please seat near window"
+ *             specialRequests: "Wheelchair access"
+ *     responses:
+ *       200:
+ *         description: Ticket updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/{id}/delete:
+ *   delete:
+ *     summary: Delete ticket (staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/getAllTickets:
+ *   get:
+ *     summary: Get all tickets (admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/tickets/getTicketStatistics:
+ *   get:
+ *     summary: Get ticket statistics (admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Ticket statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/get-all:
  *   get:
  *     summary: Get all fares
  *     tags: [Fares]
- *     parameters:
- *       - in: query
- *         name: routeId
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Filter by route ID
- *       - in: query
- *         name: ticketType
- *         schema:
- *           type: string
- *           enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *         description: Filter by ticket type
- *       - in: query
- *         name: passengerType
- *         schema:
- *           type: string
- *           enum: ['adult', 'child', 'senior', 'student', 'disabled']
- *         description: Filter by passenger type
+ *     security:
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: List of fares
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Fare'
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/search:
+ *   get:
+ *     summary: Search fares
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Search result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/route/{routeId}:
+ *   get:
+ *     summary: Get fares by route
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fares for route
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/stations/{originId}/{destinationId}:
+ *   get:
+ *     summary: Get fares between stations
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: originId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: destinationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fares between stations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/zones/{zones}:
+ *   get:
+ *     summary: Get fares by zone
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: zones
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fares for zone
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/{id}/calculate:
+ *   get:
+ *     summary: Calculate fare price
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fare calculation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/statistics:
+ *   get:
+ *     summary: Get fare statistics (staff, admin)
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Fare statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/fares/:
+ *   get:
+ *     summary: Get all fares (staff, admin)
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of fares
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
  *   post:
- *     summary: Create a new fare (Admin only)
+ *     summary: Create a new fare (admin)
  *     tags: [Fares]
  *     security:
  *       - cookieAuth: []
@@ -594,69 +728,145 @@
  *             type: object
  *             required:
  *               - routeId
- *               - originStationId
- *               - destinationStationId
- *               - ticketType
- *               - passengerType
  *               - basePrice
- *               - effectiveFrom
+ *               - currency
  *             properties:
  *               routeId:
  *                 type: string
- *                 format: uuid
- *               originStationId:
- *                 type: string
- *                 format: uuid
- *               destinationStationId:
- *                 type: string
- *                 format: uuid
- *               ticketType:
- *                 type: string
- *                 enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *               passengerType:
- *                 type: string
- *                 enum: ['adult', 'child', 'senior', 'student', 'disabled']
  *               basePrice:
  *                 type: number
- *                 format: decimal
- *               peakHourMultiplier:
- *                 type: number
- *                 format: decimal
- *                 default: 1.0
- *               distance:
- *                 type: number
- *                 format: float
- *               zones:
- *                 type: integer
- *               effectiveFrom:
- *                 type: string
- *                 format: date-time
- *               effectiveUntil:
- *                 type: string
- *                 format: date-time
  *               currency:
  *                 type: string
- *                 default: 'USD'
+ *                 enum: [VND, USD, CNY]
+ *               isActive:
+ *                 type: boolean
+ *           example:
+ *             routeId: "route_abc123"
+ *             basePrice: 15000
+ *             currency: "VND"
+ *             isActive: true
+ *   put:
+ *     summary: Update fare (admin)
+ *     tags: [Fares]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               basePrice:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *                 enum: [VND, USD, CNY]
+ *               isActive:
+ *                 type: boolean
+ *           example:
+ *             basePrice: 18000
+ *             currency: "VND"
+ *             isActive: false
+ *
+ * /v1/route/ticket/promotion/active:
+ *   get:
+ *     summary: Get active promotions
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     responses:
- *       201:
- *         description: Fare created successfully
+ *       200:
+ *         description: List of active promotions
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Fare'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/fares/calculate:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/search:
+ *   get:
+ *     summary: Search promotions
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Search result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/{code}/validate:
  *   post:
- *     summary: Calculate fare for a journey
- *     tags: [Fares]
+ *     summary: Validate promotion code
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ticketType:
+ *                 type: string
+ *               passengerType:
+ *                 type: string
+ *               routeId:
+ *                 type: string
+ *               purchaseAmount:
+ *                 type: number
+ *               dateTime:
+ *                 type: string
+ *                 format: date-time
+ *           example:
+ *             ticketType: "single"
+ *             passengerType: "adult"
+ *             routeId: "route_abc123"
+ *             purchaseAmount: 60000
+ *             dateTime: "2025-07-23T09:00:00Z"
+ *     responses:
+ *       200:
+ *         description: Promotion validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/{code}/apply:
+ *   post:
+ *     summary: Apply promotion code
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Promotion applied
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/validate-bulk:
+ *   post:
+ *     summary: Bulk validate promotions (staff, admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -664,96 +874,120 @@
  *           schema:
  *             type: object
  *             required:
- *               - originStationId
- *               - destinationStationId
- *               - ticketType
- *               - passengerType
+ *               - codes
+ *               - validationData
  *             properties:
- *               originStationId:
- *                 type: string
- *                 format: uuid
- *               destinationStationId:
- *                 type: string
- *                 format: uuid
- *               ticketType:
- *                 type: string
- *                 enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *               passengerType:
- *                 type: string
- *                 enum: ['adult', 'child', 'senior', 'student', 'disabled']
- *               isPeakHour:
- *                 type: boolean
- *                 default: false
- *               promotionCode:
- *                 type: string
- *                 description: Optional promotion code for discount calculation
+ *               codes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               validationData:
+ *                 type: object
+ *           example:
+ *             codes: ["SUMMER2025", "WELCOME10"]
+ *             validationData:
+ *               ticketType: "single"
+ *               passengerType: "adult"
+ *               purchaseAmount: 60000
  *     responses:
  *       200:
- *         description: Calculated fare
+ *         description: Bulk validation result
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         basePrice:
- *                           type: number
- *                           format: decimal
- *                         peakHourMultiplier:
- *                           type: number
- *                           format: decimal
- *                         peakHourPrice:
- *                           type: number
- *                           format: decimal
- *                         promotionDiscount:
- *                           type: number
- *                           format: decimal
- *                         finalPrice:
- *                           type: number
- *                           format: decimal
- *                         currency:
- *                           type: string
- */
-
-/**
- * @swagger
- * /v1/route/ticket/promotions:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/code/{code}:
  *   get:
- *     summary: Get all active promotions
+ *     summary: Get promotion by code
  *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     parameters:
- *       - in: query
- *         name: type
+ *       - in: path
+ *         name: code
+ *         required: true
  *         schema:
  *           type: string
- *           enum: ['percentage', 'fixed_amount', 'buy_one_get_one']
- *         description: Filter by promotion type
- *       - in: query
- *         name: ticketType
+ *     responses:
+ *       200:
+ *         description: Promotion details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/statistics:
+ *   get:
+ *     summary: Get promotion statistics (staff, admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Promotion statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/{id}/usage-report:
+ *   get:
+ *     summary: Get promotion usage report (staff, admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
  *         schema:
  *           type: string
- *           enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *         description: Filter by applicable ticket type
+ *     responses:
+ *       200:
+ *         description: Usage report
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/expire:
+ *   post:
+ *     summary: Expire promotions (admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ...
+ *     responses:
+ *       200:
+ *         description: Promotions expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/:
+ *   get:
+ *     summary: Get all promotions (staff, admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: List of promotions
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Promotion'
+ *               $ref: '#/components/schemas/Success'
  *   post:
- *     summary: Create a new promotion (Admin only)
+ *     summary: Create a new promotion (admin)
  *     tags: [Promotions]
  *     security:
  *       - cookieAuth: []
@@ -779,31 +1013,23 @@
  *                 type: string
  *               type:
  *                 type: string
- *                 enum: ['percentage', 'fixed_amount', 'buy_one_get_one']
+ *                 enum: [percentage, fixed_amount, buy_one_get_one, free_upgrade]
  *               value:
  *                 type: number
- *                 format: decimal
- *               maxDiscountAmount:
- *                 type: number
- *                 format: decimal
- *               minPurchaseAmount:
- *                 type: number
- *                 format: decimal
  *               applicableTicketTypes:
  *                 type: array
  *                 items:
  *                   type: string
- *                   enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
+ *                   enum: [oneway, return, day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
  *               applicablePassengerTypes:
  *                 type: array
  *                 items:
  *                   type: string
- *                   enum: ['adult', 'child', 'senior', 'student', 'disabled']
+ *                   enum: [adult, child, student, senior, disabled]
  *               applicableRoutes:
  *                 type: array
  *                 items:
  *                   type: string
- *                   format: uuid
  *               usageLimit:
  *                 type: integer
  *               userUsageLimit:
@@ -814,162 +1040,120 @@
  *               validUntil:
  *                 type: string
  *                 format: date-time
- *               daysOfWeek:
- *                 type: array
- *                 items:
- *                   type: string
- *                   enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
- *               timeSlots:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     start:
- *                       type: string
- *                       format: time
- *                     end:
- *                       type: string
- *                       format: time
+ *               isActive:
+ *                 type: boolean
+ *           example:
+ *             code: "SUMMER2025"
+ *             name: "Summer Sale"
+ *             description: "20% off for all tickets in summer."
+ *             type: "percentage"
+ *             value: 20
+ *             applicableTicketTypes: ["oneway", "return"]
+ *             applicablePassengerTypes: ["adult", "child"]
+ *             applicableRoutes: ["route_abc123"]
+ *             usageLimit: 1000
+ *             userUsageLimit: 2
+ *             validFrom: "2025-07-01T00:00:00Z"
+ *             validUntil: "2025-08-31T23:59:59Z"
+ *             isActive: true
  *     responses:
  *       201:
- *         description: Promotion created successfully
+ *         description: Promotion created
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Promotion'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/promotions/{code}/validate:
- *   post:
- *     summary: Validate a promotion code
+ *               $ref: '#/components/schemas/Success'
+ *
+ * /v1/route/ticket/promotion/{id}:
+ *   get:
+ *     summary: Get promotion by ID
  *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     parameters:
  *       - in: path
- *         name: code
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: Promotion code
+ *     responses:
+ *       200:
+ *         description: Promotion details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *   put:
+ *     summary: Update promotion (admin)
+ *     tags: [Promotions]
+ *     security:
+ *       - cookieAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - ticketType
- *               - passengerType
- *               - purchaseAmount
  *             properties:
- *               ticketType:
+ *               name:
  *                 type: string
- *                 enum: ['single', 'return', 'day_pass', 'weekly', 'monthly']
- *               passengerType:
+ *               description:
  *                 type: string
- *                 enum: ['adult', 'child', 'senior', 'student', 'disabled']
- *               routeId:
+ *               type:
  *                 type: string
- *                 format: uuid
- *               purchaseAmount:
+ *                 enum: [percentage, fixed_amount, buy_one_get_one, free_upgrade]
+ *               value:
  *                 type: number
- *                 format: decimal
- *               passengerId:
+ *               applicableTicketTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [oneway, return, day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *               applicablePassengerTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [adult, child, student, senior, disabled]
+ *               applicableRoutes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               usageLimit:
+ *                 type: integer
+ *               userUsageLimit:
+ *                 type: integer
+ *               validFrom:
  *                 type: string
- *                 format: uuid
- *                 description: Optional for user-specific validation
- *     responses:
- *       200:
- *         description: Promotion validation result
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         valid:
- *                           type: boolean
- *                         promotion:
- *                           $ref: '#/components/schemas/Promotion'
- *                         discountAmount:
- *                           type: number
- *                           format: decimal
- *                         finalAmount:
- *                           type: number
- *                           format: decimal
- *                         reason:
- *                           type: string
- *                           description: Reason if invalid
- *       404:
- *         description: Promotion code not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-/**
- * @swagger
- * /v1/route/ticket/tickets/statistics:
- *   get:
- *     summary: Get ticket statistics (Admin only)
- *     tags: [Tickets]
+ *                 format: date-time
+ *               validUntil:
+ *                 type: string
+ *                 format: date-time
+ *               isActive:
+ *                 type: boolean
+ *           example:
+ *             name: "Summer Sale Updated"
+ *             description: "25% off for all tickets in summer."
+ *             type: "percentage"
+ *             value: 25
+ *             applicableTicketTypes: ["oneway", "return"]
+ *             applicablePassengerTypes: ["adult", "child"]
+ *             applicableRoutes: ["route_abc123"]
+ *             usageLimit: 2000
+ *             userUsageLimit: 3
+ *             validFrom: "2025-07-01T00:00:00Z"
+ *             validUntil: "2025-08-31T23:59:59Z"
+ *             isActive: true
+ *   delete:
+ *     summary: Delete promotion (admin)
+ *     tags: [Promotions]
  *     security:
  *       - cookieAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Start date for statistics
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: End date for statistics
- *       - in: query
- *         name: groupBy
- *         schema:
- *           type: string
- *           enum: ['day', 'week', 'month', 'status', 'ticketType']
- *         description: Group statistics by
  *     responses:
  *       200:
- *         description: Ticket statistics
+ *         description: Promotion deleted
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Success'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         totalTickets:
- *                           type: integer
- *                         totalRevenue:
- *                           type: number
- *                           format: decimal
- *                         ticketsByStatus:
- *                           type: object
- *                         ticketsByType:
- *                           type: object
- *                         statistics:
- *                           type: array
- *                           items:
- *                             type: object
+ *               $ref: '#/components/schemas/Success'
  */
 

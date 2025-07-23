@@ -66,7 +66,7 @@ This API uses **cookie-based authentication** for maximum security and ease of u
     },
     servers: [
         { 
-            url: 'http://localhost:3000', 
+            url: 'http://localhost:8000', 
             description: 'Local Development Server' 
         },
         { 
