@@ -127,7 +127,7 @@ class UserService {
                 );
             }
 
-
+            const backgroundStartTime = process.hrtime.bigint();
 
             // Publish Kafka event in background
             backgroundTasks.push(

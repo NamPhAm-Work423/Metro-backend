@@ -35,52 +35,10 @@ class AuthMiddleware {
       // Verify token
       decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       
-      // Get user from database
-      const user = await User.findByPk(decoded.userId);
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Check if user is verified
-      if (!user.isVerified) {
-        return res.status(401).json({
-          success: false,
-          message: 'Please verify your email address'
-        });
-      }
-
-      // Check if account is locked (both permanent and temporary locks)
-      if (user.accountLocked || user.isLocked()) {
-        logger.warn('Blocked login attempt for locked account', {
-          userId: user.id,
-          email: user.email,
-          accountLocked: user.accountLocked,
-          lockUntil: user.lockUntil,
-          loginAttempts: user.loginAttempts
-        });
-        
-        return res.status(423).json({
-          success: false,
-          message: 'Account is locked. Please contact support to unlock your account.',
-          lockInfo: {
-            accountLocked: user.accountLocked,
-            lockUntil: user.lockUntil,
-            loginAttempts: user.loginAttempts,
-            lockType: user.accountLocked ? 'permanent' : 'temporary'
-          }
-        });
-      }
-
-      // Add user to request object
-      req.user = user;
-      
-      // Add user context headers for downstream services
-      req.headers['x-user-id'] = user.id.toString();
-      req.headers['x-user-email'] = user.email;
-      req.headers['x-user-roles'] = JSON.stringify(user.roles);
+      req.user = decoded;
+      req.headers['x-user-id'] = decoded.userId ? decoded.userId.toString() : '';
+      req.headers['x-user-email'] = decoded.email || '';
+      req.headers['x-user-roles'] = JSON.stringify(decoded.roles || []);
       
       next();
     } catch (error) {
