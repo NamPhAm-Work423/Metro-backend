@@ -22,13 +22,13 @@ class UserEventConsumer {
             const User = require('../models/user.model');
             const userService = require('../services/user.service');
 
-            // Delete user from API Gateway database
+            // Delete user from Auth Service database
             await userService.deleteUserByUserId(payload.userId);
 
             // Revoke all API keys for the user
             await keyService.revokeAllUserKeys(payload.userId);
 
-            logger.info('User deletion processed successfully in API Gateway', {
+            logger.info('User deletion processed successfully in Auth Service', {
                 userId: payload.userId,
                 email: payload.email,
                 source: payload.source

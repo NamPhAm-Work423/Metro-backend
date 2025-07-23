@@ -11,7 +11,7 @@ const logformat = winston.format.combine(
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
   format: logformat,
-  defaultMeta: { service: 'api-gateway' },
+  defaultMeta: { service: 'auth-service' },
   transports: [
     // Log to the console
     new winston.transports.Console({

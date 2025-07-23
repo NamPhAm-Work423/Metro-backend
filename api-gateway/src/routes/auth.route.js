@@ -1,34 +1,31 @@
 const express = require('express');
-const userController = require('../controllers/user.controller');
-const authMiddleware = require('../middlewares/auth.middleware');
-const authController = require('../controllers/auth.controller');
-const { authRateLimiter, sensitiveRateLimiter, defaultRateLimiter } = require('../middlewares/rateLimiter');
 const router = express.Router();
+const routingController = require('../controllers/routing.controller');
+const { authRateLimiter, sensitiveRateLimiter, defaultRateLimiter } = require('../middlewares/rateLimiter');
+const { logger } = require('../config/logger');
 
-// Auth operations with stricter rate limiting
-router.post('/register', authRateLimiter, userController.signup);
+const validateAuthServiceAccess = (req, res, next) => {
+  const endPoint = decodeURIComponent(req.params.endPoint);
+  let allowedEndpoints = ['auth'];
+  if (endPoint !== 'auth') {
+    logger.warn('Unauthorized auth route access attempt', {
+      endPoint,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.originalUrl
+    });
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Only auth service endpoints are allowed.',
+      allowedEndpoints: ['auth']
+    });
+  }
+  next();
+};
 
-router.post('/login', authRateLimiter, userController.login);
+router.use(authRateLimiter);
 
-router.post('/logout', defaultRateLimiter, authMiddleware.authenticate, userController.logout);
-
-router.post('/refresh', authRateLimiter, userController.refreshToken);
-
-// Sensitive operations with the most restrictive rate limiting
-router.post('/forgot-password', sensitiveRateLimiter, userController.forgotPassword);
-
-router.post('/reset-password', sensitiveRateLimiter, userController.resetPassword);
-
-// Email verification with standard rate limiting
-router.get('/verify/:token', defaultRateLimiter, userController.verifyEmail);
-
-router.get('/verify-email', defaultRateLimiter, userController.verifyEmailFromQuery);
-
-/**Those routes will not be used in the future, but we keep them for now */
-router.get('/key/:id', defaultRateLimiter, authMiddleware.authenticate, authController.generateAPIToken);
-
-router.get('/keys/:userId', defaultRateLimiter, authMiddleware.authenticate, authController.getAPIKeyByUser);
-
-router.delete('/key/:id', defaultRateLimiter, authMiddleware.authenticate, authController.deleteKeyById);
+router.all('/:endPoint/*', validateAuthServiceAccess, routingController.useService);
+router.all('/:endPoint', validateAuthServiceAccess, routingController.useService);
 
 module.exports = router;

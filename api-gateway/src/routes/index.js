@@ -15,18 +15,14 @@ const config = require('../config')();
  * Mount routes with their respective prefixes
  */
 
-// Authentication routes - mounted at /v1/auth
-if (process.env.NEED_API_KEY === 'true') {
-    router.use('/v1/auth', authMiddleware.validateAPIKeyMiddleware, authRoutes);
-} else {
-    router.use('/v1/auth', authRoutes);
-}
+// Authentication routes - mounted at /
+router.use('/v1/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
 
 // Service management routes - mounted at /v1/service
 router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
 
 // Guest routes - mounted at /v1/guest (NO authentication required, only public service access)
-router.use('/v1/guest', guestRoutes);
+router.use('/v1/guest', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
 
 //** ALL SERVICE WILL BE MOUNTED HERE, YOU HAVE TO CALL THE SERVICE ROUTE BY USING THE ENDPOINT v1/route/serviceName */
 // Dynamic service routing - mounted at /v1/route (rate limiting applied in routing.route.js)

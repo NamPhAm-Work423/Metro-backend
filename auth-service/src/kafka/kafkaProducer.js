@@ -4,7 +4,7 @@ require('dotenv').config();
 
 // Brokers list comes from env or default to localhost
 const kafka = new Kafka({
-    clientId: process.env.KAFKA_CLIENT_ID || 'api-gateway',
+    clientId: process.env.KAFKA_CLIENT_ID || 'auth-service',
     brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(',')
 });
 

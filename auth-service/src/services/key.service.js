@@ -7,15 +7,15 @@ const Key = require('../models/key.model');
 // Redis key prefixing following clean tree structure
 // -----------------------------------------------------------------------------
 // Use configurable prefix for different environments (dev, staging, prod)
-const API_GATEWAY_PREFIX = process.env.REDIS_KEY_PREFIX || 'api-gateway:';
+const AUTH_SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'auth-service:';
 
 // Clean tree pattern: {prefix}auth-cache:{key}, {prefix}session:{userId}:{keyId}
 function formatAPIKey(key) {
-    return `${API_GATEWAY_PREFIX}auth-cache:${key}`;
+    return `${AUTH_SERVICE_PREFIX}auth-cache:${key}`;
 }
 
 function formatSessionKey(userId, keyId) {
-    return `${API_GATEWAY_PREFIX}session:${userId}:${keyId}`;
+    return `${AUTH_SERVICE_PREFIX}session:${userId}:${keyId}`;
 }
 
 /**

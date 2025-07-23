@@ -4,7 +4,7 @@ module.exports = {errorHandler: (err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
 
-    logger.error("API Gateway Error:", {
+    logger.error("Auth Service Error:", {
         statusCode: err.statusCode,
         message: err.message,
         stack: err.stack,

@@ -4,23 +4,6 @@ const routingController = require('../controllers/routing.controller');
 const { apiRateLimiter, burstProtection } = require('../middlewares/rateLimiter');
 const { logger } = require('../config/logger');
 
-// More restrictive rate limiter for guest/public access
-const guestRateLimiter = require('express-rate-limit')({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs (more restrictive than authenticated users)
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.',
-    retryAfter: '15 minutes'
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skip: (req, res) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health' || req.path === '/public/health';
-  }
-});
-
 // Middleware to validate that only public service endpoints are accessed
 const validatePublicServiceAccess = (req, res, next) => {
   const endPoint = decodeURIComponent(req.params.endPoint);
@@ -61,8 +44,8 @@ const logGuestAccess = (req, res, next) => {
 };
 
 // Apply security middlewares to all guest routes
-router.use(guestRateLimiter);
 router.use(burstProtection);
+router.use(apiRateLimiter);
 router.use(logGuestAccess);
 
 // Guest routes - only allow access to public service

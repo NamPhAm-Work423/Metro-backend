@@ -16,4 +16,4 @@ COPY . /app
 EXPOSE 8001
 
 # Start the application
-CMD ["pm2-runtime", "start", "src/index.js", "--name", "api-gateway", "--env", "production"] 
+CMD ["pm2-runtime", "start", "src/index.js", "--name", "auth-service", "--env", "production"] 

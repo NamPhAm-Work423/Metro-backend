@@ -9,12 +9,8 @@ const authMiddleware = require('../middlewares/auth.middleware');
  * Mount routes with their respective prefixes
  */
 
-// Authentication routes - mounted at /v1/auth
-if (process.env.NEED_API_KEY === 'true') {
-    router.use('/v1/auth', authMiddleware.validateAPIKeyMiddleware, authRoutes);
-} else {
-    router.use('/v1/auth', authRoutes);
-}
+// Authentication routes - mounted at /
+router.use('/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
 
 
 // Health check endpoint

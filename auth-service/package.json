@@ -1,7 +1,7 @@
 {
-  "name": "api-gateway",
+  "name": "auth-service",
   "version": "1.0.0",
-  "description": "API Gateway for microservices architecture",
+  "description": "Auth Service for microservices architecture",
   "main": "src/index.js",
   "scripts": {
     "start": "node dist/index.js",

@@ -86,7 +86,7 @@ class UserService {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Create user (API Gateway only stores auth data)
+        // Create user (Auth Service only stores auth data)
         const user = await User.create({
             email,
             username,
@@ -136,7 +136,7 @@ class UserService {
                     email: user.email,
                     roles: user.roles,
                     username: user.username,
-                    // Profile data from registration form (not stored in API Gateway)
+                    // Profile data from registration form (not stored in Auth Service)
                     firstName: firstName,
                     lastName: lastName,
                     phoneNumber: phoneNumber,
