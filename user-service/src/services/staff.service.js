@@ -9,7 +9,6 @@ const { logger } = require('../config/logger');
 async function getAllStaff() {
     try {
         const staff = await Staff.findAll({
-            where: { isActive: true },
             order: [['createdAt', 'DESC']]
         });
         return staff;

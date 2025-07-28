@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const User = require('../models/user.model');
 const { logger } = require('../config/logger');
 const emailService = require('./email.service');
@@ -75,9 +76,22 @@ class UserService {
         const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles } = userData;
         
             
-        const existingUser = await User.findOne({ where: { email } });
+        // Check for existing user by email or username
+        const existingUser = await User.findOne({ 
+            where: { 
+                [Op.or]: [
+                    { email },
+                    { username }
+                ]
+            } 
+        });
+        
         if (existingUser) {
-            throw new Error('User already exists');
+            if (existingUser.email === email) {
+                throw new Error('Email already exists');
+            } else {
+                throw new Error('Username already exists');
+            }
         }
         //If in roles have admin, reject create user
         if (roles.includes('admin')) {
@@ -313,25 +327,24 @@ class UserService {
         const redisKey = `reset:${user.id}`;
         const ttlSeconds = 600; // 10 minutes
         
-        try {
-            await withRedisClient(async (client) => {
-                await client.set(redisKey, hashedToken, { EX: ttlSeconds });
-            });
-            
-            logger.info('Password reset token stored in Redis', { 
+        const redisResult = await withRedisClient(async (client) => {
+            await client.set(redisKey, hashedToken, { EX: ttlSeconds });
+        });
+        
+        if (redisResult === null) {
+            logger.error('Failed to store reset token in Redis - client not available', { 
                 userId: user.id, 
-                email,
-                redisKey,
-                ttlSeconds 
+                email 
             });
-        } catch (redisError) {
-            logger.error('Failed to store reset token in Redis', { 
-                userId: user.id, 
-                email, 
-                error: redisError.message 
-            });
-            throw new Error('Failed to generate password reset token');
+            throw new Error('Failed to generate password reset token - Redis unavailable');
         }
+        
+        logger.info('Password reset token stored in Redis', { 
+            userId: user.id, 
+            email,
+            redisKey,
+            ttlSeconds 
+        });
 
         // Send reset email with token and userId (async - don't wait)
         // Process email sending in background to improve response time
@@ -346,17 +359,17 @@ class UserService {
                     error: emailError.message 
                 });
                 // Clean up Redis token if email fails
-                try {
-                    await withRedisClient(async (client) => {
-                        await client.del(redisKey);
-                    });
-                    logger.info('Cleaned up Redis token after email failure', { userId: user.id, redisKey });
-                } catch (cleanupError) {
-                    logger.error('Failed to cleanup Redis token after email failure', { 
+                const cleanupResult = await withRedisClient(async (client) => {
+                    await client.del(redisKey);
+                });
+                
+                if (cleanupResult === null) {
+                    logger.error('Failed to cleanup Redis token after email failure - client not available', { 
                         userId: user.id, 
-                        redisKey,
-                        error: cleanupError.message 
+                        redisKey
                     });
+                } else {
+                    logger.info('Cleaned up Redis token after email failure', { userId: user.id, redisKey });
                 }
             }
         });
@@ -395,17 +408,16 @@ class UserService {
         const redisKey = `reset:${uid}`;
         let storedHashedToken;
         
-        try {
-            storedHashedToken = await withRedisClient(async (client) => {
-                return await client.get(redisKey);
-            });
-        } catch (redisError) {
-            logger.error('Failed to retrieve reset token from Redis', { 
+        storedHashedToken = await withRedisClient(async (client) => {
+            return await client.get(redisKey);
+        });
+        
+        if (storedHashedToken === null) {
+            logger.error('Failed to retrieve reset token from Redis - client not available', { 
                 uid, 
-                redisKey,
-                error: redisError.message 
+                redisKey
             });
-            throw new Error('Failed to verify reset token');
+            throw new Error('Failed to verify reset token - Redis unavailable');
         }
         
         // Check if token exists and matches
@@ -440,18 +452,18 @@ class UserService {
         });
 
         // Delete the reset token from Redis
-        try {
-            await withRedisClient(async (client) => {
-                await client.del(redisKey);
-            });
-            logger.info('Reset token deleted from Redis', { uid, redisKey });
-        } catch (redisError) {
-            logger.error('Failed to delete reset token from Redis', { 
+        const deleteResult = await withRedisClient(async (client) => {
+            await client.del(redisKey);
+        });
+        
+        if (deleteResult === null) {
+            logger.error('Failed to delete reset token from Redis - client not available', { 
                 uid, 
-                redisKey,
-                error: redisError.message 
+                redisKey
             });
             // Don't throw error here as password was already updated successfully
+        } else {
+            logger.info('Reset token deleted from Redis', { uid, redisKey });
         }
 
         logger.info('Password reset successful', { userId: user.id, email: user.email });
