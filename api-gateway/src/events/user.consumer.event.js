@@ -150,9 +150,13 @@ class UserEventConsumer {
         if (topic === (process.env.USER_DELETED_TOPIC || 'user.deleted')) {
             await this.handleUserDeletedEvent(payload);
         } else if (topic === (process.env.PASSENGER_DELETED_TOPIC || 'passenger.deleted')) {
-            await this.handlePassengerDeletedEvent(payload);
+            // For passenger.deleted events, the data is nested in data.data
+            const passengerPayload = data.data ? { data: data.data } : payload;
+            await this.handlePassengerDeletedEvent(passengerPayload);
         } else if (topic === (process.env.STAFF_DELETED_TOPIC || 'staff.deleted')) {
-            await this.handleStaffDeletedEvent(payload);
+            // For staff.deleted events, the data is nested in data.data
+            const staffPayload = data.data ? { data: data.data } : payload;
+            await this.handleStaffDeletedEvent(staffPayload);
         } else {
             logger.warn('Unhandled topic', { topic });
         }

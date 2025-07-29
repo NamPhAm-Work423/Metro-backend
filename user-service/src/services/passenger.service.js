@@ -90,7 +90,8 @@ async function deletePassengerById(id) {
         if (!passenger) return false;
         
         await passengerEventProducer.publishPassengerDeleted(passenger);
-        await passenger.update({ isActive: false });
+        
+        await passenger.destroy();
         
         return true;
     } catch (err) {
@@ -104,8 +105,10 @@ async function deletePassengerByUserId(userId) {
         const passenger = await Passenger.findOne({ where: { userId } });
         if (!passenger) return { success: false, message: 'Passenger not found' };
         
+        // Publish event trước khi xóa
         await passengerEventProducer.publishPassengerDeleted(passenger);
-        await passenger.update({ isActive: false });
+        
+        await passenger.destroy();
         
         return { success: true, message: 'Passenger profile deleted successfully' };
     } catch (err) {
