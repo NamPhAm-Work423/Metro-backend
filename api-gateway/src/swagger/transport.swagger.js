@@ -505,13 +505,26 @@
  *         schema:
  *           type: string
  *           format: uuid
+ *         description: Unique identifier of the station to delete
  *     responses:
  *       200:
  *         description: Station deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Station deleted successfully"
  *       403:
- *         description: Forbidden (Admin only)
+ *         description: Forbidden - Admin access required
  *       404:
  *         description: Station not found
+ *       500:
+ *         description: Internal server error
  */
 
 /**
@@ -802,11 +815,26 @@
  *         schema:
  *           type: string
  *           format: uuid
+ *         description: Unique identifier of the route to delete
  *     responses:
  *       200:
  *         description: Route deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Route deleted successfully"
  *       403:
- *         description: Forbidden (Admin only)
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Route not found
+ *       500:
+ *         description: Internal server error
  */
 
 // TRAIN ENDPOINTS
@@ -929,6 +957,117 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Train'
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/train/{id}:
+ *   get:
+ *     summary: Get train by ID (Staff/Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the train
+ *     responses:
+ *       200:
+ *         description: Train details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Train'
+ *       403:
+ *         description: Forbidden - Staff/Admin access required
+ *       404:
+ *         description: Train not found
+ * 
+ *   put:
+ *     summary: Update train (Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the train to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 maxLength: 100
+ *               type:
+ *                 type: string
+ *                 enum: [standard, express, freight]
+ *               capacity:
+ *                 type: integer
+ *               status:
+ *                 type: string
+ *                 enum: [active, maintenance, out-of-service]
+ *               lastMaintenance:
+ *                 type: string
+ *                 format: date-time
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Train updated successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Train not found
+ * 
+ *   delete:
+ *     summary: Delete train (Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the train to delete
+ *     responses:
+ *       200:
+ *         description: Train deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Train deleted successfully"
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Train not found
+ *       500:
+ *         description: Internal server error
  */
 
 // TRIP ENDPOINTS  
@@ -1088,6 +1227,116 @@
  *                     $ref: '#/components/schemas/Trip'
  */
 
+/**
+ * @swagger
+ * /v1/route/transport/trip/{id}:
+ *   get:
+ *     summary: Get trip by ID (All roles)
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the trip
+ *     responses:
+ *       200:
+ *         description: Trip details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Trip'
+ *       404:
+ *         description: Trip not found
+ * 
+ *   put:
+ *     summary: Update trip (Admin only)
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the trip to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               routeId:
+ *                 type: string
+ *                 format: uuid
+ *               trainId:
+ *                 type: string
+ *                 format: uuid
+ *               departureTime:
+ *                 type: string
+ *                 format: time
+ *               arrivalTime:
+ *                 type: string
+ *                 format: time
+ *               dayOfWeek:
+ *                 type: string
+ *                 enum: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Trip updated successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Trip not found
+ * 
+ *   delete:
+ *     summary: Delete trip (Admin only)
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the trip to delete
+ *     responses:
+ *       200:
+ *         description: Trip deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Trip deleted successfully"
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Trip not found
+ *       500:
+ *         description: Internal server error
+ */
+
 // STOP ENDPOINTS
 /**
  * @swagger
@@ -1237,6 +1486,115 @@
  *                     $ref: '#/components/schemas/Stop'
  */
 
+/**
+ * @swagger
+ * /v1/route/transport/stop/{id}:
+ *   get:
+ *     summary: Get stop by ID (Staff/Admin only)
+ *     tags: [Stops]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the stop
+ *     responses:
+ *       200:
+ *         description: Stop details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Stop'
+ *       403:
+ *         description: Forbidden - Staff/Admin access required
+ *       404:
+ *         description: Stop not found
+ * 
+ *   put:
+ *     summary: Update stop (Admin only)
+ *     tags: [Stops]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the stop to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tripId:
+ *                 type: string
+ *                 format: uuid
+ *               stationId:
+ *                 type: string
+ *                 format: uuid
+ *               arrivalTime:
+ *                 type: string
+ *                 format: time
+ *               departureTime:
+ *                 type: string
+ *                 format: time
+ *               sequence:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Stop updated successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Stop not found
+ * 
+ *   delete:
+ *     summary: Delete stop (Admin only)
+ *     tags: [Stops]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the stop to delete
+ *     responses:
+ *       200:
+ *         description: Stop deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Stop deleted successfully"
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Stop not found
+ *       500:
+ *         description: Internal server error
+ */
+
 // ROUTE STATION ENDPOINTS
 /**
  * @swagger
@@ -1290,6 +1648,109 @@
  *         description: Route-station created successfully
  *       403:
  *         description: Forbidden (Admin only)
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/route-station/{id}:
+ *   get:
+ *     summary: Get route-station by ID (Staff/Admin only)
+ *     tags: [Route Stations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the route-station
+ *     responses:
+ *       200:
+ *         description: Route-station details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/RouteStation'
+ *       403:
+ *         description: Forbidden - Staff/Admin access required
+ *       404:
+ *         description: Route-station not found
+ * 
+ *   put:
+ *     summary: Update route-station (Admin only)
+ *     tags: [Route Stations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the route-station to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               routeId:
+ *                 type: string
+ *                 format: uuid
+ *               stationId:
+ *                 type: string
+ *                 format: uuid
+ *               sequence:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Route-station updated successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Route-station not found
+ * 
+ *   delete:
+ *     summary: Delete route-station (Admin only)
+ *     tags: [Route Stations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the route-station to delete
+ *     responses:
+ *       200:
+ *         description: Route-station deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Route-station deleted successfully"
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Route-station not found
+ *       500:
+ *         description: Internal server error
  */
 
 /**

@@ -235,6 +235,18 @@ const syncPassenger = asyncErrorHandler(async (req, res, next) => {
     });
 });
 
+// DELETE /v1/passengers/deletePassengerById/:id
+
+const deletePassengerById = asyncErrorHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const result = await passengerService.deletePassengerById(id);
+    res.status(200).json({
+        success: true,
+        message: 'Passenger deleted successfully',
+        data: result
+    });
+});
+
 module.exports = { 
     getAllPassengers, 
     getPassengerById,
@@ -244,5 +256,6 @@ module.exports = {
     getMe, 
     updateMe, 
     deleteMe,
-    syncPassenger
+    syncPassenger,
+    deletePassengerById
 }; 

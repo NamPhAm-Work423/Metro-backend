@@ -18,4 +18,5 @@ router.delete('/me', ...authorizeRoles('passenger','staff','admin'), passengerCo
 // Passenger post cache routes (legacy support)
 router.post('/sync-passenger', ...authorizeRoles('passenger','staff','admin'), passengerController.syncPassenger);
 
+
 module.exports = router; 

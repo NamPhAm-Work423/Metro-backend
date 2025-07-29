@@ -58,7 +58,6 @@ async function updatePassenger(userId, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await passengerEventProducer.publishPassengerUpdated(passenger);
         
         return passenger;
     } catch (err) {
@@ -75,7 +74,6 @@ async function updatePassengerById(id, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await passengerEventProducer.publishPassengerUpdated(passenger);
         
         return passenger;
     } catch (err) {
