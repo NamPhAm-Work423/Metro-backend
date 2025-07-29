@@ -50,14 +50,28 @@ class UserEventConsumer {
     async handlePassengerDeletedEvent(payload) {
         try {
             logger.info('Processing passenger.deleted event', { 
-                passengerId: payload.passengerId,
-                userId: payload.userId,
+                passengerId: payload.data?.passengerId,
+                userId: payload.data?.userId,
                 source: payload.source 
             });
 
-            // Additional cleanup for passenger-specific data if needed
-            // For now, just log the event as passenger cleanup is handled by passenger service
-            
+            // Import User model and userService to avoid circular dependency
+            const User = require('../models/user.model');
+            const userService = require('../services/user.service');
+
+            // Delete user from API Gateway database
+            await userService.deleteUserByUserId(payload.data.userId);
+
+            // Revoke all API keys for the user
+            await keyService.revokeAllUserKeys(payload.data.userId);
+
+            logger.info('Passenger deletion processed successfully in API Gateway', {
+                passengerId: payload.data.passengerId,
+                userId: payload.data.userId,
+                email: payload.data.email,
+                source: payload.source
+            });
+
         } catch (error) {
             logger.error('Error handling passenger.deleted event', { 
                 error: error.message, 
@@ -74,14 +88,28 @@ class UserEventConsumer {
     async handleStaffDeletedEvent(payload) {
         try {
             logger.info('Processing staff.deleted event', { 
-                staffId: payload.staffId,
-                userId: payload.userId,
+                staffId: payload.data?.staffId,
+                userId: payload.data?.userId,
                 source: payload.source 
             });
 
-            // Additional cleanup for staff-specific data if needed
-            // For now, just log the event as staff cleanup is handled by staff service
-            
+            // Import User model and userService to avoid circular dependency
+            const User = require('../models/user.model');
+            const userService = require('../services/user.service');
+
+            // Delete user from API Gateway database
+            await userService.deleteUserByUserId(payload.data.userId);
+
+            // Revoke all API keys for the user
+            await keyService.revokeAllUserKeys(payload.data.userId);
+
+            logger.info('Staff deletion processed successfully in API Gateway', {
+                staffId: payload.data.staffId,
+                userId: payload.data.userId,
+                email: payload.data.email,
+                source: payload.source
+            });
+
         } catch (error) {
             logger.error('Error handling staff.deleted event', { 
                 error: error.message, 
