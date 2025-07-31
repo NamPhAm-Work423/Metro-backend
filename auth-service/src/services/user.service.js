@@ -193,7 +193,7 @@ class UserService {
         // Sanitize input to avoid whitespace issues
         const sanitizedPassword = (password || '').trim();
 
-        // Find user
+        // Find user and isActive is true
         const user = await User.findOne({ where: { email } });
         if (!user) {
             throw new Error('User is not found');

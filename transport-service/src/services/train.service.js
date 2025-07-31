@@ -94,9 +94,8 @@ class TrainService {
                 throw new Error('Train not found');
             }
             
-            // Soft delete - set isActive to false
-            await train.update({ isActive: false });
-            return { message: 'Train deactivated successfully' };
+            await train.destroy();
+            return { message: 'Train deleted successfully' };
         } catch (error) {
             throw error;
         }

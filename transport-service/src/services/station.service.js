@@ -95,9 +95,8 @@ class StationService {
                 throw new Error('Station not found');
             }
             
-            // Soft delete - set isActive to false
-            await station.update({ isActive: false });
-            return { message: 'Station deactivated successfully' };
+            await station.destroy();
+            return { message: 'Station deleted successfully' };
         } catch (error) {
             throw error;
         }

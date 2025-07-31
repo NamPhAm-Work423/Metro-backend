@@ -131,9 +131,8 @@ class TripService {
                 throw new Error('Trip not found');
             }
             
-            // Soft delete - set isActive to false
-            await trip.update({ isActive: false });
-            return { message: 'Trip deactivated successfully' };
+            await trip.destroy();
+            return { message: 'Trip deleted successfully' };
         } catch (error) {
             throw error;
         }

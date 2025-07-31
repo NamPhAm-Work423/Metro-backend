@@ -103,7 +103,7 @@ async function deleteStaffById(id) {
         if (!staff) return false;
         
         await staffEventProducer.publishStaffDeleted(staff);
-        await staff.update({ isActive: false });
+        await staff.destroy();
         
         return true;
     } catch (err) {
@@ -118,7 +118,7 @@ async function deleteStaffByUserId(userId) {
         if (!staff) return false;
         
         await staffEventProducer.publishStaffDeleted(staff);
-        await staff.update({ isActive: false });
+        await staff.destroy();
         
         return true;
     } catch (err) {

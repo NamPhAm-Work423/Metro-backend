@@ -8,7 +8,7 @@ router.get('/getAllStaff', ...authorizeRoles('staff','admin'), staffController.g
 router.get('/getStaffById/:id', ...authorizeRoles('staff','admin'), staffController.getStaffById);
 router.post('/createStaff', ...authorizeRoles('staff','admin'), staffController.createStaff);
 router.put('/updateStaff/:id', ...authorizeRoles('staff','admin'), staffController.updateStaff);
-router.delete('/deleteStaff/:id', ...authorizeRoles('staff','admin'), staffController.deleteStaff);
+router.delete('/deleteStaff/:id', ...authorizeRoles('admin'), staffController.deleteStaff);
 router.put('/updateStaffStatus/:id', ...authorizeRoles('admin'), staffController.updateStaffStatus);
 
 // Staff self-service routes

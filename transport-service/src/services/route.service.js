@@ -116,9 +116,8 @@ class RouteService {
                 throw new Error('Route not found');
             }
             
-            // Soft delete - set isActive to false
-            await route.update({ isActive: false });
-            return { message: 'Route deactivated successfully' };
+            await route.destroy();
+            return { message: 'Route deleted successfully' };
         } catch (error) {
             throw error;
         }
