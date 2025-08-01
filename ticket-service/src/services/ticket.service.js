@@ -383,13 +383,26 @@ class TicketService {
                 };
             }
 
+            if (filters.notes) {
+                where.notes = {
+                    [Op.like]: `%${filters.notes}%`
+                };
+            }
+
+
+            if (filters.specialRequests) {
+                where.specialRequests = {
+                    [Op.like]: `%${filters.specialRequests}%`
+                };
+            }
+
             const tickets = await Ticket.findAll({
                 where,
                 include: [
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive', 'ticketType', 'passengerType', 'distance', 'zones']
                     },
                     {
                         model: Promotion,

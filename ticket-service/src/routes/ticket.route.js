@@ -29,7 +29,7 @@ router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
 
 // Admin-only routes
-router.get('/getAllTickets', ...authorizeRoles('admin'), ticketController.getAllTickets);
-router.get('/getTicketStatistics', ...authorizeRoles('admin'), ticketController.getTicketStatistics);
+router.get('/getAllTickets', ...authorizeRoles('staff', 'admin'), ticketController.getAllTickets);
+router.get('/getTicketStatistics', ...authorizeRoles('staff', 'admin'), ticketController.getTicketStatistics);
 
 module.exports = router;

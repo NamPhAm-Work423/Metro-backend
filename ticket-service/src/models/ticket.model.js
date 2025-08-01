@@ -150,6 +150,16 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
+    },
+    notes: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Additional notes for the ticket'
+    },
+    specialRequests: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Special requests for the ticket'
     }
 }, {
     tableName: 'tickets',
