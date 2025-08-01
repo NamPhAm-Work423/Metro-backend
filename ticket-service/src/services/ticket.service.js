@@ -2,6 +2,7 @@ const { Ticket, Fare, Promotion, TransitPass } = require('../models/index.model'
 const { Op } = require('sequelize');
 const { logger } = require('../config/logger');
 const FareService = require('./fare.service');
+const { publishTicketCreated, generatePaymentId } = require('../events/ticket.producer');
 
 class TicketService {
     constructor() {
@@ -121,19 +122,8 @@ class TicketService {
             // Generate QR code as base64
             const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
 
-            // Validate paymentId - only include if it's a valid UUID or null
-            let paymentIdToUse = null;
-            if (ticketData.paymentId) {
-                // Simple UUID format check (8-4-4-4-12 characters)
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                if (uuidRegex.test(ticketData.paymentId)) {
-                    paymentIdToUse = ticketData.paymentId;
-                } else {
-                    logger.warn('Invalid paymentId format, setting to null for now', { 
-                        paymentId: ticketData.paymentId 
-                    });
-                }
-            }
+            // Generate payment ID for this ticket
+            const paymentId = generatePaymentId(null, 'short-term'); // Will be updated after ticket creation
 
             // Create ticket with QR code
             const ticket = await Ticket.create({
@@ -158,12 +148,21 @@ class TicketService {
                     totalPassengers: fareCalculation.totalPassengers
                 },
                 paymentMethod: ticketData.paymentMethod || 'card',
-                paymentId: paymentIdToUse,
+                paymentId: paymentId,
                 qrCode: qrCodeData
             });
 
+            // Update paymentId with actual ticket ID
+            const finalPaymentId = generatePaymentId(ticket.ticketId, 'short-term');
+            ticket.paymentId = finalPaymentId;
+            await ticket.save();
+
+            // Publish ticket created event
+            await publishTicketCreated(ticket, 'short-term');
+
             logger.info('Short-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
+                paymentId: finalPaymentId,
                 passengerId: ticket.passengerId, 
                 tripType: ticketData.tripType,
                 stationCount: fareCalculation.stationCount,
@@ -298,6 +297,9 @@ class TicketService {
             // Generate QR code as base64
             const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
 
+            // Generate payment ID for this ticket
+            const paymentId = generatePaymentId(null, 'long-term'); // Will be updated after ticket creation
+
             // Create ticket for long-term pass with QR code
             const ticket = await Ticket.create({
                 passengerId: ticketData.passengerId,
@@ -324,12 +326,21 @@ class TicketService {
                     currency: transitPass.currency
                 },
                 paymentMethod: ticketData.paymentMethod || 'card',
-                paymentId: ticketData.paymentId || null,
+                paymentId: paymentId,
                 qrCode: qrCodeData
             });
 
+            // Update paymentId with actual ticket ID
+            const finalPaymentId = generatePaymentId(ticket.ticketId, 'long-term');
+            ticket.paymentId = finalPaymentId;
+            await ticket.save();
+
+            // Publish ticket created event
+            await publishTicketCreated(ticket, 'long-term');
+
             logger.info('Long-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
+                paymentId: finalPaymentId,
                 passengerId: ticket.passengerId, 
                 passType: ticketData.passType,
                 totalPrice: finalPrice,

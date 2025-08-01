@@ -115,14 +115,14 @@ const Ticket = sequelize.define('Ticket', {
         }
     },
     paymentMethod: {
-        type: DataTypes.ENUM('cash', 'card', 'mobile_payment', 'metro_card'),
+        type: DataTypes.ENUM('paypal', 'vnpay', 'card'),
         allowNull: false,
         defaultValue: 'card',
     },
     paymentId: {
         type: DataTypes.STRING,
         allowNull: true,
-        comment: 'Payment reference ID - can be any format depending on payment provider'
+        comment: 'Payment reference ID - ticket create payment id then use this id to get payment detail'
     },
     status: {
         type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled'),

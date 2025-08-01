@@ -3,11 +3,11 @@ require('dotenv').config();
 const app = require('./app');
 const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
-const { Admin, Passenger, Staff } = require('./models/index.model');
-const userEventConsumer = require('./events/user.consumer.event');
+const { Payment, Transaction, PaymentLog } = require('./models/index.model');
+const ticketEventConsumer = require('./events/ticket.consumer');
 
-const PORT = process.env.PORT || 3001;
-const SERVICE_NAME = 'user-service';
+const PORT = process.env.PORT || 8006;
+const SERVICE_NAME = 'payment-service';
 
 // Database synchronization
 async function syncDatabase() {
@@ -38,10 +38,9 @@ const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
     
     try {
-        // Stop consuming events
-        if (userEventConsumer) {
-            await userEventConsumer.stop();
-            logger.info('User event consumer stopped successfully');
+        if (ticketEventConsumer) {
+            await ticketEventConsumer.stopTicketConsumer();
+            logger.info('Ticket event consumer stopped successfully');
         }
         
         // Close database connection
@@ -66,10 +65,15 @@ async function startApplication() {
         // Sync database first
         await syncDatabase();
         
-        // Start event consumer
-        if (userEventConsumer) {
-            await userEventConsumer.start();
-            logger.info('User event consumer started successfully');
+        // Start event consumers
+        if (paymentEventConsumer) {
+            await paymentEventConsumer.start();
+            logger.info('Payment event consumer started successfully');
+        }
+        
+        if (ticketEventConsumer) {
+            await ticketEventConsumer.startTicketConsumer();
+            logger.info('Ticket event consumer started successfully');
         }
         
         // Start HTTP server

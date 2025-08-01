@@ -28,6 +28,9 @@ router.get('/:id/detail', ...authorizeRoles('staff', 'admin'), ticketController.
 router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.updateTicket);
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
 
+// Payment routes
+router.get('/:id/payment', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getTicketPayment);
+
 // Admin-only routes
 router.get('/getAllTickets', ...authorizeRoles('staff', 'admin'), ticketController.getAllTickets);
 router.get('/getTicketStatistics', ...authorizeRoles('staff', 'admin'), ticketController.getTicketStatistics);

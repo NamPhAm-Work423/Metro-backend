@@ -348,6 +348,62 @@ class TicketController {
             service: 'ticket-controller'
         });
     });
+
+    // GET /v1/tickets/:id/payment
+    getTicketPayment = asyncErrorHandler(async (req, res, next) => {
+        const { id } = req.params;
+        
+        try {
+            // Get ticket
+            const ticket = await ticketService.getTicketById(id);
+            
+            if (!ticket) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Ticket not found'
+                });
+            }
+
+            // Get payment URL from payment service
+            const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://payment-service:8002';
+            const response = await fetch(`${paymentServiceUrl}/v1/payment/ticket/${id}`);
+            
+            if (!response.ok) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Payment not found for this ticket'
+                });
+            }
+
+            const paymentData = await response.json();
+
+            res.json({
+                success: true,
+                data: {
+                    ticket: {
+                        ticketId: ticket.ticketId,
+                        passengerId: ticket.passengerId,
+                        totalPrice: ticket.totalPrice,
+                        status: ticket.status,
+                        validFrom: ticket.validFrom,
+                        validUntil: ticket.validUntil
+                    },
+                    payment: paymentData.data
+                }
+            });
+
+        } catch (error) {
+            logger.error('Error getting ticket payment', { 
+                ticketId: id, 
+                error: error.message 
+            });
+            
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get payment information'
+            });
+        }
+    });
 }
 
 module.exports = new TicketController();

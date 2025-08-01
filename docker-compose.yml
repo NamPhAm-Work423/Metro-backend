@@ -272,29 +272,29 @@ services:
           memory: 256M
 
 
-  # payment-service:
-  #   build:
-  #     context: ./payment-service
-  #   container_name: payment-service
-  #   expose:
-  #     - "8006"  # Internal only
-  #   env_file:
-  #     - ./payment-service/.env
-  #   volumes:
-  #     - ./payment-service:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    expose:
+      - "8006"  # Internal only
+    env_file:
+      - ./payment-service/.env
+    volumes:
+      - ./payment-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # report-service:
   #   build:

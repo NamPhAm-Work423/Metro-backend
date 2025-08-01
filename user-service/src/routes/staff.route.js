@@ -4,10 +4,10 @@ const staffController = require('../controllers/staff.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Admin/Staff management routes
-router.get('/getAllStaff', ...authorizeRoles('staff','admin'), staffController.getAllStaff);
-router.get('/getStaffById/:id', ...authorizeRoles('staff','admin'), staffController.getStaffById);
-router.post('/createStaff', ...authorizeRoles('staff','admin'), staffController.createStaff);
-router.put('/updateStaff/:id', ...authorizeRoles('staff','admin'), staffController.updateStaff);
+router.get('/getAllStaff', ...authorizeRoles('admin'), staffController.getAllStaff);
+router.get('/getStaffById/:id', ...authorizeRoles('admin'), staffController.getStaffById);
+router.post('/createStaff', ...authorizeRoles('admin'), staffController.createStaff);
+router.put('/updateStaff/:id', ...authorizeRoles('admin'), staffController.updateStaff);
 router.delete('/deleteStaff/:id', ...authorizeRoles('admin'), staffController.deleteStaff);
 router.put('/updateStaffStatus/:id', ...authorizeRoles('admin'), staffController.updateStaffStatus);
 

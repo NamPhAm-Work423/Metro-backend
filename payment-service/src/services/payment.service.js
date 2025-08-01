@@ -1,4 +1,5 @@
 const { buildPaymentUrl, verifyReturnUrl, verifyIpnCallback } = require('./vnpay.service');
+const paypalService = require('./paypal.service');
 const { Payment, Transaction, PaymentLog } = require('../models/index.model');
 
 /**
@@ -141,10 +142,142 @@ async function handleVnpayIpn(query) {
     return { isSuccess: verifyResult.isSuccess, message: verifyResult.message, payment };
 }
 
+/**
+ * Create a PayPal payment
+ * @param {Object} params
+ * @param {number} params.ticketId
+ * @param {number} params.passengerId
+ * @param {number} params.amount - Amount in USD
+ * @param {string} params.orderInfo - Order description
+ * @param {string} params.currency - Currency code (default: USD)
+ * @returns {Promise<{ paypalOrder: Object, payment: Payment }>}
+ */
+async function createPaypalPayment({ ticketId, passengerId, amount, orderInfo, currency = 'USD' }) {
+    // Create payment record (PENDING)
+    const payment = await Payment.create({
+        ticketId,
+        passengerId,
+        paymentAmount: amount,
+        paymentMethod: 'PAYPAL',
+        paymentStatus: 'PENDING',
+        paymentDate: new Date(),
+        paymentGatewayResponse: null
+    });
+
+    // Prepare PayPal order data
+    const paypalOrderData = {
+        intent: 'CAPTURE',
+        purchase_units: [{
+            amount: {
+                currency_code: currency,
+                value: amount.toString()
+            },
+            description: orderInfo || `Ticket payment for ticket ${ticketId}`,
+            custom_id: payment.paymentId.toString()
+        }]
+    };
+
+    // Create PayPal order
+    const paypalOrder = await paypalService.createOrder(paypalOrderData);
+
+    // Update payment with PayPal order ID
+    payment.paymentGatewayResponse = {
+        paypalOrderId: paypalOrder.id,
+        paypalOrderData: paypalOrder
+    };
+    await payment.save();
+
+    // Log payment initiation
+    await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'PAYMENT',
+        paymentLogDate: new Date(),
+        paymentLogStatus: 'PENDING',
+    });
+
+    return { paypalOrder, payment };
+}
+
+/**
+ * Capture a PayPal payment
+ * @param {string} orderId - PayPal order ID
+ * @returns {Promise<{ isSuccess: boolean, message: string, payment?: Payment }>}
+ */
+async function capturePaypalPayment(orderId) {
+    try {
+        // Capture the payment
+        const captureResult = await paypalService.captureOrder(orderId);
+
+        // Find the payment record
+        const payment = await Payment.findOne({
+            where: {
+                paymentMethod: 'PAYPAL',
+                paymentStatus: 'PENDING'
+            },
+            order: [['paymentDate', 'DESC']]
+        });
+
+        if (!payment) {
+            return { isSuccess: false, message: 'Payment not found' };
+        }
+
+        // Update payment status based on capture result
+        if (captureResult.status === 'COMPLETED') {
+            payment.paymentStatus = 'COMPLETED';
+        } else {
+            payment.paymentStatus = 'FAILED';
+        }
+
+        payment.paymentGatewayResponse = {
+            ...payment.paymentGatewayResponse,
+            captureResult
+        };
+        await payment.save();
+
+        // Log payment result
+        await PaymentLog.create({
+            paymentId: payment.paymentId,
+            paymentLogType: 'PAYMENT',
+            paymentLogDate: new Date(),
+            paymentLogStatus: payment.paymentStatus,
+        });
+
+        // Create transaction if successful
+        if (payment.paymentStatus === 'COMPLETED') {
+            await Transaction.create({
+                paymentId: payment.paymentId,
+                transactionAmount: payment.paymentAmount,
+                transactionStatus: 'COMPLETED',
+            });
+        }
+
+        return { 
+            isSuccess: payment.paymentStatus === 'COMPLETED', 
+            message: payment.paymentStatus === 'COMPLETED' ? 'Payment completed' : 'Payment failed',
+            payment 
+        };
+
+    } catch (error) {
+        return { isSuccess: false, message: error.message };
+    }
+}
+
+/**
+ * Get PayPal order details
+ * @param {string} orderId - PayPal order ID
+ * @returns {Promise<Object>}
+ */
+async function getPaypalOrder(orderId) {
+    return await paypalService.getOrder(orderId);
+}
+
 module.exports = {
     createVnpayPayment,
     handleVnpayReturn,
     handleVnpayIpn,
+    createPaypalPayment,
+    capturePaypalPayment,
+    getPaypalOrder,
 };
 
 

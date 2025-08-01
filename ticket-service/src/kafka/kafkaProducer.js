@@ -4,7 +4,7 @@ require('dotenv').config();
 
 // Brokers list comes from env or default to localhost
 const kafka = new Kafka({
-    clientId: process.env.KAFKA_CLIENT_ID || 'user-service',
+    clientId: process.env.KAFKA_CLIENT_ID || 'ticket-service',
     brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
     retry: {
         initialRetryTime: 100,
@@ -37,7 +37,7 @@ async function connectIfNeeded() {
         await producer.connect();
         connected = true;
         logger.info('Kafka producer connected successfully', {
-            service: 'user-service',
+            service: 'ticket-service',
             timestamp: new Date().toISOString()
         });
     }
@@ -69,7 +69,7 @@ async function publish(topic, key, message) {
         logger.debug('Message published successfully', {
             topic,
             key,
-            service: 'user-service',
+            service: 'ticket-service',
             timestamp: new Date().toISOString()
         });
         
@@ -78,7 +78,7 @@ async function publish(topic, key, message) {
             error: error.message,
             topic,
             key,
-            service: 'user-service',
+            service: 'ticket-service',
             timestamp: new Date().toISOString()
         });
         throw error;
@@ -94,14 +94,14 @@ async function disconnect() {
             await producer.disconnect();
             connected = false;
             logger.info('Kafka producer disconnected successfully', {
-                service: 'user-service',
+                service: 'ticket-service',
                 timestamp: new Date().toISOString()
             });
         }
     } catch (error) {
         logger.error('Error disconnecting Kafka producer', {
             error: error.message,
-            service: 'user-service',
+            service: 'ticket-service',
             timestamp: new Date().toISOString()
         });
     }
