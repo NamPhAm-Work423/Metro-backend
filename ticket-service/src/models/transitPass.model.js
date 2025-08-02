@@ -27,12 +27,7 @@ const TransitPass = sequelize.define('TransitPass', {
     }
 }, {
     tableName: 'TransitPasses',
-    timestamps: true,
-    indexes: [
-        {
-            fields: ['transitPassType']
-        }
-    ]
+    timestamps: true
 });
 
 module.exports = TransitPass;

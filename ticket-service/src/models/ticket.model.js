@@ -125,7 +125,7 @@ const Ticket = sequelize.define('Ticket', {
         comment: 'Payment reference ID - ticket create payment id then use this id to get payment detail'
     },
     status: {
-        type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled'),
+        type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled', 'pending_payment'),
         allowNull: false,
         defaultValue: 'active',
     },

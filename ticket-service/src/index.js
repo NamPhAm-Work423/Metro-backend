@@ -5,6 +5,7 @@ const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { initializeRedis } = require('./config/redis');
 const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
+const { startConsumer: startPaymentConsumer, stopConsumer: stopPaymentConsumer } = require('./kafka/kafkaConsumer');
 const { startServer } = require('./grpc/fareSever');
 const { runSeeds } = require('./seed/index');
 const PORT = process.env.PORT || 3003;
@@ -45,6 +46,10 @@ const gracefulShutdown = async (signal) => {
             logger.info('Passenger cache consumer stopped successfully');
         }
         
+        // Stop payment consumer
+        await stopPaymentConsumer();
+        logger.info('Payment consumer stopped successfully');
+        
         // Close database connection
         await sequelize.close();
         logger.info('Database connection closed');
@@ -80,6 +85,10 @@ async function startApplication() {
             await passengerCacheConsumer.start();
             logger.info('Passenger cache consumer started successfully');
         }
+        
+        // Start payment consumer
+        await startPaymentConsumer();
+        logger.info('Payment consumer started successfully');
         
         // Start gRPC server
         await startServer();

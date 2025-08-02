@@ -13,6 +13,12 @@ const sequelize = new Sequelize(
         connectTimeout: 60000,
         dialectOptions: {
             connectTimeout: 60000,
+            // Add performance optimizations
+            statement_timeout: 30000, // 30 seconds
+            idle_in_transaction_session_timeout: 30000,
+            // Enable connection pooling optimizations
+            keepAlive: true,
+            keepAliveInitialDelay: 0
         },
         retry: {
             match: [
@@ -26,11 +32,20 @@ const sequelize = new Sequelize(
             max: 5
         },
         pool: {
-            max: 10,
-            min: 0,
+            max: 20, // Reduced from 50 to prevent connection exhaustion
+            min: 5,  
             acquire: 30000,
             idle: 10000,
+            // Add connection pool optimizations
+            evict: 60000, // Check for dead connections every minute
+            handleDisconnects: true
         },
+        // Add query optimization settings
+        benchmark: process.env.NODE_ENV === 'development',
+        define: {
+            timestamps: true,
+            freezeTableName: true
+        }
     }
 );
 

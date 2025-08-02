@@ -1,7 +1,7 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+const PassengerCacheService = require('../../../libs/cache/passenger.cache');
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
 /**
@@ -28,20 +28,13 @@ class PassengerCacheConsumer {
         }
         const redisClient = getClient();
         const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
-        const success = await passengerCache.setPassenger(
-            passenger.passengerId, 
-            passenger
-        );
-
-        if (success) {
-            logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {
-                syncReason: eventData.syncReason || 'manual-sync',
-                source: eventData.source,
-                eventType: eventData.eventType
-            });
-        } else {
-            logger.error(`Failed to sync passenger cache: ${passenger.passengerId}`);
-        }
+        await passengerCache.setPassenger(passenger);
+        
+        logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {
+            syncReason: eventData.syncReason || 'manual-sync',
+            source: eventData.source,
+            eventType: eventData.eventType
+        });
     }
 
     /**

@@ -303,14 +303,12 @@ class FareService {
                 isActive: true
             };
             
-            // Note: zones, ticketType, passengerType filters removed 
-            // as these columns don't exist in current Fare schema
-            
-            // Note: effectiveDate filtering removed as columns don't exist in current schema
+            // Note: zones column doesn't exist in current Fare schema
+            // This method now returns all active fares since zone-based filtering is not available
 
             const fares = await Fare.findAll({
                 where,
-                order: [['zones', 'ASC'], ['basePrice', 'ASC']]
+                order: [['basePrice', 'ASC']]
             });
             
             return fares;
@@ -561,9 +559,7 @@ class FareService {
                 currency: fare.currency,
                 priceBreakdown: {
                     baseFare: fare.basePrice,
-                    pricePerStation: fare.pricePerStation,
                     stationCount,
-                    zones: fare.zones,
                     finalPrice: calculatedPrice
                 }
             };
@@ -914,9 +910,7 @@ class FareService {
                 passengerBreakdown,
                 priceBreakdown: {
                     baseFarePerAdult: baseStationPrice,
-                    pricePerStation: baseFare.pricePerStation,
                     stationCount,
-                    zones: baseFare.zones,
                     tripMultiplier: tripType === 'Return' ? 1.5 : 1.0,
                     totalPrice,
                     currency: baseFare.currency
@@ -947,39 +941,33 @@ class FareService {
             const fares = await Fare.findAll({
                 where: {
                     routeId,
-                    isActive: true,
-                    effectiveFrom: { [Op.lte]: new Date() },
-                    [Op.or]: [
-                        { effectiveUntil: null },
-                        { effectiveUntil: { [Op.gte]: new Date() } }
-                    ]
+                    isActive: true
                 },
                 order: [
-                    ['ticketType', 'ASC'],
-                    ['passengerType', 'ASC']
+                    ['routeId', 'ASC'],
+                    ['basePrice', 'ASC']
                 ]
             });
 
-            // Group fares by ticket type
-            const faresByType = fares.reduce((acc, fare) => {
-                const key = fare.ticketType;
+            // Group fares by route (since model is simplified)
+            const faresByRoute = fares.reduce((acc, fare) => {
+                const key = fare.routeId;
                 if (!acc[key]) {
                     acc[key] = [];
                 }
                 acc[key].push({
                     fareId: fare.fareId,
-                    passengerType: fare.passengerType,
+                    routeId: fare.routeId,
                     basePrice: fare.basePrice,
-                    pricePerStation: fare.pricePerStation,
-                    zones: fare.zones,
-                    currency: fare.currency
+                    currency: fare.currency,
+                    isActive: fare.isActive
                 });
                 return acc;
             }, {});
 
             return {
                 routeId,
-                fareTypes: faresByType,
+                fareRoutes: faresByRoute,
                 currency: fares[0]?.currency || 'VND',
                 effectiveDate: new Date()
             };

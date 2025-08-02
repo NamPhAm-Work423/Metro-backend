@@ -20,7 +20,7 @@ const PaymentLog = sequelize.define('PaymentLog', {
     },
     /** Associated payment ID (foreign key from Payment) */
     paymentId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false
     },
     /** Log type (PAYMENT, REFUND, CHARGEBACK) */

@@ -1,8 +1,9 @@
 const ticketService = require('../services/ticket.service');
+const { Ticket } = require('../models/index.model');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+const PassengerCacheService = require('../../../libs/cache/passenger.cache');
 
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
@@ -62,17 +63,42 @@ class TicketController {
         // Get passenger from cache to validate existence
         const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
-        const ticket = await ticketService.createShortTermTicket({
+        const result = await ticketService.createShortTermTicket({
             ...ticketData,
             passengerId,
             passengerInfo: passenger // Include passenger info for validation
         });
 
-        res.status(201).json({
-            success: true,
-            message: 'Ticket created successfully',
-            data: ticket
-        });
+        // Check if payment response was received
+        if (result.paymentResponse) {
+            res.status(201).json({
+                success: true,
+                message: 'Ticket created and payment URL generated successfully',
+                data: {
+                    ticket: result.ticket,
+                    payment: {
+                        paymentId: result.paymentId,
+                        paymentUrl: result.paymentResponse.paymentUrl,
+                        paymentMethod: result.paymentResponse.paymentMethod,
+                        paypalOrderId: result.paymentResponse.paypalOrderId,
+                        status: 'ready'
+                    }
+                }
+            });
+        } else {
+            res.status(201).json({
+                success: true,
+                message: 'Ticket created successfully. Payment URL will be available shortly.',
+                data: {
+                    ticket: result.ticket,
+                    payment: {
+                        paymentId: result.paymentId,
+                        status: 'processing',
+                        message: 'Payment URL is being generated. Please check back in a few seconds.'
+                    }
+                }
+            });
+        }
     });
 
     // POST /v1/tickets/create-long-term
@@ -82,17 +108,42 @@ class TicketController {
         // Get passenger from cache to validate existence
         const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
-        const ticket = await ticketService.createLongTermTicket({
+        const result = await ticketService.createLongTermTicket({
             ...ticketData,
             passengerId,
             passengerInfo: passenger // Include passenger info for validation
         });
 
-        res.status(201).json({
-            success: true,
-            message: 'Ticket created successfully',
-            data: ticket
-        });
+        // Check if payment response was received
+        if (result.paymentResponse) {
+            res.status(201).json({
+                success: true,
+                message: 'Ticket created and payment URL generated successfully',
+                data: {
+                    ticket: result.ticket,
+                    payment: {
+                        paymentId: result.paymentId,
+                        paymentUrl: result.paymentResponse.paymentUrl,
+                        paymentMethod: result.paymentResponse.paymentMethod,
+                        paypalOrderId: result.paymentResponse.paypalOrderId,
+                        status: 'ready'
+                    }
+                }
+            });
+        } else {
+            res.status(201).json({
+                success: true,
+                message: 'Ticket created successfully. Payment URL will be available shortly.',
+                data: {
+                    ticket: result.ticket,
+                    payment: {
+                        paymentId: result.paymentId,
+                        status: 'processing',
+                        message: 'Payment URL is being generated. Please check back in a few seconds.'
+                    }
+                }
+            });
+        }
     });
     // GET /v1/tickets/getAllTickets
     getAllTickets = asyncErrorHandler(async (req, res, next) => {
@@ -401,6 +452,47 @@ class TicketController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to get payment information'
+            });
+        }
+    });
+
+    // GET /v1/tickets/payment-status/:paymentId
+    getPaymentStatus = asyncErrorHandler(async (req, res, next) => {
+        const { paymentId } = req.params;
+        
+        const ticket = await Ticket.findOne({
+            where: { paymentId: paymentId }
+        });
+
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
+        }
+
+        // Check if payment URL is available
+        if (ticket.paymentUrl) {
+            res.status(200).json({
+                success: true,
+                message: 'Payment URL is ready',
+                data: {
+                    paymentId: ticket.paymentId,
+                    paymentUrl: ticket.paymentUrl,
+                    paymentMethod: ticket.paymentMethod,
+                    paypalOrderId: ticket.paypalOrderId,
+                    status: 'ready'
+                }
+            });
+        } else {
+            res.status(200).json({
+                success: true,
+                message: 'Payment URL is still being generated',
+                data: {
+                    paymentId: ticket.paymentId,
+                    status: 'processing',
+                    message: 'Payment URL is being generated. Please check back in a few seconds.'
+                }
             });
         }
     });

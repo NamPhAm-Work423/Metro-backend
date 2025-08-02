@@ -1,5 +1,6 @@
 const { publish } = require('../kafka/kafkaProducer');
 const { logger } = require('../config/logger');
+const { Ticket } = require('../models/index.model');
 
 /**
  * Generate payment ID for ticket
@@ -20,7 +21,8 @@ function generatePaymentId(ticketId, ticketType) {
  */
 async function publishTicketCreated(ticket, ticketType) {
     try {
-        const paymentId = generatePaymentId(ticket.ticketId, ticketType);
+        // Use the payment ID that's already in the ticket
+        const paymentId = ticket.paymentId;
         
         const eventData = {
             ticketId: ticket.ticketId,
@@ -54,6 +56,92 @@ async function publishTicketCreated(ticket, ticketType) {
         logger.error('Failed to publish ticket created event', {
             ticketId: ticket.ticketId,
             error: error.message
+        });
+        throw error;
+    }
+}
+
+/**
+ * Handle payment ready event from payment service
+ * @param {Object} event - Payment ready event data
+ */
+async function handlePaymentReady(event) {
+    try {
+        const { 
+            ticketId, 
+            paymentId, 
+            paymentUrl, 
+            paymentMethod, 
+            paypalOrderId = null, // Provide default value
+            status 
+        } = event;
+
+        logger.info('Processing payment ready event', {
+            ticketId,
+            paymentId,
+            paymentMethod,
+            hasPaymentUrl: !!paymentUrl
+        });
+
+        // Update ticket with payment information
+        const ticket = await Ticket.findByPk(ticketId);
+        if (!ticket) {
+            logger.error('Ticket not found for payment ready event', { ticketId });
+            return;
+        }
+
+        // Update ticket status to indicate payment is ready
+        const updateData = {
+            status: 'pending_payment',
+            updatedAt: new Date()
+        };
+
+        logger.info('Updating ticket with payment ready status', {
+            ticketId,
+            paymentId,
+            paymentMethod,
+            updateData,
+            originalStatus: ticket.status
+        });
+
+        try {
+            await ticket.update(updateData);
+            logger.info('Ticket update completed successfully', { ticketId, paymentId });
+        } catch (updateError) {
+            logger.error('Failed to update ticket with payment information', {
+                ticketId,
+                paymentId,
+                error: updateError.message
+            });
+            throw updateError;
+        }
+
+        // Reload the ticket to confirm the update
+        await ticket.reload();
+
+        // Verify the ticket can be found by payment ID
+        const verifyTicket = await Ticket.findOne({
+            where: { paymentId: paymentId }
+        });
+
+        // Also check if ticket can be found by ticket ID
+        const verifyTicketById = await Ticket.findByPk(ticketId);
+
+        logger.info('Ticket updated with payment ready status', {
+            ticketId,
+            paymentId,
+            paymentMethod,
+            updatedStatus: ticket.status,
+            ticketFoundByPaymentId: !!verifyTicket,
+            verifyTicketId: verifyTicket?.ticketId,
+            ticketFoundById: !!verifyTicketById,
+            verifyTicketByIdStatus: verifyTicketById?.status
+        });
+
+    } catch (error) {
+        logger.error('Error processing payment ready event', {
+            error: error.message,
+            ticketId: event.ticketId
         });
         throw error;
     }
@@ -195,6 +283,7 @@ async function publishTicketUsed(ticket, usageData) {
 module.exports = {
     generatePaymentId,
     publishTicketCreated,
+    handlePaymentReady,
     publishTicketActivated,
     publishTicketCancelled,
     publishTicketExpired,

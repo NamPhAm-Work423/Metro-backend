@@ -97,7 +97,7 @@ async function updateStaffStatus(id, isActive) {
 async function deleteStaffById(id) {
     try {
         const staff = await Staff.findOne({ 
-            where: { staffId: id, isActive: true } 
+            where: { staffId: id}
         });
         if (!staff) return false;
         

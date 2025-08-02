@@ -1,5 +1,6 @@
 const { Kafka } = require('kafkajs');
 const { logger } = require('../config/logger');
+const { handlePaymentReady } = require('../events/ticket.producer');
 
 /**
  * Generic Kafka consumer wrapper that supports automatic topic subscription
@@ -140,4 +141,80 @@ class KafkaEventConsumer {
     }
 }
 
-module.exports = { KafkaEventConsumer }; 
+// Legacy consumer for payment events
+const kafka = new Kafka({
+    clientId: process.env.KAFKA_CLIENT_ID || 'ticket-service',
+    brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
+    retry: {
+        initialRetryTime: 100,
+        retries: 8
+    }
+});
+
+const consumer = kafka.consumer({ groupId: 'ticket-service-payment-group' });
+
+/**
+ * Start Kafka consumer
+ */
+async function startConsumer() {
+    try {
+        await consumer.connect();
+        
+        // Subscribe to payment ready events
+        await consumer.subscribe({ 
+            topic: 'ticket.payment_ready', 
+            fromBeginning: false 
+        });
+
+        await consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                try {
+                    const event = JSON.parse(message.value.toString());
+                    
+                    logger.info('Received Kafka event', {
+                        topic,
+                        partition,
+                        key: message.key?.toString(),
+                        eventType: event.status,
+                        eventData: event // Log the full event for debugging
+                    });
+
+                    // Handle payment ready events
+                    if (topic === 'ticket.payment_ready') {
+                        await handlePaymentReady(event);
+                    }
+
+                } catch (error) {
+                    logger.error('Error processing Kafka message', {
+                        topic,
+                        partition,
+                        error: error.message
+                    });
+                }
+            }
+        });
+
+        logger.info('Ticket service Kafka consumer started');
+    } catch (error) {
+        logger.error('Failed to start Kafka consumer', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Stop Kafka consumer
+ */
+async function stopConsumer() {
+    try {
+        await consumer.disconnect();
+        logger.info('Ticket service Kafka consumer stopped');
+    } catch (error) {
+        logger.error('Error stopping Kafka consumer', { error: error.message });
+    }
+}
+
+module.exports = {
+    KafkaEventConsumer,
+    startConsumer,
+    stopConsumer
+}; 

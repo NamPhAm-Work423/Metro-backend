@@ -66,11 +66,6 @@ async function startApplication() {
         await syncDatabase();
         
         // Start event consumers
-        if (paymentEventConsumer) {
-            await paymentEventConsumer.start();
-            logger.info('Payment event consumer started successfully');
-        }
-        
         if (ticketEventConsumer) {
             await ticketEventConsumer.startTicketConsumer();
             logger.info('Ticket event consumer started successfully');

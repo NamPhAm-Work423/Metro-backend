@@ -23,13 +23,14 @@ router.post('/:id/mailTicket', ...authorizeRoles('passenger', 'staff', 'admin'),
 // Public/Transit system validation (accessible by all authenticated users)
 router.get('/:id/validate', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.validateTicket);
 
+// Payment routes
+router.get('/payment-status/:paymentId', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getPaymentStatus);
+router.get('/:id/payment', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getTicketPayment);
+
 // Staff and admin management routes
 router.get('/:id/detail', ...authorizeRoles('staff', 'admin'), ticketController.getTicketDetail);
 router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.updateTicket);
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
-
-// Payment routes
-router.get('/:id/payment', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getTicketPayment);
 
 // Admin-only routes
 router.get('/getAllTickets', ...authorizeRoles('staff', 'admin'), ticketController.getAllTickets);

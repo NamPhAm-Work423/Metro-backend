@@ -19,7 +19,7 @@ const Transaction = sequelize.define('Transaction', {
     },
     /** Associated payment ID (foreign key from Payment) */
     paymentId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false
     },
     /** Transaction amount (VND) */

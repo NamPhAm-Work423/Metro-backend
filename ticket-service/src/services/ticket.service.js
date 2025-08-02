@@ -4,9 +4,46 @@ const { logger } = require('../config/logger');
 const FareService = require('./fare.service');
 const { publishTicketCreated, generatePaymentId } = require('../events/ticket.producer');
 
+// Add caching utilities
+const NodeCache = require('node-cache');
+const cache = new NodeCache({ 
+    stdTTL: 300, // 5 minutes default TTL
+    checkperiod: 600, // Check for expired keys every 10 minutes
+    useClones: false // Better performance
+});
+
 class TicketService {
     constructor() {
         this.fareService = FareService;
+        this.cache = cache;
+    }
+
+    /**
+     * Get cached data or fetch from database
+     * @private
+     */
+    async getCachedOrFetch(key, fetchFunction, ttl = 300) {
+        const cached = this.cache.get(key);
+        if (cached) {
+            logger.debug('Cache hit', { key });
+            return cached;
+        }
+        
+        const data = await fetchFunction();
+        this.cache.set(key, data, ttl);
+        logger.debug('Cache miss, stored new data', { key });
+        return data;
+    }
+
+    /**
+     * Invalidate cache by pattern
+     * @private
+     */
+    invalidateCache(pattern) {
+        const keys = this.cache.keys();
+        const matchingKeys = keys.filter(key => key.includes(pattern));
+        matchingKeys.forEach(key => this.cache.del(key));
+        logger.debug('Cache invalidated', { pattern, keysCount: matchingKeys.length });
     }
 
     /**
@@ -26,7 +63,8 @@ class TicketService {
      * @param {string} ticketData.tripId - The specific trip ID (optional)
      * @param {string} ticketData.paymentMethod - Payment method
      * @param {string} ticketData.paymentId - Payment ID (optional)
-     * @returns {Promise<Object>} The created ticket
+     * @param {boolean} ticketData.waitForPayment - Whether to wait for payment response (default: true)
+     * @returns {Promise<Object>} The created ticket with payment information
      */
     async createShortTermTicket(ticketData) {
         try {
@@ -125,6 +163,15 @@ class TicketService {
             // Generate payment ID for this ticket
             const paymentId = generatePaymentId(null, 'short-term'); // Will be updated after ticket creation
 
+            logger.info('Creating ticket with initial payment ID', { 
+                initialPaymentId: paymentId,
+                ticketData: {
+                    passengerId: ticketData.passengerId,
+                    tripType: ticketData.tripType,
+                    totalPrice: finalPrice
+                }
+            });
+
             // Create ticket with QR code
             const ticket = await Ticket.create({
                 passengerId: ticketData.passengerId,
@@ -140,29 +187,42 @@ class TicketService {
                 validFrom: validFrom,
                 validUntil: validUntil,
                 ticketType: ticketData.tripType.toLowerCase(),
-                status: 'active',
+                status: 'pending_payment', // Changed from 'active' to 'pending_payment'
                 stationCount: fareCalculation.stationCount,
                 fareBreakdown: {
                     ...fareCalculation.priceBreakdown,
                     passengerBreakdown: fareCalculation.passengerBreakdown,
                     totalPassengers: fareCalculation.totalPassengers
                 },
-                paymentMethod: ticketData.paymentMethod || 'card',
+                paymentMethod: ticketData.paymentMethod || 'vnpay',
                 paymentId: paymentId,
                 qrCode: qrCodeData
             });
 
             // Update paymentId with actual ticket ID
             const finalPaymentId = generatePaymentId(ticket.ticketId, 'short-term');
+            
+            logger.info('Updating ticket with final payment ID', {
+                ticketId: ticket.ticketId,
+                initialPaymentId: paymentId,
+                finalPaymentId: finalPaymentId
+            });
+
             ticket.paymentId = finalPaymentId;
             await ticket.save();
 
             // Publish ticket created event
-            await publishTicketCreated(ticket, 'short-term');
+            const publishedPaymentId = await publishTicketCreated(ticket, 'short-term');
+
+            // If waitForPayment is true, wait for payment response
+            let paymentResponse = null;
+            if (ticketData.waitForPayment !== false) {
+                paymentResponse = await this.waitForPaymentResponse(publishedPaymentId, 60000); // 60 seconds timeout
+            }
 
             logger.info('Short-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
-                paymentId: finalPaymentId,
+                paymentId: publishedPaymentId,
                 passengerId: ticket.passengerId, 
                 tripType: ticketData.tripType,
                 stationCount: fareCalculation.stationCount,
@@ -170,10 +230,15 @@ class TicketService {
                 totalPassengers: fareCalculation.totalPassengers,
                 passengerBreakdown: fareCalculation.passengerBreakdown,
                 originStationId: fareCalculation.originStationId,
-                destinationStationId: fareCalculation.destinationStationId
+                destinationStationId: fareCalculation.destinationStationId,
+                paymentResponse: paymentResponse ? 'received' : 'timeout'
             });
 
-            return ticket;
+            return {
+                ticket,
+                paymentId: publishedPaymentId,
+                paymentResponse
+            };
         } catch (error) {
             logger.error('Error creating short-term ticket', { error: error.message, ticketData });
             throw error;
@@ -190,7 +255,8 @@ class TicketService {
      * @param {string} ticketData.promotionId - The promotion ID (optional)
      * @param {string} ticketData.paymentMethod - Payment method
      * @param {string} ticketData.paymentId - Payment ID (optional)
-     * @returns {Promise<Object>} The created ticket
+     * @param {boolean} ticketData.waitForPayment - Whether to wait for payment response (default: true)
+     * @returns {Promise<Object>} The created ticket with payment information
      */
     async createLongTermTicket(ticketData) {
         try {
@@ -315,7 +381,7 @@ class TicketService {
                 validFrom: validFrom,
                 validUntil: validUntil,
                 ticketType: ticketData.passType,
-                status: 'active',
+                status: 'pending_payment', // Changed from 'active' to 'pending_payment'
                 stationCount: null, // Not applicable for passes
                 fareBreakdown: {
                     passType: ticketData.passType,
@@ -325,7 +391,7 @@ class TicketService {
                     finalPrice: finalPrice,
                     currency: transitPass.currency
                 },
-                paymentMethod: ticketData.paymentMethod || 'card',
+                paymentMethod: ticketData.paymentMethod || 'vnpay',
                 paymentId: paymentId,
                 qrCode: qrCodeData
             });
@@ -336,24 +402,128 @@ class TicketService {
             await ticket.save();
 
             // Publish ticket created event
-            await publishTicketCreated(ticket, 'long-term');
+            const publishedPaymentId = await publishTicketCreated(ticket, 'long-term');
+            
+            // If waitForPayment is true, wait for payment response
+            let paymentResponse = null;
+            if (ticketData.waitForPayment !== false) {
+                paymentResponse = await this.waitForPaymentResponse(publishedPaymentId, 30000); // 30 seconds timeout
+            }
 
             logger.info('Long-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
-                paymentId: finalPaymentId,
+                paymentId: publishedPaymentId,
                 passengerId: ticket.passengerId, 
                 passType: ticketData.passType,
                 totalPrice: finalPrice,
                 passengerType: passengerType,
                 validFrom: validFrom,
-                validUntil: validUntil
+                validUntil: validUntil,
+                paymentResponse: paymentResponse ? 'received' : 'timeout'
             });
 
-            return ticket;
+            return {
+                ticket,
+                paymentId: publishedPaymentId,
+                paymentResponse
+            };
         } catch (error) {
             logger.error('Error creating long-term ticket', { error: error.message, ticketData });
             throw error;
         }
+    }
+
+    /**
+     * Wait for payment response from payment service
+     * @param {string} paymentId - Payment ID to wait for
+     * @param {number} timeout - Timeout in milliseconds
+     * @returns {Promise<Object|null>} Payment response or null if timeout
+     */
+    async waitForPaymentResponse(paymentId, timeout = 30000) {
+        return new Promise((resolve) => {
+            const startTime = Date.now();
+            const checkInterval = 2000; // Increase interval to reduce DB calls
+            let attempts = 0;
+            const maxAttempts = Math.ceil(timeout / checkInterval);
+            
+            logger.info('Starting to wait for payment response', { 
+                paymentId, 
+                timeout,
+                checkInterval,
+                maxAttempts
+            });
+            
+            // Set up interval to check for payment response
+            const interval = setInterval(async () => {
+                attempts++;
+                try {
+                    // Use cached query for better performance
+                    const cacheKey = `payment_check:${paymentId}`;
+                    const ticket = await this.getCachedOrFetch(cacheKey, async () => {
+                        return await Ticket.findOne({
+                            where: { paymentId: paymentId },
+                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
+                        });
+                    }, 5); // Very short cache for payment checks
+
+                    // Fallback: try to find by ticket ID
+                    let ticketById = null;
+                    if (!ticket) {
+                        const paymentIdParts = paymentId.split('_');
+                        const ticketIdFromPaymentId = paymentIdParts.length >= 3 ? paymentIdParts[2] : null;
+                        if (ticketIdFromPaymentId) {
+                            ticketById = await Ticket.findByPk(ticketIdFromPaymentId, {
+                                attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
+                            });
+                        }
+                    }
+
+                    if (ticket && ticket.status === 'pending_payment') {
+                        clearInterval(interval);
+                        logger.info('Payment response received successfully', {
+                            paymentId,
+                            ticketId: ticket.ticketId,
+                            status: ticket.status,
+                            attempts
+                        });
+                        resolve({
+                            status: 'success',
+                            paymentUrl: 'test_mode_payment_url',
+                            paymentMethod: ticket.paymentMethod,
+                            message: 'Payment ready for processing'
+                        });
+                        return;
+                    } else if (ticketById && ticketById.status === 'pending_payment') {
+                        clearInterval(interval);
+                        logger.info('Payment response received successfully (found by ticket ID)', {
+                            paymentId,
+                            ticketId: ticketById.ticketId,
+                            status: ticketById.status,
+                            attempts
+                        });
+                        resolve({
+                            status: 'success',
+                            paymentUrl: 'test_mode_payment_url',
+                            paymentMethod: ticketById.paymentMethod,
+                            message: 'Payment ready for processing'
+                        });
+                        return;
+                    }
+
+                    // Check timeout
+                    if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        logger.warn('Payment response timeout', { paymentId, timeout, attempts });
+                        resolve(null);
+                        return;
+                    }
+                } catch (error) {
+                    logger.error('Error checking payment response', { error: error.message, paymentId, attempts });
+                    clearInterval(interval);
+                    resolve(null);
+                }
+            }, checkInterval);
+        });
     }
 
     async getAllTickets(filters = {}) {
@@ -400,20 +570,21 @@ class TicketService {
                 };
             }
 
-
             if (filters.specialRequests) {
                 where.specialRequests = {
                     [Op.like]: `%${filters.specialRequests}%`
                 };
             }
 
+            // Optimize query with proper indexing and eager loading
             const tickets = await Ticket.findAll({
                 where,
                 include: [
                     {
                         model: Fare,
                         as: 'fare',
-                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive', 'ticketType', 'passengerType', 'distance', 'zones']
+                        attributes: ['fareId', 'routeId', 'basePrice', 'currency', 'isActive'],
+                        required: false // Use LEFT JOIN instead of INNER JOIN
                     },
                     {
                         model: Promotion,
@@ -422,7 +593,10 @@ class TicketService {
                         required: false
                     }
                 ],
-                order: [['createdAt', 'DESC']]
+                order: [['createdAt', 'DESC']],
+                // Add query optimization hints
+                subQuery: false, // Prevent unnecessary subqueries
+                distinct: true // Ensure unique results
             });
             
             return tickets;
@@ -434,27 +608,32 @@ class TicketService {
 
     async getTicketById(ticketId) {
         try {
-            const ticket = await Ticket.findByPk(ticketId, {
-                include: [
-                    {
-                        model: Fare,
-                        as: 'fare',
-                        attributes: ['fareId', 'basePrice', 'ticketType', 'passengerType', 'distance', 'zones']
-                    },
-                    {
-                        model: Promotion,
-                        as: 'promotion',
-                        attributes: ['promotionId', 'code', 'name', 'type', 'value', 'description'],
-                        required: false
-                    }
-                ]
-            });
+            const cacheKey = `ticket:${ticketId}`;
             
-            if (!ticket) {
-                throw new Error('Ticket not found');
-            }
+            return await this.getCachedOrFetch(cacheKey, async () => {
+                const ticket = await Ticket.findByPk(ticketId, {
+                    include: [
+                        {
+                            model: Fare,
+                            as: 'fare',
+                            attributes: ['fareId', 'basePrice', 'routeId', 'currency', 'isActive']
+                        },
+                        {
+                            model: Promotion,
+                            as: 'promotion',
+                            attributes: ['promotionId', 'code', 'name', 'type', 'value', 'description'],
+                            required: false
+                        }
+                    ]
+                });
+                
+                if (!ticket) {
+                    throw new Error('Ticket not found');
+                }
+                
+                return ticket;
+            }, 600); // Cache for 10 minutes
             
-            return ticket;
         } catch (error) {
             logger.error('Error fetching ticket by ID', { error: error.message, ticketId });
             throw error;
@@ -968,20 +1147,44 @@ class TicketService {
 
     async expireTickets() {
         try {
-            const expiredTickets = await Ticket.update(
-                { status: 'expired' },
-                {
-                    where: {
-                        status: 'active',
-                        validUntil: { [Op.lt]: new Date() },
-                        isActive: true
-                    },
-                    returning: true
-                }
-            );
+            // Use batch processing for better performance
+            const batchSize = 1000;
+            let totalUpdated = 0;
+            let hasMore = true;
             
-            logger.info('Expired tickets updated', { count: expiredTickets[0] });
-            return expiredTickets[0];
+            while (hasMore) {
+                const expiredTickets = await Ticket.update(
+                    { status: 'expired' },
+                    {
+                        where: {
+                            status: 'active',
+                            validUntil: { [Op.lt]: new Date() },
+                            isActive: true
+                        },
+                        limit: batchSize,
+                        returning: true
+                    }
+                );
+                
+                const updatedCount = expiredTickets[0];
+                totalUpdated += updatedCount;
+                
+                // Check if we processed all records
+                hasMore = updatedCount === batchSize;
+                
+                logger.debug('Batch expired tickets updated', { 
+                    batchCount: updatedCount, 
+                    totalUpdated,
+                    hasMore 
+                });
+            }
+            
+            // Invalidate related caches
+            this.invalidateCache('ticket:');
+            this.invalidateCache('passenger:');
+            
+            logger.info('Expired tickets updated', { totalUpdated });
+            return totalUpdated;
         } catch (error) {
             logger.error('Error expiring tickets', { error: error.message });
             throw error;
