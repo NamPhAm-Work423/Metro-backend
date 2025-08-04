@@ -2,7 +2,7 @@ const { Ticket, Fare, Promotion, TransitPass } = require('../models/index.model'
 const { Op } = require('sequelize');
 const { logger } = require('../config/logger');
 const FareService = require('./fare.service');
-const { publishTicketCreated, generatePaymentId } = require('../events/ticket.producer');
+const { publishTicketCreated, generatePaymentId, getPaymentData } = require('../events/ticket.producer');
 
 // Add caching utilities
 const NodeCache = require('node-cache');
@@ -187,7 +187,7 @@ class TicketService {
                 validFrom: validFrom,
                 validUntil: validUntil,
                 ticketType: ticketData.tripType.toLowerCase(),
-                status: 'pending_payment', // Changed from 'active' to 'pending_payment'
+                status: 'pending_payment', 
                 stationCount: fareCalculation.stationCount,
                 fareBreakdown: {
                     ...fareCalculation.priceBreakdown,
@@ -442,7 +442,7 @@ class TicketService {
     async waitForPaymentResponse(paymentId, timeout = 30000) {
         return new Promise((resolve) => {
             const startTime = Date.now();
-            const checkInterval = 2000; // Increase interval to reduce DB calls
+            const checkInterval = 1000; // Check every second for faster response
             let attempts = 0;
             const maxAttempts = Math.ceil(timeout / checkInterval);
             
@@ -457,7 +457,57 @@ class TicketService {
             const interval = setInterval(async () => {
                 attempts++;
                 try {
-                    // Use cached query for better performance
+                    // First, check if payment data is available in cache (from Kafka event)
+                    const paymentData = getPaymentData(paymentId);
+                    
+                    if (paymentData && paymentData.paymentUrl) {
+                        clearInterval(interval);
+                        logger.info('Payment response received from Kafka cache', {
+                            paymentId,
+                            ticketId: paymentData.ticketId,
+                            paymentUrl: paymentData.paymentUrl,
+                            paymentMethod: paymentData.paymentMethod,
+                            attempts
+                        });
+                        
+                        resolve({
+                            status: 'success',
+                            paymentMethod: paymentData.paymentMethod,
+                            paymentUrl: paymentData.paymentUrl,
+                            paypalOrderId: paymentData.paypalOrderId,
+                            message: 'Payment ready for processing'
+                        });
+                        return;
+                    }
+
+                    // Fallback: try to find by ticket ID in cache
+                    const paymentIdParts = paymentId.split('_');
+                    const ticketIdFromPaymentId = paymentIdParts.length >= 3 ? paymentIdParts[2] : null;
+                    if (ticketIdFromPaymentId) {
+                        const paymentDataByTicketId = getPaymentData(ticketIdFromPaymentId);
+                        if (paymentDataByTicketId && paymentDataByTicketId.paymentUrl) {
+                            clearInterval(interval);
+                            logger.info('Payment response received from Kafka cache (by ticket ID)', {
+                                paymentId,
+                                ticketId: paymentDataByTicketId.ticketId,
+                                paymentUrl: paymentDataByTicketId.paymentUrl,
+                                paymentMethod: paymentDataByTicketId.paymentMethod,
+                                attempts
+                            });
+                            
+                            resolve({
+                                status: 'success',
+                                paymentMethod: paymentDataByTicketId.paymentMethod,
+                                paymentUrl: paymentDataByTicketId.paymentUrl,
+                                paypalOrderId: paymentDataByTicketId.paypalOrderId,
+                                message: 'Payment ready for processing'
+                            });
+                            return;
+                        }
+                    }
+
+                    // Check database for ticket status to ensure ticket exists and is in pending_payment state
+                    // But don't resolve from database - only use it to verify the ticket is ready
                     const cacheKey = `payment_check:${paymentId}`;
                     const ticket = await this.getCachedOrFetch(cacheKey, async () => {
                         return await Ticket.findOne({
@@ -468,46 +518,27 @@ class TicketService {
 
                     // Fallback: try to find by ticket ID
                     let ticketById = null;
-                    if (!ticket) {
-                        const paymentIdParts = paymentId.split('_');
-                        const ticketIdFromPaymentId = paymentIdParts.length >= 3 ? paymentIdParts[2] : null;
-                        if (ticketIdFromPaymentId) {
-                            ticketById = await Ticket.findByPk(ticketIdFromPaymentId, {
-                                attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
-                            });
-                        }
+                    if (!ticket && ticketIdFromPaymentId) {
+                        ticketById = await Ticket.findByPk(ticketIdFromPaymentId, {
+                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
+                        });
                     }
 
+                    // Only log database status for debugging, but don't resolve from database
                     if (ticket && ticket.status === 'pending_payment') {
-                        clearInterval(interval);
-                        logger.info('Payment response received successfully', {
+                        logger.debug('Ticket found in database with pending_payment status, waiting for payment URL from Kafka', {
                             paymentId,
                             ticketId: ticket.ticketId,
                             status: ticket.status,
                             attempts
                         });
-                        resolve({
-                            status: 'success',
-                            paymentUrl: 'test_mode_payment_url',
-                            paymentMethod: ticket.paymentMethod,
-                            message: 'Payment ready for processing'
-                        });
-                        return;
                     } else if (ticketById && ticketById.status === 'pending_payment') {
-                        clearInterval(interval);
-                        logger.info('Payment response received successfully (found by ticket ID)', {
+                        logger.debug('Ticket found in database by ID with pending_payment status, waiting for payment URL from Kafka', {
                             paymentId,
                             ticketId: ticketById.ticketId,
                             status: ticketById.status,
                             attempts
                         });
-                        resolve({
-                            status: 'success',
-                            paymentUrl: 'test_mode_payment_url',
-                            paymentMethod: ticketById.paymentMethod,
-                            message: 'Payment ready for processing'
-                        });
-                        return;
                     }
 
                     // Check timeout

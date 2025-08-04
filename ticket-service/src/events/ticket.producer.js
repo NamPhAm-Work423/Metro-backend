@@ -2,6 +2,9 @@ const { publish } = require('../kafka/kafkaProducer');
 const { logger } = require('../config/logger');
 const { Ticket } = require('../models/index.model');
 
+// In-memory cache for payment data
+const paymentCache = new Map();
+
 /**
  * Generate payment ID for ticket
  * @param {number} ticketId - Ticket ID
@@ -80,7 +83,8 @@ async function handlePaymentReady(event) {
             ticketId,
             paymentId,
             paymentMethod,
-            hasPaymentUrl: !!paymentUrl
+            hasPaymentUrl: !!paymentUrl,
+            paymentUrl: paymentUrl
         });
 
         // Update ticket with payment information
@@ -90,34 +94,83 @@ async function handlePaymentReady(event) {
             return;
         }
 
+        logger.info('Found ticket for payment ready event', {
+            ticketId: ticket.ticketId,
+            currentStatus: ticket.status,
+            currentPaymentUrl: ticket.paymentUrl,
+            currentPaypalOrderId: ticket.paypalOrderId
+        });
+
         // Update ticket status to indicate payment is ready
         const updateData = {
             status: 'pending_payment',
             updatedAt: new Date()
         };
 
+        // Store payment data in cache for immediate access
+        paymentCache.set(paymentId, {
+            ticketId,
+            paymentId,
+            paymentUrl,
+            paymentMethod,
+            paypalOrderId,
+            status,
+            timestamp: Date.now()
+        });
+
+        // Also store by ticket ID for fallback
+        paymentCache.set(ticketId, {
+            ticketId,
+            paymentId,
+            paymentUrl,
+            paymentMethod,
+            paypalOrderId,
+            status,
+            timestamp: Date.now()
+        });
+
+        logger.info('Payment data stored in cache', {
+            ticketId,
+            paymentId,
+            paymentUrl: paymentUrl,
+            paypalOrderId: paypalOrderId
+        });
+
         logger.info('Updating ticket with payment ready status', {
             ticketId,
             paymentId,
             paymentMethod,
             updateData,
-            originalStatus: ticket.status
+            originalStatus: ticket.status,
+            paymentUrl: paymentUrl,
+            paypalOrderId: paypalOrderId
         });
 
         try {
             await ticket.update(updateData);
-            logger.info('Ticket update completed successfully', { ticketId, paymentId });
+            logger.info('Ticket update completed successfully', { 
+                ticketId, 
+                paymentId,
+                paymentUrl: paymentUrl,
+                paypalOrderId: paypalOrderId
+            });
         } catch (updateError) {
             logger.error('Failed to update ticket with payment information', {
                 ticketId,
                 paymentId,
-                error: updateError.message
+                error: updateError.message,
+                updateData
             });
             throw updateError;
         }
 
         // Reload the ticket to confirm the update
         await ticket.reload();
+
+        logger.info('Ticket reloaded after update', {
+            ticketId: ticket.ticketId,
+            updatedStatus: ticket.status
+        });
 
         // Verify the ticket can be found by payment ID
         const verifyTicket = await Ticket.findOne({
@@ -135,7 +188,9 @@ async function handlePaymentReady(event) {
             ticketFoundByPaymentId: !!verifyTicket,
             verifyTicketId: verifyTicket?.ticketId,
             ticketFoundById: !!verifyTicketById,
-            verifyTicketByIdStatus: verifyTicketById?.status
+            verifyTicketByIdStatus: verifyTicketById?.status,
+            storedPaymentUrl: ticket.paymentUrl,
+            storedPaypalOrderId: ticket.paypalOrderId
         });
 
     } catch (error) {
@@ -280,6 +335,26 @@ async function publishTicketUsed(ticket, usageData) {
     }
 }
 
+/**
+ * Get payment data from cache
+ * @param {string} key - Payment ID or ticket ID
+ * @returns {Object|null} Payment data or null if not found
+ */
+function getPaymentData(key) {
+    const data = paymentCache.get(key);
+    if (data) {
+        // Check if data is not too old (5 minutes)
+        const age = Date.now() - data.timestamp;
+        if (age < 300000) { // 5 minutes
+            return data;
+        } else {
+            // Remove old data
+            paymentCache.delete(key);
+        }
+    }
+    return null;
+}
+
 module.exports = {
     generatePaymentId,
     publishTicketCreated,
@@ -287,5 +362,6 @@ module.exports = {
     publishTicketActivated,
     publishTicketCancelled,
     publishTicketExpired,
-    publishTicketUsed
+    publishTicketUsed,
+    getPaymentData
 };

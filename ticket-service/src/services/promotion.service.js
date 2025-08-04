@@ -137,8 +137,7 @@ class PromotionService {
                 throw new Error('Cannot delete promotion that is used in active tickets');
             }
             
-            // Soft delete - set isActive to false
-            await promotion.update({ isActive: false });
+            await promotion.destroy();
             logger.info('Promotion deactivated successfully', { promotionId });
             return { message: 'Promotion deactivated successfully' };
         } catch (error) {

@@ -1,20 +1,142 @@
 const paypal = require('@paypal/checkout-server-sdk');
+const { logger } = require('./logger');
 
-// Configure environment based on NODE_ENV
-const isProduction = process.env.NODE_ENV === 'production';
-const environment = isProduction 
-  ? new paypal.core.LiveEnvironment(
-      process.env.PAYPAL_CLIENT_ID,
-      process.env.PAYPAL_SECRET
-    )
-  : new paypal.core.SandboxEnvironment(
-      process.env.PAYPAL_CLIENT_ID,
-      process.env.PAYPAL_SECRET
-    );
+/**
+ * PayPal Configuration
+ * Handles PayPal client setup with proper error handling and validation
+ */
+class PayPalConfig {
+  constructor() {
+    this.client = null;
+    this.environment = null;
+    this.isConfigured = false;
+    this.init();
+  }
 
-const client = new paypal.core.PayPalHttpClient(environment);
+  /**
+   * Initialize PayPal configuration
+   * @private
+   */
+  init() {
+    try {
+      // Check if credentials are provided
+      const hasCredentials = this._validateCredentials();
+      
+      if (!hasCredentials) {
+        this._logConfigurationWarning();
+        return;
+      }
+
+      // Configure environment based on NODE_ENV
+      const isProduction = process.env.NODE_ENV === 'production';
+      this.environment = isProduction 
+        ? new paypal.core.LiveEnvironment(
+            process.env.PAYPAL_CLIENT_ID,
+            process.env.PAYPAL_SECRET
+          )
+        : new paypal.core.SandboxEnvironment(
+            process.env.PAYPAL_CLIENT_ID,
+            process.env.PAYPAL_SECRET
+          );
+
+      this.client = new paypal.core.PayPalHttpClient(this.environment);
+      this.isConfigured = true;
+
+      logger.info('PayPal client configured successfully', {
+        environment: isProduction ? 'production' : 'sandbox',
+        hasCredentials: true,
+        clientIdLength: process.env.PAYPAL_CLIENT_ID?.length || 0,
+        secretLength: process.env.PAYPAL_SECRET?.length || 0
+      });
+
+    } catch (error) {
+      logger.error('Failed to configure PayPal client', {
+        error: error.message,
+        stack: error.stack
+      });
+      this.isConfigured = false;
+    }
+  }
+
+  /**
+   * Validate PayPal credentials
+   * @returns {boolean} True if credentials are valid
+   * @private
+   */
+  _validateCredentials() {
+    const clientId = process.env.PAYPAL_CLIENT_ID;
+    const secret = process.env.PAYPAL_SECRET;
+
+    // Check if credentials exist
+    if (!clientId || !secret) {
+      return false;
+    }
+
+    // Check if credentials are not default values
+    if (clientId === 'your-client-id' || secret === 'your-secret-id') {
+      return false;
+    }
+
+    // Check if credentials have reasonable length
+    if (clientId.length < 10 || secret.length < 10) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Log configuration warning
+   * @private
+   */
+  _logConfigurationWarning() {
+    logger.warn('PayPal credentials not configured, PayPal payments will fail', {
+      hasClientId: !!process.env.PAYPAL_CLIENT_ID,
+      hasSecret: !!process.env.PAYPAL_SECRET,
+      clientIdValue: process.env.PAYPAL_CLIENT_ID === 'your-client-id' ? 'default' : 'custom',
+      secretValue: process.env.PAYPAL_SECRET === 'your-secret-id' ? 'default' : 'custom',
+      clientIdLength: process.env.PAYPAL_CLIENT_ID ? process.env.PAYPAL_CLIENT_ID.length : 0,
+      secretLength: process.env.PAYPAL_SECRET ? process.env.PAYPAL_SECRET.length : 0,
+      nodeEnv: process.env.NODE_ENV
+    });
+  }
+
+  /**
+   * Get PayPal client
+   * @returns {Object|null} PayPal client or null if not configured
+   */
+  getClient() {
+    return this.client;
+  }
+
+  /**
+   * Check if PayPal is configured
+   * @returns {boolean} True if configured
+   */
+  getIsConfigured() {
+    return this.isConfigured;
+  }
+
+  /**
+   * Get configuration status
+   * @returns {Object} Configuration status
+   */
+  getStatus() {
+    return {
+      isConfigured: this.isConfigured,
+      hasClient: !!this.client,
+      hasEnvironment: !!this.environment,
+      environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+    };
+  }
+}
+
+// Create and export configuration instance
+const paypalConfig = new PayPalConfig();
 
 module.exports = {
-  client,
-  paypal
+  client: paypalConfig.getClient(),
+  paypal,
+  isConfigured: paypalConfig.getIsConfigured(),
+  getStatus: () => paypalConfig.getStatus()
 };

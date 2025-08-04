@@ -1,7 +1,7 @@
 const { Kafka } = require('kafkajs');
 const { logger } = require('../config/logger');
 const { Payment, Transaction, PaymentLog } = require('../models/index.model');
-const { createVnpayPayment, createPaypalPayment } = require('../services/payment.service');
+const { createPaypalPayment } = require('../services/payment.service');
 const { publish } = require('../kafka/kafkaProducer');
 
 const kafka = new Kafka({
@@ -20,141 +20,314 @@ const consumer = kafka.consumer({ groupId: 'payment-service-ticket-group' });
  * Creates payment record and initiates payment process
  */
 async function handleTicketCreated(event) {
+    // Extract variables at the beginning to ensure they're available in error handling
+    const ticketId = event.ticketId;
+    const paymentId = event.paymentId;
+    const passengerId = event.passengerId;
+    const amount = event.amount;
+    const ticketType = event.ticketType;
+    const ticketData = event.ticketData || {};
+    const status = event.status;
+
     try {
-        // Extract data from event with proper validation
-        const ticketId = event.ticketId;
-        const paymentId = event.paymentId;
-        const passengerId = event.passengerId;
-        const amount = event.amount;
-        const ticketType = event.ticketType;
-        const ticketData = event.ticketData || {};
-        const status = event.status;
-
-        // Validate required fields
-        if (!ticketId) {
-            throw new Error('ticketId is required in ticket.created event');
-        }
-        if (!paymentId) {
-            throw new Error('paymentId is required in ticket.created event');
-        }
-        if (!passengerId) {
-            throw new Error('passengerId is required in ticket.created event');
-        }
-        if (!amount) {
-            throw new Error('amount is required in ticket.created event');
+        if (!ticketId || !paymentId || !passengerId || !amount || !ticketType || !status) {
+            throw new Error('Missing required fields in ticket.created event');
         }
 
-        logger.info('Processing ticket.created event', {
-            ticketId,
-            paymentId,
-            passengerId,
-            amount,
-            ticketType
-        });
-
-
-
-        let payment;
-        try {
-            // Create payment record
-            payment = await Payment.create({
-                paymentId: paymentId, // Use paymentId from ticket service
-                ticketId: ticketId,
-                passengerId: passengerId,
-                paymentAmount: amount,
-                paymentMethod: ticketData.paymentMethod || 'vnpay',
-                paymentStatus: 'PENDING',
-                paymentDate: new Date(),
-                paymentGatewayResponse: {
-                    ticketData: ticketData,
-                    ticketType: ticketType,
-                    originalEvent: event
-                }
-            });
-
-            logger.info('Payment record created successfully', {
-                paymentId: payment.paymentId
-            });
-        } catch (dbError) {
-            logger.error('Database error creating payment record', {
-                error: dbError.message,
-                ticketId,
-                paymentId
-            });
-            throw dbError;
-        }
-
-        // Log payment creation
-        if (payment) {
-            await PaymentLog.create({
-                paymentId: payment.paymentId,
-                paymentLogType: 'PAYMENT',
-                paymentLogDate: new Date(),
-                paymentLogStatus: 'PENDING',
-            });
-        }
-
-        // TEMPORARY: Skip payment gateway processing for testing
-        logger.info('Temporarily skipping payment gateway processing for testing');
+        // Process payment based on payment method
+        const paymentMethod = ticketData.paymentMethod || 'paypal';
         
-        // Update payment status to COMPLETED for testing
-        payment.paymentStatus = 'COMPLETED';
-        payment.paymentGatewayResponse = {
-            ...payment.paymentGatewayResponse,
-            testMode: true,
-            message: 'Payment completed in test mode'
-        };
-        await payment.save();
-
-        // Publish payment completed event for testing
-        if (paymentId && ticketId) {
+        if (paymentMethod.toLowerCase() === 'paypal') {
             try {
-                await publish('payment.completed', paymentId, {
+                const orderInfo = `Ticket payment for ${ticketType} - Ticket ID: ${ticketId}`;
+                const currency = ticketData.currency || 'USD';
+                
+                // Create PayPal payment (includes database operations)
+                const { paypalOrder, payment: paypalPayment } = await createPaypalPayment({
                     paymentId: paymentId,
                     ticketId: ticketId,
                     passengerId: passengerId,
                     amount: amount,
-                    paymentMethod: ticketData.paymentMethod || 'card',
-                    status: 'COMPLETED',
-                    testMode: true
+                    orderInfo: orderInfo,
+                    currency: currency
                 });
-            } catch (publishError) {
-                logger.error('Failed to publish payment.completed event', {
-                    error: publishError.message,
-                    paymentId,
-                    ticketId
-                });
-            }
-        }
 
-        // Publish ticket payment ready event to update ticket service
-        if (ticketId && paymentId) {
-            try {
-                await publish('ticket.payment_ready', ticketId, {
-                    ticketId: ticketId,
+                // Publish events in parallel
+                const publishPromises = [];
+                
+                if (ticketId && paymentId) {
+                    // Extract PayPal approval link from order
+                    let approvalLink = paypalOrder.links?.find(link => link.rel === 'approve')?.href;
+                    
+                    // If no approval link found, create a fallback URL
+                    if (!approvalLink) {
+                        const isProduction = process.env.NODE_ENV === 'production';
+                        const baseUrl = isProduction 
+                            ? 'https://www.paypal.com/cgi-bin/webscr'
+                            : 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+                        
+                        // Create approval URL with order ID
+                        approvalLink = `${baseUrl}?cmd=_express-checkout&token=${paypalOrder.id}`;
+                        
+                        logger.info('Created fallback PayPal approval URL', {
+                            isProduction,
+                            baseUrl,
+                            paypalOrderId: paypalOrder.id,
+                            approvalLink
+                        });
+                    }
+                    
+                    logger.info('PayPal order links analysis', {
+                        ticketId,
+                        paymentId,
+                        paypalOrderId: paypalOrder.id,
+                        hasLinks: !!paypalOrder.links,
+                        linksCount: paypalOrder.links?.length || 0,
+                        allLinks: paypalOrder.links?.map(link => ({
+                            rel: link.rel,
+                            href: link.href,
+                            method: link.method
+                        })) || [],
+                        originalApprovalLink: paypalOrder.links?.find(link => link.rel === 'approve')?.href,
+                        finalApprovalLink: approvalLink,
+                        isProduction: process.env.NODE_ENV === 'production',
+                        nodeEnv: process.env.NODE_ENV
+                    });
+                    
+                    publishPromises.push(
+                        publish('ticket.payment_ready', ticketId, {
+                            ticketId: ticketId,
+                            paymentId: paymentId,
+                            passengerId: passengerId,
+                            amount: amount,
+                            paymentMethod: 'paypal',
+                            paypalOrderId: paypalOrder.id,
+                            paypalOrder: paypalOrder,
+                            paymentUrl: approvalLink || null,
+                            status: 'PAYMENT_READY',
+                            createdAt: new Date().toISOString()
+                        }).catch(publishError => {
+                            logger.error('Failed to publish ticket.payment_ready event for PayPal', {
+                                error: publishError.message,
+                                paymentId,
+                                ticketId
+                            });
+                        })
+                    );
+                }
+
+                // Wait for all publish operations to complete
+                await Promise.all(publishPromises);
+
+                logger.info('PayPal payment processed successfully', {
                     paymentId: paymentId,
-                    paymentUrl: 'test_mode_payment_url',
-                    paymentMethod: ticketData.paymentMethod || 'card',
-                    paypalOrderId: null, // Add this field for consistency
-                    status: 'PAYMENT_READY',
-                    testMode: true,
-                    createdAt: new Date().toISOString()
+                    ticketId: ticketId,
+                    paypalOrderId: paypalOrder.id
                 });
-            } catch (publishError) {
-                logger.error('Failed to publish ticket.payment_ready event', {
-                    error: publishError.message,
-                    paymentId,
-                    ticketId
+
+            } catch (paypalError) {
+                logger.error('Failed to create PayPal payment', {
+                    error: paypalError.message,
+                    ticketId,
+                    paymentId
                 });
+                
+                // Check if it's an authentication error and provide fallback
+                if (paypalError.message && paypalError.message.includes('Client Authentication failed')) {
+                    logger.warn('PayPal authentication failed, falling back to test mode', {
+                        ticketId,
+                        paymentId
+                    });
+                    
+                    // Check if payment already exists and update it instead of creating new
+                    try {
+                        let existingPayment = await Payment.findOne({
+                            where: { paymentId: paymentId }
+                        });
+
+                        if (existingPayment) {
+                            // Update existing payment with fallback information
+                            existingPayment.paymentGatewayResponse = {
+                                ...existingPayment.paymentGatewayResponse,
+                                error: 'PayPal authentication failed',
+                                fallbackMode: true,
+                                originalError: paypalError.message
+                            };
+                            await existingPayment.save();
+
+                            logger.info('Updated existing payment with fallback information', {
+                                paymentId: paymentId,
+                                ticketId: ticketId
+                            });
+                        } else {
+                            // Create new payment record if it doesn't exist
+                            const testPayment = await Payment.create({
+                                paymentId: paymentId,
+                                ticketId: ticketId,
+                                passengerId: passengerId,
+                                paymentAmount: amount,
+                                paymentMethod: 'paypal',
+                                paymentStatus: 'PENDING',
+                                paymentDate: new Date(),
+                                paymentGatewayResponse: {
+                                    error: 'PayPal authentication failed',
+                                    fallbackMode: true,
+                                    originalError: paypalError.message
+                                }
+                            });
+
+                            logger.info('Created new fallback payment record', {
+                                paymentId: paymentId,
+                                ticketId: ticketId
+                            });
+                        }
+
+                        // Create payment log for the fallback payment
+                        await PaymentLog.create({
+                            paymentId: paymentId,
+                            paymentLogType: 'PAYMENT',
+                            paymentLogDate: new Date(),
+                            paymentLogStatus: 'PENDING',
+                        });
+
+                        logger.info('Fallback payment log created successfully', {
+                            paymentId: paymentId,
+                            ticketId: ticketId
+                        });
+                    } catch (dbError) {
+                        logger.error('Failed to create/update fallback payment record', {
+                            error: dbError.message,
+                            details: dbError.errors || dbError,
+                            ticketId,
+                            paymentId
+                        });
+                        throw dbError;
+                    }
+
+                    // Publish fallback event
+                    if (ticketId && paymentId) {
+                        await publish('ticket.payment_ready', ticketId, {
+                            ticketId: ticketId,
+                            paymentId: paymentId,
+                            passengerId: passengerId,
+                            amount: amount,
+                            paymentMethod: 'paypal',
+                            paypalOrderId: null,
+                            paymentUrl: approvalLink,
+                            status: 'PAYMENT_READY',
+                            fallbackMode: true,
+                            error: 'PayPal authentication failed',
+                            createdAt: new Date().toISOString()
+                        }).catch(publishError => {
+                            logger.error('Failed to publish fallback payment event', {
+                                error: publishError.message,
+                                paymentId,
+                                ticketId
+                            });
+                        });
+                    }
+
+                    logger.info('Fallback payment created due to PayPal authentication failure', {
+                        paymentId: paymentId,
+                        ticketId: ticketId
+                    });
+                    
+                    return; 
+                }
+                
+                throw paypalError;
+            }
+        } else {
+            // Default to other payment methods (not PayPal)
+            try {
+                // Create payment record
+                const payment = await Payment.create({
+                    paymentId: paymentId,
+                    ticketId: ticketId,
+                    passengerId: passengerId,
+                    paymentAmount: amount,
+                    paymentMethod: paymentMethod,
+                    paymentStatus: 'COMPLETED',
+                    paymentDate: new Date(),
+                    paymentGatewayResponse: {
+                        ticketData: ticketData,
+                        ticketType: ticketType,
+                        originalEvent: event,
+                        testMode: true,
+                        message: 'Payment completed in test mode'
+                    }
+                });
+
+                // Create payment log and publish events in parallel
+                const parallelOperations = [
+                    PaymentLog.create({
+                        paymentId: payment.paymentId,
+                        paymentLogType: 'PAYMENT',
+                        paymentLogDate: new Date(),
+                        paymentLogStatus: 'COMPLETED',
+                    })
+                ];
+
+                // Add publish operations
+                if (paymentId && ticketId) {
+                    parallelOperations.push(
+                        publish('payment.completed', paymentId, {
+                            paymentId: paymentId,
+                            ticketId: ticketId,
+                            passengerId: passengerId,
+                            amount: amount,
+                            paymentMethod: paymentMethod,
+                            status: 'COMPLETED',
+                            testMode: true
+                        }).catch(publishError => {
+                            logger.error('Failed to publish payment.completed event', {
+                                error: publishError.message,
+                                paymentId,
+                                ticketId
+                            });
+                        })
+                    );
+                }
+
+                if (ticketId && paymentId) {
+                    parallelOperations.push(
+                        publish('ticket.payment_ready', ticketId, {
+                            ticketId: ticketId,
+                            paymentId: paymentId,
+                            paymentUrl: null, // No payment URL for non-PayPal methods
+                            paymentMethod: paymentMethod,
+                            paypalOrderId: null,
+                            status: 'PAYMENT_READY',
+                            testMode: true,
+                            createdAt: new Date().toISOString()
+                        }).catch(publishError => {
+                            logger.error('Failed to publish ticket.payment_ready event', {
+                                error: publishError.message,
+                                paymentId,
+                                ticketId
+                            });
+                        })
+                    );
+                }
+
+                // Execute all operations in parallel
+                await Promise.all(parallelOperations);
+
+                logger.info('Payment processed successfully', {
+                    paymentId: paymentId,
+                    ticketId: ticketId,
+                    paymentMethod: paymentMethod
+                });
+
+            } catch (dbError) {
+                logger.error('Database error processing payment', {
+                    error: dbError.message,
+                    ticketId,
+                    paymentId
+                });
+                throw dbError;
             }
         }
-
-        logger.info('Payment completed successfully in test mode', {
-            paymentId: paymentId,
-            ticketId: ticketId,
-            paymentMethod: ticketData.paymentMethod || 'card',
-            testMode: true
-        });
 
     } catch (error) {
         logger.error('Error processing ticket.created event', {
@@ -163,7 +336,6 @@ async function handleTicketCreated(event) {
             paymentId: paymentId || 'unknown'
         });
 
-        // Publish payment failed event only if we have the required data
         if (paymentId && ticketId) {
             try {
                 await publish('payment.failed', paymentId, {
@@ -206,7 +378,6 @@ async function handleTicketActivated(event) {
             status
         });
 
-        // Find and update payment
         const payment = await Payment.findOne({
             where: { paymentId: paymentId }
         });
@@ -216,7 +387,6 @@ async function handleTicketActivated(event) {
             return;
         }
 
-        // Update payment status
         payment.paymentStatus = 'COMPLETED';
         payment.paymentGatewayResponse = {
             ...payment.paymentGatewayResponse,
@@ -225,14 +395,12 @@ async function handleTicketActivated(event) {
         };
         await payment.save();
 
-        // Create transaction record
         await Transaction.create({
             paymentId: payment.paymentId,
             transactionAmount: payment.paymentAmount,
             transactionStatus: 'COMPLETED',
         });
 
-        // Log payment completion
         await PaymentLog.create({
             paymentId: payment.paymentId,
             paymentLogType: 'PAYMENT',
@@ -240,7 +408,6 @@ async function handleTicketActivated(event) {
             paymentLogStatus: 'COMPLETED',
         });
 
-        // Publish payment completed event
         await publish('payment.completed', paymentId, {
             paymentId: paymentId,
             ticketId: ticketId,
@@ -285,7 +452,6 @@ async function handleTicketCancelled(event) {
             reason
         });
 
-        // Find payment
         const payment = await Payment.findOne({
             where: { paymentId: paymentId }
         });
@@ -295,12 +461,9 @@ async function handleTicketCancelled(event) {
             return;
         }
 
-        // Update payment status based on current status
         if (payment.paymentStatus === 'COMPLETED') {
-            // Payment was completed, mark for refund
             payment.paymentStatus = 'REFUND_PENDING';
         } else if (payment.paymentStatus === 'PENDING') {
-            // Payment was pending, mark as cancelled
             payment.paymentStatus = 'CANCELLED';
         }
 
@@ -311,7 +474,6 @@ async function handleTicketCancelled(event) {
         };
         await payment.save();
 
-        // Log cancellation
         await PaymentLog.create({
             paymentId: payment.paymentId,
             paymentLogType: 'CANCELLATION',
@@ -319,7 +481,6 @@ async function handleTicketCancelled(event) {
             paymentLogStatus: payment.paymentStatus,
         });
 
-        // Publish payment cancelled event
         await publish('payment.cancelled', paymentId, {
             paymentId: paymentId,
             ticketId: ticketId,
@@ -366,22 +527,15 @@ async function startTicketConsumer() {
 
         await consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
+                let event;
                 try {
-                    const event = JSON.parse(message.value.toString());
+                    event = JSON.parse(message.value.toString());
                     
-                    logger.info('Received ticket event', {
+                    // Minimal logging for performance
+                    logger.debug('Processing ticket event', {
                         topic,
                         ticketId: event.ticketId,
-                        paymentId: event.paymentId,
-                        eventData: event // Log full event data for debugging
-                    });
-
-                    logger.info('Event data validation', {
-                        hasTicketId: !!event.ticketId,
-                        hasPaymentId: !!event.paymentId,
-                        hasPassengerId: !!event.passengerId,
-                        hasAmount: !!event.amount,
-                        eventKeys: Object.keys(event)
+                        paymentId: event.paymentId
                     });
 
                     switch (topic) {
@@ -401,7 +555,8 @@ async function startTicketConsumer() {
                     logger.error('Error processing ticket event', {
                         topic,
                         error: error.message,
-                        message: message.value.toString()
+                        ticketId: event?.ticketId,
+                        paymentId: event?.paymentId
                     });
                 }
             }

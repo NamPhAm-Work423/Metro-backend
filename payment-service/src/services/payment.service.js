@@ -1,6 +1,7 @@
 const { buildPaymentUrl, verifyReturnUrl, verifyIpnCallback } = require('./vnpay.service');
 const paypalService = require('./paypal.service');
 const { Payment, Transaction, PaymentLog } = require('../models/index.model');
+const { logger } = require('../config/logger');
 
 /**
  * Initiate a VNPay payment
@@ -145,6 +146,7 @@ async function handleVnpayIpn(query) {
 /**
  * Create a PayPal payment
  * @param {Object} params
+ * @param {string} params.paymentId - Payment ID from ticket service
  * @param {number} params.ticketId
  * @param {number} params.passengerId
  * @param {number} params.amount - Amount in USD
@@ -152,13 +154,14 @@ async function handleVnpayIpn(query) {
  * @param {string} params.currency - Currency code (default: USD)
  * @returns {Promise<{ paypalOrder: Object, payment: Payment }>}
  */
-async function createPaypalPayment({ ticketId, passengerId, amount, orderInfo, currency = 'USD' }) {
-    // Create payment record (PENDING)
+async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, orderInfo, currency = 'USD' }) {
+    // Create payment record (PENDING) with provided paymentId
     const payment = await Payment.create({
+        paymentId: paymentId,
         ticketId,
         passengerId,
         paymentAmount: amount,
-        paymentMethod: 'PAYPAL',
+        paymentMethod: 'paypal',
         paymentStatus: 'PENDING',
         paymentDate: new Date(),
         paymentGatewayResponse: null
@@ -177,8 +180,16 @@ async function createPaypalPayment({ ticketId, passengerId, amount, orderInfo, c
         }]
     };
 
-    // Create PayPal order
-    const paypalOrder = await paypalService.createOrder(paypalOrderData);
+    // Create PayPal order and update payment in parallel
+    const [paypalOrder] = await Promise.all([
+        paypalService.createOrder(paypalOrderData),
+        PaymentLog.create({
+            paymentId: payment.paymentId,
+            paymentLogType: 'PAYMENT',
+            paymentLogDate: new Date(),
+            paymentLogStatus: 'PENDING',
+        })
+    ]);
 
     // Update payment with PayPal order ID
     payment.paymentGatewayResponse = {
@@ -186,14 +197,6 @@ async function createPaypalPayment({ ticketId, passengerId, amount, orderInfo, c
         paypalOrderData: paypalOrder
     };
     await payment.save();
-
-    // Log payment initiation
-    await PaymentLog.create({
-        paymentId: payment.paymentId,
-        paymentLogType: 'PAYMENT',
-        paymentLogDate: new Date(),
-        paymentLogStatus: 'PENDING',
-    });
 
     return { paypalOrder, payment };
 }
@@ -208,7 +211,7 @@ async function capturePaypalPayment(orderId) {
         // Capture the payment
         const captureResult = await paypalService.captureOrder(orderId);
 
-        // Find the payment record
+        // Find the payment record by PayPal order ID
         const payment = await Payment.findOne({
             where: {
                 paymentMethod: 'PAYPAL',
@@ -216,6 +219,14 @@ async function capturePaypalPayment(orderId) {
             },
             order: [['paymentDate', 'DESC']]
         });
+
+        // Additional check to ensure we have the right payment
+        if (payment && payment.paymentGatewayResponse && payment.paymentGatewayResponse.paypalOrderId !== orderId) {
+            logger.warn('PayPal order ID mismatch', {
+                expectedOrderId: orderId,
+                actualOrderId: payment.paymentGatewayResponse.paypalOrderId
+            });
+        }
 
         if (!payment) {
             return { isSuccess: false, message: 'Payment not found' };
