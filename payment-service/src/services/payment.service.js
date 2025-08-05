@@ -8,7 +8,7 @@ const { logger } = require('../config/logger');
  * @param {Object} params
  * @param {number} params.ticketId
  * @param {number} params.passengerId
- * @param {number} params.amount - Amount in VND
+ * @param {number} params.amount - Amount in USD
  * @param {string} params.orderInfo - Order description
  * @param {string} params.returnUrl - URL to redirect after payment
  * @param {string} params.clientIp - Client IP address
@@ -152,11 +152,13 @@ async function handleVnpayIpn(query) {
  * @param {number} params.amount - Amount in USD
  * @param {string} params.orderInfo - Order description
  * @param {string} params.currency - Currency code (default: USD)
+ * @param {string} params.returnUrl - URL to redirect after successful payment
+ * @param {string} params.cancelUrl - URL to redirect after cancelled payment
  * @returns {Promise<{ paypalOrder: Object, payment: Payment }>}
  */
-async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, orderInfo, currency = 'USD' }) {
-    // Create payment record (PENDING) with provided paymentId
-    const payment = await Payment.create({
+async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, orderInfo, currency = 'USD', returnUrl, cancelUrl }) {
+    // Create payment record and PayPal order in parallel for better performance
+    const paymentPromise = Payment.create({
         paymentId: paymentId,
         ticketId,
         passengerId,
@@ -168,28 +170,59 @@ async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, o
     });
 
     // Prepare PayPal order data
+    // For VND currency, PayPal doesn't support decimals, so we need to round to whole numbers
+    let processedAmount = amount;
+    if (currency === 'VND') {
+        processedAmount = Math.round(amount);
+    }
+    
     const paypalOrderData = {
         intent: 'CAPTURE',
         purchase_units: [{
             amount: {
                 currency_code: currency,
-                value: amount.toString()
+                value: processedAmount.toString()
             },
             description: orderInfo || `Ticket payment for ticket ${ticketId}`,
-            custom_id: payment.paymentId.toString()
-        }]
+            custom_id: paymentId.toString()
+        }],
+        application_context: {
+            return_url: returnUrl,
+            cancel_url: cancelUrl,
+            brand_name: 'Metro Transit',
+            landing_page: 'LOGIN',
+            user_action: 'PAY_NOW',
+            shipping_preference: 'NO_SHIPPING',
+            payment_method: {
+                payer_selected: 'PAYPAL',
+                payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED'
+            }
+        }
     };
 
-    // Create PayPal order and update payment in parallel
-    const [paypalOrder] = await Promise.all([
-        paypalService.createOrder(paypalOrderData),
-        PaymentLog.create({
-            paymentId: payment.paymentId,
-            paymentLogType: 'PAYMENT',
-            paymentLogDate: new Date(),
-            paymentLogStatus: 'PENDING',
-        })
+    // Log the URLs being sent to PayPal
+    logger.info('PayPal order data prepared', {
+        returnUrl,
+        cancelUrl,
+        orderInfo,
+        amount,
+        currency,
+        fullOrderData: paypalOrderData
+    });
+
+    // Execute payment creation and PayPal order in parallel
+    const [payment, paypalOrder] = await Promise.all([
+        paymentPromise,
+        paypalService.createOrder(paypalOrderData)
     ]);
+
+    // Create payment log after payment record exists
+    await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'PAYMENT',
+        paymentLogDate: new Date(),
+        paymentLogStatus: 'PENDING',
+    });
 
     // Update payment with PayPal order ID
     payment.paymentGatewayResponse = {

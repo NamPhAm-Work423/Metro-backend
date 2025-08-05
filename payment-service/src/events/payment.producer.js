@@ -4,7 +4,7 @@ const { logger } = require('../config/logger');
 /**
  * Publish ticket.payment_ready event for PayPal payments
  */
-async function publishTicketPaymentReady(ticketId, paymentId, passengerId, amount, paypalOrder, approvalLink) {
+async function publishTicketPaymentReady(ticketId, paymentId, passengerId, amount, paypalOrder, approvalLink, redirectUrls = {}) {
     try {
         await publish('ticket.payment_ready', ticketId, {
             ticketId: ticketId,
@@ -15,6 +15,7 @@ async function publishTicketPaymentReady(ticketId, paymentId, passengerId, amoun
             paypalOrderId: paypalOrder.id,
             paypalOrder: paypalOrder,
             paymentUrl: approvalLink || null,
+            redirectUrls: redirectUrls,
             status: 'PAYMENT_READY',
             createdAt: new Date().toISOString()
         });

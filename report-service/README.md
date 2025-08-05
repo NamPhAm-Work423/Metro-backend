@@ -1,262 +1,287 @@
-# User Service
+# Report Service
 
-Unified microservice handling admin, passenger and staff user profiles for the Metro backend system.
-
-## Overview
-
-This service consolidates three previously separate services:
-- `admin-service` - Admin user management
-- `passenger-service` - Passenger user management  
-- `staff-service` - Staff user management
-
-By merging these services, we reduce the operational complexity and resource usage while maintaining all functionality.
-
-### Key Benefits:
-- ✅ **Unified Architecture**: Single service reduces deployment complexity
-- ✅ **Event-Driven**: Automatic profile creation from Kafka user events  
-- ✅ **Role-Based Processing**: Smart handling based on user roles
-- ✅ **Backward Compatible**: All original API endpoints maintained
-- ✅ **Security Enhanced**: Admin profiles NOT auto-created for security
-- ✅ **Performance Optimized**: Shared database connections and resources
+A Python-based report generation service for the Metro system, built with FastAPI, SQLAlchemy, and Kafka.
 
 ## Features
 
-### Admin Management
-- Admin profile CRUD operations
-- Admin self-service endpoints
-- Admin-specific event publishing
+- **Report Generation**: Create daily, weekly, monthly, and custom reports
+- **Real-time Analytics**: Process Kafka events for real-time metrics
+- **Template System**: Reusable report templates
+- **Scheduled Reports**: Automated report generation
+- **Metrics Collection**: Prometheus metrics for monitoring
+- **Comprehensive Logging**: Structured logging with structlog
 
-### Passenger Management
-- Passenger profile CRUD operations
-- Passenger self-service endpoints
-- Ticket management (add/remove/list tickets)
-- Passenger-specific event publishing
+## Technology Stack
 
-### Staff Management
-- Staff profile CRUD operations
-- Staff self-service endpoints
-- Staff status management (active/inactive)
-- Staff-specific event publishing
+- **Framework**: FastAPI
+- **Database**: PostgreSQL with SQLAlchemy ORM
+- **Message Queue**: Apache Kafka
+- **Logging**: structlog
+- **Metrics**: Prometheus
+- **Data Processing**: Pandas, Matplotlib, Seaborn
 
-### Unified Event Handling
-- Consumes `user.created` events from api-gateway
-- Automatically creates appropriate profiles based on user roles
-- Publishes domain-specific events for other services
+## Project Structure
+
+```
+src/
+├── config/           # Configuration files
+│   ├── database.py   # Database configuration
+│   ├── logger.py     # Logging configuration
+│   └── metrics.py    # Prometheus metrics
+├── controllers/      # API controllers
+│   └── report_controller.py
+├── events/          # Kafka event handlers
+│   └── report_consumer.py
+├── kafka/           # Kafka utilities
+│   ├── kafka_consumer.py
+│   └── kafka_producer.py
+├── models/          # Database models
+│   ├── report_model.py
+│   └── user_model.py
+├── schemas/         # Pydantic schemas
+│   └── report_schema.py
+├── services/        # Business logic
+│   └── report_service.py
+├── app.py          # FastAPI application
+└── main.py         # Application entry point
+```
 
 ## API Endpoints
 
-### Admin Routes (`/v1/admins`)
-- `GET /getAllAdmins` - Get all admins (admin only)
-- `GET /getAdminById/:id` - Get admin by ID (admin only)
-- `PUT /updateAdmin/:id` - Update admin (admin only)
-- `DELETE /deleteAdmin/:id` - Delete admin (admin only)
-- `GET /me` - Get current admin profile
-- `DELETE /me` - Delete current admin profile
+### Reports
+- `POST /v1/reports/` - Create a new report
+- `GET /v1/reports/` - Get list of reports
+- `GET /v1/reports/{report_id}` - Get specific report
+- `DELETE /v1/reports/{report_id}` - Delete report
 
-### Passenger Routes (`/v1/passengers`)
-- `GET /getallPassengers` - Get all passengers (staff/admin only)
-- `GET /getPassengerById/:id` - Get passenger by ID (staff/admin only)
-- `POST /createPassenger` - Create passenger (staff/admin only)
-- `PUT /updatePassenger/:id` - Update passenger (staff/admin only)
-- `DELETE /deletePassenger/:id` - Delete passenger (staff/admin only)
-- `GET /me` - Get current passenger profile
-- `PUT /me` - Update current passenger profile
-- `DELETE /me` - Delete current passenger profile
-- `GET /me/tickets` - Get my tickets
-- `POST /me/tickets` - Add ticket
-- `DELETE /me/tickets/:ticketId` - Remove ticket
+### Templates
+- `POST /v1/reports/templates` - Create report template
+- `GET /v1/reports/templates` - Get all templates
 
-### Staff Routes (`/v1/staff`)
-- `GET /getAllStaff` - Get all staff (staff/admin only)
-- `GET /getStaffById/:id` - Get staff by ID (staff/admin only)
-- `POST /createStaff` - Create staff (staff/admin only)
-- `PUT /updateStaff/:id` - Update staff (staff/admin only)
-- `DELETE /deleteStaff/:id` - Delete staff (staff/admin only)
-- `PUT /updateStaffStatus/:id` - Update staff status (admin only)
-- `GET /me` - Get current staff profile
-- `PUT /me` - Update current staff profile
-- `DELETE /me` - Delete current staff profile
+### Schedules
+- `POST /v1/reports/schedules` - Create report schedule
 
-## Architecture
+### Analytics
+- `GET /v1/reports/analytics/daily` - Daily analytics
+- `GET /v1/reports/analytics/weekly` - Weekly analytics
+- `GET /v1/reports/analytics/monthly` - Monthly analytics
 
-```
-user-service/
-├── src/
-│   ├── config/          # Database, logger, etc.
-│   ├── models/          # Sequelize models (Admin, Passenger, Staff)
-│   ├── controllers/     # HTTP request handlers
-│   ├── services/        # Business logic
-│   ├── routes/          # Express routes
-│   ├── events/          # Kafka event handlers
-│   ├── kafka/           # Kafka utilities
-│   ├── middlewares/     # Authorization, etc.
-│   ├── helpers/         # Utility functions
-│   ├── app.js           # Express application
-│   └── index.js         # Entry point
-├── package.json
-├── Dockerfile
-└── README.md
-```
+### System
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
 
 ## Environment Variables
 
-Create a `.env` file in the user-service directory:
-
-```env
+```bash
 # Application Configuration
 NODE_ENV=development
+HOST=0.0.0.0
 PORT=3001
-SERVICE_NAME=user-service
 
 # Database Configuration
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD=postgres
+DATABASE_URL=postgresql://postgres:password@localhost:5432/metro_report
 
 # Kafka Configuration
-KAFKA_BROKERS=kafka-1:19092
-KAFKA_CLIENT_ID=user-service
-KAFKA_GROUP_ID=user-service-group
-
-# Kafka Topics - Consumer (Listen to these events)
-USER_CREATED_TOPIC=user.created
-USER_UPDATED_TOPIC=user.updated
-USER_DELETED_TOPIC=user.deleted
-
-# Kafka Topics - Producer (Publish these events)
-ADMIN_CREATED_TOPIC=admin.created
-ADMIN_UPDATED_TOPIC=admin.updated
-ADMIN_DELETED_TOPIC=admin.deleted
-PASSENGER_CREATED_TOPIC=passenger.created
-PASSENGER_UPDATED_TOPIC=passenger.updated
-PASSENGER_DELETED_TOPIC=passenger.deleted
-STAFF_CREATED_TOPIC=staff.created
-STAFF_UPDATED_TOPIC=staff.updated
-STAFF_DELETED_TOPIC=staff.deleted
-STAFF_STATUS_CHANGED_TOPIC=staff.status.changed
-
-# Database Sync Options
-DB_FORCE_SYNC=true
-DB_ALTER_SYNC=false
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=report-service
+KAFKA_GROUP_ID=report-service-group
 
 # Logging Configuration
 LOG_LEVEL=info
-LOG_MAX_SIZE=20m
-LOG_MAX_FILES=14d
+LOG_FILE_PATH=logs/application.log
 
-# Security
-BCRYPT_ROUNDS=12
+# Security Configuration
+SERVICE_AUTH_SECRET=your-service-auth-secret
+
+# Report Configuration
+REPORTS_DIR=reports
+MAX_REPORT_SIZE=10MB
+REPORT_RETENTION_DAYS=30
 ```
 
-### Environment Variables Explanation:
+## Installation
 
-#### 📊 **Database Configuration**
-- **DB_FORCE_SYNC**: Forces database recreation on startup (development only)
-- **DB_ALTER_SYNC**: Allows automatic table alterations (use with caution)
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd report-service
+   ```
 
-#### 📨 **Event System**
-- **Consumer Topics**: Events this service listens to from other services
-- **Producer Topics**: Events this service publishes for other services to consume
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-#### 🔍 **Logging & Monitoring**
-- **LOG_LEVEL**: Winston logging level (error, warn, info, debug)
-- **LOG_MAX_SIZE**: Maximum log file size before rotation
-- **LOG_MAX_FILES**: How long to keep rotated log files
+3. **Set up environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration
+   ```
 
-#### 🛡️ **Security**
-- **BCRYPT_ROUNDS**: Password hashing rounds (higher = more secure but slower)
+4. **Run the application**
+   ```bash
+   # Development
+   python src/main.py
+   
+   # Production
+   uvicorn src.app:app --host 0.0.0.0 --port 3001
+   ```
 
-## Getting Started
+## Docker
 
-### Development
 ```bash
-# Install dependencies
-npm install
+# Build the image
+docker build -t report-service .
 
-# Start development server
-npm run dev
+# Run the container
+docker run -p 3001:3001 --env-file .env report-service
 ```
 
-### Docker
+## Kafka Events
+
+The service consumes the following Kafka events:
+
+- **ticket-events**: Ticket creation and updates
+- **payment-events**: Payment completions
+- **user-events**: User registrations and updates
+- **transport-events**: Route and station updates
+
+## Report Types
+
+### Daily Reports
+- Summary of daily operations
+- Ticket sales and revenue
+- Passenger counts
+- Route performance
+
+### Weekly Reports
+- 7-day aggregated data
+- Daily breakdown charts
+- Trend analysis
+- Performance metrics
+
+### Monthly Reports
+- Monthly aggregated data
+- Weekly breakdown
+- Top performing routes
+- Revenue analysis
+
+### Custom Reports
+- Configurable based on metadata
+- Flexible data sources
+- Custom visualizations
+
+## Monitoring
+
+### Health Check
 ```bash
-# Build and run with docker-compose
-docker-compose up user-service
+curl http://localhost:3001/health
 ```
 
-## Migration from Previous Services
-
-This service replaces:
-- `admin-service` (port 3xxx)
-- `passenger-service` (port 3001)
-- `staff-service` (port 3002)
-
-All API endpoints maintain backward compatibility. Update your API Gateway routing to point to:
-- `user-service:3001` instead of individual services
-
-### Migration Benefits:
-- ✅ **Resource Optimization**: 3 services → 1 service = 66% reduction in containers
-- ✅ **Simplified Deployment**: Single Docker image and configuration
-- ✅ **Unified Database**: Shared connections and transactions
-- ✅ **Event Consolidation**: Single Kafka consumer for all user events
-- ✅ **Maintenance Reduction**: One codebase instead of three
-
-## Event Flow
-
-```mermaid
-sequenceDiagram
-    participant API as API Gateway
-    participant KAFKA as Kafka
-    participant USER as User Service
-    participant DB as PostgreSQL
-
-    Note over API,DB: User Registration & Profile Creation
-
-    API->>KAFKA: Publish user.created event
-    KAFKA->>USER: Consume user.created event
-    USER->>USER: Check user roles
-    
-    alt User has "passenger" role
-        USER->>DB: Create Passenger profile
-        USER->>KAFKA: Publish passenger.created event
-    end
-    
-    alt User has "staff" role
-        USER->>DB: Create Staff profile
-        USER->>KAFKA: Publish staff.created event
-    end
-    
-    Note over USER: Admin profiles NOT auto-created (security)
-    
-    Note over API,DB: Profile Updates & Events
-    
-    USER->>DB: Update passenger/staff profile
-    USER->>KAFKA: Publish passenger.updated/staff.updated event
+### Metrics
+```bash
+curl http://localhost:3001/metrics
 ```
 
-### Event Processing Logic:
+### Logs
+Logs are written to:
+- Console (structured JSON)
+- `logs/application.log` (all logs)
+- `logs/error.log` (error logs only)
 
-1. **User Registration**: API Gateway publishes `user.created` event
-2. **Role-Based Processing**: User Service creates profiles based on user roles:
-   - `passenger` role → Creates Passenger profile
-   - `staff` role → Creates Staff profile
-   - `admin` role → **NOT auto-created for security**
-3. **Event Publishing**: Service publishes domain-specific events for other services
-4. **Profile Updates**: All CRUD operations publish corresponding events
+## Development
 
-### Security Note:
-Admin profiles are **never** automatically created from user registration events. Admin accounts must be manually created by existing administrators for security reasons.
+### Running Tests
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio
 
-## Health Check & Monitoring
+# Run tests
+pytest
+```
 
-### Endpoints:
-- **Health Check**: `GET /metrics` - Service health status
-- **Database Check**: Included in health endpoint
-- **Kafka Check**: Included in health endpoint
+### Code Quality
+```bash
+# Install linting tools
+pip install black flake8 isort
 
-### Monitoring Features:
-- **Winston Logging**: Structured logging with daily rotation
-- **Error Tracking**: Comprehensive error handling with correlation IDs
-- **Performance Metrics**: Request timing and database query performance
-- **Event Tracking**: Kafka message processing status 
+# Format code
+black src/
+
+# Check imports
+isort src/
+
+# Lint code
+flake8 src/
+```
+
+## Production Deployment
+
+1. **Database Setup**
+   ```sql
+   CREATE DATABASE metro_report;
+   ```
+
+2. **Kafka Topics**
+   ```bash
+   # Create required topics
+   kafka-topics.sh --create --topic ticket-events --bootstrap-server localhost:9092
+   kafka-topics.sh --create --topic payment-events --bootstrap-server localhost:9092
+   kafka-topics.sh --create --topic user-events --bootstrap-server localhost:9092
+   kafka-topics.sh --create --topic transport-events --bootstrap-server localhost:9092
+   ```
+
+3. **Environment Configuration**
+   - Set `NODE_ENV=production`
+   - Configure production database URL
+   - Set up Kafka brokers
+   - Configure logging level
+
+4. **Monitoring**
+   - Set up Prometheus scraping
+   - Configure log aggregation
+   - Set up alerting rules
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Failed**
+   - Check DATABASE_URL configuration
+   - Verify PostgreSQL is running
+   - Check network connectivity
+
+2. **Kafka Connection Failed**
+   - Verify Kafka brokers are accessible
+   - Check topic existence
+   - Validate consumer group configuration
+
+3. **Report Generation Failed**
+   - Check file system permissions
+   - Verify template configuration
+   - Review error logs
+
+### Log Analysis
+
+```bash
+# View application logs
+tail -f logs/application.log
+
+# View error logs
+tail -f logs/error.log
+
+# Search for specific errors
+grep "ERROR" logs/application.log
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License. 

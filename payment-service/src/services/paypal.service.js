@@ -24,36 +24,10 @@ class PayPalService {
    * @private
    */
   _validateOrderData(data) {
-    if (!data.intent) {
-      const error = 'Intent is required (CAPTURE or AUTHORIZE)';
+    if (!data.intent || !data.purchase_units?.[0]?.amount?.currency_code || !data.purchase_units?.[0]?.amount?.value) {
+      const error = 'Invalid order data structure';
       logger.error(error);
       throw new Error(error);
-    }
-
-    if (!data.purchase_units || !Array.isArray(data.purchase_units) || data.purchase_units.length === 0) {
-      const error = 'Purchase units array is required';
-      logger.error(error);
-      throw new Error(error);
-    }
-
-    // Validate each purchase unit
-    for (const unit of data.purchase_units) {
-      if (!unit.amount || !unit.amount.currency_code || !unit.amount.value) {
-        const error = 'Each purchase unit must have amount with currency_code and value';
-        logger.error(error);
-        throw new Error(error);
-      }
-
-      // Validate items if present
-      if (unit.items && Array.isArray(unit.items)) {
-        for (const item of unit.items) {
-          if (!item.name || !item.quantity || !item.unit_amount) {
-            const error = 'Each item must have name, quantity, and unit_amount';
-            logger.error(error);
-            throw new Error(error);
-          }
-        }
-      }
     }
   }
 
@@ -101,7 +75,41 @@ class PayPalService {
       const request = new paypal.orders.OrdersCreateRequest();
       request.requestBody(data);
 
-      const response = await paypalClient.execute(request);
+      const startTime = Date.now();
+      
+      // Retry mechanism for PayPal requests
+      let lastError;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const timeout = attempt === 1 ? 10000 : 5000;
+          
+          const response = await Promise.race([
+            paypalClient.execute(request),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('PayPal request timeout')), timeout)
+            )
+          ]);
+          
+          const duration = Date.now() - startTime;
+          logger.info('PayPal order creation timing', { duration, attempt });
+          
+          return response.result;
+        } catch (error) {
+          lastError = error;
+          logger.warn(`PayPal request attempt ${attempt} failed`, { 
+            error: error.message,
+            attempt,
+            willRetry: attempt < 3
+          });
+          
+          if (attempt < 3) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+        }
+      }
+      
+      throw lastError;
       
       // Log detailed response structure
       logger.info('PayPal order created successfully', { 

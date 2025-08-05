@@ -25,7 +25,8 @@ class PaymentConsumer {
                 paymentUrl, 
                 paymentMethod, 
                 paypalOrderId = null,
-                status 
+                status,
+                redirectUrls = {}
             } = eventData;
 
             logger.info('Processing payment ready event', {
@@ -44,6 +45,7 @@ class PaymentConsumer {
                 paymentMethod,
                 paypalOrderId,
                 status,
+                redirectUrls,
                 timestamp: Date.now()
             });
 
@@ -55,6 +57,7 @@ class PaymentConsumer {
                 paymentMethod,
                 paypalOrderId,
                 status,
+                redirectUrls,
                 timestamp: Date.now()
             });
 

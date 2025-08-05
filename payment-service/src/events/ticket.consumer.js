@@ -28,6 +28,9 @@ const consumer = kafka.consumer({
     maxWaitTimeInMs: 1000
 });
 
+const exchangeVNDtoUSD = (amount) => {
+    return amount / 26000;
+}
 /**
  * Handle ticket.created event
  * Creates payment record and initiates payment process
@@ -41,6 +44,7 @@ async function handleTicketCreated(event) {
     const ticketType = event.ticketType;
     const ticketData = event.ticketData || {};
     const status = event.status;
+    const currency = event.currency || 'VND';
 
     try {
         if (!ticketId || !paymentId || !passengerId || !amount || !ticketType || !status) {
@@ -53,16 +57,60 @@ async function handleTicketCreated(event) {
         if (paymentMethod.toLowerCase() === 'paypal') {
             try {
                 const orderInfo = `Ticket payment for ${ticketType} - Ticket ID: ${ticketId}`;
-                const currency = ticketData.currency || 'USD';
                 
-                // Create PayPal payment (includes database operations)
+                
+                // PayPal doesn't support VND currency, so we always convert to USD
+                let processedAmount = exchangeVNDtoUSD(amount);
+                // PayPal only supports 2 decimal places for USD
+                processedAmount = Math.round(processedAmount * 100) / 100;
+                let paypalCurrency = 'USD'; // Always use USD for PayPal
+                
+                // Log the currency conversion for debugging
+                logger.info('Currency conversion for PayPal', {
+                    originalAmount: amount,
+                    originalCurrency: currency,
+                    convertedAmount: processedAmount,
+                    paypalCurrency: paypalCurrency,
+                    ticketId: ticketId
+                });
+
+                // Start timing for performance monitoring
+                const totalStartTime = Date.now();
+                
+                // Create PayPal payment and database operations in parallel
+                const startTime = Date.now();
                 const { paypalOrder, payment: paypalPayment } = await createPaypalPayment({
                     paymentId: paymentId,
                     ticketId: ticketId,
                     passengerId: passengerId,
-                    amount: amount,
+                    amount: processedAmount,
                     orderInfo: orderInfo,
-                    currency: currency
+                    currency: paypalCurrency,
+                    returnUrl: ticketData.paymentSuccessUrl,
+                    cancelUrl: ticketData.paymentCancelUrl || ticketData.paymentFailUrl
+                });
+                
+                const paymentDuration = Date.now() - startTime;
+                const totalDuration = Date.now() - totalStartTime;
+                logger.info('PayPal payment creation completed', { 
+                    paymentDuration: paymentDuration,
+                    totalDuration: totalDuration,
+                    ticketId: ticketId 
+                });
+
+                // Debug: Log PayPal order details
+                logger.info('PayPal order created', {
+                    orderId: paypalOrder.id,
+                    status: paypalOrder.status,
+                    links: paypalOrder.links?.map(link => ({
+                        rel: link.rel,
+                        href: link.href,
+                        method: link.method
+                    })) || [],
+                    returnUrl: ticketData.paymentSuccessUrl,
+                    cancelUrl: ticketData.paymentCancelUrl || ticketData.paymentFailUrl,
+                    hasReturnUrl: !!ticketData.paymentSuccessUrl,
+                    hasCancelUrl: !!(ticketData.paymentCancelUrl || ticketData.paymentFailUrl)
                 });
 
                 // Publish events in parallel
@@ -76,19 +124,33 @@ async function handleTicketCreated(event) {
                     if (!approvalLink) {
                         const isProduction = process.env.NODE_ENV === 'production';
                         const baseUrl = isProduction 
-                            ? 'https://www.paypal.com/cgi-bin/webscr'
-                            : 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+                            ? 'https://www.paypal.com/checkoutnow'
+                            : 'https://www.sandbox.paypal.com/checkoutnow';
                         
                         // Create approval URL with order ID
-                        approvalLink = `${baseUrl}?cmd=_express-checkout&token=${paypalOrder.id}`;
+                        approvalLink = `${baseUrl}?token=${paypalOrder.id}`;
                         
-
+                        // Alternative fallback URL format
+                        if (!approvalLink || approvalLink.includes('undefined')) {
+                            const altBaseUrl = isProduction 
+                                ? 'https://www.paypal.com/webapps/checkout'
+                                : 'https://www.sandbox.paypal.com/webapps/checkout';
+                            approvalLink = `${altBaseUrl}?token=${paypalOrder.id}`;
+                        }
                     }
-                    
 
+                    // Log the approval link for debugging
+                    logger.info('PayPal approval link generated', {
+                        ticketId,
+                        paymentId,
+                        approvalLink,
+                        paypalOrderId: paypalOrder.id,
+                        hasLinks: !!paypalOrder.links,
+                        linksCount: paypalOrder.links?.length || 0
+                    });
                     
                     publishPromises.push(
-                        publishTicketPaymentReady(ticketId, paymentId, passengerId, amount, paypalOrder, approvalLink)
+                        publishTicketPaymentReady(ticketId, paymentId, passengerId, exchangeVNDtoUSD(amount), paypalOrder, approvalLink)
                     );
                 }
 
@@ -104,11 +166,16 @@ async function handleTicketCreated(event) {
                     paymentId
                 });
                 
-                // Check if it's an authentication error and provide fallback
-                if (paypalError.message && paypalError.message.includes('Client Authentication failed')) {
-                    logger.warn('PayPal authentication failed, falling back to test mode', {
+                // Check if it's a timeout or network error and provide fallback
+                if (paypalError.message && (
+                    paypalError.message.includes('timeout') || 
+                    paypalError.message.includes('network') ||
+                    paypalError.message.includes('Client Authentication failed')
+                )) {
+                    logger.warn('PayPal request failed, falling back to test mode', {
                         ticketId,
-                        paymentId
+                        paymentId,
+                        error: paypalError.message
                     });
                     
                     // Check if payment already exists and update it instead of creating new
@@ -133,7 +200,7 @@ async function handleTicketCreated(event) {
                                 paymentId: paymentId,
                                 ticketId: ticketId,
                                 passengerId: passengerId,
-                                amount: amount,
+                                amount: exchangeVNDtoUSD(amount),
                                 paymentMethod: 'paypal',
                                 paymentStatus: 'PENDING',
                                 paymentGatewayResponse: {
@@ -195,7 +262,7 @@ async function handleTicketCreated(event) {
                 // Add publish operations
                 if (paymentId && ticketId) {
                     parallelOperations.push(
-                        publishPaymentCompleted(paymentId, ticketId, passengerId, amount, paymentMethod)
+                        publishPaymentCompleted(paymentId, ticketId, passengerId, exchangeVNDtoUSD(amount), paymentMethod)
                     );
                 }
 

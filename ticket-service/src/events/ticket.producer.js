@@ -21,8 +21,11 @@ function generatePaymentId(ticketId, ticketType) {
  * Publish ticket created event
  * @param {Object} ticket - Ticket object
  * @param {string} ticketType - Type of ticket (short-term, long-term)
+ * @param {Object} options - Additional options
+ * @param {string} options.paymentSuccessUrl - URL to redirect after successful payment
+ * @param {string} options.paymentFailUrl - URL to redirect after failed payment
  */
-async function publishTicketCreated(ticket, ticketType) {
+async function publishTicketCreated(ticket, ticketType, options = {}) {
     try {
         // Use the payment ID that's already in the ticket
         const paymentId = ticket.paymentId;
@@ -39,11 +42,24 @@ async function publishTicketCreated(ticket, ticketType) {
                 validFrom: ticket.validFrom,
                 validUntil: ticket.validUntil,
                 fareBreakdown: ticket.fareBreakdown,
-                paymentMethod: ticket.paymentMethod
+                paymentMethod: ticket.paymentMethod,
+                paymentSuccessUrl: options.paymentSuccessUrl,
+                paymentFailUrl: options.paymentFailUrl,
+                currency: options.currency || 'VND'
             },
             status: 'PENDING_PAYMENT',
             createdAt: new Date().toISOString()
         };
+
+        // Log URLs for debugging
+        logger.info('Publishing ticket created event with URLs', {
+            ticketId: ticket.ticketId,
+            paymentId: paymentId,
+            hasPaymentSuccessUrl: !!options.paymentSuccessUrl,
+            hasPaymentFailUrl: !!options.paymentFailUrl,
+            paymentSuccessUrl: options.paymentSuccessUrl,
+            paymentFailUrl: options.paymentFailUrl
+        });
 
         await publish('ticket.created', ticket.ticketId, eventData);
         

@@ -64,6 +64,8 @@ class TicketService {
      * @param {string} ticketData.paymentMethod - Payment method
      * @param {string} ticketData.paymentId - Payment ID (optional)
      * @param {boolean} ticketData.waitForPayment - Whether to wait for payment response (default: true)
+     * @param {string} ticketData.paymentSuccessUrl - URL to redirect after successful payment
+     * @param {string} ticketData.paymentFailUrl - URL to redirect after failed payment
      * @returns {Promise<Object>} The created ticket with payment information
      */
     async createShortTermTicket(ticketData) {
@@ -194,7 +196,7 @@ class TicketService {
                     passengerBreakdown: fareCalculation.passengerBreakdown,
                     totalPassengers: fareCalculation.totalPassengers
                 },
-                paymentMethod: ticketData.paymentMethod || 'vnpay',
+                paymentMethod: ticketData.paymentMethod,
                 paymentId: paymentId,
                 qrCode: qrCodeData
             });
@@ -211,8 +213,22 @@ class TicketService {
             ticket.paymentId = finalPaymentId;
             await ticket.save();
 
-            // Publish ticket created event
-            const publishedPaymentId = await publishTicketCreated(ticket, 'short-term');
+            // Publish ticket created event with redirect URLs
+            const publishedPaymentId = await publishTicketCreated(ticket, 'short-term', {
+                paymentSuccessUrl: ticketData.paymentSuccessUrl,
+                paymentFailUrl: ticketData.paymentFailUrl,
+                currency: ticketData.currency || 'VND'
+            });
+
+            // Log URLs for debugging
+            logger.info('Ticket created with payment URLs', {
+                ticketId: ticket.ticketId,
+                paymentId: publishedPaymentId,
+                hasPaymentSuccessUrl: !!ticketData.paymentSuccessUrl,
+                hasPaymentFailUrl: !!ticketData.paymentFailUrl,
+                paymentSuccessUrl: ticketData.paymentSuccessUrl,
+                paymentFailUrl: ticketData.paymentFailUrl
+            });
 
             // If waitForPayment is true, wait for payment response
             let paymentResponse = null;
@@ -256,6 +272,8 @@ class TicketService {
      * @param {string} ticketData.paymentMethod - Payment method
      * @param {string} ticketData.paymentId - Payment ID (optional)
      * @param {boolean} ticketData.waitForPayment - Whether to wait for payment response (default: true)
+     * @param {string} ticketData.paymentSuccessUrl - URL to redirect after successful payment (optional)
+     * @param {string} ticketData.paymentFailUrl - URL to redirect after failed payment (optional)
      * @returns {Promise<Object>} The created ticket with payment information
      */
     async createLongTermTicket(ticketData) {
@@ -401,8 +419,12 @@ class TicketService {
             ticket.paymentId = finalPaymentId;
             await ticket.save();
 
-            // Publish ticket created event
-            const publishedPaymentId = await publishTicketCreated(ticket, 'long-term');
+            // Publish ticket created event with redirect URLs
+            const publishedPaymentId = await publishTicketCreated(ticket, 'long-term', {
+                paymentSuccessUrl: ticketData.paymentSuccessUrl,
+                paymentFailUrl: ticketData.paymentFailUrl,
+                currency: ticketData.currency || 'VND'
+            });
             
             // If waitForPayment is true, wait for payment response
             let paymentResponse = null;
