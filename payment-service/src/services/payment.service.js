@@ -274,6 +274,41 @@ async function capturePaypalPayment(orderId) {
 }
 
 /**
+ * Create a payment record
+ * @param {Object} params
+ * @param {string} params.paymentId
+ * @param {string} params.ticketId
+ * @param {string} params.passengerId
+ * @param {number} params.amount
+ * @param {string} params.paymentMethod
+ * @param {string} params.paymentStatus
+ * @param {Object} params.paymentGatewayResponse
+ * @returns {Promise<Payment>}
+ */
+async function createPayment({ paymentId, ticketId, passengerId, amount, paymentMethod, paymentStatus, paymentGatewayResponse }) {
+    const payment = await Payment.create({
+        paymentId,
+        ticketId,
+        passengerId,
+        paymentAmount: amount,
+        paymentMethod,
+        paymentStatus,
+        paymentDate: new Date(),
+        paymentGatewayResponse
+    });
+
+    // Create payment log
+    await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'PAYMENT',
+        paymentLogDate: new Date(),
+        paymentLogStatus: paymentStatus,
+    });
+
+    return payment;
+}
+
+/**
  * Get PayPal order details
  * @param {string} orderId - PayPal order ID
  * @returns {Promise<Object>}
@@ -288,6 +323,7 @@ module.exports = {
     handleVnpayIpn,
     createPaypalPayment,
     capturePaypalPayment,
+    createPayment,
     getPaypalOrder,
 };
 

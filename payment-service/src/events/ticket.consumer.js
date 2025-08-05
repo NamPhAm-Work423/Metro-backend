@@ -1,8 +1,16 @@
 const { Kafka } = require('kafkajs');
 const { logger } = require('../config/logger');
 const { Payment, Transaction, PaymentLog } = require('../models/index.model');
-const { createPaypalPayment } = require('../services/payment.service');
-const { publish } = require('../kafka/kafkaProducer');
+const { createPaypalPayment, createPayment } = require('../services/payment.service');
+const {
+    publishTicketPaymentReady,
+    publishTicketPaymentReadyFallback,
+    publishPaymentCompleted,
+    publishTicketPaymentReadyNonPaypal,
+    publishPaymentFailed,
+    publishPaymentCompletedForActivation,
+    publishPaymentCancelled
+} = require('./payment.producer');
 
 const kafka = new Kafka({
     clientId: process.env.KAFKA_CLIENT_ID || 'payment-service',
@@ -13,7 +21,12 @@ const kafka = new Kafka({
     }
 });
 
-const consumer = kafka.consumer({ groupId: 'payment-service-ticket-group' });
+const consumer = kafka.consumer({ 
+    groupId: 'payment-service-ticket-group',
+    sessionTimeout: 30000,
+    heartbeatInterval: 3000,
+    maxWaitTimeInMs: 1000
+});
 
 /**
  * Handle ticket.created event
@@ -69,61 +82,20 @@ async function handleTicketCreated(event) {
                         // Create approval URL with order ID
                         approvalLink = `${baseUrl}?cmd=_express-checkout&token=${paypalOrder.id}`;
                         
-                        logger.info('Created fallback PayPal approval URL', {
-                            isProduction,
-                            baseUrl,
-                            paypalOrderId: paypalOrder.id,
-                            approvalLink
-                        });
+
                     }
                     
-                    logger.info('PayPal order links analysis', {
-                        ticketId,
-                        paymentId,
-                        paypalOrderId: paypalOrder.id,
-                        hasLinks: !!paypalOrder.links,
-                        linksCount: paypalOrder.links?.length || 0,
-                        allLinks: paypalOrder.links?.map(link => ({
-                            rel: link.rel,
-                            href: link.href,
-                            method: link.method
-                        })) || [],
-                        originalApprovalLink: paypalOrder.links?.find(link => link.rel === 'approve')?.href,
-                        finalApprovalLink: approvalLink,
-                        isProduction: process.env.NODE_ENV === 'production',
-                        nodeEnv: process.env.NODE_ENV
-                    });
+
                     
                     publishPromises.push(
-                        publish('ticket.payment_ready', ticketId, {
-                            ticketId: ticketId,
-                            paymentId: paymentId,
-                            passengerId: passengerId,
-                            amount: amount,
-                            paymentMethod: 'paypal',
-                            paypalOrderId: paypalOrder.id,
-                            paypalOrder: paypalOrder,
-                            paymentUrl: approvalLink || null,
-                            status: 'PAYMENT_READY',
-                            createdAt: new Date().toISOString()
-                        }).catch(publishError => {
-                            logger.error('Failed to publish ticket.payment_ready event for PayPal', {
-                                error: publishError.message,
-                                paymentId,
-                                ticketId
-                            });
-                        })
+                        publishTicketPaymentReady(ticketId, paymentId, passengerId, amount, paypalOrder, approvalLink)
                     );
                 }
 
                 // Wait for all publish operations to complete
                 await Promise.all(publishPromises);
 
-                logger.info('PayPal payment processed successfully', {
-                    paymentId: paymentId,
-                    ticketId: ticketId,
-                    paypalOrderId: paypalOrder.id
-                });
+
 
             } catch (paypalError) {
                 logger.error('Failed to create PayPal payment', {
@@ -155,45 +127,26 @@ async function handleTicketCreated(event) {
                             };
                             await existingPayment.save();
 
-                            logger.info('Updated existing payment with fallback information', {
-                                paymentId: paymentId,
-                                ticketId: ticketId
-                            });
+                            
                         } else {
-                            // Create new payment record if it doesn't exist
-                            const testPayment = await Payment.create({
+                            await createPayment({
                                 paymentId: paymentId,
                                 ticketId: ticketId,
                                 passengerId: passengerId,
-                                paymentAmount: amount,
+                                amount: amount,
                                 paymentMethod: 'paypal',
                                 paymentStatus: 'PENDING',
-                                paymentDate: new Date(),
                                 paymentGatewayResponse: {
                                     error: 'PayPal authentication failed',
                                     fallbackMode: true,
                                     originalError: paypalError.message
                                 }
                             });
-
-                            logger.info('Created new fallback payment record', {
-                                paymentId: paymentId,
-                                ticketId: ticketId
-                            });
                         }
 
-                        // Create payment log for the fallback payment
-                        await PaymentLog.create({
-                            paymentId: paymentId,
-                            paymentLogType: 'PAYMENT',
-                            paymentLogDate: new Date(),
-                            paymentLogStatus: 'PENDING',
-                        });
 
-                        logger.info('Fallback payment log created successfully', {
-                            paymentId: paymentId,
-                            ticketId: ticketId
-                        });
+
+
                     } catch (dbError) {
                         logger.error('Failed to create/update fallback payment record', {
                             error: dbError.message,
@@ -206,31 +159,10 @@ async function handleTicketCreated(event) {
 
                     // Publish fallback event
                     if (ticketId && paymentId) {
-                        await publish('ticket.payment_ready', ticketId, {
-                            ticketId: ticketId,
-                            paymentId: paymentId,
-                            passengerId: passengerId,
-                            amount: amount,
-                            paymentMethod: 'paypal',
-                            paypalOrderId: null,
-                            paymentUrl: approvalLink,
-                            status: 'PAYMENT_READY',
-                            fallbackMode: true,
-                            error: 'PayPal authentication failed',
-                            createdAt: new Date().toISOString()
-                        }).catch(publishError => {
-                            logger.error('Failed to publish fallback payment event', {
-                                error: publishError.message,
-                                paymentId,
-                                ticketId
-                            });
-                        });
+                        await publishTicketPaymentReadyFallback(ticketId, paymentId, passengerId, amount, approvalLink);
                     }
 
-                    logger.info('Fallback payment created due to PayPal authentication failure', {
-                        paymentId: paymentId,
-                        ticketId: ticketId
-                    });
+
                     
                     return; 
                 }
@@ -241,14 +173,13 @@ async function handleTicketCreated(event) {
             // Default to other payment methods (not PayPal)
             try {
                 // Create payment record
-                const payment = await Payment.create({
+                const payment = await createPayment({
                     paymentId: paymentId,
                     ticketId: ticketId,
                     passengerId: passengerId,
-                    paymentAmount: amount,
+                    amount: amount,
                     paymentMethod: paymentMethod,
                     paymentStatus: 'COMPLETED',
-                    paymentDate: new Date(),
                     paymentGatewayResponse: {
                         ticketData: ticketData,
                         ticketType: ticketType,
@@ -258,55 +189,19 @@ async function handleTicketCreated(event) {
                     }
                 });
 
-                // Create payment log and publish events in parallel
-                const parallelOperations = [
-                    PaymentLog.create({
-                        paymentId: payment.paymentId,
-                        paymentLogType: 'PAYMENT',
-                        paymentLogDate: new Date(),
-                        paymentLogStatus: 'COMPLETED',
-                    })
-                ];
+                // Publish events in parallel
+                const parallelOperations = [];
 
                 // Add publish operations
                 if (paymentId && ticketId) {
                     parallelOperations.push(
-                        publish('payment.completed', paymentId, {
-                            paymentId: paymentId,
-                            ticketId: ticketId,
-                            passengerId: passengerId,
-                            amount: amount,
-                            paymentMethod: paymentMethod,
-                            status: 'COMPLETED',
-                            testMode: true
-                        }).catch(publishError => {
-                            logger.error('Failed to publish payment.completed event', {
-                                error: publishError.message,
-                                paymentId,
-                                ticketId
-                            });
-                        })
+                        publishPaymentCompleted(paymentId, ticketId, passengerId, amount, paymentMethod)
                     );
                 }
 
                 if (ticketId && paymentId) {
                     parallelOperations.push(
-                        publish('ticket.payment_ready', ticketId, {
-                            ticketId: ticketId,
-                            paymentId: paymentId,
-                            paymentUrl: null, // No payment URL for non-PayPal methods
-                            paymentMethod: paymentMethod,
-                            paypalOrderId: null,
-                            status: 'PAYMENT_READY',
-                            testMode: true,
-                            createdAt: new Date().toISOString()
-                        }).catch(publishError => {
-                            logger.error('Failed to publish ticket.payment_ready event', {
-                                error: publishError.message,
-                                paymentId,
-                                ticketId
-                            });
-                        })
+                        publishTicketPaymentReadyNonPaypal(ticketId, paymentId, paymentMethod)
                     );
                 }
 
@@ -338,13 +233,7 @@ async function handleTicketCreated(event) {
 
         if (paymentId && ticketId) {
             try {
-                await publish('payment.failed', paymentId, {
-                    paymentId: paymentId,
-                    ticketId: ticketId,
-                    error: error.message,
-                    status: 'FAILED',
-                    createdAt: new Date().toISOString()
-                });
+                await publishPaymentFailed(paymentId, ticketId, error.message);
             } catch (publishError) {
                 logger.error('Failed to publish payment.failed event', {
                     error: publishError.message,
@@ -372,11 +261,7 @@ async function handleTicketActivated(event) {
             paymentData 
         } = event;
 
-        logger.info('Processing ticket.activated event', {
-            ticketId,
-            paymentId,
-            status
-        });
+
 
         const payment = await Payment.findOne({
             where: { paymentId: paymentId }
@@ -408,19 +293,9 @@ async function handleTicketActivated(event) {
             paymentLogStatus: 'COMPLETED',
         });
 
-        await publish('payment.completed', paymentId, {
-            paymentId: paymentId,
-            ticketId: ticketId,
-            passengerId: passengerId,
-            status: 'COMPLETED',
-            paymentData: paymentData,
-            completedAt: new Date().toISOString()
-        });
+        await publishPaymentCompletedForActivation(paymentId, ticketId, passengerId, paymentData);
 
-        logger.info('Payment completed successfully', {
-            paymentId: paymentId,
-            ticketId: ticketId
-        });
+
 
     } catch (error) {
         logger.error('Failed to handle ticket.activated event', {
@@ -446,11 +321,7 @@ async function handleTicketCancelled(event) {
             reason 
         } = event;
 
-        logger.info('Processing ticket.cancelled event', {
-            ticketId,
-            paymentId,
-            reason
-        });
+
 
         const payment = await Payment.findOne({
             where: { paymentId: paymentId }
@@ -481,20 +352,9 @@ async function handleTicketCancelled(event) {
             paymentLogStatus: payment.paymentStatus,
         });
 
-        await publish('payment.cancelled', paymentId, {
-            paymentId: paymentId,
-            ticketId: ticketId,
-            passengerId: passengerId,
-            status: payment.paymentStatus,
-            reason: reason,
-            cancelledAt: new Date().toISOString()
-        });
+        await publishPaymentCancelled(paymentId, ticketId, passengerId, payment.paymentStatus, reason);
 
-        logger.info('Payment cancelled successfully', {
-            paymentId: paymentId,
-            ticketId: ticketId,
-            reason: reason
-        });
+
 
     } catch (error) {
         logger.error('Failed to handle ticket.cancelled event', {
@@ -526,17 +386,15 @@ async function startTicketConsumer() {
         });
 
         await consumer.run({
+            autoCommit: true,
+            autoCommitInterval: 5000,
+            autoCommitThreshold: 100,
             eachMessage: async ({ topic, partition, message }) => {
                 let event;
                 try {
                     event = JSON.parse(message.value.toString());
                     
-                    // Minimal logging for performance
-                    logger.debug('Processing ticket event', {
-                        topic,
-                        ticketId: event.ticketId,
-                        paymentId: event.paymentId
-                    });
+
 
                     switch (topic) {
                         case 'ticket.created':
