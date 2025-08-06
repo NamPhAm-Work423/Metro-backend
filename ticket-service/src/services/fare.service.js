@@ -30,7 +30,7 @@ class FareService {
      * yearly_pass: 365 days
      * lifetime_pass: 100 years
     */
-            async getAllFares(filters = {}) {
+    async getAllFares(filters = {}) {
         try {
             const where = {};
             
@@ -63,6 +63,17 @@ class FareService {
             return fares;
         } catch (error) {
             logger.error('Error fetching fares', { error: error.message, filters });
+            throw error;
+        }
+    }
+
+    async getAllActiveFares() {
+        try {
+            const fares = await Fare.findAll({ where: { isActive: true } });
+            logger.info('Active fares retrieved successfully', { fares });
+            return fares;
+        } catch (error) {
+            logger.error('Error fetching active fares', { error: error.message });
             throw error;
         }
     }

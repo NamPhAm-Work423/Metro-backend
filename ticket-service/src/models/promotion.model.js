@@ -106,8 +106,53 @@ const Promotion = sequelize.define('Promotion', {
         {
             fields: ['isActive']
         }
-    ]
+    ],
+    hooks: {
+        beforeCreate: async (promotion) => {
+            if (!promotion.code) {
+                let isUnique = false;
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                while (!isUnique && attempts < maxAttempts) {
+                    promotion.code = Promotion.generateRandomCode();
+                    attempts++;
+                    
+                    const existingPromotion = await Promotion.findOne({ 
+                        where: { code: promotion.code } 
+                    });
+                    
+                    if (!existingPromotion) {
+                        isUnique = true;
+                        logger.info('Unique promotion code generated', { 
+                            code: promotion.code, 
+                            attempts 
+                        });
+                    } else {
+                        logger.warn('Duplicate promotion code generated, retrying', { 
+                            code: promotion.code, 
+                            attempt: attempts 
+                        });
+                    }
+                }
+                
+                if (!isUnique) {
+                    throw new Error('Unable to generate unique promotion code after multiple attempts');
+                }
+            }
+        }
+    }
 });
+
+// Static methods
+Promotion.generateRandomCode = function(length = 15) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
 
 // Instance methods
 Promotion.prototype.toJSON = function() {

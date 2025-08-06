@@ -4,26 +4,26 @@ const fareController = require('../controllers/fare.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Public fare information (all authenticated users)
-router.get('/get-all', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getAllFares);
-router.get('/search', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.searchFares);
+router.get('/getAllActiveFares', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getAllFares);
+router.get('/searchFares', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.searchFares);
 
 // Route-based fare queries (all authenticated users)
-router.get('/route/:routeId', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresByRoute);
-router.get('/stations/:originId/:destinationId', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresBetweenStations);
-router.get('/zones/:zones', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresByZone);
+router.get('/getFaresByRoute/:routeId', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresByRoute);
+router.get('/getFaresBetweenStations/:originId/:destinationId', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresBetweenStations);
+router.get('/getFaresByZone/:zones', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFaresByZone);
 
 // Fare calculation
-router.get('/:id/calculate', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.calculateFarePrice);
+router.get('/calculateFarePrice/:id', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.calculateFarePrice);
 
 // Administrative operations
-router.get('/statistics', ...authorizeRoles('staff', 'admin'), fareController.getFareStatistics);
-router.put('/bulk-update', ...authorizeRoles('admin'), fareController.bulkUpdateFares);
+router.get('/fareStatistics', ...authorizeRoles('staff', 'admin'), fareController.getFareStatistics);
+router.put('/bulkUpdateFares', ...authorizeRoles('admin'), fareController.bulkUpdateFares);
 
 // CRUD operations
-router.get('/', ...authorizeRoles('staff', 'admin'), fareController.getAllFares);
-router.post('/', ...authorizeRoles('admin'), fareController.createFare);
-router.get('/:id', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFareById);
-router.put('/:id', ...authorizeRoles('admin'), fareController.updateFare);
-router.delete('/:id', ...authorizeRoles('admin'), fareController.deleteFare);
+router.get('/getAllFares', ...authorizeRoles('staff', 'admin'), fareController.getAllFares);
+router.post('/createFare', ...authorizeRoles('admin'), fareController.createFare);
+router.get('/getFareById/:id', ...authorizeRoles('passenger', 'staff', 'admin'), fareController.getFareById);
+router.put('/updateFare/:id', ...authorizeRoles('admin'), fareController.updateFare);
+router.delete('/deleteFare/:id', ...authorizeRoles('admin'), fareController.deleteFare);
 
 module.exports = router;

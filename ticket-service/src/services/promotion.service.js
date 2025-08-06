@@ -7,7 +7,14 @@ class PromotionService {
         try {
             const promotion = await Promotion.create(promotionData);
             logger.info('Promotion created successfully', { promotionId: promotion.promotionId, code: promotion.code });
-            return promotion;
+            return {
+                success: true,
+                message: 'Promotion created successfully',
+                data: {
+                    code: promotion.code,
+                    promotionId: promotion.promotionId
+                }
+            };
         } catch (error) {
             logger.error('Error creating promotion', { error: error.message, promotionData });
             throw error;

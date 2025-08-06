@@ -27,6 +27,17 @@ class FareController {
         });
     });
 
+    // GET /v1/fares/getAllActiveFares
+    getAllActiveFares = asyncErrorHandler(async (req, res, next) => {
+        const fares = await fareService.getAllActiveFares();
+        res.status(200).json({
+            success: true,
+            message: 'Active fares retrieved successfully',
+            data: fares,
+            count: fares.length
+        });
+    });
+
     // GET /v1/fares/:id
     getFareById = asyncErrorHandler(async (req, res, next) => {
         const { id } = req.params;
