@@ -3,6 +3,7 @@ const Ticket = require('./ticket.model');
 const Fare = require('./fare.model');
 const Promotion = require('./promotion.model');
 const TransitPass = require('./transitPass.model');
+const PassengerDiscount = require('./passengerDiscount.model');
 
 // Define relationships between models
 
@@ -27,5 +28,6 @@ module.exports = {
     Ticket,
     Fare,
     Promotion,
-    TransitPass
+    TransitPass,
+    PassengerDiscount
 };

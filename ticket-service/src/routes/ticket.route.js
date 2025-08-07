@@ -3,6 +3,9 @@ const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
+// Price calculation routes (for frontend display)
+router.post('/calculate-price', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.calculateTicketPrice);
+
 // Passenger ticket creation
 router.post('/create-short-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createShortTermTicket);
 router.post('/create-long-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createLongTermTicket);

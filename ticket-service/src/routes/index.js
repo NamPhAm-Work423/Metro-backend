@@ -5,6 +5,7 @@ const router = express.Router();
 const ticketRoutes = require('./ticket.route');
 const fareRoutes = require('./fare.route');
 const promotionRoutes = require('./promotion.route');
+const passengerDiscountRoutes = require('./passengerDiscount.route');
 
 // Create sub-router so that all endpoints are prefixed with /ticket
 const ticketServiceRouter = express.Router();
@@ -13,6 +14,7 @@ const ticketServiceRouter = express.Router();
 ticketServiceRouter.use('/tickets', ticketRoutes);
 ticketServiceRouter.use('/fares', fareRoutes);
 ticketServiceRouter.use('/promotions', promotionRoutes);
+ticketServiceRouter.use('/passengerDiscounts', passengerDiscountRoutes);
 
 // Health check for the entire service
 ticketServiceRouter.get('/health', (req, res) => {
@@ -25,7 +27,8 @@ ticketServiceRouter.get('/health', (req, res) => {
         endpoints: {
             tickets: '/api/v1/ticket/tickets',
             fares: '/api/v1/ticket/fares',
-            promotions: '/api/v1/ticket/promotions'
+            promotions: '/api/v1/ticket/promotions',
+            passengerDiscounts: '/api/v1/ticket/passengerDiscounts'
         }
     });
 });

@@ -1,5 +1,6 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
+const { logger } = require('../config/logger');
 
 const Promotion = sequelize.define('Promotion', {
     promotionId: {
@@ -7,7 +8,7 @@ const Promotion = sequelize.define('Promotion', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    code: {
+    promotionCode: {
         type: DataTypes.STRING(50),
         allowNull: true,
         unique: true,
@@ -95,7 +96,7 @@ const Promotion = sequelize.define('Promotion', {
     timestamps: true,
     indexes: [
         {
-            fields: ['code']
+            fields: ['promotionCode']
         },
         {
             fields: ['type']
@@ -109,28 +110,28 @@ const Promotion = sequelize.define('Promotion', {
     ],
     hooks: {
         beforeCreate: async (promotion) => {
-            if (!promotion.code) {
+            if (!promotion.promotionCode) {
                 let isUnique = false;
                 let attempts = 0;
                 const maxAttempts = 10;
                 
                 while (!isUnique && attempts < maxAttempts) {
-                    promotion.code = Promotion.generateRandomCode();
+                    promotion.promotionCode = Promotion.generateRandomCode();
                     attempts++;
                     
                     const existingPromotion = await Promotion.findOne({ 
-                        where: { code: promotion.code } 
+                        where: { promotionCode: promotion.promotionCode } 
                     });
                     
                     if (!existingPromotion) {
                         isUnique = true;
                         logger.info('Unique promotion code generated', { 
-                            code: promotion.code, 
+                            promotionCode: promotion.promotionCode, 
                             attempts 
                         });
                     } else {
                         logger.warn('Duplicate promotion code generated, retrying', { 
-                            code: promotion.code, 
+                            promotionCode: promotion.promotionCode, 
                             attempt: attempts 
                         });
                     }

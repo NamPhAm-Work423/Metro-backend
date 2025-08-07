@@ -1,4 +1,5 @@
 const ticketService = require('../services/ticket.service');
+const TicketPriceCalculator = require('../services/ticket/calculators/TicketPriceCalculator');
 const { Ticket } = require('../models/index.model');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
@@ -493,6 +494,64 @@ class TicketController {
                     status: 'processing',
                     message: 'Payment URL is being generated. Please check back in a few seconds.'
                 }
+            });
+        }
+    });
+
+    // POST /v1/tickets/calculate-price
+    calculateTicketPrice = asyncErrorHandler(async (req, res, next) => {
+        try {
+            const {
+                fromStation,
+                toStation,
+                tripType = 'Oneway',
+                promotionId = null,
+                promotionCode = null
+            } = req.body;
+
+            // Validate required parameters
+            if (!fromStation || !toStation) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'From station and to station are required'
+                });
+            }
+
+            // Map passenger counts to correct keys
+            const passengerCounts = {
+                numAdults: req.body.numAdults || req.body.adult || 0,
+                numElder: req.body.numElder || req.body.elder || 0,
+                numTeenager: req.body.numTeenager || req.body.teenager || 0,
+                numChild: req.body.numChild || req.body.child || 0,
+                numSenior: req.body.numSenior || req.body.senior || 0,
+                numStudent: req.body.numStudent || req.body.student || 0,
+            };
+
+            // Prepare promotionData
+            const promotionData = promotionId ? { promotionId } : 
+                                    promotionCode ? { promotionCode } : null;
+
+            // Use TicketPriceCalculator for comprehensive price calculation
+            const priceCalculation = await TicketPriceCalculator.calculateTotalPriceForPassengers(
+                fromStation,
+                toStation,
+                tripType.toLowerCase(),
+                passengerCounts,
+                promotionData
+            );
+
+            res.json(priceCalculation);
+
+        } catch (error) {
+            logger.error('Error calculating ticket price', {
+                error: error.message,
+                body: req.body
+            });
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to calculate ticket price',
+                error: error.message
             });
         }
     });

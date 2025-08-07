@@ -204,7 +204,37 @@ class UserEventConsumer {
                 });
                 return;
             }
-    
+            
+            // For admin users, create a virtual passenger cache without requiring passenger profile
+            if (userData.roles.includes('admin')) {
+                logger.info('Admin user detected, creating virtual passenger cache', {
+                    userId: userData.userId
+                });
+                
+                const redisClient = getClient();
+                const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+                
+                const adminPassengerData = {
+                    passengerId: process.env.ADMIN_PASSENGER_ID, // Use userId as passengerId for admin
+                    userId: userData.userId,
+                    firstName: 'Admin',
+                    lastName: 'User',
+                    phoneNumber: '0000000000',
+                    dateOfBirth: null,
+                    gender: null,
+                    updatedAt: new Date().toISOString()
+                };
+                
+                await passengerCache.setPassenger(adminPassengerData);
+                logger.info('Admin passenger cache successfully synced on login', {
+                    passengerId: adminPassengerData.passengerId,
+                    userId: adminPassengerData.userId,
+                    syncSource: 'admin-login-event'
+                });
+                return;
+            }
+            
+            // For regular passengers, check if they have passenger role
             if (!userData.roles.includes('passenger')) {
                 logger.info('User is not a passenger, skipping passenger cache sync', {
                     userId: userData.userId

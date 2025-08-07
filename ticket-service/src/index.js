@@ -76,6 +76,7 @@ async function startApplication() {
         if (typeof runSeeds === 'function') {
             await runSeeds();
         }
+        
         // Initialize Redis
         await initializeRedis();
         logger.info('Redis initialized successfully');

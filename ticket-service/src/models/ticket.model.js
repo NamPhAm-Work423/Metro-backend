@@ -19,7 +19,6 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.UUID,
         allowNull: true, //For guest ticket
         validate: {
-            notEmpty: true,
             isUUID: 4
         }
     },
@@ -27,7 +26,6 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.UUID,
         allowNull: true,
         validate: {
-            notEmpty: true,
             isUUID: 4
         }
     },
@@ -35,7 +33,6 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.UUID,
         allowNull: true, //If null, it is a long term ticket
         validate: {
-            notEmpty: true,
             isUUID: 4
         }
     },

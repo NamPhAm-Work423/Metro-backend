@@ -89,7 +89,7 @@ Fare.prototype.calculateStationBasedPrice = function(stationCount) {
 Fare.prototype.calculatePriceForTrip = function(stationCount, tripType = 'Oneway') {
     let price = this.calculateStationBasedPrice(stationCount);
     
-    if (tripType === 'Return') {
+    if (tripType === 'Return' || tripType === 'return') {
         price = price * 1.5;
     }
     

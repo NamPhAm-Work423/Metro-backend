@@ -13,7 +13,7 @@ module.exports = async function seedAdmin() {
     try {
         const existing = await User.findOne({
             where: {
-                roles: { [Op.contains]: ['admin'] }
+                roles: { [Op.contains]: ['passenger', 'staff', 'admin'] }
             }
         });
 
@@ -34,7 +34,7 @@ module.exports = async function seedAdmin() {
             username,
             password: hash,
             isVerified: true,
-            roles: ['admin']
+            roles: ['passenger', 'staff', 'admin']
         };
 
         if (userId) {

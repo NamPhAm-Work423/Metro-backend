@@ -81,9 +81,9 @@ const seedFares = async () => {
             updateOnDuplicate: ['price', 'updatedAt']
         });
 
-        logger.info(`✅ Seeded ${routeFares.length} route fares and ${transitPasses.length} system passes`);
+        logger.info(`Seeded ${routeFares.length} route fares and ${transitPasses.length} system passes`);
     } catch (error) {
-        logger.error('❌ Error seeding fares:', error);
+        logger.error('Error seeding fares:', error);
         throw error;
     }
 };
