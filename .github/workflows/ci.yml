@@ -155,8 +155,7 @@ jobs:
           output: trivy-${{ matrix.name }}.sarif
           vuln-type: 'os,library'
           exit-code: '0'
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
