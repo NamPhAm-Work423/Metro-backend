@@ -147,6 +147,10 @@ jobs:
           build-args: |
             APP_VERSION=${{ steps.vars.outputs.release_tag }}
 
+      - name: Pull image for scan (non-PR)
+        if: github.event_name != 'pull_request'
+        run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
+
       - name: Trivy scan (SHA image)
         uses: aquasecurity/trivy-action@0.24.0
         with:
