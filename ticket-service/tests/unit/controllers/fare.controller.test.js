@@ -95,11 +95,15 @@ describe('Fare Controller', () => {
 
     it('should return 404 when fare not found', async () => {
       req.params.id = 'fare-999';
-      fareService.getFareById.mockRejectedValue(new Error('Fare not found'));
+      fareService.getFareById.mockResolvedValue(null);
 
-      await expect(fareController.getFareById(req, res, next))
-        .rejects
-        .toThrow('Fare not found');
+      await fareController.getFareById(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Fare not found'
+      });
     });
   });
 

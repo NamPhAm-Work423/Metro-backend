@@ -118,9 +118,9 @@ describe('Fare Routes', () => {
 
   // Public fare information routes
   describe('Public Fare Information Routes', () => {
-    it('GET /api/fares should return 200', async () => {
+    it('GET /api/fares/getAllFares should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares')
+        .get('/api/fares/getAllFares')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -129,20 +129,9 @@ describe('Fare Routes', () => {
       expect(res.body.data).toHaveLength(2);
     });
 
-    it('GET /api/fares/get-all should return 200', async () => {
+    it('GET /api/fares/getFareById/:id should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/get-all')
-        .set('Authorization', 'Bearer test');
-
-      expect(res.statusCode).toBe(200);
-      expect(fareControllerMock.getAllFares).toHaveBeenCalled();
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveLength(2);
-    });
-
-    it('GET /api/fares/:id should return 200', async () => {
-      const res = await request(app)
-        .get('/api/fares/fare-123')
+        .get('/api/fares/getFareById/fare-123')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -150,9 +139,9 @@ describe('Fare Routes', () => {
       expect(res.body.data.fareId).toBe('fare-123');
     });
 
-    it('GET /api/fares/route/:routeId should return 200', async () => {
+    it('GET /api/fares/getFaresByRoute/:routeId should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/route/route-123')
+        .get('/api/fares/getFaresByRoute/route-123')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -163,9 +152,9 @@ describe('Fare Routes', () => {
 
   // Fare calculation routes
   describe('Fare Calculation Routes', () => {
-    it('GET /api/fares/:id/calculate should return 200', async () => {
+    it('GET /api/fares/calculateFarePrice/:id should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/fare-123/calculate')
+        .get('/api/fares/calculateFarePrice/fare-123')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -173,18 +162,18 @@ describe('Fare Routes', () => {
       expect(res.body.data.currency).toBe('VND');
     });
 
-    it('GET /api/fares/:id/calculate should handle peak hour', async () => {
+    it('GET /api/fares/calculateFarePrice/:id should handle peak hour', async () => {
       const res = await request(app)
-        .get('/api/fares/fare-123/calculate?isPeakHour=true')
+        .get('/api/fares/calculateFarePrice/fare-123?isPeakHour=true')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
       expect(fareControllerMock.calculateFarePrice).toHaveBeenCalled();
     });
 
-    it('GET /api/fares/search should return 200', async () => {
+    it('GET /api/fares/searchFares should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/search?originStationId=station-a&destinationStationId=station-b')
+        .get('/api/fares/searchFares?originStationId=station-a&destinationStationId=station-b')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -195,9 +184,9 @@ describe('Fare Routes', () => {
 
   // Admin management routes
   describe('Admin Management Routes', () => {
-    it('POST /api/fares should return 201', async () => {
+    it('POST /api/fares/createFare should return 201', async () => {
       const res = await request(app)
-        .post('/api/fares')
+        .post('/api/fares/createFare')
         .set('Authorization', 'Bearer test')
         .send({
           routeId: 'route-123',
@@ -211,9 +200,9 @@ describe('Fare Routes', () => {
       expect(res.body.data.basePrice).toBe(20000);
     });
 
-    it('PUT /api/fares/:id should return 200', async () => {
+    it('PUT /api/fares/updateFare/:id should return 200', async () => {
       const res = await request(app)
-        .put('/api/fares/fare-123')
+        .put('/api/fares/updateFare/fare-123')
         .set('Authorization', 'Bearer test')
         .send({
           basePrice: 25000
@@ -224,9 +213,9 @@ describe('Fare Routes', () => {
       expect(res.body.data.basePrice).toBe(25000);
     });
 
-    it('DELETE /api/fares/:id should return 200', async () => {
+    it('DELETE /api/fares/deleteFare/:id should return 200', async () => {
       const res = await request(app)
-        .delete('/api/fares/fare-123')
+        .delete('/api/fares/deleteFare/fare-123')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -234,9 +223,9 @@ describe('Fare Routes', () => {
       expect(res.body.message).toBe('Fare deleted successfully');
     });
 
-    it('GET /api/fares/statistics should return 200', async () => {
+    it('GET /api/fares/fareStatistics should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/statistics')
+        .get('/api/fares/fareStatistics')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -249,7 +238,7 @@ describe('Fare Routes', () => {
   describe('Query Parameter Handling', () => {
     it('should pass query filters to getAllFares', async () => {
       const res = await request(app)
-        .get('/api/fares?routeId=route-123&isActive=true')
+        .get('/api/fares/getAllFares?routeId=route-123&isActive=true')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -258,7 +247,7 @@ describe('Fare Routes', () => {
 
     it('should pass query filters to getFaresByRoute', async () => {
       const res = await request(app)
-        .get('/api/fares/route/route-123?ticketType=oneway&passengerType=adult')
+        .get('/api/fares/getFaresByRoute/route-123?ticketType=oneway&passengerType=adult')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -267,7 +256,7 @@ describe('Fare Routes', () => {
 
     it('should pass query filters to getFareStatistics', async () => {
       const res = await request(app)
-        .get('/api/fares/statistics?routeId=route-123&dateFrom=2024-01-01&dateTo=2024-12-31')
+        .get('/api/fares/fareStatistics?routeId=route-123&dateFrom=2024-01-01&dateTo=2024-12-31')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -280,7 +269,7 @@ describe('Fare Routes', () => {
     it('should handle fare operations with valid UUID', async () => {
       const validUuid = '123e4567-e89b-12d3-a456-426614174000';
       const res = await request(app)
-        .get(`/api/fares/${validUuid}`)
+        .get(`/api/fares/getFareById/${validUuid}`)
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -290,7 +279,7 @@ describe('Fare Routes', () => {
     it('should handle route-specific fare queries', async () => {
       const validRouteId = '123e4567-e89b-12d3-a456-426614174000';
       const res = await request(app)
-        .get(`/api/fares/route/${validRouteId}`)
+        .get(`/api/fares/getFaresByRoute/${validRouteId}`)
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
@@ -300,18 +289,18 @@ describe('Fare Routes', () => {
 
   // Test additional route endpoints
   describe('Additional Route Endpoints', () => {
-    it('GET /api/fares/stations/:originId/:destinationId should return 200', async () => {
+    it('GET /api/fares/getFaresBetweenStations/:originId/:destinationId should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/stations/station-a/station-b')
+        .get('/api/fares/getFaresBetweenStations/station-a/station-b')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);
       expect(fareControllerMock.getFaresBetweenStations).toHaveBeenCalled();
     });
 
-    it('GET /api/fares/zones/:zones should return 200', async () => {
+    it('GET /api/fares/getFaresByZone/:zones should return 200', async () => {
       const res = await request(app)
-        .get('/api/fares/zones/3')
+        .get('/api/fares/getFaresByZone/3')
         .set('Authorization', 'Bearer test');
 
       expect(res.statusCode).toBe(200);

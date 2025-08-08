@@ -98,11 +98,15 @@ describe('Promotion Controller', () => {
 
     it('should return 404 when promotion not found', async () => {
       req.params.id = 'promo-999';
-      promotionService.getPromotionById.mockRejectedValue(new Error('Promotion not found'));
+      promotionService.getPromotionById.mockResolvedValue(null);
 
-      await expect(promotionController.getPromotionById(req, res, next))
-        .rejects
-        .toThrow('Promotion not found');
+      await promotionController.getPromotionById(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Promotion not found'
+      });
     });
   });
 
