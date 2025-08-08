@@ -5,6 +5,7 @@ const makeModel = () => ({
   create: jest.fn().mockResolvedValue({}),
   update: jest.fn().mockResolvedValue([1]),
   destroy: jest.fn().mockResolvedValue(1),
+  bulkCreate: jest.fn().mockResolvedValue([]),
 });
 
 module.exports = {

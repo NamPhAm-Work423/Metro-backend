@@ -25,6 +25,9 @@ module.exports = {
     '^\.{1,2}/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
     '^.+/src/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
     '^src/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
+    // Bypass auth middleware for route tests
+    '^\\.{1,2}/middlewares/authorization$': '<rootDir>/test/mocks/authorization.mock.js',
+    '^src/middlewares/authorization$': '<rootDir>/test/mocks/authorization.mock.js',
   },
 };
 

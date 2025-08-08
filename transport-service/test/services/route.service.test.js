@@ -93,6 +93,69 @@ describe('route.service', () => {
     const result = await routeService.calculateRouteDistance('r1');
     expect(result).toEqual({ routeId: 'r1', distance: 12.3, estimatedDuration: 45 });
   });
+
+  test('getAllRoutes applies filters (isActive, name, originId, destinationId)', async () => {
+    const mockList = [];
+    Route.findAll.mockResolvedValue(mockList);
+    const filters = { isActive: true, name: 'Line', originId: 'o1', destinationId: 'd1' };
+    await routeService.getAllRoutes(filters);
+    expect(Route.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isActive: true,
+          name: expect.any(Object),
+          originId: 'o1',
+          destinationId: 'd1',
+        }),
+      })
+    );
+  });
+
+  test('createRoute propagates errors', async () => {
+    Route.create.mockRejectedValue(new Error('db'));
+    await expect(routeService.createRoute({})).rejects.toThrow('db');
+  });
+
+  test('getAllRoutes propagates errors', async () => {
+    Route.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeService.getAllRoutes()).rejects.toThrow('db');
+  });
+
+  test('deleteRoute throws when not found', async () => {
+    Route.findByPk.mockResolvedValue(null);
+    await expect(routeService.deleteRoute('missing')).rejects.toThrow('Route not found');
+  });
+
+  test('deleteRoute propagates destroy error', async () => {
+    const instance = { destroy: jest.fn().mockRejectedValue(new Error('destroy-fail')) };
+    Route.findByPk.mockResolvedValue(instance);
+    await expect(routeService.deleteRoute('r1')).rejects.toThrow('destroy-fail');
+  });
+
+  test('getActiveRoutes propagates errors', async () => {
+    Route.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeService.getActiveRoutes()).rejects.toThrow('db');
+  });
+
+  test('getRoutesByStation propagates errors', async () => {
+    Route.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeService.getRoutesByStation('s1')).rejects.toThrow('db');
+  });
+
+  test('findRoutesBetweenStations propagates errors', async () => {
+    Route.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeService.findRoutesBetweenStations('a', 'b')).rejects.toThrow('db');
+  });
+
+  test('calculateRouteDistance throws when not found', async () => {
+    Route.findByPk.mockResolvedValue(null);
+    await expect(routeService.calculateRouteDistance('missing')).rejects.toThrow('Route not found');
+  });
+
+  test('calculateRouteDistance propagates errors', async () => {
+    Route.findByPk.mockRejectedValue(new Error('db'));
+    await expect(routeService.calculateRouteDistance('r1')).rejects.toThrow('db');
+  });
 });
 
 
