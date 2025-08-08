@@ -10,7 +10,8 @@ on:
     types: [published]
 
 env:
-  REGISTRY: ghcr.io/${{ toLower(github.repository_owner) }}
+  CHART_PATH: deploy/helm/metro
+  NAMESPACE: metro
   CHART_PATH: deploy/helm/metro
   NAMESPACE: metro
 
@@ -71,6 +72,9 @@ jobs:
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
+
+      - name: Set REGISTRY env (lowercase owner)
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
       - name: Ensure namespace
         run: kubectl create ns $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
