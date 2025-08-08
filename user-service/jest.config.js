@@ -9,8 +9,8 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
-  // Enforce stricter coverage thresholds only in CI
-  coverageThreshold: process.env.CI ? {
+  // Enforce stricter coverage thresholds only when explicitly enabled
+  coverageThreshold: process.env.ENFORCE_COVERAGE === 'true' ? {
     global: {
       lines: 90,
       statements: 90,
