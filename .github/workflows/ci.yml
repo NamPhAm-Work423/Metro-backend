@@ -80,7 +80,23 @@ jobs:
       - name: Install deps (Node)
         if: matrix.runtime == 'node'
         working-directory: ${{ matrix.path }}
-        run: npm ci
+        run: |
+          npm ci --no-audit --no-fund || (
+            echo "npm ci failed, syncing lockfile..." && \
+            npm install --package-lock-only --no-audit --no-fund && \
+            npm ci --no-audit --no-fund
+          )
+
+      - name: Set ENFORCE_COVERAGE
+        if: matrix.runtime == 'node'
+        run: |
+          if [[ "${{ github.event_name }}" == 'push' && "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "ENFORCE_COVERAGE=true" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "ENFORCE_COVERAGE=true" >> $GITHUB_ENV
+          else
+            echo "ENFORCE_COVERAGE=false" >> $GITHUB_ENV
+          fi
 
       - name: Test (Node)
         if: matrix.runtime == 'node'
