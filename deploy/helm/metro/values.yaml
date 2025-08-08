@@ -1,0 +1,31 @@
+global:
+  registry: ghcr.io/CHANGE_ME_ORG
+  imagePullPolicy: IfNotPresent
+  domain: example.com
+
+# Common defaults for templates
+replicaCount: 2
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  tls: true
+
+probes:
+  livenessPath: /health
+  readinessPath: /health
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+

@@ -1,0 +1,19 @@
+name: payment-service
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-payment-service
+  tag: ""
+ports:
+  http: 8006
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8006"
+ingress:
+  enabled: true
+  host: payment.{{ .Values.global.domain }}
+metricsPath: /metrics
+metricsPort: 8006
+
+

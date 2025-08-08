@@ -1,0 +1,19 @@
+name: auth-service
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-auth-service
+  tag: ""
+ports:
+  http: 8001
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8001"
+ingress:
+  enabled: true
+  host: auth.{{ .Values.global.domain }}
+metricsPath: /metrics
+metricsPort: 8001
+
+

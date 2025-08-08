@@ -1,3 +1,22 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+x-deploy: &default-deploy
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 256M
+
 services:
   # NGINX - Optional
   nginx-proxy:
@@ -52,15 +71,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
   # All microservices - EXPOSE ONLY (no external ports)
   auth-service:
@@ -97,15 +110,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
   user-service:
     build:
@@ -138,15 +145,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
   transport-service:
     build:
@@ -179,15 +180,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
   ticket-service:
     build:
@@ -221,15 +216,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
   public-service:
     build:
@@ -261,15 +250,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+    logging: *default-logging
+    <<: *default-restart
+    <<: *default-deploy
 
 
   payment-service:
@@ -294,30 +277,46 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-restart
 
-  # report-service:
-  #   build:
-  #     context: ./report-service
-  #   container_name: report-service
-  #   expose:
-  #     - "8007"  # Internal only
-  #   env_file:
-  #     - ./report-service/.env
-  #   volumes:
-  #     - ./report-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8007/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
+  report-service:
+    build:
+      context: ./report-service
+    container_name: report-service
+    expose:
+      - "8007"  # Internal only
+    env_file:
+      - ./report-service/.env
+    volumes:
+      - ./report-service:/app
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   
 
@@ -342,7 +341,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-restart
 
   prometheus:
     image: prom/prometheus:latest

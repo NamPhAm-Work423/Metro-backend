@@ -8,8 +8,9 @@ from contextlib import asynccontextmanager
 
 from .config.logger import logger, RequestLoggerMiddleware
 from .config.database import init_db, close_db
+from .config.settings import get_settings
 from .config.metrics import metrics_endpoint, get_metrics_content_type
-from .controllers.report_controller import router as report_router
+from .routes.report_routes import router as report_router
 from .events.report_consumer import ReportEventConsumer
 
 # Global variables for graceful shutdown
@@ -65,12 +66,13 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:8000",    # API Gateway
-        "http://api-gateway:8000",  # Docker service
-        "http://localhost:3000",    # Frontend
+        "http://localhost:8000",
+        "http://api-gateway:8000",
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],

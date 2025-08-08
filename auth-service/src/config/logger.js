@@ -8,27 +8,39 @@ const logformat = winston.format.combine(
   winston.format.json()
 );
 
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-  format: logformat,
-  defaultMeta: { service: 'auth-service' },
-  transports: [
-    // Log to the console
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    }),
-    // Log to a file
+const isTestEnv = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+
+const transports = [];
+
+// Console transport (silent during tests)
+transports.push(
+  new winston.transports.Console({
+    silent: isTestEnv,
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
+  })
+);
+
+// File transport (disabled during tests)
+if (!isTestEnv) {
+  transports.push(
     new DailyRotateFile({
       filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       level: 'error',
       maxSize: '20m',
       maxFiles: '14d',
-    }),
-  ]
+    })
+  );
+}
+
+const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  format: logformat,
+  defaultMeta: { service: 'auth-service' },
+  transports,
 });
 
 const requestLogger = (req, res, next) => {

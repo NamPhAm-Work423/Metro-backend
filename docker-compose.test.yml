@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  tests-auth:
+    build:
+      context: ./auth-service
+      target: test
+    environment:
+      NODE_ENV: test
+      EMAIL_TEST_MODE: 'true'
+      JWT_ACCESS_SECRET: test-access
+      JWT_REFRESH_SECRET: test-refresh
+      REDIS_KEY_PREFIX: test-auth::your-root-password
+    command: ["npm", "test", "--", "--runInBand"]
+    # No external ports; test runs then exits
+

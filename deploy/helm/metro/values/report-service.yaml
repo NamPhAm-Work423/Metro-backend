@@ -1,0 +1,17 @@
+name: report-service
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-report-service
+  tag: ""
+ports:
+  http: 8007
+env:
+  - name: ENV
+    value: production
+ingress:
+  enabled: true
+  host: report.{{ .Values.global.domain }}
+metricsPath: /metrics
+metricsPort: 8007
+
+

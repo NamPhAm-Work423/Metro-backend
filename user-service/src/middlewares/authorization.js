@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const verifyServiceAuth = (req, res, next) => {
     const authHeader = req.headers['x-service-auth'];
     
-    console.log('🔍 Service Auth Debug:', {
+    console.log('Service Auth Debug:', {
         hasAuthHeader: !!authHeader,
         authHeaderPreview: authHeader ? authHeader.substring(0, 20) + '...' : 'null',
         allHeaders: Object.keys(req.headers),
@@ -12,7 +12,7 @@ const verifyServiceAuth = (req, res, next) => {
     });
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.error('❌ Missing service auth header:', {
+        console.error('Missing service auth header:', {
             authHeader,
             headers: req.headers
         });
@@ -31,11 +31,11 @@ const verifyServiceAuth = (req, res, next) => {
     
     try {
         if (!process.env.SERVICE_JWT_SECRET) {
-            console.error('❌ SERVICE_JWT_SECRET not found in environment');
+            console.error('SERVICE_JWT_SECRET not found in environment');
             throw new Error('SERVICE_JWT_SECRET environment variable is required');
         }
 
-        console.log('🔑 Attempting to verify service JWT:', {
+        console.log('Attempting to verify service JWT:', {
             tokenPrefix: token.substring(0, 20) + '...',
             secretAvailable: !!process.env.SERVICE_JWT_SECRET,
             secretPrefix: process.env.SERVICE_JWT_SECRET.substring(0, 10) + '...'
@@ -47,7 +47,7 @@ const verifyServiceAuth = (req, res, next) => {
             audience: 'internal-services'
         });
 
-        console.log('✅ JWT decoded successfully:', {
+        console.log('JWT decoded successfully:', {
             userId: decoded.userId,
             email: decoded.email,
             roles: decoded.roles,
@@ -59,7 +59,7 @@ const verifyServiceAuth = (req, res, next) => {
 
         // Verify token is not too old (max 5 minutes)
         const tokenAge = Math.floor(Date.now() / 1000) - decoded.iat;
-        console.log('⏰ Token age check:', {
+        console.log('Token age check:', {
             currentTime: Math.floor(Date.now() / 1000),
             issuedAt: decoded.iat,
             tokenAge: tokenAge,
@@ -68,7 +68,7 @@ const verifyServiceAuth = (req, res, next) => {
         });
 
         if (tokenAge > 300) { // 5 minutes
-            console.error('❌ Token too old:', {
+            console.error('Token too old:', {
                 tokenAge,
                 maxAge: 300
             });
@@ -90,7 +90,7 @@ const verifyServiceAuth = (req, res, next) => {
             roles: decoded.roles
         };
 
-        console.log('✅ Service authentication verified', {
+        console.log('Service authentication verified', {
             userId: decoded.userId,
             roles: decoded.roles,
             tokenAge: tokenAge + 's'
@@ -98,7 +98,7 @@ const verifyServiceAuth = (req, res, next) => {
 
         next();
     } catch (error) {
-        console.error('❌ Service JWT verification failed:', {
+        console.error('Service JWT verification failed:', {
             errorName: error.name,
             errorMessage: error.message,
             stack: error.stack,
@@ -143,7 +143,7 @@ const verifyServiceAuth = (req, res, next) => {
 
 // Extract user information from API Gateway headers
 const extractUser = (req, res, next) => {
-    console.warn('⚠️ DEPRECATED: Using insecure header-based authentication');
+    console.warn('DEPRECATED: Using insecure header-based authentication');
     
     const id = req.headers['x-user-id'];
     const email = req.headers['x-user-email'];
@@ -199,7 +199,7 @@ const authorizeRoles = (...requiredRoles) => {
 
 // Legacy authorization (DEPRECATED - use authorizeRoles instead)
 const legacyAuthorizeRoles = (...requiredRoles) => {
-    console.warn('⚠️ DEPRECATED: Using legacy authorization. Upgrade to secure authorizeRoles');
+    console.warn('DEPRECATED: Using legacy authorization. Upgrade to secure authorizeRoles');
     return [extractUser, (req, res, next) => {
         if (!req.user || !req.user.roles) {
             return res.status(401).json({ 

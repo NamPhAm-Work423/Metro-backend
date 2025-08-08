@@ -83,3 +83,7 @@ class ReportMetric(Base):
     
     # Relationships
     report = relationship("Report") 
+
+    # Common index recommendations (applied via migrations typically):
+    # - index on (metric_name, timestamp)
+    # - GIN index on metadata for JSON queries (PostgreSQL)

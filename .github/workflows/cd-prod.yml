@@ -1,0 +1,96 @@
+name: CD - Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag (semver vX.Y.Z hoặc short SHA)"
+        required: true
+  release:
+    types: [published]
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  CHART_PATH: deploy/helm/metro
+  NAMESPACE: metro
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        include:
+          - name: api-gateway
+            repo: metro-api-gateway
+            values: api-gateway.yaml
+          - name: auth-service
+            repo: metro-auth-service
+            values: auth-service.yaml
+          - name: payment-service
+            repo: metro-payment-service
+            values: payment-service.yaml
+          - name: public-service
+            repo: metro-public-service
+            values: public-service.yaml
+          - name: ticket-service
+            repo: metro-ticket-service
+            values: ticket-service.yaml
+          - name: transport-service
+            repo: metro-transport-service
+            values: transport-service.yaml
+          - name: user-service
+            repo: metro-user-service
+            values: user-service.yaml
+          - name: report-service
+            repo: metro-report-service
+            values: report-service.yaml
+          - name: management-service
+            repo: metro-management-service
+            values: management-service.yaml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Authenticate to cluster
+      - name: Set kubeconfig (if provided)
+        if: secrets.KUBE_CONFIG != ''
+        run: |
+          echo "${KUBE_CONFIG}" | base64 -d > $HOME/.kube/config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Ensure namespace
+        run: kubectl create ns $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy service
+        run: |
+          helm upgrade --install "${{ matrix.name }}" "$CHART_PATH" \
+            --namespace "$NAMESPACE" \
+            --values "$CHART_PATH/values/${{ matrix.values }}" \
+            --set name="${{ matrix.name }}" \
+            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
+            --set image.tag="${{ steps.ver.outputs.tag }}"
+
+

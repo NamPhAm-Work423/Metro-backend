@@ -1,10 +1,12 @@
 import asyncio
 import json
+import os
 from typing import Dict, Any
 from ..config.logger import logger
 from ..kafka.kafka_consumer import KafkaEventConsumer
 from ..services.report_service import ReportService
 from ..config.database import SessionLocal
+from ..config.settings import get_settings
 
 class ReportEventConsumer:
     """Consumer for report-related Kafka events"""
@@ -17,16 +19,19 @@ class ReportEventConsumer:
     async def start(self):
         """Start the report event consumer"""
         try:
+            settings = get_settings()
             # Kafka configuration
             kafka_config = {
-                'client_id': 'report-service-consumer',
-                'brokers': ['localhost:9092'],  # Configure from environment
-                'groupId': 'report-service-group',
+                'client_id': settings.KAFKA_CLIENT_ID,
+                'brokers': settings.kafka_brokers_list,
+                'group_id': settings.KAFKA_GROUP_ID,
                 'topics': [
-                    'ticket-events',
-                    'payment-events', 
-                    'user-events',
-                    'transport-events'
+                    settings.USER_CREATED_TOPIC,
+                    settings.USER_LOGIN_TOPIC,
+                    settings.TICKET_CREATED_TOPIC,
+                    settings.TICKET_ACTIVATED_TOPIC,
+                    settings.TICKET_CANCELLED_TOPIC,
+                    settings.TICKET_USED_TOPIC,
                 ],
                 'message_handler': self.handle_message
             }
@@ -52,22 +57,27 @@ class ReportEventConsumer:
     async def handle_message(self, message: Dict[str, Any]):
         """Handle incoming Kafka messages"""
         try:
-            event_type = message.get('type')
-            event_data = message.get('data', {})
-            
-            logger.info("Processing report event", event_type=event_type)
-            
-            if event_type == 'ticket_created':
-                await self.handle_ticket_created(event_data)
-            elif event_type == 'payment_completed':
-                await self.handle_payment_completed(event_data)
-            elif event_type == 'user_registered':
-                await self.handle_user_registered(event_data)
-            elif event_type == 'route_updated':
-                await self.handle_route_updated(event_data)
+            topic = message.get('topic')
+            data = message.get('value', {})
+
+            logger.info("Processing report event", topic=topic)
+
+            settings = get_settings()
+            if topic == settings.USER_CREATED_TOPIC:
+                await self.handle_user_registered(data)
+            elif topic == settings.USER_LOGIN_TOPIC:
+                await self.handle_user_login(data)
+            elif topic == settings.TICKET_CREATED_TOPIC:
+                await self.handle_ticket_created(data)
+            elif topic == settings.TICKET_ACTIVATED_TOPIC:
+                await self.handle_ticket_activated(data)
+            elif topic == settings.TICKET_CANCELLED_TOPIC:
+                await self.handle_ticket_cancelled(data)
+            elif topic == settings.TICKET_USED_TOPIC:
+                await self.handle_ticket_used(data)
             else:
-                logger.warning("Unknown event type", event_type=event_type)
-                
+                logger.warn("Unhandled topic for report consumer", topic=topic)
+
         except Exception as e:
             logger.error("Error handling message", error=str(e), message=message)
             raise
@@ -75,17 +85,37 @@ class ReportEventConsumer:
     async def handle_ticket_created(self, data: Dict[str, Any]):
         """Handle ticket created event"""
         try:
-            ticket_id = data.get('ticket_id')
-            passenger_id = data.get('passenger_id')
-            route_id = data.get('route_id')
-            fare = data.get('fare')
-            created_at = data.get('created_at')
-            
-            # Update ticket metrics
-            await self.update_ticket_metrics(ticket_id, passenger_id, route_id, fare, created_at)
-            
+            ticket_id = data.get('ticketId') or data.get('ticket_id')
+            passenger_id = data.get('passengerId') or data.get('passenger_id')
+            amount = data.get('amount')
+            created_at = data.get('createdAt') or data.get('created_at')
+            ticket_data = data.get('ticketData') or {}
+            origin_station_id = ticket_data.get('originStationId')
+            destination_station_id = ticket_data.get('destinationStationId')
+            route_key = f"{origin_station_id}-{destination_station_id}" if origin_station_id and destination_station_id else None
+
+            metric_data = {
+                'metric_name': 'ticket_created',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'metadata': {
+                    'ticket_id': ticket_id,
+                    'passenger_id': passenger_id,
+                    'amount': amount,
+                    'origin_station_id': origin_station_id,
+                    'destination_station_id': destination_station_id,
+                    'route_key': route_key,
+                    'created_at': created_at
+                }
+            }
+
+            from ..models.report_model import ReportMetric
+            metric = ReportMetric(**metric_data)
+            self.db.add(metric)
+            self.db.commit()
+
             logger.info("Ticket created event processed", ticket_id=ticket_id)
-            
+
         except Exception as e:
             logger.error("Error handling ticket created event", error=str(e))
             raise
@@ -107,21 +137,145 @@ class ReportEventConsumer:
         except Exception as e:
             logger.error("Error handling payment completed event", error=str(e))
             raise
+
+    async def handle_user_login(self, data: Dict[str, Any]):
+        """Handle user login event for analytics"""
+        try:
+            user_id = data.get('userId') or data.get('user_id')
+            username = data.get('username')
+            roles = data.get('roles')
+            logged_at = data.get('loggedAt') or data.get('logged_at') or data.get('createdAt')
+
+            metric_data = {
+                'metric_name': 'user_login',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'metadata': {
+                    'user_id': user_id,
+                    'username': username,
+                    'roles': roles,
+                    'logged_at': logged_at
+                }
+            }
+
+            from ..models.report_model import ReportMetric
+            metric = ReportMetric(**metric_data)
+            self.db.add(metric)
+            self.db.commit()
+
+            logger.debug("User login metrics updated", user_id=user_id)
+
+        except Exception as e:
+            logger.error("Error handling user login event", error=str(e))
+            raise
+
+    async def handle_ticket_activated(self, data: Dict[str, Any]):
+        """Handle ticket activated event for analytics"""
+        try:
+            ticket_id = data.get('ticketId') or data.get('ticket_id')
+            passenger_id = data.get('passengerId') or data.get('passenger_id')
+            activated_at = data.get('activatedAt') or data.get('activated_at')
+
+            metric_data = {
+                'metric_name': 'ticket_activated',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'metadata': {
+                    'ticket_id': ticket_id,
+                    'passenger_id': passenger_id,
+                    'activated_at': activated_at
+                }
+            }
+
+            from ..models.report_model import ReportMetric
+            metric = ReportMetric(**metric_data)
+            self.db.add(metric)
+            self.db.commit()
+
+            logger.debug("Ticket activated metrics updated", ticket_id=ticket_id)
+
+        except Exception as e:
+            logger.error("Error handling ticket activated event", error=str(e))
+            raise
+
+    async def handle_ticket_cancelled(self, data: Dict[str, Any]):
+        """Handle ticket cancelled event for analytics"""
+        try:
+            ticket_id = data.get('ticketId') or data.get('ticket_id')
+            passenger_id = data.get('passengerId') or data.get('passenger_id')
+            reason = data.get('reason')
+            cancelled_at = data.get('cancelledAt') or data.get('cancelled_at')
+
+            metric_data = {
+                'metric_name': 'ticket_cancelled',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'metadata': {
+                    'ticket_id': ticket_id,
+                    'passenger_id': passenger_id,
+                    'reason': reason,
+                    'cancelled_at': cancelled_at
+                }
+            }
+
+            from ..models.report_model import ReportMetric
+            metric = ReportMetric(**metric_data)
+            self.db.add(metric)
+            self.db.commit()
+
+            logger.debug("Ticket cancelled metrics updated", ticket_id=ticket_id)
+
+        except Exception as e:
+            logger.error("Error handling ticket cancelled event", error=str(e))
+            raise
+
+    async def handle_ticket_used(self, data: Dict[str, Any]):
+        """Handle ticket used event for analytics"""
+        try:
+            ticket_id = data.get('ticketId') or data.get('ticket_id')
+            passenger_id = data.get('passengerId') or data.get('passenger_id')
+            used_at = data.get('usedAt') or data.get('used_at')
+            station_id = (data.get('usageData') or {}).get('stationId')
+
+            metric_data = {
+                'metric_name': 'ticket_used',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'metadata': {
+                    'ticket_id': ticket_id,
+                    'passenger_id': passenger_id,
+                    'station_id': station_id,
+                    'used_at': used_at
+                }
+            }
+
+            from ..models.report_model import ReportMetric
+            metric = ReportMetric(**metric_data)
+            self.db.add(metric)
+            self.db.commit()
+
+            logger.debug("Ticket used metrics updated", ticket_id=ticket_id)
+
+        except Exception as e:
+            logger.error("Error handling ticket used event", error=str(e))
+            raise
     
     async def handle_user_registered(self, data: Dict[str, Any]):
         """Handle user registered event"""
         try:
-            user_id = data.get('user_id')
+            user_id = data.get('userId') or data.get('user_id')
             username = data.get('username')
             email = data.get('email')
-            role = data.get('role')
-            registered_at = data.get('registered_at')
-            
+            # roles could be list; pick primary
+            roles = data.get('roles')
+            role = roles[0] if isinstance(roles, list) and roles else (data.get('role') or 'user')
+            registered_at = data.get('registeredAt') or data.get('registered_at') or data.get('createdAt')
+
             # Update user metrics
             await self.update_user_metrics(user_id, username, email, role, registered_at)
-            
+
             logger.info("User registered event processed", user_id=user_id)
-            
+
         except Exception as e:
             logger.error("Error handling user registered event", error=str(e))
             raise

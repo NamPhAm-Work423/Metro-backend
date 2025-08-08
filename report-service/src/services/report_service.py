@@ -362,22 +362,58 @@ class ReportService:
         """Get daily analytics data"""
         try:
             today = datetime.now().date()
-            
-            # Get today's reports
-            daily_reports = self.db.query(Report).filter(
-                func.date(Report.created_at) == today
-            ).all()
-            
-            analytics = {
+
+            # Core KPIs from metrics
+            total_logins = self.db.query(func.count(ReportMetric.id)).filter(
+                ReportMetric.metric_name == 'user_login',
+                func.date(ReportMetric.timestamp) == today
+            ).scalar() or 0
+
+            total_registrations = self.db.query(func.count(ReportMetric.id)).filter(
+                ReportMetric.metric_name == 'user_registered',
+                func.date(ReportMetric.timestamp) == today
+            ).scalar() or 0
+
+            tickets_activated = self.db.query(func.count(ReportMetric.id)).filter(
+                ReportMetric.metric_name == 'ticket_activated',
+                func.date(ReportMetric.timestamp) == today
+            ).scalar() or 0
+
+            tickets_used = self.db.query(func.count(ReportMetric.id)).filter(
+                ReportMetric.metric_name == 'ticket_used',
+                func.date(ReportMetric.timestamp) == today
+            ).scalar() or 0
+
+            # Top stations by usage today
+            top_stations = (
+                self.db.query(
+                    (ReportMetric.metadata['station_id'].astext).label('station_id'),
+                    func.count(ReportMetric.id).label('uses')
+                )
+                .filter(
+                    ReportMetric.metric_name == 'ticket_used',
+                    func.date(ReportMetric.timestamp) == today
+                )
+                .group_by(ReportMetric.metadata['station_id'].astext)
+                .order_by(desc('uses'))
+                .limit(5)
+                .all()
+            )
+
+            return {
                 'date': today.strftime('%Y-%m-%d'),
-                'total_reports': len(daily_reports),
-                'completed_reports': len([r for r in daily_reports if r.status == 'completed']),
-                'failed_reports': len([r for r in daily_reports if r.status == 'failed']),
-                'average_generation_time': 0,  # Calculate from metrics
-                'popular_report_types': []
+                'auth': {
+                    'logins': total_logins,
+                    'registrations': total_registrations,
+                },
+                'tickets': {
+                    'activated': tickets_activated,
+                    'used': tickets_used,
+                    'topStations': [
+                        {'stationId': s.station_id, 'uses': int(s.uses)} for s in top_stations if s.station_id is not None
+                    ],
+                },
             }
-            
-            return analytics
             
         except Exception as e:
             logger.error("Failed to get daily analytics", error=str(e))
@@ -388,26 +424,36 @@ class ReportService:
         try:
             # Get last 7 days
             end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=7)
-            
-            weekly_reports = self.db.query(Report).filter(
-                and_(
-                    func.date(Report.created_at) >= start_date,
-                    func.date(Report.created_at) <= end_date
-                )
-            ).all()
-            
-            analytics = {
+            start_date = end_date - timedelta(days=6)
+
+            # Daily series for logins and ticket activations
+            daily_series = []
+            for i in range(7):
+                day = start_date + timedelta(days=i)
+                logins = self.db.query(func.count(ReportMetric.id)).filter(
+                    ReportMetric.metric_name == 'user_login',
+                    func.date(ReportMetric.timestamp) == day
+                ).scalar() or 0
+                activations = self.db.query(func.count(ReportMetric.id)).filter(
+                    ReportMetric.metric_name == 'ticket_activated',
+                    func.date(ReportMetric.timestamp) == day
+                ).scalar() or 0
+                purchases = self.db.query(func.count(ReportMetric.id)).filter(
+                    ReportMetric.metric_name == 'ticket_created',
+                    func.date(ReportMetric.timestamp) == day
+                ).scalar() or 0
+                daily_series.append({
+                    'date': day.strftime('%Y-%m-%d'),
+                    'logins': logins,
+                    'ticketPurchases': purchases,
+                    'ticketActivations': activations,
+                })
+
+            return {
                 'week_start': start_date.strftime('%Y-%m-%d'),
                 'week_end': end_date.strftime('%Y-%m-%d'),
-                'total_reports': len(weekly_reports),
-                'completed_reports': len([r for r in weekly_reports if r.status == 'completed']),
-                'failed_reports': len([r for r in weekly_reports if r.status == 'failed']),
-                'average_generation_time': 0,
-                'daily_breakdown': []
+                'daily': daily_series,
             }
-            
-            return analytics
             
         except Exception as e:
             logger.error("Failed to get weekly analytics", error=str(e))
@@ -417,28 +463,42 @@ class ReportService:
         """Get monthly analytics data"""
         try:
             # Get current month
-            current_month = datetime.now().month
-            current_year = datetime.now().year
-            
-            monthly_reports = self.db.query(Report).filter(
-                and_(
-                    func.extract('month', Report.created_at) == current_month,
-                    func.extract('year', Report.created_at) == current_year
+            now = datetime.now()
+            current_month = now.month
+            current_year = now.year
+
+            # Top routes by purchases this month (from ticket_created)
+            top_routes = (
+                self.db.query(
+                    (ReportMetric.metadata['route_id'].astext).label('route_id'),
+                    func.count(ReportMetric.id).label('tickets')
                 )
-            ).all()
-            
-            analytics = {
-                'month': datetime.now().strftime('%B %Y'),
-                'year': current_year,
-                'total_reports': len(monthly_reports),
-                'completed_reports': len([r for r in monthly_reports if r.status == 'completed']),
-                'failed_reports': len([r for r in monthly_reports if r.status == 'failed']),
-                'average_generation_time': 0,
-                'weekly_breakdown': [],
-                'top_report_types': []
+                .filter(
+                    ReportMetric.metric_name == 'ticket_created',
+                    func.extract('month', ReportMetric.timestamp) == current_month,
+                    func.extract('year', ReportMetric.timestamp) == current_year
+                )
+                .group_by(ReportMetric.metadata['route_id'].astext)
+                .order_by(desc('tickets'))
+                .limit(10)
+                .all()
+            )
+
+            total_purchases = self.db.query(func.count(ReportMetric.id)).filter(
+                ReportMetric.metric_name == 'ticket_created',
+                func.extract('month', ReportMetric.timestamp) == current_month,
+                func.extract('year', ReportMetric.timestamp) == current_year
+            ).scalar() or 0
+
+            return {
+                'month': now.strftime('%Y-%m'),
+                'tickets': {
+                    'purchases': total_purchases,
+                    'topRoutes': [
+                        {'routeId': r.route_id, 'tickets': int(r.tickets)} for r in top_routes if r.route_id is not None
+                    ]
+                }
             }
-            
-            return analytics
             
         except Exception as e:
             logger.error("Failed to get monthly analytics", error=str(e))

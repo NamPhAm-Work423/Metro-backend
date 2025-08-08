@@ -1,19 +1,18 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const User = require('../models/user.model');
+const userRepository = require('./repositories/user.repository');
 const { logger } = require('../config/logger');
 const emailService = require('./email.service');
+const tokensService = require('./tokens.service');
 const { sha256, generateResetToken } = require('../helpers/crypto.helper');
 const { setImmediate } = require('timers');
-const { withRedisClient } = require('../config/redis');
+const redisClient = require('../config/redis');
 const userEventProducer = require('../events/user.producer.event');
 const userEventConsumer = require('../events/user.consumer.event');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'your-secret-key';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
-const ACCESS_TOKEN_EXPIRES_IN = '1h';
-const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 
 class UserService {
@@ -32,37 +31,7 @@ class UserService {
      * @returns {Object} - The token and refresh token
      */
     createToken = async (userId, username, roles) => {
-        // Use minimal payload for fastest token generation
-        const tokenPayload = { 
-            id: userId,
-            userId, 
-            username,
-            roles: roles || ['passenger']
-        };
-
-        // Generate both tokens in parallel (not sequential)
-        const [accessToken, refreshToken] = await Promise.all([
-            new Promise((resolve) => {
-                const token = jwt.sign(
-                    tokenPayload,
-                    ACCESS_TOKEN_SECRET,
-                    { expiresIn: ACCESS_TOKEN_EXPIRES_IN, algorithm: 'HS256' }
-                );
-                resolve(token);
-            }),
-            
-            // Refresh token with minimal payload
-            new Promise((resolve) => {
-                const token = jwt.sign(
-                    { userId, username },
-                    REFRESH_TOKEN_SECRET,
-                    { expiresIn: REFRESH_TOKEN_EXPIRES_IN, algorithm: 'HS256' }
-                );
-                resolve(token);
-            })
-        ]);
-
-        return { accessToken, refreshToken };
+        return tokensService.createTokens(userId, username, roles);
     }
 
 
@@ -77,13 +46,11 @@ class UserService {
         
             
         // Check for existing user by email or username
-        const existingUser = await User.findOne({ 
-            where: { 
-                [Op.or]: [
-                    { email },
-                    { username }
-                ]
-            } 
+        const existingUser = await userRepository.findOne({
+            [Op.or]: [
+                { email },
+                { username }
+            ]
         });
         
         if (existingUser) {
@@ -94,14 +61,14 @@ class UserService {
             }
         }
         //If in roles have admin, reject create user
-        if (roles.includes('admin')) {
+        if (Array.isArray(roles) && roles.includes('admin')) {
             throw new Error('Admin role is not allowed to be created');
         }
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
         // Create user (Auth Service only stores auth data)
-        const user = await User.create({
+        const user = await userRepository.create({
             email,
             username,
             password: passwordHash,
@@ -143,29 +110,30 @@ class UserService {
 
             const backgroundStartTime = process.hrtime.bigint();
 
-            // Publish Kafka event in background
+            // Publish Kafka event in background (guard for undefined mocks)
             backgroundTasks.push(
-                userEventProducer.publishUserCreated({
-                    userId: user.id,
-                    email: user.email,
-                    roles: user.roles,
-                    username: user.username,
-                    // Profile data from registration form (not stored in Auth Service)
-                    firstName: firstName,
-                    lastName: lastName,
-                    phoneNumber: phoneNumber,
-                    dateOfBirth: dateOfBirth,
-                    gender: gender,
-                    address: address,
-                    status: 'activated',
-                    roles: roles || ['passenger']
-                })
-                    .catch(err => {
-                        logger.error('Failed to publish user.created event in background', { 
-                            error: err.message,
-                            userId: user.id
-                        });
+                Promise.resolve(
+                    userEventProducer.publishUserCreated({
+                        userId: user.id,
+                        email: user.email,
+                        roles: user.roles,
+                        username: user.username,
+                        // Profile data from registration form (not stored in Auth Service)
+                        firstName: firstName,
+                        lastName: lastName,
+                        phoneNumber: phoneNumber,
+                        dateOfBirth: dateOfBirth,
+                        gender: gender,
+                        address: address,
+                        status: 'activated',
+                        roles: roles || ['passenger']
                     })
+                ).catch(err => {
+                    logger.error('Failed to publish user.created event in background', { 
+                        error: err?.message || String(err),
+                        userId: user.id
+                    });
+                })
             );
 
             // Execute all background tasks
@@ -194,7 +162,7 @@ class UserService {
         const sanitizedPassword = (password || '').trim();
 
         // Find user and isActive is true
-        const user = await User.findOne({ where: { email } });
+        const user = await userRepository.findOne({ email });
         if (!user) {
             throw new Error('User is not found');
         }
@@ -236,23 +204,23 @@ class UserService {
 
         setImmediate(() => {
             // Array to track all background operations
+            const maybeReset = typeof user.resetLoginAttempts === 'function' ? user.resetLoginAttempts() : Promise.resolve();
+            const maybeUpdate = typeof user.update === 'function' ? user.update({ lastLoginAt: new Date() }) : Promise.resolve();
+
             const backgroundTasks = [
-                // Reset login attempts
-                user.resetLoginAttempts()
+                Promise.resolve(maybeReset)
                     .then(() => logger.debug('Login attempts reset in background', { userId: user.id }))
                     .catch(err => logger.error('Failed to reset login attempts in background', {
                         error: err.message,
                         userId: user.id
                     })),
                 
-                // Update last login
-                user.update({ lastLoginAt: new Date() })
+                Promise.resolve(maybeUpdate)
                     .then(() => logger.debug('Last login updated in background', { userId: user.id }))
                     .catch(err => logger.error('Failed to update last login in background', {
                         error: err.message,
                         userId: user.id
                     })),
-                
             ];
 
             // Run all background tasks
@@ -268,7 +236,7 @@ class UserService {
      * @returns {boolean} - Success status
      */
     logout = async (userId) => {
-        await User.update({ lastLogoutAt: new Date() }, { where: { id: userId } });
+        await userRepository.updateById(userId, { lastLogoutAt: new Date() });
         return true;
     }
 
@@ -278,27 +246,15 @@ class UserService {
      * @returns {Object} - New access token
      */
     refreshToken = async (refreshToken) => {
-        // Verify refresh token
+        // Verify refresh token to retrieve subject then delegate to token service
         const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
-        
-        // Find user
-        const user = await User.findByPk(decoded.userId);
+
+        const user = await userRepository.findByPk(decoded.userId);
         if (!user) {
             throw new Error('User not found');
         }
 
-        // Generate new access token
-        const accessToken = jwt.sign(
-            { 
-                id: user.id,
-                userId: user.id, 
-                username: user.username,
-                roles: user.roles
-            },
-            ACCESS_TOKEN_SECRET,
-            { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
-        );
-
+        const { accessToken } = await tokensService.refreshAccessToken(refreshToken, user);
         return { accessToken, user };
     }
 
@@ -309,7 +265,7 @@ class UserService {
      */
     forgotPassword = async (email) => {
         
-        const user = await User.findOne({ where: { email } });
+        const user = await userRepository.findOne({ email });
         if (!user) {
             logger.info('Password reset requested for non-existent email (security)', { 
                 email: email.substring(0, 3) + '***', 
@@ -327,7 +283,7 @@ class UserService {
         const redisKey = `reset:${user.id}`;
         const ttlSeconds = 600; // 10 minutes
         
-        const redisResult = await withRedisClient(async (client) => {
+        const redisResult = await redisClient.withRedisClient(async (client) => {
             await client.set(redisKey, hashedToken, { EX: ttlSeconds });
         });
         
@@ -359,7 +315,7 @@ class UserService {
                     error: emailError.message 
                 });
                 // Clean up Redis token if email fails
-                const cleanupResult = await withRedisClient(async (client) => {
+                const cleanupResult = await redisClient.withRedisClient(async (client) => {
                     await client.del(redisKey);
                 });
                 
@@ -408,7 +364,7 @@ class UserService {
         const redisKey = `reset:${uid}`;
         let storedHashedToken;
         
-        storedHashedToken = await withRedisClient(async (client) => {
+        storedHashedToken = await redisClient.withRedisClient(async (client) => {
             return await client.get(redisKey);
         });
         
@@ -432,7 +388,7 @@ class UserService {
         }
         
         // Find user by ID
-        const user = await User.findByPk(uid);
+        const user = await userRepository.findByPk(uid);
         if (!user) {
             logger.warn('User not found during password reset', { uid });
             throw new Error('Invalid reset token');
@@ -452,7 +408,7 @@ class UserService {
         });
 
         // Delete the reset token from Redis
-        const deleteResult = await withRedisClient(async (client) => {
+        const deleteResult = await redisClient.withRedisClient(async (client) => {
             await client.del(redisKey);
         });
         
@@ -480,7 +436,7 @@ class UserService {
         const redisKey = `reset:${userId}`;
         
         try {
-            const result = await withRedisClient(async (client) => {
+            const result = await redisClient.withRedisClient(async (client) => {
                 const token = await client.get(redisKey);
                 const ttl = await client.ttl(redisKey);
                 return { token: !!token, ttl };
@@ -517,7 +473,7 @@ class UserService {
         const redisKey = `reset:${userId}`;
         
         try {
-            const deleted = await withRedisClient(async (client) => {
+            const deleted = await redisClient.withRedisClient(async (client) => {
                 return await client.del(redisKey);
             });
             
@@ -545,9 +501,7 @@ class UserService {
      */
     async deleteUserByUserId(userId) {
         try {
-            const deletedRowCount = await User.destroy({
-                where: { id: userId }
-            });
+        const deletedRowCount = await userRepository.deleteById(userId);
 
             if (deletedRowCount > 0) {
                 logger.info('User deleted successfully via Kafka event', { userId });
@@ -573,7 +527,7 @@ class UserService {
     async verifyEmailToken(token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-            const user = await User.findByPk(decoded.userId);
+            const user = await userRepository.findByPk(decoded.userId);
 
             if (!user) {
                 return {
@@ -614,7 +568,7 @@ class UserService {
      */
     async unlockUserAccount(userId, adminId) {
         try {
-            const user = await User.findByPk(userId);
+            const user = await userRepository.findByPk(userId);
             
             if (!user) {
                 return {

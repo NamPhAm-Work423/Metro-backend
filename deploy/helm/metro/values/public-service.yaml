@@ -1,0 +1,19 @@
+name: public-service
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-public-service
+  tag: ""
+ports:
+  http: 8005
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8005"
+ingress:
+  enabled: true
+  host: public.{{ .Values.global.domain }}
+metricsPath: /metrics
+metricsPort: 8005
+
+

@@ -129,19 +129,27 @@ class KafkaEventConsumer:
     async def _process_message(self, message):
         """Process a single Kafka message."""
         try:
+            # Build a rich payload to include topic and key
+            payload = {
+                "topic": message.topic,
+                "key": message.key.decode("utf-8") if message.key else None,
+                "timestamp": getattr(message, "timestamp", None),
+                "value": message.value,
+            }
+
             # Call the message handler
             if asyncio.iscoroutinefunction(self.message_handler):
-                await self.message_handler(message.value)
+                await self.message_handler(payload)
             else:
-                self.message_handler(message.value)
-                
+                self.message_handler(payload)
+
             logger.debug(
                 "Message processed successfully",
                 topic=message.topic,
                 partition=message.partition,
                 offset=message.offset
             )
-            
+
         except Exception as e:
             logger.error(
                 "Error in message handler",

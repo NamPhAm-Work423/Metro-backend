@@ -1,0 +1,18 @@
+name: api-gateway
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-api-gateway
+  tag: "" # được set bởi workflow CD
+ports:
+  http: 8000
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8000"
+ingress:
+  enabled: true
+metricsPath: /metrics
+metricsPort: 8000
+
+

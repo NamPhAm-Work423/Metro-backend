@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-scan-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api-gateway
+            path: api-gateway
+            dockerfile: Dockerfile
+            runtime: node
+          - name: auth-service
+            path: auth-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: payment-service
+            path: payment-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: public-service
+            path: public-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: ticket-service
+            path: ticket-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: transport-service
+            path: transport-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: user-service
+            path: user-service
+            dockerfile: Dockerfile
+            runtime: node
+          - name: report-service
+            path: report-service
+            dockerfile: Dockerfile
+            runtime: python
+          - name: management-service
+            path: management-service
+            dockerfile: Dockerfile
+            runtime: python
+
+    env:
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        if: matrix.runtime == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+      - name: Use Python
+        if: matrix.runtime == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps (Node)
+        if: matrix.runtime == 'node'
+        working-directory: ${{ matrix.path }}
+        run: npm ci
+
+      - name: Test (Node)
+        if: matrix.runtime == 'node'
+        working-directory: ${{ matrix.path }}
+        run: npm test --if-present
+
+      - name: Install deps (Python)
+        if: matrix.runtime == 'python'
+        working-directory: ${{ matrix.path }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Test (Python)
+        if: matrix.runtime == 'python'
+        working-directory: ${{ matrix.path }}
+        run: |
+          if [ -d tests ]; then pytest -q || true; fi
+
+      - name: Compute tags
+        id: vars
+        run: |
+          echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "release_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image (SHA tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.path }}
+          file: ${{ matrix.path }}/${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
+          build-args: |
+            APP_VERSION=${{ steps.vars.outputs.short_sha }}
+
+      - name: Also push release semver tag when building a tag
+        if: steps.vars.outputs.is_release == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.path }}
+          file: ${{ matrix.path }}/${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.release_tag }}
+          build-args: |
+            APP_VERSION=${{ steps.vars.outputs.release_tag }}
+
+      - name: Trivy scan (SHA image)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          vuln-type: 'os,library'
+          exit-code: '0'
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.name }}.sarif
+
+

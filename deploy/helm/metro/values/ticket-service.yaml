@@ -1,0 +1,19 @@
+name: ticket-service
+replicaCount: 2
+image:
+  repository: ghcr.io/CHANGE_ME_ORG/metro-ticket-service
+  tag: ""
+ports:
+  http: 8004
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8004"
+ingress:
+  enabled: true
+  host: ticket.{{ .Values.global.domain }}
+metricsPath: /metrics
+metricsPort: 8004
+
+
