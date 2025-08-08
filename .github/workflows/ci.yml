@@ -56,7 +56,7 @@ jobs:
             runtime: python
 
     env:
-      REGISTRY: ghcr.io/${{ github.repository_owner }}
+      REGISTRY: ghcr.io/${{ toLower(github.repository_owner) }}
 
     steps:
       - name: Checkout

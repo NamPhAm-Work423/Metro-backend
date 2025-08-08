@@ -72,8 +72,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
   # All microservices - EXPOSE ONLY (no external ports)
   auth-service:
@@ -111,8 +112,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
   user-service:
     build:
@@ -146,8 +148,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
   transport-service:
     build:
@@ -181,8 +184,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
   ticket-service:
     build:
@@ -217,8 +221,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
   public-service:
     build:
@@ -251,8 +256,9 @@ services:
       retries: 3
       start_period: 40s
     logging: *default-logging
-    <<: *default-restart
-    <<: *default-deploy
+    <<:
+      - *default-restart
+      - *default-deploy
 
 
   payment-service:
