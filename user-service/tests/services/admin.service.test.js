@@ -56,6 +56,27 @@ describe('admin.service', () => {
     expect(adminEventProducer.publishAdminUpdated).toHaveBeenCalledWith(instance);
     expect(result).toBe(instance);
   });
+
+  test('getAllAdmins propagates errors', async () => {
+    Admin.findAll.mockRejectedValue(new Error('db'));
+    await expect(adminService.getAllAdmins()).rejects.toThrow('db');
+  });
+
+  test('getAdminById propagates errors', async () => {
+    Admin.findByPk.mockRejectedValue(new Error('db'));
+    await expect(adminService.getAdminById('x')).rejects.toThrow('db');
+  });
+
+  test('getAdminByUserId propagates errors', async () => {
+    Admin.findOne.mockRejectedValue(new Error('db'));
+    await expect(adminService.getAdminByUserId('u1')).rejects.toThrow('db');
+  });
+
+  test('updateAdminById propagates update error', async () => {
+    const instance = { update: jest.fn().mockRejectedValue(new Error('update-fail')) };
+    Admin.findByPk.mockResolvedValue(instance);
+    await expect(adminService.updateAdminById('1', { a: 1 })).rejects.toThrow('update-fail');
+  });
 });
 
 

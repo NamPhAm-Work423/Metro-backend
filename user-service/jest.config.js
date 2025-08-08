@@ -6,6 +6,14 @@ module.exports = {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/services/**/*.js',
+    'src/controllers/**/*.js',
+    'src/routes/**/*.js',
+    '!src/index.js',
+    '!src/app.js',
+    '!src/config/**',
+    '!src/models/index.model.js',
+    '!src/events/**',
+    '!src/swagger/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],

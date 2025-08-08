@@ -43,6 +43,15 @@ describe('passenger.service', () => {
     expect(result).toBeNull();
   });
 
+  test('updatePassenger updates and returns instance', async () => {
+    const instance = { update: jest.fn().mockResolvedValue(), id: '1' };
+    Passenger.findOne.mockResolvedValue(instance);
+    const result = await passengerService.updatePassenger('u1', { fullName: 'Y' });
+    expect(Passenger.findOne).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(instance.update).toHaveBeenCalledWith({ fullName: 'Y' });
+    expect(result).toBe(instance);
+  });
+
   test('updatePassengerById returns updated instance', async () => {
     const instance = { update: jest.fn().mockResolvedValue(), id: '1' };
     Passenger.findOne.mockResolvedValue(instance);
@@ -59,6 +68,39 @@ describe('passenger.service', () => {
     expect(passengerEventProducer.publishPassengerDeleted).toHaveBeenCalledWith(instance);
     expect(instance.destroy).toHaveBeenCalled();
     expect(result).toEqual({ success: true, message: 'Passenger profile deleted successfully' });
+  });
+
+  test('getPassengerById propagates errors', async () => {
+    Passenger.findOne.mockRejectedValue(new Error('db'));
+    await expect(passengerService.getPassengerById('p1')).rejects.toThrow('db');
+  });
+
+  test('getPassengerByUserId propagates errors', async () => {
+    Passenger.findOne.mockRejectedValue(new Error('db'));
+    await expect(passengerService.getPassengerByUserId('u1')).rejects.toThrow('db');
+  });
+
+  test('createPassenger propagates errors', async () => {
+    Passenger.create.mockRejectedValue(new Error('db'));
+    await expect(passengerService.createPassenger({})).rejects.toThrow('db');
+  });
+
+  test('updatePassengerById returns null when not found', async () => {
+    Passenger.findOne.mockResolvedValue(null);
+    const result = await passengerService.updatePassengerById('p1', { x: 1 });
+    expect(result).toBeNull();
+  });
+
+  test('deletePassengerById returns false when not found', async () => {
+    Passenger.findOne.mockResolvedValue(null);
+    const result = await passengerService.deletePassengerById('p1');
+    expect(result).toBe(false);
+  });
+
+  test('deletePassengerById propagates errors', async () => {
+    const instance = { destroy: jest.fn().mockRejectedValue(new Error('destroy-fail')) };
+    Passenger.findOne.mockResolvedValue(instance);
+    await expect(passengerService.deletePassengerById('p1')).rejects.toThrow('destroy-fail');
   });
 });
 

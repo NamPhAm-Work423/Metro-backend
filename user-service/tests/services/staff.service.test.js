@@ -34,6 +34,15 @@ describe('staff.service', () => {
     expect(result).toBeNull();
   });
 
+  test('updateStaff updates and returns instance', async () => {
+    const instance = { update: jest.fn().mockResolvedValue(), id: '1' };
+    Staff.findOne.mockResolvedValue(instance);
+    const result = await staffService.updateStaff('u1', { fullName: 'Y' });
+    expect(Staff.findOne).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(instance.update).toHaveBeenCalledWith({ fullName: 'Y' });
+    expect(result).toBe(instance);
+  });
+
   test('updateStaffStatus returns updated instance', async () => {
     const instance = { update: jest.fn().mockResolvedValue(), id: '1' };
     Staff.findOne.mockResolvedValue(instance);
@@ -50,6 +59,55 @@ describe('staff.service', () => {
     expect(staffEventProducer.publishStaffDeleted).toHaveBeenCalledWith(instance);
     expect(instance.destroy).toHaveBeenCalled();
     expect(result).toBe(true);
+  });
+
+  test('getStaffById propagates errors', async () => {
+    Staff.findOne.mockRejectedValue(new Error('db'));
+    await expect(staffService.getStaffById('s1')).rejects.toThrow('db');
+  });
+
+  test('getStaffByUserId propagates errors', async () => {
+    Staff.findOne.mockRejectedValue(new Error('db'));
+    await expect(staffService.getStaffByUserId('u1')).rejects.toThrow('db');
+  });
+
+  test('createStaff propagates errors', async () => {
+    Staff.create.mockRejectedValue(new Error('db'));
+    await expect(staffService.createStaff({})).rejects.toThrow('db');
+  });
+
+  test('updateStaffById returns null when not found', async () => {
+    Staff.findOne.mockResolvedValue(null);
+    const result = await staffService.updateStaffById('s1', { x: 1 });
+    expect(result).toBeNull();
+  });
+
+  test('updateStaffById propagates errors', async () => {
+    Staff.findOne.mockRejectedValue(new Error('db'));
+    await expect(staffService.updateStaffById('s1', { x: 1 })).rejects.toThrow('db');
+  });
+
+  test('updateStaffStatus returns null when not found', async () => {
+    Staff.findOne.mockResolvedValue(null);
+    const result = await staffService.updateStaffStatus('s1', true);
+    expect(result).toBeNull();
+  });
+
+  test('updateStaffStatus propagates errors', async () => {
+    Staff.findOne.mockRejectedValue(new Error('db'));
+    await expect(staffService.updateStaffStatus('s1', true)).rejects.toThrow('db');
+  });
+
+  test('deleteStaffById returns false when not found', async () => {
+    Staff.findOne.mockResolvedValue(null);
+    const result = await staffService.deleteStaffById('s1');
+    expect(result).toBe(false);
+  });
+
+  test('deleteStaffById propagates errors', async () => {
+    const instance = { destroy: jest.fn().mockRejectedValue(new Error('destroy-fail')) };
+    Staff.findOne.mockResolvedValue(instance);
+    await expect(staffService.deleteStaffById('s1')).rejects.toThrow('destroy-fail');
   });
 });
 

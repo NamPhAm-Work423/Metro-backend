@@ -21,5 +21,8 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   clearMocks: true,
-  restoreMocks: true
+  restoreMocks: true,
+  // Ensure CI does not hang due to stray handles in dependencies
+  forceExit: true,
+  detectOpenHandles: true
 }; 
