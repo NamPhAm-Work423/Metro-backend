@@ -129,6 +129,7 @@ jobs:
           context: ${{ matrix.path }}
           file: ${{ matrix.path }}/${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
           build-args: |
@@ -154,6 +155,8 @@ jobs:
           output: trivy-${{ matrix.name }}.sarif
           vuln-type: 'os,library'
           exit-code: '0'
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
