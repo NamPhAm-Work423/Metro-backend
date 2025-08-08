@@ -10,6 +10,8 @@ on:
 permissions:
   contents: read
   packages: write
+  security-events: write
+  actions: read
 
 jobs:
   build-test-scan-push:
@@ -162,6 +164,8 @@ jobs:
           github-pat: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
+        # Skip on PRs from forks (insufficient token permissions)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
