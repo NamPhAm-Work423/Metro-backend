@@ -1,5 +1,6 @@
 const passengerController = require('../../../src/controllers/passenger.controller');
 const passengerService = require('../../../src/services/passenger.service');
+const passengerProducer = require('../../../src/events/passenger.producer.event');
 
 // Mock passenger service
 jest.mock('../../../src/services/passenger.service');
@@ -25,6 +26,10 @@ describe('Passenger Controller', () => {
     };
     next = jest.fn();
     jest.clearAllMocks();
+    // Stub producer to avoid side effects in syncPassenger
+    if (passengerProducer && passengerProducer.publishPassengerCacheSync) {
+      jest.spyOn(passengerProducer, 'publishPassengerCacheSync').mockResolvedValue();
+    }
   });
 
   describe('getAllPassengers', () => {
@@ -142,6 +147,17 @@ describe('Passenger Controller', () => {
         errors: [{ field: 'email', message: 'Email is required' }]
       });
     });
+
+    it('should pass non-validation errors to next', async () => {
+      req.headers['x-user-id'] = 'user-123';
+      passengerService.getPassengerByUserId.mockResolvedValue(null);
+      const err = new Error('unexpected');
+      passengerService.createPassenger.mockRejectedValue(err);
+
+      await passengerController.createPassenger(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('updatePassenger', () => {
@@ -206,6 +222,13 @@ describe('Passenger Controller', () => {
         message: 'Passenger not found'
       });
     });
+
+    it('should reject when service throws (handled by async error wrapper in real code)', async () => {
+      req.params.id = '1';
+      const err = new Error('db');
+      passengerService.deletePassengerById.mockRejectedValue(err);
+      await expect(passengerController.deletePassenger(req, res, next)).rejects.toThrow('db');
+    });
   });
 
   describe('getMe', () => {
@@ -232,6 +255,13 @@ describe('Passenger Controller', () => {
         success: false,
         message: 'Passenger profile not found'
       });
+    });
+
+    it('should pass errors to next', async () => {
+      const err = new Error('db');
+      passengerService.getPassengerByUserId.mockRejectedValue(err);
+      await passengerController.getMe(req, res, next);
+      expect(next).toHaveBeenCalledWith(err);
     });
   });
 
@@ -264,6 +294,21 @@ describe('Passenger Controller', () => {
         message: 'Passenger profile not found'
       });
     });
+
+    it('should return 400 on validation error', async () => {
+      req.body = { firstName: '' };
+      const validationError = { name: 'SequelizeValidationError', errors: [{ path: 'firstName', message: 'Required' }] };
+      passengerService.updatePassenger.mockRejectedValue(validationError);
+
+      await passengerController.updateMe(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Validation error',
+        errors: [{ field: 'firstName', message: 'Required' }]
+      });
+    });
   });
 
   describe('deleteMe', () => {
@@ -291,6 +336,63 @@ describe('Passenger Controller', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: false,
         message: 'User ID not found in request'
+      });
+    });
+  });
+
+  describe('syncPassenger', () => {
+    it('should publish cache sync when passenger exists', async () => {
+      req.user = { id: 'u1' };
+      const passenger = { passengerId: 'p1' };
+      passengerService.getPassengerByUserId.mockResolvedValue(passenger);
+
+      await passengerController.syncPassenger(req, res, next);
+
+      expect(passengerService.getPassengerByUserId).toHaveBeenCalledWith('u1');
+      if (passengerProducer && passengerProducer.publishPassengerCacheSync) {
+        expect(passengerProducer.publishPassengerCacheSync).toHaveBeenCalledWith(passenger);
+      }
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('should return 404 when passenger not found', async () => {
+      req.user = { id: 'u1' };
+      passengerService.getPassengerByUserId.mockResolvedValue(null);
+
+      await passengerController.syncPassenger(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Passenger profile not found'
+      });
+    });
+
+    it('should return 400 when missing user id', async () => {
+      req.user = {};
+      await passengerController.syncPassenger(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'User ID not found in request'
+      });
+    });
+  });
+
+  describe('deletePassengerById', () => {
+    it('should return 200 and success message', async () => {
+      req.params.id = 'p1';
+      passengerService.deletePassengerById.mockResolvedValue(true);
+
+      await passengerController.deletePassengerById(req, res, next);
+
+      expect(passengerService.deletePassengerById).toHaveBeenCalledWith('p1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Passenger deleted successfully',
+        data: true
       });
     });
   });

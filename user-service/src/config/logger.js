@@ -8,34 +8,38 @@ const logformat = winston.format.combine(
   winston.format.json()
 );
 
+const isTest = process.env.NODE_ENV === 'test';
+
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
   format: logformat,
   defaultMeta: { service: 'user-service' },
-  transports: [
-    // Log to the console
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    }),
-    // Log to a file
-    new DailyRotateFile({
-      filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      level: 'error',
-      maxSize: '20m',
-      maxFiles: '14d',
-    }),
-    // Rotate file for all logs
-    new DailyRotateFile({
-      filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '14d',
-    })
-  ]
+  transports: isTest
+    ? [
+        // Keep a transport to avoid winston warnings, but silence output in tests
+        new winston.transports.Console({ silent: true })
+      ]
+    : [
+        new winston.transports.Console({
+          format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+          )
+        }),
+        new DailyRotateFile({
+          filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
+          datePattern: 'YYYY-MM-DD',
+          level: 'error',
+          maxSize: '20m',
+          maxFiles: '14d',
+        }),
+        new DailyRotateFile({
+          filename: path.join(__dirname, '..', 'logs', 'application-%DATE%.log'),
+          datePattern: 'YYYY-MM-DD',
+          maxSize: '20m',
+          maxFiles: '14d',
+        })
+      ]
 });
 
 const requestLogger = (req, res, next) => {

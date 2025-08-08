@@ -17,15 +17,14 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
-  // Enforce stricter coverage thresholds only when explicitly enabled
-  coverageThreshold: process.env.ENFORCE_COVERAGE === 'true' ? {
+  coverageThreshold: {
     global: {
       lines: 90,
       statements: 90,
       branches: 80,
       functions: 90,
     },
-  } : undefined,
+  },
   setupFiles: ['<rootDir>/tests/setupEnv.js'],
   moduleNameMapper: {
     '^./config/database$': '<rootDir>/tests/mocks/emptyModule.js',
