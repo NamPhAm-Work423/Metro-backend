@@ -164,8 +164,7 @@ jobs:
           github-pat: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
-        # Skip on PRs from forks (insufficient token permissions)
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && vars.ENABLE_SARIF_UPLOAD == 'true'
         uses: github/codeql-action/upload-sarif@v3
         continue-on-error: true
         with:
