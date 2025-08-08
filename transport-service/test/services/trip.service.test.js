@@ -100,5 +100,72 @@ describe('trip.service', () => {
   });
 });
 
+// Error paths (merged from extra2 file)
+describe('trip.service error paths', () => {
+  beforeEach(() => jest.clearAllMocks());
 
+  test('getAllTrips rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getAllTrips({})).rejects.toThrow('db');
+  });
 
+  test('getTripById not found', async () => {
+    Trip.findByPk.mockResolvedValue(null);
+    await expect(tripService.getTripById('x')).rejects.toThrow('Trip not found');
+  });
+
+  test('getTripById rejects', async () => {
+    Trip.findByPk.mockRejectedValue(new Error('db'));
+    await expect(tripService.getTripById('x')).rejects.toThrow('db');
+  });
+
+  test('updateTrip not found', async () => {
+    Trip.findByPk.mockResolvedValue(null);
+    await expect(tripService.updateTrip('x', {})).rejects.toThrow('Trip not found');
+  });
+
+  test('deleteTrip not found', async () => {
+    Trip.findByPk.mockResolvedValue(null);
+    await expect(tripService.deleteTrip('x')).rejects.toThrow('Trip not found');
+  });
+
+  test('getActiveTrips rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getActiveTrips()).rejects.toThrow('db');
+  });
+
+  test('getTripsByRoute rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getTripsByRoute('r1')).rejects.toThrow('db');
+  });
+
+  test('getTripsByTrain rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getTripsByTrain('tr1')).rejects.toThrow('db');
+  });
+
+  test('getTripsByDayOfWeek rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getTripsByDayOfWeek('Mon')).rejects.toThrow('db');
+  });
+
+  test('getUpcomingTrips rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.getUpcomingTrips('09:00', 'Mon')).rejects.toThrow('db');
+  });
+
+  test('findTripsBetweenStations rejects', async () => {
+    Trip.findAll.mockRejectedValue(new Error('db'));
+    await expect(tripService.findTripsBetweenStations('s1','s2','Mon')).rejects.toThrow('db');
+  });
+
+  test('getTripStatistics not found', async () => {
+    Trip.findByPk.mockResolvedValue(null);
+    await expect(tripService.getTripStatistics('x')).rejects.toThrow('Trip not found');
+  });
+
+  test('getTripStatistics rejects', async () => {
+    Trip.findByPk.mockRejectedValue(new Error('db'));
+    await expect(tripService.getTripStatistics('x')).rejects.toThrow('db');
+  });
+});

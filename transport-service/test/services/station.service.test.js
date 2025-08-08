@@ -71,3 +71,89 @@ describe('station.service', () => {
 });
 
 
+
+// Additional positive cases (previously in extra file)
+describe('station.service extra', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getAllStations filters and returns list', async () => {
+    Station.findAll.mockResolvedValue([]);
+    await stationService.getAllStations({ isActive: true, location: 'A', name: 'Main' });
+    expect(Station.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: expect.any(Object) }));
+  });
+
+  test('getActiveStations returns active list', async () => {
+    Station.findAll.mockResolvedValue([]);
+    const result = await stationService.getActiveStations();
+    expect(Station.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: { isActive: true } }));
+    expect(result).toEqual([]);
+  });
+
+  test('getStationsByOperatingHours applies time filters', async () => {
+    Station.findAll.mockResolvedValue([]);
+    const now = new Date().toISOString();
+    const result = await stationService.getStationsByOperatingHours(now);
+    expect(Station.findAll).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+});
+
+// Error paths (previously in extra2 file)
+describe('station.service error paths', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('createStation rejects', async () => {
+    Station.create.mockRejectedValue(new Error('db'));
+    await expect(stationService.createStation({})).rejects.toThrow('db');
+  });
+
+  test('getAllStations rejects', async () => {
+    Station.findAll.mockRejectedValue(new Error('db'));
+    await expect(stationService.getAllStations({})).rejects.toThrow('db');
+  });
+
+  test('getStationById rejects', async () => {
+    Station.findByPk.mockRejectedValue(new Error('db'));
+    await expect(stationService.getStationById('x')).rejects.toThrow('db');
+  });
+
+  test('updateStation not found', async () => {
+    Station.findByPk.mockResolvedValue(null);
+    await expect(stationService.updateStation('x', {})).rejects.toThrow('Station not found');
+  });
+
+  test('updateStation rejects', async () => {
+    Station.findByPk.mockRejectedValue(new Error('db'));
+    await expect(stationService.updateStation('x', {})).rejects.toThrow('db');
+  });
+
+  test('deleteStation not found', async () => {
+    Station.findByPk.mockResolvedValue(null);
+    await expect(stationService.deleteStation('x')).rejects.toThrow('Station not found');
+  });
+
+  test('deleteStation rejects', async () => {
+    Station.findByPk.mockRejectedValue(new Error('db'));
+    await expect(stationService.deleteStation('x')).rejects.toThrow('db');
+  });
+
+  test('getActiveStations rejects', async () => {
+    Station.findAll.mockRejectedValue(new Error('db'));
+    await expect(stationService.getActiveStations()).rejects.toThrow('db');
+  });
+
+  test('getStationsByOperatingHours rejects', async () => {
+    Station.findAll.mockRejectedValue(new Error('db'));
+    await expect(stationService.getStationsByOperatingHours('10:00')).rejects.toThrow('db');
+  });
+
+  test('updateStationFacilities not found', async () => {
+    Station.findByPk.mockResolvedValue(null);
+    await expect(stationService.updateStationFacilities('x', [])).rejects.toThrow('Station not found');
+  });
+
+  test('updateStationFacilities rejects', async () => {
+    Station.findByPk.mockRejectedValue(new Error('db'));
+    await expect(stationService.updateStationFacilities('x', [])).rejects.toThrow('db');
+  });
+});

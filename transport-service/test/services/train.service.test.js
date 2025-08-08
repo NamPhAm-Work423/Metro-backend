@@ -98,3 +98,96 @@ describe('train.service', () => {
 
 
 
+// Additional positive cases (from extra file)
+describe('train.service extra', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getAllTrains filters and returns list', async () => {
+    Train.findAll.mockResolvedValue([]);
+    await trainService.getAllTrains({ isActive: true, type: 'metro', status: 'active', name: 'A' });
+    expect(Train.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: expect.any(Object) }));
+  });
+
+  test('getActiveTrains returns list', async () => {
+    Train.findAll.mockResolvedValue([]);
+    const result = await trainService.getActiveTrains();
+    expect(Train.findAll).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+
+  test('getTrainsByType returns list', async () => {
+    Train.findAll.mockResolvedValue([]);
+    const result = await trainService.getTrainsByType('metro');
+    expect(Train.findAll).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+
+  test('getTrainsByStatus returns list with include', async () => {
+    Train.findAll.mockResolvedValue([]);
+    const result = await trainService.getTrainsByStatus('active');
+    expect(Train.findAll).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+
+  test('getTrainsNeedingMaintenance returns list', async () => {
+    Train.findAll.mockResolvedValue([]);
+    const result = await trainService.getTrainsNeedingMaintenance(15);
+    expect(Train.findAll).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+});
+
+// Error paths (from extra2 file)
+describe('train.service error paths', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getAllTrains rejects', async () => {
+    Train.findAll.mockRejectedValue(new Error('db'));
+    await expect(trainService.getAllTrains({})).rejects.toThrow('db');
+  });
+
+  test('getTrainById not found', async () => {
+    Train.findByPk.mockResolvedValue(null);
+    await expect(trainService.getTrainById('x')).rejects.toThrow('Train not found');
+  });
+
+  test('updateTrain not found', async () => {
+    Train.findByPk.mockResolvedValue(null);
+    await expect(trainService.updateTrain('x', {})).rejects.toThrow('Train not found');
+  });
+
+  test('deleteTrain not found', async () => {
+    Train.findByPk.mockResolvedValue(null);
+    await expect(trainService.deleteTrain('x')).rejects.toThrow('Train not found');
+  });
+
+  test('getActiveTrains rejects', async () => {
+    Train.findAll.mockRejectedValue(new Error('db'));
+    await expect(trainService.getActiveTrains()).rejects.toThrow('db');
+  });
+
+  test('getTrainsByType rejects', async () => {
+    Train.findAll.mockRejectedValue(new Error('db'));
+    await expect(trainService.getTrainsByType('metro')).rejects.toThrow('db');
+  });
+
+  test('getTrainsByStatus rejects', async () => {
+    Train.findAll.mockRejectedValue(new Error('db'));
+    await expect(trainService.getTrainsByStatus('active')).rejects.toThrow('db');
+  });
+
+  test('updateTrainStatus invalid status', async () => {
+    Train.findByPk.mockResolvedValue({ trainId: 'x' });
+    await expect(trainService.updateTrainStatus('x', 'invalid')).rejects.toThrow('Invalid status');
+  });
+
+  test('getTrainsNeedingMaintenance rejects', async () => {
+    Train.findAll.mockRejectedValue(new Error('db'));
+    await expect(trainService.getTrainsNeedingMaintenance(10)).rejects.toThrow('db');
+  });
+
+  test('getTrainUtilization not found', async () => {
+    Train.findByPk.mockResolvedValue(null);
+    await expect(trainService.getTrainUtilization('x')).rejects.toThrow('Train not found');
+  });
+});

@@ -107,11 +107,73 @@ describe('routeStation.service', () => {
   test('reorderRouteStations updates and validates', async () => {
     RouteStation.findAll.mockResolvedValue([{ routeStationId: 'rs1' }, { routeStationId: 'rs2' }]);
     RouteStation.update.mockResolvedValue([1]);
-    routeStationService.validateRouteSequence = jest.fn().mockResolvedValue({ valid: true });
+    const validateSpy = jest.spyOn(routeStationService, 'validateRouteSequence').mockResolvedValue({ valid: true });
     const result = await routeStationService.reorderRouteStations('r1', [{ routeStationId: 'rs1', sequence: 1 }, { routeStationId: 'rs2', sequence: 2 }]);
     expect(result.message).toMatch(/reordered successfully/);
+    validateSpy.mockRestore();
   });
 });
 
+// Error paths (merged from extra2)
+describe('routeStation.service error paths', () => {
+  beforeEach(() => jest.clearAllMocks());
 
+  test('getAllRouteStations rejects', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeStationService.getAllRouteStations({})).rejects.toThrow('db');
+  });
 
+  test('getRouteStationById rejects', async () => {
+    RouteStation.findByPk.mockRejectedValue(new Error('db'));
+    await expect(routeStationService.getRouteStationById('x')).rejects.toThrow('db');
+  });
+
+  test('getRouteStationById not found', async () => {
+    RouteStation.findByPk.mockResolvedValue(null);
+    await expect(routeStationService.getRouteStationById('missing')).rejects.toThrow('RouteStation not found');
+  });
+
+  test('updateRouteStation not found', async () => {
+    RouteStation.findByPk.mockResolvedValue(null);
+    await expect(routeStationService.updateRouteStation('x', {})).rejects.toThrow('RouteStation not found');
+  });
+
+  test('deleteRouteStation not found', async () => {
+    RouteStation.findByPk.mockResolvedValue(null);
+    await expect(routeStationService.deleteRouteStation('x')).rejects.toThrow('RouteStation not found');
+  });
+
+  test('getStationsByRoute rejects', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeStationService.getStationsByRoute('r1')).rejects.toThrow('db');
+  });
+
+  test('getRoutesByStation rejects', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('db'));
+    await expect(routeStationService.getRoutesByStation('s1')).rejects.toThrow('db');
+  });
+
+  test('setupCompleteRoute route not found', async () => {
+    Route.findByPk.mockResolvedValue(null);
+    await expect(routeStationService.setupCompleteRoute('r1', [])).rejects.toThrow('Route not found');
+  });
+
+  test('setupCompleteRoute station missing', async () => {
+    Route.findByPk.mockResolvedValue({ routeId: 'r1' });
+    Station.findAll.mockResolvedValue([{ stationId: 's1' }]);
+    const payload = [{ stationId: 's1', sequence: 1 }, { stationId: 's2', sequence: 2 }];
+    await expect(routeStationService.setupCompleteRoute('r1', payload)).rejects.toThrow('One or more stations not found');
+  });
+
+  test('validateRouteSequence no stations', async () => {
+    RouteStation.findAll.mockResolvedValue([]);
+    const result = await routeStationService.validateRouteSequence('r1');
+    expect(result).toEqual({ valid: false, message: 'No stations found for this route' });
+  });
+
+  test('reorderRouteStations mismatched length', async () => {
+    RouteStation.findAll.mockResolvedValue([{ routeStationId: 'a' }]);
+    await expect(routeStationService.reorderRouteStations('r1', [{ routeStationId: 'a', sequence: 1 }, { routeStationId: 'b', sequence: 2 }]))
+      .rejects.toThrow('Number of sequences must match existing route stations');
+  });
+});

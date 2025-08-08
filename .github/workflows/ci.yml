@@ -68,8 +68,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+      - name: Detect npm lockfile
+        id: detect_lockfile
+        if: ${{ matrix.runtime == 'node' }}
+        run: |
+          if [ -f "${{ matrix.path }}/package-lock.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Ensure npm cache directory
+        id: ensure_npm_cache_dir
+        if: ${{ matrix.runtime == 'node' }}
+        shell: bash
+        run: |
+          NPM_CACHE_DIR=$(npm config get cache)
+          mkdir -p "$NPM_CACHE_DIR"
+          echo "npm_cache_dir=$NPM_CACHE_DIR" >> $GITHUB_OUTPUT
+
+      - name: Cache npm (when lockfile exists)
+        if: ${{ matrix.runtime == 'node' && steps.detect_lockfile.outputs.exists == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.ensure_npm_cache_dir.outputs.npm_cache_dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles(format('{0}/package-lock.json', matrix.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Use Python
         if: matrix.runtime == 'python'
