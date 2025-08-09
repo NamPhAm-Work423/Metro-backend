@@ -1,12 +1,13 @@
 {
-  "name": "user-service",
+  "name": "payment-service",
   "version": "1.0.0",
-  "description": "Unified user service handling admin, passenger and staff users",
+  "description": "Payment service handling VNPay and PayPal flows",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest"
+    "test": "jest --config ./jest.config.js",
+    "test:unit": "jest --config ./jest.config.js --runInBand"
   },
   "dependencies": {
     "express": "^4.19.2",

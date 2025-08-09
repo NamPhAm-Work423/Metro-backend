@@ -15,7 +15,8 @@ from ..models.report_model import Report, ReportItem, ReportTemplate, ReportSche
 from ..services.report_service import ReportService
 from ..schemas.report_schema import (
     ReportCreate, ReportResponse, ReportListResponse,
-    ReportTemplateCreate, ReportScheduleCreate
+    ReportTemplateCreate, ReportScheduleCreate,
+    ReportTemplateResponse, ReportScheduleResponse
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -96,7 +97,7 @@ async def delete_report(report_id: str, db: Session = Depends(get_db)):
         logger.error("Failed to delete report", error=str(e), report_id=report_id)
         raise HTTPException(status_code=500, detail="Failed to delete report")
 
-@router.post("/templates", response_model=ReportTemplate)
+@router.post("/templates", response_model=ReportTemplateResponse)
 async def create_template(
     template_data: ReportTemplateCreate,
     db: Session = Depends(get_db)
@@ -113,7 +114,7 @@ async def create_template(
         logger.error("Failed to create template", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to create template")
 
-@router.get("/templates", response_model=List[ReportTemplate])
+@router.get("/templates", response_model=List[ReportTemplateResponse])
 async def get_templates(db: Session = Depends(get_db)):
     """Get all report templates"""
     try:
@@ -125,7 +126,7 @@ async def get_templates(db: Session = Depends(get_db)):
         logger.error("Failed to get templates", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to get templates")
 
-@router.post("/schedules", response_model=ReportSchedule)
+@router.post("/schedules", response_model=ReportScheduleResponse)
 async def create_schedule(
     schedule_data: ReportScheduleCreate,
     db: Session = Depends(get_db)

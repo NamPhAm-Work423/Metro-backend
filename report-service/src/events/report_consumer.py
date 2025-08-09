@@ -3,7 +3,7 @@ import json
 import os
 from typing import Dict, Any
 from ..config.logger import logger
-from ..kafka.kafka_consumer import KafkaEventConsumer
+from ..kafka_app.kafka_consumer import KafkaEventConsumer
 from ..services.report_service import ReportService
 from ..config.database import SessionLocal
 from ..config.settings import get_settings
@@ -98,7 +98,7 @@ class ReportEventConsumer:
                 'metric_name': 'ticket_created',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'amount': amount,
@@ -150,7 +150,7 @@ class ReportEventConsumer:
                 'metric_name': 'user_login',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'user_id': user_id,
                     'username': username,
                     'roles': roles,
@@ -180,7 +180,7 @@ class ReportEventConsumer:
                 'metric_name': 'ticket_activated',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'activated_at': activated_at
@@ -210,7 +210,7 @@ class ReportEventConsumer:
                 'metric_name': 'ticket_cancelled',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'reason': reason,
@@ -241,7 +241,7 @@ class ReportEventConsumer:
                 'metric_name': 'ticket_used',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'station_id': station_id,
@@ -305,7 +305,7 @@ class ReportEventConsumer:
                 'metric_name': 'ticket_created',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'route_id': route_id,
@@ -334,7 +334,7 @@ class ReportEventConsumer:
                 'metric_name': 'payment_completed',
                 'metric_value': amount,
                 'metric_unit': 'currency',
-                'metadata': {
+                'metadata_json': {
                     'payment_id': payment_id,
                     'ticket_id': ticket_id,
                     'payment_method': payment_method,
@@ -362,7 +362,7 @@ class ReportEventConsumer:
                 'metric_name': 'user_registered',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata': {
+                'metadata_json': {
                     'user_id': user_id,
                     'username': username,
                     'email': email,
@@ -391,7 +391,7 @@ class ReportEventConsumer:
                 'metric_name': 'route_updated',
                 'metric_value': len(stations),
                 'metric_unit': 'stations',
-                'metadata': {
+                'metadata_json': {
                     'route_id': route_id,
                     'route_name': route_name,
                     'stations': stations,

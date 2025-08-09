@@ -163,7 +163,7 @@ async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, o
         ticketId,
         passengerId,
         paymentAmount: amount,
-        paymentMethod: 'paypal',
+        paymentMethod: 'PAYPAL',
         paymentStatus: 'PENDING',
         paymentDate: new Date(),
         paymentGatewayResponse: null

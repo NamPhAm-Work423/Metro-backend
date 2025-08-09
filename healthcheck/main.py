@@ -3,27 +3,59 @@ import time
 import threading
 from uuid import uuid4
 
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, Response
+from datetime import datetime
 from flask_mail import Mail, Message
+import smtplib
 from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from werkzeug.middleware.proxy_fix import ProxyFix
+from urllib.parse import urljoin
 
 load_dotenv()
 
 app = Flask(__name__)
 scheduler = APScheduler()
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
 # Flask-Mail config
 app.config['MAIL_SERVER'] = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('EMAIL_PORT', '587'))
-app.config['MAIL_USE_TLS'] = os.getenv('EMAIL_SECURE', 'False') == 'True'
-app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER', 'metrosystem365@gmail.com')
-app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASS', 'djbmwwzmglbsqjgp')
+
+# EMAIL_SECURE options: 'ssl', 'starttls'/'tls', 'false'
+email_secure = os.getenv('EMAIL_SECURE', 'false').lower().strip()
+app.config['MAIL_USE_SSL'] = email_secure == 'ssl'
+app.config['MAIL_USE_TLS'] = email_secure in ('true', 'starttls', 'tls')
+
+# Only set credentials if provided (avoid AUTH on servers that don't support it)
+mail_username = os.getenv('EMAIL_USER', '').strip()
+mail_password = os.getenv('EMAIL_PASS', '').strip()
+app.config['MAIL_USERNAME'] = mail_username or None
+app.config['MAIL_PASSWORD'] = mail_password or None
+
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('EMAIL_FROM', 'metrosystem365@gmail.com')
 
 mail = Mail(app)
-ADMIN_EMAIL = os.getenv('MAIL_DEFAULT_SENDER', 'metrosystem365@gmail.com')
-HOST_URL = os.getenv("HOST_URL", "http://localhost:3007")
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', os.getenv('EMAIL_FROM', 'metrosystem365@gmail.com'))
+
+def build_base_url() -> str:
+    """Build external base URL for links using proxy headers when available.
+    Priority: HOST_URL env → X-Forwarded-* → request.host_url
+    """
+    host_url_env = os.getenv("HOST_URL")
+    if host_url_env:
+        return host_url_env.rstrip('/')
+
+    # Prefer proxy-provided external scheme/host/prefix
+    proto = request.headers.get('X-Forwarded-Proto') or request.scheme
+    host = request.headers.get('X-Forwarded-Host') or request.host
+    prefix = request.headers.get('X-Forwarded-Prefix', '')
+    if prefix and not prefix.startswith('/'):
+        prefix = '/' + prefix
+
+    base = f"{proto}://{host}{prefix}"
+    return base.rstrip('/')
 
 # Global alert state and confirmation map
 state = {}
@@ -35,12 +67,48 @@ def send_email_alert(job, instance, summary, link):
         subject=f"[ALERT] {job} is DOWN",
         recipients=[ADMIN_EMAIL]
     )
-    msg.html = render_template("service_instance_down.html", job=job, instance=instance, summary=summary, link=link)
-    mail.send(msg)
+    msg.html = render_template(
+        "service_instance_down.html",
+        job=job,
+        instance=instance,
+        summary=summary,
+        link=link,
+        time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+    )
+    try:
+        mail.send(msg)
+    except smtplib.SMTPNotSupportedError:
+        # Fallback: retry without AUTH if server doesn't support it
+        app.config['MAIL_USERNAME'] = None
+        app.config['MAIL_PASSWORD'] = None
+        Mail(app).send(msg)
 
 @app.route('/')
 def index():
     return "✅ Confirm Service Running"
+
+REQUEST_COUNT = Counter('healthcheck_request_total', 'Total number of requests', ['method', 'endpoint', 'status'])
+REQUEST_LATENCY = Histogram('healthcheck_request_latency_seconds', 'Request latency in seconds', ['method', 'endpoint'])
+ALERTS_ACTIVE = Gauge('healthcheck_active_alerts', 'Number of active (unconfirmed) alerts')
+
+
+@app.before_request
+def _start_timer():
+    request._start_time = time.perf_counter()
+
+
+@app.after_request
+def _record_metrics(response):
+    try:
+        latency = max(0.0, time.perf_counter() - getattr(request, '_start_time', time.perf_counter()))
+        endpoint = request.endpoint or 'unknown'
+        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(latency)
+        REQUEST_COUNT.labels(method=request.method, endpoint=endpoint, status=str(response.status_code)).inc()
+        with state_lock:
+            ALERTS_ACTIVE.set(len(state))
+    finally:
+        return response
+
 
 @app.route('/health')
 def health():
@@ -93,7 +161,8 @@ def receive_alert():
             fid = uuid4().hex
             confirm_map[fid] = key
 
-        confirm_link = f"{HOST_URL}/confirm/{fid}"
+        base_url = build_base_url()
+        confirm_link = f"{base_url}/confirm/{fid}"
         # print("DEBUG: ", confirm_link)
         with app.app_context():
             send_email_alert(job, instance, summary, confirm_link)
@@ -108,7 +177,13 @@ def confirm(fid):
             state[key]['confirmed'] = True
             print(f"[CONFIRMED] Alert {key} confirmed via {fid}")
             return f"✅ Confirmed alert for {key}"
-    return "❌ Invalid or expired link", 404
+    return "Invalid or expired link", 404
+
+
+@app.get('/metrics')
+def metrics():
+    data = generate_latest()
+    return Response(response=data, content_type=CONTENT_TYPE_LATEST)
 
 def cleanup():
     now = time.time()
@@ -121,17 +196,23 @@ def cleanup():
                 confirm_map[fid] = key
                 state[key]['timestamp'] = now
                 job, instance = key.split("@")
-                confirm_link = f"{HOST_URL}/confirm/{fid}"
+                base_url = build_base_url()
+                confirm_link = f"{base_url}/confirm/{fid}"
                 with app.app_context():
                     send_email_alert(job, instance, "Service is still down", confirm_link)
             elif data['confirmed'] or now - data['timestamp'] > 900:
                 print(f"[CLEANUP] Cleaning up {key}. Confirmed: {data['confirmed']} | Age: {now - data['timestamp']:.1f}s")
                 del state[key]
 
-# Start the scheduler
-scheduler.init_app(app)
-scheduler.start()
-scheduler.add_job(id='cleanup_job', func=cleanup, trigger='interval', seconds=30)
+def _start_scheduler_once():
+    if not getattr(app, "_scheduler_started", False):
+        scheduler.init_app(app)
+        scheduler.start()
+        scheduler.add_job(id='cleanup_job', func=cleanup, trigger='interval', seconds=30)
+        app._scheduler_started = True
+
+_start_scheduler_once()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3007, debug=False)
+    port = int(os.getenv('PORT', '3000'))
+    app.run(host='0.0.0.0', port=port, debug=False)

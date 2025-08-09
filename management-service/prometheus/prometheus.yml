@@ -16,3 +16,4 @@ scrape_configs:
       - files:
         - /etc/prometheus/services.json
         refresh_interval: 10s
+  # Scrape only via file_sd (services.json) to avoid duplicate series

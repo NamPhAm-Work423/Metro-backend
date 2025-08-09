@@ -1,4 +1,5 @@
 Flask
+gunicorn
 docker
 python-dotenv
 sqlalchemy

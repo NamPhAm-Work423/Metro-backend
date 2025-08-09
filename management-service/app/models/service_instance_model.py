@@ -2,8 +2,9 @@ from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, func, Inte
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import VARCHAR
 import uuid
-from management.app.configs.database import Base
-from .service.model import Service
+
+from app.configs.database import Base
+
 
 class ServiceInstance(Base):
     __tablename__ = 'service_instances'
@@ -22,19 +23,32 @@ class ServiceInstance(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     version = Column(String(50), nullable=False, default='1.0.0')
-    metadata = Column(JSON, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
     last_heartbeat = Column(DateTime(timezone=True), nullable=True)
 
-    def __init__(self, host, port, endpoint, status=True, service_id=None, skeleton_path= None, version='1.0.0', metadata=None, last_heartbeat=None):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        endpoint: str,
+        status: bool = True,
+        service_id: str | None = None,
+        skeleton_path: str | None = None,
+        version: str = '1.0.0',
+        metadata_json: dict | None = None,
+        last_heartbeat=None,
+    ):
         self.host = host
         self.port = port
         self.endpoint = endpoint
         self.status = status
         self.service_id = service_id
-        self.skeleton_path = skeleton_path  
+        self.skeleton_path = skeleton_path
         self.version = version
-        self.metadata = metadata
+        self.metadata_json = metadata_json
         self.last_heartbeat = last_heartbeat
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ServiceInstance(id={self.id}, host={self.host}, port={self.port}, status={self.status})>"
+
+

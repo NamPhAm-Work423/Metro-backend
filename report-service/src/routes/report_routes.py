@@ -8,7 +8,8 @@ from ..models.report_model import Report, ReportTemplate, ReportSchedule
 from ..services.report_service import ReportService
 from ..schemas.report_schema import (
     ReportCreate, ReportResponse, ReportListResponse,
-    ReportTemplateCreate, ReportScheduleCreate
+    ReportTemplateCreate, ReportScheduleCreate,
+    ReportTemplateResponse, ReportScheduleResponse
 )
 from ..middlewares.authz_fastapi import authorize_roles
 
@@ -80,7 +81,7 @@ async def delete_report(report_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to delete report")
 
 
-@router.post("/create-template", response_model=ReportTemplate, dependencies=[Depends(authorize_roles(["admin"]))])
+@router.post("/create-template", response_model=ReportTemplateResponse, dependencies=[Depends(authorize_roles(["admin"]))])
 async def create_template(
     template_data: ReportTemplateCreate,
     db: Session = Depends(get_db)
@@ -95,7 +96,7 @@ async def create_template(
         raise HTTPException(status_code=500, detail="Failed to create template")
 
 
-@router.get("/get-templates", response_model=List[ReportTemplate], dependencies=[Depends(authorize_roles(["admin"]))])
+@router.get("/get-templates", response_model=List[ReportTemplateResponse], dependencies=[Depends(authorize_roles(["admin"]))])
 async def get_templates(db: Session = Depends(get_db)):
     try:
         report_service = ReportService(db)
@@ -106,7 +107,7 @@ async def get_templates(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to get templates")
 
 
-@router.post("/create-schedule", response_model=ReportSchedule, dependencies=[Depends(authorize_roles(["admin"]))])
+@router.post("/create-schedule", response_model=ReportScheduleResponse, dependencies=[Depends(authorize_roles(["admin"]))])
 async def create_schedule(
     schedule_data: ReportScheduleCreate,
     db: Session = Depends(get_db)

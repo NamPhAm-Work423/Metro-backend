@@ -1,6 +1,4 @@
 const jwt = require('jsonwebtoken');
-const { User, Key } = require('../models/index.model');
-const config = require('../config');
 const { logger } = require('../config/logger');
 const keyService = require('../services/key.service');
 
@@ -91,32 +89,10 @@ class AuthMiddleware {
         });
       }
 
-      // Get user information if userId is available
+      // Add minimal user context from key metadata when available
       if (keyData.userId) {
-        try {
-          const user = await User.findByPk(keyData.userId);
-          if (user && user.isVerified && !user.accountLocked && !user.isLocked()) {
-            // Add user context headers for downstream services
-            req.headers['x-user-id'] = user.id.toString();
-            req.headers['x-user-email'] = user.email;
-            req.headers['x-user-roles'] = JSON.stringify(user.roles);
-            
-            // Also add to request object for potential use
-            req.user = user;
-            
-            logger.info('User context added to request', {
-              userId: user.id,
-              email: user.email,
-              roles: user.roles
-            });
-          }
-        } catch (userError) {
-          logger.warn('Could not fetch user for API key', {
-            userId: keyData.userId,
-            error: userError.message
-          });
-          // Continue anyway - API key is valid even if user fetch fails
-        }
+        req.headers['x-user-id'] = keyData.userId.toString();
+        req.user = { id: keyData.userId };
       }
 
       // API key is valid, proceed to next middleware

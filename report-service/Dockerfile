@@ -7,6 +7,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

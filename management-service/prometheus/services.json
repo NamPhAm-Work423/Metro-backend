@@ -8,16 +8,24 @@
         }
     },
     {
+      "targets": [
+          "auth-service:8001"
+      ],
+      "labels": {
+          "job": "auth-service"
+      }
+  },
+    {
         "targets": [
-            "user-service:8001"
+            "user-service:8002"
         ],
         "labels": {
-            "job": "user-service"
+            "job": "user-service" 
         }
     },
     {
         "targets": [
-            "transport-service:8002"
+            "transport-service:8003"
         ],
         "labels": {
             "job": "transport-service"
@@ -25,23 +33,23 @@
     },
     {
         "targets": [
-            "ticket-service:8003"
+            "ticket-service:8004"
         ],
         "labels": {
             "job": "ticket-service"
         }
     },
     {
-        "targets": [
-            "customer-support-service:8004"
-          ],
-          "labels": {
-            "job": "customer-support-service"
-          }
+      "targets": [
+        "public-service:8005"
+      ],
+      "labels": {
+        "job": "public-service"
+      }
     },
     {
         "targets": [
-            "payment-service:8005"
+            "payment-service:8006"
           ],
           "labels": {
             "job": "payment-service"
@@ -49,19 +57,26 @@
     },
     {
         "targets": [
-            "report-service:8006"
+            "report-service:8007"
           ],
           "labels": {
             "job": "report-service"
           }
     },
     {
-      "targets": [
-        "public-service:8007"
-      ],
-      "labels": {
-        "job": "public-service"
-      }
+        "targets": [
+            "management-service:3001"
+        ],
+        "labels": {
+            "job": "management-service"
+        }
+    },
+    {
+        "targets": [
+            "healthcheck:3000"
+        ],
+        "labels": {
+            "job": "healthcheck-service"
+        }
     }
   ]
-  

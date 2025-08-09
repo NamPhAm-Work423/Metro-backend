@@ -12,8 +12,6 @@ on:
 env:
   CHART_PATH: deploy/helm/metro
   NAMESPACE: metro
-  CHART_PATH: deploy/helm/metro
-  NAMESPACE: metro
 
 permissions:
   contents: read
@@ -61,11 +59,12 @@ jobs:
 
       # Authenticate to cluster
       - name: Set kubeconfig (if provided)
-        if: secrets.KUBE_CONFIG != ''
         run: |
-          echo "${KUBE_CONFIG}" | base64 -d > $HOME/.kube/config
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          if [[ -n "${{ secrets.KUBE_CONFIG }}" ]]; then
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          else
+            echo "KUBE_CONFIG is empty; skipping kubeconfig setup."
+          fi
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4

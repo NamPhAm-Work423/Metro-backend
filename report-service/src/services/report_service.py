@@ -31,7 +31,7 @@ class ReportService:
                 title=report_data.title,
                 description=report_data.description,
                 report_type=report_data.report_type.value,
-                metadata=report_data.metadata or {},
+                metadata_json=report_data.metadata or {},
                 status=ReportStatus.PENDING.value
             )
             
@@ -207,7 +207,7 @@ class ReportService:
     async def _generate_custom_report(self, report: Report):
         """Generate custom report based on metadata"""
         # Use metadata to determine report content
-        metadata = report.metadata or {}
+        metadata = report.metadata_json or {}
         data = {
             'custom_data': metadata.get('data', {}),
             'filters': metadata.get('filters', {}),
@@ -280,6 +280,7 @@ class ReportService:
                 <h1>{report.title}</h1>
                 <p>{report.description or ''}</p>
                 <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Type: {report.report_type}</p>
             </div>
             
             <div class="metric">
@@ -387,14 +388,14 @@ class ReportService:
             # Top stations by usage today
             top_stations = (
                 self.db.query(
-                    (ReportMetric.metadata['station_id'].astext).label('station_id'),
+                    (ReportMetric.metadata_json['station_id'].astext).label('station_id'),
                     func.count(ReportMetric.id).label('uses')
                 )
                 .filter(
                     ReportMetric.metric_name == 'ticket_used',
                     func.date(ReportMetric.timestamp) == today
                 )
-                .group_by(ReportMetric.metadata['station_id'].astext)
+                .group_by(ReportMetric.metadata_json['station_id'].astext)
                 .order_by(desc('uses'))
                 .limit(5)
                 .all()
@@ -470,7 +471,7 @@ class ReportService:
             # Top routes by purchases this month (from ticket_created)
             top_routes = (
                 self.db.query(
-                    (ReportMetric.metadata['route_id'].astext).label('route_id'),
+                    (ReportMetric.metadata_json['route_id'].astext).label('route_id'),
                     func.count(ReportMetric.id).label('tickets')
                 )
                 .filter(
@@ -478,7 +479,7 @@ class ReportService:
                     func.extract('month', ReportMetric.timestamp) == current_month,
                     func.extract('year', ReportMetric.timestamp) == current_year
                 )
-                .group_by(ReportMetric.metadata['route_id'].astext)
+                .group_by(ReportMetric.metadata_json['route_id'].astext)
                 .order_by(desc('tickets'))
                 .limit(10)
                 .all()

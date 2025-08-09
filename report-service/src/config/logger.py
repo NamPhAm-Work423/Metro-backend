@@ -28,11 +28,18 @@ structlog.configure(
 logs_dir = Path(__file__).parent.parent / "logs"
 logs_dir.mkdir(exist_ok=True)
 
-# Configure standard logging
+# Configure standard logging using LOG_LEVEL if provided
+log_level_str = os.getenv("LOG_LEVEL")
+if log_level_str:
+    resolved_level = getattr(logging, log_level_str.upper(), logging.INFO)
+else:
+    # Fallback: DEBUG in development, INFO otherwise
+    resolved_level = logging.DEBUG if os.getenv("NODE_ENV") == "development" else logging.INFO
+
 logging.basicConfig(
     format="%(message)s",
     stream=sys.stdout,
-    level=logging.INFO if os.getenv("NODE_ENV") != "development" else logging.DEBUG,
+    level=resolved_level,
 )
 
 # Create file handler for error logs
@@ -47,6 +54,23 @@ all_handler.setLevel(logging.INFO)
 root_logger = logging.getLogger()
 root_logger.addHandler(error_handler)
 root_logger.addHandler(all_handler)
+
+# Reduce noisy third-party loggers (kafka-python, SQLAlchemy, etc.) unless explicitly set to DEBUG
+if resolved_level > logging.DEBUG:
+    for noisy_name in [
+        "kafka",
+        "kafka.client",
+        "kafka.conn",
+        "kafka.cluster",
+        "kafka.protocol",
+        "kafka.coordinator",
+        "kafka.producer",
+        "kafka.consumer",
+        "sqlalchemy",
+        "sqlalchemy.engine",
+        "sqlalchemy.pool",
+    ]:
+        logging.getLogger(noisy_name).setLevel(logging.WARNING)
 
 # Create the main logger
 logger = structlog.get_logger()

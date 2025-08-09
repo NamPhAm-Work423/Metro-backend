@@ -1,37 +1,66 @@
 """
-main.py - Entry point for management app
-- Initialize metrics monitor
-- Create database tables if needed
-- Example to send Kafka event
+Flask app entrypoint for management-service
+
+- Exposes /health and /metrics
+- Starts system metrics monitor
+- Instruments request count and latency
 """
-from management.app.utils.metrics import system_monitor
-from management.app.kafka.producer import producer, MANAGEMENT_EVENTS_TOPIC
-from management.app.kafka.event import Event, EventType
-# from management.app.configs.database import db  # If need to create tables
 
+import os
 import time
+from flask import Flask, request, g, Response
 
-def main():
-    # Start system metrics monitor
+from app.utils.metrics import (
+    system_monitor,
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+    get_metrics,
+)
+
+# Create Flask app for Gunicorn entrypoint "app.main:app"
+app = Flask(__name__)
+
+# Start system metrics monitor on import (idempotent for gunicorn workers)
+try:
     system_monitor.start()
-    print("System metrics monitor started.")
+except RuntimeError:
+    # Thread already started in this process
+    pass
 
-    # Create database tables if needed (comment out if no db)
-    # db.create_all()
-    # print("Database tables created.")
 
-    # Example to send Kafka event
-    event = Event(source="management", op=EventType.METRICS, payload={"status": "app started"})
-    producer.send_event(MANAGEMENT_EVENTS_TOPIC, event)
-    print(f"Sent event to topic {MANAGEMENT_EVENTS_TOPIC}: {event.to_dict()}")
+@app.before_request
+def start_timer():
+    g._start_time = time.perf_counter()
 
-    # App run in background (mock)
+
+@app.after_request
+def record_metrics(response):
     try:
-        while True:
-            time.sleep(10)
-    except KeyboardInterrupt:
-        print("Shutting down...")
-        system_monitor.stop()
+        latency_seconds = max(
+            0.0, time.perf_counter() - getattr(g, "_start_time", time.perf_counter())
+        )
+        endpoint = request.endpoint or "unknown"
+        method = request.method
+        status = str(response.status_code)
+
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency_seconds)
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status).inc()
+    finally:
+        return response
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "service": "management-service"}
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    data, content_type = get_metrics()
+    return Response(response=data, content_type=content_type)
+
 
 if __name__ == "__main__":
-    main()
+    # Local/debug run; in containers we use Gunicorn as per Dockerfile
+    port = int(os.getenv("PORT", "3001"))
+    app.run(host="0.0.0.0", port=port)

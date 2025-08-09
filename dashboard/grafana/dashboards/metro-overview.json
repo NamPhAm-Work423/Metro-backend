@@ -1,0 +1,50 @@
+{
+  "uid": "metro-overview",
+  "title": "Metro Overview",
+  "timezone": "browser",
+  "schemaVersion": 37,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Targets Up",
+      "gridPos": {"w": 6, "h": 4, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "sum(up)", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate",
+      "gridPos": {"w": 12, "h": 8, "x": 6, "y": 0},
+      "targets": [
+        {"expr": "sum by (job) (rate(request_total[1m]))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p95",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 4},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le, method, endpoint) (rate(request_latency_seconds_bucket[5m])))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU % (process)",
+      "gridPos": {"w": 6, "h": 6, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "avg by (job) (cpu_usage_percent)", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory (bytes)",
+      "gridPos": {"w": 6, "h": 6, "x": 18, "y": 8},
+      "targets": [
+        {"expr": "avg by (job) (memory_usage_bytes)", "refId": "A"}
+      ]
+    }
+  ]
+}
+

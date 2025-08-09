@@ -44,7 +44,7 @@ class ReportTemplateBase(BaseModel):
 class ReportScheduleBase(BaseModel):
     template_id: str
     name: str = Field(..., min_length=1, max_length=255)
-    schedule_type: str = Field(..., regex="^(daily|weekly|monthly)$")
+    schedule_type: str = Field(..., pattern="^(daily|weekly|monthly)$")
     schedule_config: Dict[str, Any]
     recipients: List[str]
     is_active: bool = True

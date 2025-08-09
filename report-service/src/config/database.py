@@ -5,19 +5,23 @@ import os
 from .logger import logger
 
 # Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:password@localhost:5432/metro_report"
-)
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Create SQLAlchemy engine
+sql_echo = os.getenv("SQL_ECHO", "false").strip().lower() in ("1", "true", "yes", "on")
 engine = create_engine(
     DATABASE_URL,
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=os.getenv("NODE_ENV") == "development"
+    echo=sql_echo,
 )
 
 # Create SessionLocal class

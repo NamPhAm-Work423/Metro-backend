@@ -18,12 +18,7 @@ class UserEventConsumer {
                 source: payload.source 
             });
 
-            // Import User model and userService to avoid circular dependency
-            const User = require('../models/user.model');
-            const userService = require('../services/user.service');
-
-            // Delete user from API Gateway database
-            await userService.deleteUserByUserId(payload.userId);
+            // No local user store anymore; only revoke gateway API keys
 
             // Revoke all API keys for the user
             await keyService.revokeAllUserKeys(payload.userId);
@@ -55,12 +50,7 @@ class UserEventConsumer {
                 source: payload.source 
             });
 
-            // Import User model and userService to avoid circular dependency
-            const User = require('../models/user.model');
-            const userService = require('../services/user.service');
-
-            // Delete user from API Gateway database
-            await userService.deleteUserByUserId(payload.data.userId);
+            // No local user store anymore; only revoke gateway API keys
 
             // Revoke all API keys for the user
             await keyService.revokeAllUserKeys(payload.data.userId);
@@ -93,12 +83,7 @@ class UserEventConsumer {
                 source: payload.source 
             });
 
-            // Import User model and userService to avoid circular dependency
-            const User = require('../models/user.model');
-            const userService = require('../services/user.service');
-
-            // Delete user from API Gateway database
-            await userService.deleteUserByUserId(payload.data.userId);
+            // No local user store anymore; only revoke gateway API keys
 
             // Revoke all API keys for the user
             await keyService.revokeAllUserKeys(payload.data.userId);

@@ -24,7 +24,16 @@ class AbstractProducer(ABC):
 
 class KafkaProducerService(AbstractProducer):
     def __init__(self, config: dict):
-        self.producer = Producer(config)
+        # Add resilient reconnect/backoff defaults if not provided
+        default_config = {
+            'retries': 5,
+            'retry.backoff.ms': 200,
+            'reconnect.backoff.ms': 500,
+            'reconnect.backoff.max.ms': 10000,
+            'socket.keepalive.enable': True,
+        }
+        merged_config = {**default_config, **config}
+        self.producer = Producer(merged_config)
 
     def send_event(self, topic: str, event: Event):
         try:
@@ -45,8 +54,6 @@ producer = KafkaProducerService({
     'bootstrap.servers': os.getenv("KAFKA_BROKERS_INTERNAL"),
     'client.id': "management_service",
     'acks': 'all',
-    'retries': 3,
-    'retry.backoff.ms': 100,
 })
 
 # Example usage:

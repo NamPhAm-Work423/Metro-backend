@@ -1,4 +1,5 @@
 from kafka import KafkaConsumer
+from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import KafkaError
 import json
 import asyncio
@@ -50,25 +51,55 @@ class KafkaEventConsumer:
         }
         
         self.consumer = None
+        self.consume_task: asyncio.Task | None = None
+        self.loop: asyncio.AbstractEventLoop | None = None
         
     async def start(self):
-        """Start the consumer and begin listening for messages."""
+        """Start the consumer and begin listening for messages.
+
+        IMPORTANT: This method configures the consumer and then offloads the
+        blocking consume loop to a background thread so it does not block the
+        FastAPI event loop. This allows the service to respond to health checks
+        immediately while the consumer runs in the background.
+        """
         while self.retry_count < self.max_retries:
             try:
+                # Ensure topics exist before subscribing
+                try:
+                    admin = KafkaAdminClient(
+                        bootstrap_servers=self.kafka_config['bootstrap_servers'],
+                        client_id=self.kafka_config['client_id']
+                    )
+                    existing_topics = set(admin.list_topics() or [])
+                    to_create = [t for t in self.topics if t not in existing_topics]
+                    if to_create:
+                        new_topics = [NewTopic(name=t, num_partitions=1, replication_factor=1) for t in to_create]
+                        try:
+                            admin.create_topics(new_topics=new_topics, validate_only=False)
+                        except Exception:
+                            # Ignore if topics already being created by others
+                            pass
+                    admin.close()
+                except Exception as ensure_err:
+                    logger.warn("Failed to ensure topics exist (continuing)", error=str(ensure_err))
+
                 self.consumer = KafkaConsumer(**self.kafka_config)
-                
+
                 # Subscribe to topics
                 self.consumer.subscribe(self.topics)
                 logger.info("KafkaEventConsumer connected successfully")
                 logger.info(f"Subscribed to topics: {self.topics}")
-                
+
                 self.running = True
                 self.retry_count = 0  # Reset retry count on success
-                
-                # Start consuming messages
-                await self._consume_messages()
-                break
-                
+
+                # Capture the running loop so we can dispatch coroutines from the thread
+                self.loop = asyncio.get_running_loop()
+
+                # Offload the blocking consume loop to a background thread
+                self.consume_task = asyncio.create_task(asyncio.to_thread(self._consume_messages_sync))
+                return  # Do not block the event loop
+
             except Exception as error:
                 self.retry_count += 1
                 logger.error(
@@ -77,11 +108,11 @@ class KafkaEventConsumer:
                     retry_count=self.retry_count,
                     max_retries=self.max_retries
                 )
-                
+
                 if self.retry_count >= self.max_retries:
                     logger.error("Max retries reached for KafkaEventConsumer, giving up")
                     raise error
-                
+
                 logger.info(
                     "Retrying KafkaEventConsumer connection",
                     retry_count=self.retry_count,
@@ -89,23 +120,39 @@ class KafkaEventConsumer:
                 )
                 await asyncio.sleep(self.retry_delay)
     
-    async def _consume_messages(self):
-        """Consume messages from Kafka topics."""
+    def _consume_messages_sync(self):
+        """Consume messages from Kafka topics in a blocking loop (runs in a thread)."""
         try:
             for message in self.consumer:
                 if not self.running:
                     break
-                    
+
                 try:
-                    # Process the message
-                    await self._process_message(message)
-                    
+                    # Build a rich payload to include topic and key
+                    payload = {
+                        "topic": message.topic,
+                        "key": message.key.decode("utf-8") if message.key else None,
+                        "timestamp": getattr(message, "timestamp", None),
+                        "value": message.value,
+                    }
+
+                    # Dispatch handler appropriately
+                    if asyncio.iscoroutinefunction(self.message_handler):
+                        # Schedule coroutine on the main loop without blocking this thread
+                        if self.loop is not None:
+                            asyncio.run_coroutine_threadsafe(self.message_handler(payload), self.loop)
+                        else:
+                            # Fallback: run synchronously (last resort)
+                            asyncio.run(self.message_handler(payload))
+                    else:
+                        self.message_handler(payload)
+
                     # Update metrics
                     KAFKA_MESSAGES_PROCESSED.labels(
                         topic=message.topic,
                         status="success"
                     ).inc()
-                    
+
                 except Exception as e:
                     logger.error(
                         "Error processing Kafka message",
@@ -114,17 +161,17 @@ class KafkaEventConsumer:
                         partition=message.partition,
                         offset=message.offset
                     )
-                    
+
                     # Update metrics for failed messages
                     KAFKA_MESSAGES_PROCESSED.labels(
                         topic=message.topic,
                         status="error"
                     ).inc()
-                    
+
         except Exception as e:
             logger.error("Error in Kafka consumer loop", error=str(e))
             self.running = False
-            raise
+            # Do not re-raise here; background thread should exit quietly
     
     async def _process_message(self, message):
         """Process a single Kafka message."""
@@ -164,7 +211,12 @@ class KafkaEventConsumer:
         """Gracefully stop the consumer."""
         if self.running and self.consumer:
             self.running = False
-            self.consumer.close()
+            try:
+                self.consumer.close()
+            finally:
+                # Cancel background task if any
+                if self.consume_task:
+                    self.consume_task.cancel()
             logger.info("KafkaEventConsumer stopped successfully")
     
     def get_consumer_lag(self):

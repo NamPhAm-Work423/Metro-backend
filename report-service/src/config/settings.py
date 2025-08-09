@@ -1,4 +1,5 @@
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from typing import List
 
@@ -35,9 +36,12 @@ class Settings(BaseSettings):
     TICKET_CANCELLED_TOPIC: str = Field(default="ticket.cancelled")
     TICKET_USED_TOPIC: str = Field(default="ticket.used")
 
-    class Config:
-        case_sensitive = False
-        env_file = ".env"
+    # Pydantic v2 configuration
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_file=".env",
+        extra="ignore",
+    )
 
     @property
     def kafka_brokers_list(self) -> List[str]:

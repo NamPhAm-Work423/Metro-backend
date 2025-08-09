@@ -1,12 +1,9 @@
-const User = require('./user.model');
 const Key = require('./key.model');
 
 // Define associations
-User.hasMany(Key, { foreignKey: 'userId', as: 'keys' });
-Key.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+// If user model is removed from gateway, keep only Key model export
 
 
 module.exports = {
-    User,
     Key
 };

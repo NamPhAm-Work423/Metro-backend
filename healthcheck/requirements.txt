@@ -2,3 +2,5 @@ Flask==2.3.3
 Flask-Mail==0.9.1
 Flask-APScheduler==1.13.0
 python-dotenv==1.0.0 
+prometheus-client==0.20.0
+gunicorn==21.2.0

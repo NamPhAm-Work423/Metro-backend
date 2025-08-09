@@ -14,13 +14,14 @@ class Report(Base):
     report_type = Column(String(50), nullable=False)  # daily, weekly, monthly, custom
     status = Column(String(20), default="pending")  # pending, processing, completed, failed
     file_path = Column(String(500))  # Path to generated report file
-    metadata = Column(JSON)  # Additional report metadata
+    metadata_json = Column(JSON, name="metadata")  # Store in DB column named 'metadata'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     completed_at = Column(DateTime(timezone=True))
     
     # Relationships
     report_items = relationship("ReportItem", back_populates="report", cascade="all, delete-orphan")
+
 
 class ReportItem(Base):
     """Individual items within a report"""
@@ -79,11 +80,7 @@ class ReportMetric(Base):
     metric_unit = Column(String(20))
     report_id = Column(String(36), ForeignKey("reports.id"))
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    metadata = Column(JSON)
+    metadata_json = Column(JSON, name="metadata")
     
     # Relationships
     report = relationship("Report") 
-
-    # Common index recommendations (applied via migrations typically):
-    # - index on (metric_name, timestamp)
-    # - GIN index on metadata for JSON queries (PostgreSQL)

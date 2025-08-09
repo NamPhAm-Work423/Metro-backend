@@ -7,7 +7,6 @@ const sequelize = require('./config/database');
 const config = require('./config')();
 const initialize = require('./initialize');
 const { updateAllInstancesStatus } = require('./services/loadBalancer.service');
-const seedAdmin = require('./seed/seedAdmin');
 
 const updateServiceStatusCronJob = () => {
     cron.schedule('*/1 * * * *', async () => {
@@ -21,7 +20,7 @@ sequelize.sync({ force: false }).then(() => {
     initialize().then(async () => {
         console.log('Finish initalize gateway');
 
-        await seedAdmin();
+        // User seeding is handled in auth-service
 
         const PORT = config.gateway.port || 8000;
 

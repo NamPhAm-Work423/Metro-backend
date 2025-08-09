@@ -7,10 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 if __name__ == "__main__":
-    # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "3001"))
-    reload = os.getenv("NODE_ENV") == "development"
+    port = int(os.getenv("PORT", "8007"))
+    reload = os.getenv("RELOAD", "false").strip().lower() in ("1", "true", "yes", "on")
     
     # Run the application
     uvicorn.run(
@@ -18,5 +17,6 @@ if __name__ == "__main__":
         host=host,
         port=port,
         reload=reload,
-        log_level="info" if os.getenv("NODE_ENV") != "development" else "debug"
-    ) 
+        reload_excludes=["logs/*", "reports/*", "src/logs/*"],
+        log_level="debug" if reload or os.getenv("NODE_ENV") == "development" else "info"
+    )
