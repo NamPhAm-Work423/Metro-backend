@@ -34,14 +34,16 @@ spec:
               containerPort: {{ .Values.ports.http }}
           env:
             {{- toYaml .Values.env | nindent 12 }}
+          {{- $liveness := default dict .Values.liveness }}
+          {{- $readiness := default dict .Values.readiness }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.liveness.path | default .Values.probes.livenessPath }}
+              path: {{ (get $liveness "path") | default .Values.probes.livenessPath }}
               port: http
             initialDelaySeconds: 10
           readinessProbe:
             httpGet:
-              path: {{ .Values.readiness.path | default .Values.probes.readinessPath }}
+              path: {{ (get $readiness "path") | default .Values.probes.readinessPath }}
               port: http
             initialDelaySeconds: 5
           resources:
