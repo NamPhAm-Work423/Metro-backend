@@ -1,5 +1,7 @@
-# Logs
+# Mac
+.DS_Store
 
+# Logs
 logs
 logs/*
 *.log
