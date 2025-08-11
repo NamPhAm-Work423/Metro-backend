@@ -1,0 +1,26 @@
+name: Setup kubeconfig
+description: Write base64 kubeconfig to $HOME/.kube/config if provided
+inputs:
+  kubeconfig:
+    description: Base64-encoded kubeconfig content
+    required: false
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        if [[ -n "${{ inputs.kubeconfig }}" ]]; then
+          mkdir -p "$HOME/.kube"
+          echo "${{ inputs.kubeconfig }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          echo "kubeconfig written from input"
+        elif [[ -n "${KUBE_CONFIG:-}" ]]; then
+          mkdir -p "$HOME/.kube"
+          echo "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          echo "kubeconfig written from env"
+        else
+          echo "KUBE_CONFIG is empty; skipping kubeconfig setup."
+        fi
+

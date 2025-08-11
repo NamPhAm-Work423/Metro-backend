@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image tag (semver vX.Y.Z hoặc short SHA)"
+        description: "Image tag (semver vX.Y.Z or short SHA)"
         required: true
   release:
     types: [published]
@@ -56,20 +56,24 @@ jobs:
             repo: metro-management-service
             values: management-service.yaml
 
+    # no job-level secrets references; will export via a step env
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       # Authenticate to cluster
-      - name: Set kubeconfig (if provided)
+      - name: Export kubeconfig secret to env
+        shell: bash
         env:
-          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
+          KCFG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          if [[ -n "${KUBE_CONFIG_B64}" ]]; then
-            echo "${KUBE_CONFIG_B64}" | base64 -d > "$HOME/.kube/config"
-          else
-            echo "KUBE_CONFIG is empty; skipping kubeconfig setup."
+          if [[ -n "${KCFG:-}" ]]; then
+            echo "KUBE_CONFIG=$KCFG" >> $GITHUB_ENV
           fi
+
+      - name: Set kubeconfig (if provided)
+        uses: ./.github/actions/kubeconfig
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
