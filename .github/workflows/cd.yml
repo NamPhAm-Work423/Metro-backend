@@ -1,4 +1,4 @@
-name: CD - Production
+name: CD
 
 on:
   workflow_dispatch:
@@ -8,6 +8,11 @@ on:
         required: true
   release:
     types: [published]
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
 
 env:
   CHART_PATH: deploy/helm/metro
@@ -90,8 +95,10 @@ jobs:
       - name: Resolve version
         id: ver
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
+          if [[ "${{ github.event_name }}" == "release" || "${GITHUB_REF}" == refs/tags/* ]]; then
             echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           else
             echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           fi
