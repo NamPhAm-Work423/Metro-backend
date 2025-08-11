@@ -69,12 +69,16 @@ jobs:
 
       # Authenticate to cluster
       - name: Export kubeconfig secret to env
+        id: kcfg
         shell: bash
         env:
           KCFG: ${{ secrets.KUBE_CONFIG }}
         run: |
           if [[ -n "${KCFG:-}" ]]; then
             echo "KUBE_CONFIG=$KCFG" >> $GITHUB_ENV
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Set kubeconfig (if provided)
@@ -90,6 +94,7 @@ jobs:
         run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
       - name: Ensure namespace
+        if: ${{ steps.kcfg.outputs.present == 'true' }}
         run: kubectl create ns $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Resolve version
@@ -131,6 +136,7 @@ jobs:
             --set image.tag="${{ steps.ver.outputs.tag }}"
 
       - name: Deploy service
+        if: ${{ steps.kcfg.outputs.present == 'true' }}
         run: |
           set -euo pipefail
           # Server-side dry-run validation
@@ -152,6 +158,7 @@ jobs:
             --atomic --wait --timeout 15m --history-max 10
 
       - name: Post-deploy status
+        if: ${{ steps.kcfg.outputs.present == 'true' }}
         run: |
           set -euo pipefail
           kubectl get deploy,sts,po,svc -n "$NAMESPACE" -l app.kubernetes.io/instance=${{ matrix.name }} || true
