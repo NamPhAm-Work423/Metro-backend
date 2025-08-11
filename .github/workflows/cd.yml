@@ -21,8 +21,11 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    concurrency:
+      group: cd-prod-${{ github.workflow }}-${{ matrix.name }}-${{ github.ref_name }}
+      cancel-in-progress: false
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: api-gateway
@@ -59,9 +62,11 @@ jobs:
 
       # Authenticate to cluster
       - name: Set kubeconfig (if provided)
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
         run: |
-          if [[ -n "${{ secrets.KUBE_CONFIG }}" ]]; then
-            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          if [[ -n "${KUBE_CONFIG_B64}" ]]; then
+            echo "${KUBE_CONFIG_B64}" | base64 -d > "$HOME/.kube/config"
           else
             echo "KUBE_CONFIG is empty; skipping kubeconfig setup."
           fi
@@ -87,13 +92,57 @@ jobs:
             echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Validate version input
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.ver.outputs.tag }}'
+          if [[ -z "$TAG" ]]; then
+            echo "Empty tag provided" >&2
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ && ! "$TAG" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "Tag '$TAG' must be semver (vX.Y.Z) or a git SHA" >&2
+            exit 1
+          fi
+
+      - name: Helm dependency update
+        run: |
+          set -euo pipefail
+          helm dependency update "$CHART_PATH"
+
+      - name: Helm lint
+        run: |
+          set -euo pipefail
+          helm lint "$CHART_PATH" \
+            --values "$CHART_PATH/values/${{ matrix.values }}" \
+            --set name="${{ matrix.name }}" \
+            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
+            --set image.tag="${{ steps.ver.outputs.tag }}"
+
       - name: Deploy service
         run: |
+          set -euo pipefail
+          # Server-side dry-run validation
+          helm template "${{ matrix.name }}" "$CHART_PATH" \
+            --namespace "$NAMESPACE" \
+            --values "$CHART_PATH/values/${{ matrix.values }}" \
+            --set name="${{ matrix.name }}" \
+            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
+            --set image.tag="${{ steps.ver.outputs.tag }}" \
+          | kubectl apply -n "$NAMESPACE" --dry-run=server -f -
+
+          # Atomic deploy with wait and timeout
           helm upgrade --install "${{ matrix.name }}" "$CHART_PATH" \
             --namespace "$NAMESPACE" \
             --values "$CHART_PATH/values/${{ matrix.values }}" \
             --set name="${{ matrix.name }}" \
             --set image.repository="$REGISTRY/${{ matrix.repo }}" \
-            --set image.tag="${{ steps.ver.outputs.tag }}"
+            --set image.tag="${{ steps.ver.outputs.tag }}" \
+            --atomic --wait --timeout 15m --history-max 10
+
+      - name: Post-deploy status
+        run: |
+          set -euo pipefail
+          kubectl get deploy,sts,po,svc -n "$NAMESPACE" -l app.kubernetes.io/instance=${{ matrix.name }} || true
 
 
