@@ -7,22 +7,7 @@ jest.mock('../../../src/middlewares/auth.middleware', () => ({
   authorize: () => (req, res, next) => next(),
 }));
 
-jest.mock('../../../src/controllers/user.controller', () => {
-  const noop = () => (req, res) => res.status(200).json({ success: true });
-  return {
-    signup: noop(),
-    login: noop(),
-    logout: noop(),
-    refreshToken: noop(),
-    verifyEmail: noop(),
-    verifyEmailFromQuery: noop(),
-    verifyToken: noop(),
-    getMe: noop(),
-    forgotPassword: noop(),
-    resetPassword: noop(),
-    unlockAccount: noop(),
-  };
-});
+// Remove mock for non-existent user controller in gateway
 
 jest.mock('../../../src/controllers/service.controller', () => {
   const noop = (req, res) => res.status(200).json({ success: true });
@@ -58,7 +43,7 @@ jest.mock('../../../src/controllers/auth.controller', () => {
   };
 });
 
-jest.mock('../../../src', () => ({ jwt: { secret: 'test' } }));
+jest.mock('../../../src', () => ({ jwt: { secret: 'test' } }), { virtual: true });
 
 const indexRoutes = require('../../../src/routes');
 
@@ -66,6 +51,25 @@ describe('Index Routes', () => {
   const app = express();
   app.use(express.json());
   app.use('/', indexRoutes);
+
+  it('GET /health returns gateway health payload', async () => {
+    const res = await request(app).get('/health');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body).toHaveProperty('timestamp');
+    expect(res.body).toHaveProperty('uptime');
+    expect(Array.isArray(res.body.services)).toBe(true);
+  });
+
+  it('GET /v1/discovery returns discovery info with gateway meta', async () => {
+    const res = await request(app).get('/v1/discovery');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('gateway');
+    expect(res.body.data.gateway).toHaveProperty('name');
+    expect(res.body.data).toHaveProperty('services');
+    expect(res.body.data).toHaveProperty('guestServices');
+  });
 
   it('GET /health should return 200 with success true', async () => {
     const res = await request(app).get('/health');

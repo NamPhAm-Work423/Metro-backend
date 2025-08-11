@@ -1,26 +1,7 @@
 const express = require('express');
 const request = require('supertest');
 
-// Mock user controller so we can test routing only  
-jest.mock('../../../src/controllers/user.controller', () => {
-  const mockController = {
-    signup: jest.fn((req, res) => res.status(201).json({ success: true })),
-    login: jest.fn((req, res) => res.status(200).json({ success: true })),
-    logout: jest.fn((req, res) => res.status(200).json({ success: true })),
-    refreshToken: jest.fn((req, res) => res.status(200).json({ success: true })),
-    verifyEmail: jest.fn((req, res) => res.status(200).json({ success: true })),
-    verifyEmailFromQuery: jest.fn((req, res) => res.status(200).send('<html><body>Email verified!</body></html>')),
-    verifyToken: jest.fn((req, res) => res.status(200).json({ success: true })),
-    getMe: jest.fn((req, res) => res.status(200).json({ success: true })),
-    forgotPassword: jest.fn((req, res) => res.status(200).json({ success: true })),
-    resetPassword: jest.fn((req, res) => res.status(200).json({ success: true })),
-    unlockAccount: jest.fn((req, res) => res.status(200).json({ success: true })),
-  };
-  return mockController;
-});
-
-// Re-require mocked controller
-const userControllerMock = require('../../../src/controllers/user.controller');
+// No user controller in gateway; this test validates gateway auth route constraints
 
 // Mock auth middleware to bypass authentication when required
 jest.mock('../../../src/middlewares/auth.middleware', () => ({
@@ -30,11 +11,21 @@ jest.mock('../../../src/middlewares/auth.middleware', () => ({
   },
 }));
 
-// Mock auth controller for API key management
-jest.mock('../../../src/controllers/auth.controller', () => ({
-  generateAPIToken: jest.fn((req, res) => res.status(200).json({ success: true, token: 'api-token' })),
-  getAPIKeyByUser: jest.fn((req, res) => res.status(200).json({ success: true, data: [] })),
-  deleteKeyById: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Key deleted' }))
+// Mock rate limiter to avoid circular require into src/index
+jest.mock('../../../src/middlewares/rateLimiter', () => ({
+  apiRateLimiter: (req, res, next) => next(),
+  burstProtection: (req, res, next) => next(),
+  defaultRateLimiter: (req, res, next) => next(),
+  authRateLimiter: (req, res, next) => next(),
+  sensitiveRateLimiter: (req, res, next) => next()
+}));
+
+jest.mock('../../../src/controllers/routing.controller', () => ({
+  useService: jest.fn((req, res) => res.status(200).json({
+    success: true,
+    endpoint: req.params.endPoint,
+    path: req.params[0] || ''
+  }))
 }));
 
 // Mock the parent src index required by middleware config
@@ -42,83 +33,23 @@ jest.mock('../../../src', () => ({ jwt: { secret: 'test' } }));
 
 const authRoutes = require('../../../src/routes/auth.route');
 
-describe('Auth Routes', () => {
+describe('Gateway Auth Routes', () => {
   const app = express();
   app.use(express.json());
   app.use('/v1/auth', authRoutes);
 
   afterEach(() => jest.clearAllMocks());
 
-  it('POST /v1/auth/register should return 201', async () => {
-    const res = await request(app).post('/v1/auth/register').send({
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john@example.com',
-      password: 'password123',
-    });
-
-    expect(res.statusCode).toBe(201);
-    expect(userControllerMock.signup).toHaveBeenCalled();
+  it('should allow only auth endpoint under /v1/auth', async () => {
+    const res = await request(app).get('/v1/auth/auth/me');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.endpoint).toBe('auth');
   });
 
-  it('POST /v1/auth/login should return 200', async () => {
-    const res = await request(app).post('/v1/auth/login').send({
-      email: 'john@example.com',
-      password: 'password123',
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.login).toHaveBeenCalled();
-  });
-
-  it('POST /v1/auth/logout should return 200', async () => {
-    const res = await request(app)
-      .post('/v1/auth/logout')
-      .set('Authorization', 'Bearer token');
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.logout).toHaveBeenCalled();
-  });
-
-  it('POST /v1/auth/refresh should return 200', async () => {
-    const res = await request(app)
-      .post('/v1/auth/refresh')
-      .send({ refreshToken: 'refreshtoken' });
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.refreshToken).toHaveBeenCalled();
-  });
-
-  it('GET /v1/auth/verify/:token should return 200', async () => {
-    const res = await request(app).get('/v1/auth/verify/testtoken');
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.verifyEmail).toHaveBeenCalled();
-  });
-
-  it('GET /v1/auth/verify-email should return 200', async () => {
-    const res = await request(app)
-      .get('/v1/auth/verify-email?token=testtoken');
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.verifyEmailFromQuery).toHaveBeenCalled();
-  });
-
-  it('POST /v1/auth/forgot-password should return 200', async () => {
-    const res = await request(app)
-      .post('/v1/auth/forgot-password')
-      .send({ email: 'john@example.com' });
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.forgotPassword).toHaveBeenCalled();
-  });
-
-  it('POST /v1/auth/reset-password should return 200', async () => {
-    const res = await request(app)
-      .post('/v1/auth/reset-password')
-      .send({ token: 'abc123', password: 'newPass123' });
-
-    expect(res.statusCode).toBe(200);
-    expect(userControllerMock.resetPassword).toHaveBeenCalled();
+  it('should block non-auth endpoints under /v1/auth', async () => {
+    const res = await request(app).get('/v1/auth/user/me');
+    expect(res.statusCode).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.allowedEndpoints).toEqual(['auth']);
   });
 }); 

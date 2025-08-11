@@ -25,17 +25,7 @@ jest.mock('../../../src/config/database', () => {
   return new Sequelize('sqlite::memory:', { logging: false });
 });
 
-jest.mock('../../../src/models/index.model', () => ({
-  User: {},
-  Key: {}
-}));
-
-jest.mock('../../../src/services/user.service', () => ({}));
-jest.mock('../../../src/controllers/user.controller', () => ({
-  signup: jest.fn(),
-  login: jest.fn(),
-  logout: jest.fn()
-}));
+// Remove unused mocks for non-existent gateway modules
 
 // Mock authentication middleware to bypass authentication
 jest.mock('../../../src/middlewares/auth.middleware', () => ({
