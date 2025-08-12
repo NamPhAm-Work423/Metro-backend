@@ -4,7 +4,7 @@ const path = require('path');
 const { logger } = require('../config/logger');
 
 // Import models
-const { Route, Station, Trip, RouteStation } = require('../models/index.model');
+const { Route, Station, Trip, RouteStation, Train, Stop } = require('../models/index.model');
 
 // Load the protobuf
 const PROTO_PATH = path.join(__dirname, '../proto/transport.proto');
@@ -143,6 +143,7 @@ const transportService = {
                 arrivalTime: trip.arrivalTime || '',
                 dayOfWeek: trip.dayOfWeek || '',
                 isActive: trip.isActive,
+                serviceDate: trip.serviceDate ? trip.serviceDate.toISOString().slice(0,10) : '',
                 route: trip.route ? {
                     routeId: trip.route.routeId,
                     name: trip.route.name,
@@ -281,6 +282,27 @@ const transportService = {
         }
     },
 
+    async ListTrains(call, callback) {
+        try {
+            const trains = await Train.findAll();
+            const response = {
+                trains: trains.map(t => ({
+                    trainId: t.trainId,
+                    name: t.name,
+                    type: t.type,
+                    capacity: t.capacity,
+                    status: t.status,
+                    isActive: t.isActive,
+                    lastMaintenance: t.lastMaintenance ? t.lastMaintenance.toISOString() : ''
+                }))
+            };
+            callback(null, response);
+        } catch (error) {
+            logger.error('ListTrains error:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+        }
+    },
+
     /**
      * Get all stations for a specific route ordered by sequence
      */
@@ -358,6 +380,61 @@ const transportService = {
                 code: grpc.status.INTERNAL,
                 message: 'Internal server error'
             });
+        }
+    }
+    ,
+
+    async BulkUpsertTrips(call, callback) {
+        try {
+            const { trips } = call.request;
+            if (!Array.isArray(trips) || trips.length === 0) {
+                return callback(null, { trips: [] });
+            }
+            const created = await Trip.bulkCreate(trips.map(t => ({
+                routeId: t.routeId,
+                trainId: t.trainId,
+                departureTime: t.departureTime,
+                arrivalTime: t.arrivalTime,
+                dayOfWeek: t.dayOfWeek,
+                isActive: t.isActive,
+                serviceDate: t.serviceDate || null
+            })), { returning: true });
+
+            const response = {
+                trips: created.map(trip => ({
+                    tripId: trip.tripId,
+                    routeId: trip.routeId,
+                    trainId: trip.trainId,
+                    departureTime: trip.departureTime || '',
+                    arrivalTime: trip.arrivalTime || '',
+                    dayOfWeek: trip.dayOfWeek || '',
+                    isActive: trip.isActive
+                }))
+            };
+            callback(null, response);
+        } catch (error) {
+            logger.error('BulkUpsertTrips error:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+        }
+    },
+
+    async BulkUpsertStops(call, callback) {
+        try {
+            const { stops } = call.request;
+            if (!Array.isArray(stops) || stops.length === 0) {
+                return callback(null, { created: 0 });
+            }
+            await Stop.bulkCreate(stops.map(s => ({
+                tripId: s.tripId,
+                stationId: s.stationId,
+                arrivalTime: s.arrivalTime || null,
+                departureTime: s.departureTime || null,
+                sequence: s.sequence
+            })));
+            callback(null, { created: stops.length });
+        } catch (error) {
+            logger.error('BulkUpsertStops error:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
         }
     }
 };

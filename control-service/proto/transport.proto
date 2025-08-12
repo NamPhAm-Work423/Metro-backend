@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package transport;
+
+service TransportService {
+  rpc GetRoute(GetRouteRequest) returns (RouteResponse);
+  rpc GetStation(GetStationRequest) returns (StationResponse);
+  rpc GetTrip(GetTripRequest) returns (TripResponse);
+  rpc GetRoutesByStations(GetRoutesByStationsRequest) returns (RoutesResponse);
+  rpc GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse);
+  rpc CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse);
+  rpc ListRoutes(ListRoutesRequest) returns (RoutesResponse);
+  rpc ListTrains(ListTrainsRequest) returns (TrainsResponse);
+  rpc BulkUpsertTrips(BulkUpsertTripsRequest) returns (BulkUpsertTripsResponse);
+  rpc BulkUpsertStops(BulkUpsertStopsRequest) returns (BulkUpsertStopsResponse);
+}
+
+message GetRouteRequest { string routeId = 1; }
+message GetStationRequest { string stationId = 1; }
+message GetTripRequest { string tripId = 1; }
+message GetRoutesByStationsRequest { string originStationId = 1; string destinationStationId = 2; }
+message GetRouteStationsRequest { string routeId = 1; }
+message CalculateStationCountRequest { string routeId = 1; string originStationId = 2; string destinationStationId = 3; }
+
+message RouteResponse {
+  string routeId = 1;
+  string name = 2;
+  string originId = 3;
+  string destinationId = 4;
+  double distance = 5;
+  double duration = 6;
+  bool isActive = 7;
+  Station origin = 8;
+  Station destination = 9;
+}
+message RoutesResponse { repeated RouteResponse routes = 1; }
+message RouteStationsResponse { repeated RouteStation routeStations = 1; }
+message StationCountResponse { int32 stationCount = 1; string routeId = 2; string originStationId = 3; string destinationStationId = 4; }
+message StationResponse { string stationId = 1; string name = 2; string location = 3; double latitude = 4; double longitude = 5; bool isActive = 6; }
+message TripResponse { string tripId = 1; string routeId = 2; string trainId = 3; string departureTime = 4; string arrivalTime = 5; string dayOfWeek = 6; bool isActive = 7; RouteResponse route = 8; }
+message Station { string stationId = 1; string name = 2; string location = 3; double latitude = 4; double longitude = 5; bool isActive = 6; }
+message RouteStation { string routeStationId = 1; string routeId = 2; string stationId = 3; int32 sequence = 4; Station station = 5; }
+message ListRoutesRequest {}
+message ListTrainsRequest {}
+message TrainMessage { string trainId = 1; string name = 2; string type = 3; int32 capacity = 4; string status = 5; bool isActive = 6; string lastMaintenance = 7; }
+message TrainsResponse { repeated TrainMessage trains = 1; }
+message TripInput { string routeId = 1; string trainId = 2; string departureTime = 3; string arrivalTime = 4; string dayOfWeek = 5; bool isActive = 6; }
+message BulkUpsertTripsRequest { repeated TripInput trips = 1; }
+message BulkUpsertTripsResponse { repeated TripResponse trips = 1; }
+message StopInput { string tripId = 1; string stationId = 2; string arrivalTime = 3; string departureTime = 4; int32 sequence = 5; }
+message BulkUpsertStopsRequest { repeated StopInput stops = 1; }
+message BulkUpsertStopsResponse { int32 created = 1; }
+
+

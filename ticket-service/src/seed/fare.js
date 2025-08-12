@@ -53,25 +53,25 @@ const seedFares = async () => {
             {
                 transitPassId: uuidv4(),
                 transitPassType: 'day_pass',
-                price: 50000,
+                price: 20000,
                 currency: 'VND'
             },
             {
                 transitPassId: uuidv4(),
                 transitPassType: 'weekly_pass',
-                price: 200000,
+                price: 80000,
                 currency: 'VND'
             },
             {
                 transitPassId: uuidv4(),
                 transitPassType: 'monthly_pass',
-                price: 750000,
+                price: 300000,
                 currency: 'VND'
             },
             {
                 transitPassId: uuidv4(),
                 transitPassType: 'yearly_pass',
-                price: 8000000,
+                price: 1200000,
                 currency: 'VND'
             }
         ];

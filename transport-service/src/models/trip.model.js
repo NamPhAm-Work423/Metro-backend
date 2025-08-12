@@ -7,6 +7,10 @@ const Trip = sequelize.define('Trip', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
+    serviceDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+    },
     routeId: {
         type: DataTypes.STRING(100),
         allowNull: false,

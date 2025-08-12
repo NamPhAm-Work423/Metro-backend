@@ -10,6 +10,9 @@ service TransportService {
   rpc GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse);
   rpc CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse);
   rpc ListRoutes(ListRoutesRequest) returns (RoutesResponse);
+  rpc ListTrains(ListTrainsRequest) returns (TrainsResponse);
+  rpc BulkUpsertTrips(BulkUpsertTripsRequest) returns (BulkUpsertTripsResponse);
+  rpc BulkUpsertStops(BulkUpsertStopsRequest) returns (BulkUpsertStopsResponse);
 }
 
 message GetRouteRequest {
@@ -77,6 +80,7 @@ message StationResponse {
 
 message TripResponse {
   string tripId = 1;
+  string serviceDate = 9;
   string routeId = 2;
   string trainId = 3;
   string departureTime = 4;
@@ -104,3 +108,53 @@ message RouteStation {
 }
 
 message ListRoutesRequest {} 
+
+message ListTrainsRequest {}
+
+message TrainMessage {
+  string trainId = 1;
+  string name = 2;
+  string type = 3;
+  int32 capacity = 4;
+  string status = 5;
+  bool isActive = 6;
+  string lastMaintenance = 7;
+}
+
+message TrainsResponse {
+  repeated TrainMessage trains = 1;
+}
+
+message TripInput {
+  string routeId = 1;
+  string trainId = 2;
+  string departureTime = 3;
+  string arrivalTime = 4;
+  string dayOfWeek = 5;
+  bool isActive = 6;
+  string serviceDate = 7;
+}
+
+message BulkUpsertTripsRequest {
+  repeated TripInput trips = 1;
+}
+
+message BulkUpsertTripsResponse {
+  repeated TripResponse trips = 1;
+}
+
+message StopInput {
+  string tripId = 1;
+  string stationId = 2;
+  string arrivalTime = 3;
+  string departureTime = 4;
+  int32 sequence = 5;
+}
+
+message BulkUpsertStopsRequest {
+  repeated StopInput stops = 1;
+}
+
+message BulkUpsertStopsResponse {
+  int32 created = 1;
+}

@@ -325,20 +325,46 @@ services:
           cpus: '0.25'
           memory: 256M
 
-  
+  control-service:
+    build:
+      context: ./control-service
+    container_name: control-service
+    expose:
+      - "8008"   # Internal only
+      - "50053"   # Internal gRPC
+    env_file:
+      - ./control-service/.env
+    volumes:
+      - ./control-service:/app
+    depends_on:
+      transport-service:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
 
   healthcheck:
     build:
-      context: ./healthcheck
+      context: ./deploy/healthcheck
     container_name: healthcheck
     expose:
       - "3000"  # Internal only
     env_file:
-      - ./healthcheck/.env
+      - ./deploy/healthcheck/.env
     environment:
       - WEB_CONCURRENCY=2
     volumes:
-      - ./healthcheck:/app
+      - ./deploy/healthcheck:/app
     depends_on:
       redis:
         condition: service_healthy
