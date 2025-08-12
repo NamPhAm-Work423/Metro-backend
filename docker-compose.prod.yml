@@ -34,6 +34,8 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    profiles:
+      - nginx
 
   # Microservices (use images from GHCR, env from ../env)
   api-gateway:

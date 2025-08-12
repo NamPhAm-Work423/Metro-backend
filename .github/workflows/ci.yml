@@ -174,7 +174,9 @@ jobs:
         run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
       - name: Prepare Trivy cache dir
-        run: echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
 
       - name: Cache Trivy DB
         uses: actions/cache@v4
