@@ -178,13 +178,13 @@ jobs:
           mkdir -p "$HOME/.cache/trivy"
           echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
 
-      - name: Cache Trivy DB
-        uses: actions/cache@v4
+      - name: Restore Trivy DB cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.TRIVY_CACHE_DIR }}
-          key: ${{ runner.os }}-trivy-db
+          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
           restore-keys: |
-            ${{ runner.os }}-trivy-
+            ${{ runner.os }}-trivy-db-
 
       - name: Build and push image (SHA tag)
         uses: docker/build-push-action@v6
@@ -226,6 +226,12 @@ jobs:
           cache-dir: ${{ env.TRIVY_CACHE_DIR }}
           timeout: 5m
           hide-progress: true
+
+      - name: Save Trivy DB cache
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.TRIVY_CACHE_DIR }}
+          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
 
       - name: Upload SARIF
         if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && env.ENABLE_SARIF_UPLOAD == 'true'

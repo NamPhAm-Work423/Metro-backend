@@ -91,6 +91,8 @@ services:
     <<:
       - *default-restart
       - *default-deploy
+    volumes:
+      - /opt/metro/libs:/libs:ro
 
   transport-service:
     image: ${REGISTRY}/metro-transport-service:${IMAGE_TAG}
@@ -128,6 +130,8 @@ services:
     <<:
       - *default-restart
       - *default-deploy
+    volumes:
+      - /opt/metro/libs:/libs:ro
 
   public-service:
     image: ${REGISTRY}/metro-public-service:${IMAGE_TAG}

@@ -1,4 +1,4 @@
-name: Deploy to VPS (self-hosted runner)
+name: Deploy
 
 on:
   workflow_run:
