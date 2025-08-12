@@ -173,6 +173,17 @@ jobs:
       - name: Set REGISTRY env (lowercase owner)
         run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
+      - name: Prepare Trivy cache dir
+        run: echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TRIVY_CACHE_DIR }}
+          key: ${{ runner.os }}-trivy-db
+          restore-keys: |
+            ${{ runner.os }}-trivy-
+
       - name: Build and push image (SHA tag)
         uses: docker/build-push-action@v6
         with:
@@ -210,6 +221,9 @@ jobs:
           vuln-type: 'os,library'
           exit-code: '0'
           github-pat: ${{ secrets.GITHUB_TOKEN }}
+          cache-dir: ${{ env.TRIVY_CACHE_DIR }}
+          timeout: 5m
+          hide-progress: true
 
       - name: Upload SARIF
         if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && env.ENABLE_SARIF_UPLOAD == 'true'
