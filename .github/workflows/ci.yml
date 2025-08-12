@@ -64,7 +64,6 @@ jobs:
             dockerfile: Dockerfile
             runtime: python
 
-    # REGISTRY is set later via $GITHUB_ENV to ensure lowercase owner
 
     steps:
       - name: Checkout

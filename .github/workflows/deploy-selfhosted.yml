@@ -1,16 +1,14 @@
 name: Deploy to VPS (self-hosted runner)
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
-        description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use current context
+        description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use computed tag
         required: false
-  push:
-    branches:
-      - main
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -24,6 +22,7 @@ jobs:
     name: Local deploy on self-hosted runner
     runs-on: self-hosted
     timeout-minutes: 30
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
@@ -38,10 +37,9 @@ jobs:
           set -euo pipefail
           if [[ -n "${{ inputs.tag || '' }}" ]]; then
             echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            echo "value=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "value=${SHA:0:7}" >> $GITHUB_OUTPUT
           else
             echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           fi
@@ -59,6 +57,29 @@ jobs:
           set +e
           echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           true
+
+      - name: Verify images exist for tag
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            api-gateway auth-service payment-service public-service ticket-service 
+            transport-service user-service report-service management-service control-service
+          )
+          missing=()
+          for s in "${services[@]}"; do
+            if ! docker manifest inspect "$REGISTRY/metro-$s:$IMAGE_TAG" >/dev/null 2>&1; then
+              missing+=("$REGISTRY/metro-$s:$IMAGE_TAG")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing images for tag '$IMAGE_TAG':" >&2
+            printf ' - %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
 
       - name: Compose pull & up
         env:
