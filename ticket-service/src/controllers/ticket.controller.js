@@ -545,8 +545,17 @@ class TicketController {
         } catch (error) {
             logger.error('Error calculating ticket price', {
                 error: error.message,
+                code: error.code,
                 body: req.body
             });
+
+            if (error.code === 'DUPLICATE_STATION') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Entry and exit stations must be different',
+                    error: 'DUPLICATE_STATION'
+                });
+            }
 
             res.status(500).json({
                 success: false,

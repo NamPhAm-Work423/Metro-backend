@@ -106,6 +106,18 @@ class TicketPriceCalculator {
      */
     async calculateTotalPriceForPassengers(entryStationId, exitStationId, tripType, passengerCounts, promotionData = null) {
         try {
+            // Validate stations: entry and exit must be different
+            if (entryStationId && exitStationId && String(entryStationId) === String(exitStationId)) {
+                logger.warn('Duplicate station detected for entry and exit', {
+                    entryStationId,
+                    exitStationId,
+                    tripType
+                });
+                const error = new Error('Entry and exit stations must be different');
+                error.code = 'DUPLICATE_STATION';
+                throw error;
+            }
+
             logger.info('Calculating total price for passengers', {
                 entryStationId,
                 exitStationId,
