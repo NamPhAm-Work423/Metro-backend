@@ -319,6 +319,10 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             description: `Promotion management and discount validation.\n\n**Promotion model fields**:\n- promotionId (uuid)\n- code (string)\n- name (string)\n- description (string)\n- type (percentage|fixed_amount|buy_one_get_one)\n- value (decimal)\n- maxDiscountAmount (decimal, nullable)\n- minPurchaseAmount (decimal, nullable)\n- applicableTicketTypes (array)\n- applicablePassengerTypes (array)\n- applicableRoutes (array)\n- usageLimit (integer, nullable)\n- usageCount (integer)\n- userUsageLimit (integer, nullable)\n- validFrom (date-time)\n- validUntil (date-time)\n- daysOfWeek (array)\n- timeSlots (array)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
         },
         {
+            name: 'Transit Passes',
+            description: `Transit pass products for long-term access.\n\n**TransitPass model fields**:\n- transitPassId (uuid)\n- transitPassType (day_pass|weekly_pass|monthly_pass|yearly_pass|lifetime_pass)\n- price (decimal)\n- currency (VND|USD|CNY)\n- isActive (boolean)\n- createdAt (date-time)\n- updatedAt (date-time)`
+        },
+        {
             name: 'System',
             description: 'System health and discovery endpoints'
         },

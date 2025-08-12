@@ -36,19 +36,20 @@ services:
     profiles:
       - nginx  # Optional: docker-compose --profile nginx up
 
-  # API Gateway - ONLY service with external port
+  # API Gateway - internal only (use nginx-proxy profile to expose 80/443)
   api-gateway:
     build:
       context: ./api-gateway
     container_name: api-gateway
-    ports:
-      - "8000:8000"  # External port for Postman/Frontend
+    expose:
+      - "8000"
     env_file:
       - ./api-gateway/.env
     environment:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
+      - DB_PASSWORD=${GATEWAY_DB_PASSWORD}
     volumes:
       - ./api-gateway:/app
       - /app/node_modules
@@ -89,6 +90,7 @@ services:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
+      - DB_PASSWORD=${AUTH_DB_PASSWORD}
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -124,6 +126,8 @@ services:
       - "8002" 
     env_file:
       - ./user-service/.env
+    environment:
+      - DB_PASSWORD=${USER_DB_PASSWORD}
     volumes:
       - ./user-service:/app
       - /app/node_modules
@@ -163,6 +167,7 @@ services:
       - ./transport-service/.env
     environment:
       - TRANSPORT_GRPC_PORT=50051
+      - DB_PASSWORD=${TRANSPORT_DB_PASSWORD}
     volumes:
       - ./transport-service:/app
       - /app/node_modules
@@ -197,6 +202,8 @@ services:
       - "50052"   # Internal gRPC
     env_file:
       - ./ticket-service/.env
+    environment:
+      - DB_PASSWORD=${TICKET_DB_PASSWORD}
     volumes:
       - ./ticket-service:/app
       - /app/node_modules
@@ -269,6 +276,8 @@ services:
       - "8006"  # Internal only
     env_file:
       - ./payment-service/.env
+    environment:
+      - DB_PASSWORD=${PAYMENT_DB_PASSWORD}
     volumes:
       - ./payment-service:/app
       - /app/node_modules
@@ -294,6 +303,8 @@ services:
       - "8007"  # Internal only
     env_file:
       - ./report-service/.env
+    environment:
+      - DB_PASSWORD=${REPORT_DB_PASSWORD}
     volumes:
       - ./report-service:/app
     command: ["python", "src/main.py"]
@@ -334,6 +345,8 @@ services:
       - "50053"   # Internal gRPC
     env_file:
       - ./control-service/.env
+    environment:
+      - DB_PASSWORD=${CONTROL_DB_PASSWORD}
     volumes:
       - ./control-service:/app
     depends_on:
@@ -388,6 +401,8 @@ services:
       - "3001"
     env_file:
       - ./management-service/.env
+    environment:
+      - DB_PASSWORD=${MANAGEMENT_DB_PASSWORD}
     volumes:
       - ./management-service:/app
     networks:
@@ -482,14 +497,14 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+    env_file:
+      - ./init_db.env
     ports:
       - "5432:5432"  # External cho dev tools (pgAdmin, DBeaver, etc.)
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+      - ./init_db.sh:/docker-entrypoint-initdb.d/99_init_db.sh:ro
     networks:
       - backend-network
     healthcheck:

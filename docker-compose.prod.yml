@@ -1,355 +1,267 @@
-version: '3.8'
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+x-deploy: &default-deploy
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 256M
 
 services:
-  # NGINX Reverse Proxy - Only ports 80/443 exposed
+  # Public entry
   nginx-proxy:
-    image: nginx
+    image: nginx:1.25-alpine
     container_name: nginx-proxy
     ports:
-      - "80:80"   # HTTP (redirect to HTTPS)
-      - "443:443" # HTTPS only
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/certs:/etc/nginx/certs
+      - /opt/metro/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/metro/nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - api-gateway
     networks:
       - backend-network
-      - frontend-network
-    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-restart
 
-  # API Gateway - Internal only, no external ports
+  # Microservices (use images from GHCR, env from ../env)
   api-gateway:
-    build:
-      context: ./api-gateway
+    image: ${REGISTRY}/metro-api-gateway:${IMAGE_TAG}
     container_name: api-gateway
-    # NO external ports - only accessible via nginx
+    env_file:
+      - /opt/env/api-gateway.env
     expose:
       - "8000"
-    env_file:
-      - ./api-gateway/.env
-    environment:
-      - NEED_EMAIL_VERIFICATION=true
-      - NEED_API_KEY=true  # Enable for production
-      - SEND_ACCESS_TOKEN_TO_CLIENT=false
-    volumes:
-      - ./api-gateway:/app
-      - /app/node_modules
     depends_on:
-      kafka-1:
-        condition: service_started
-      kafka-2:
-        condition: service_started  
-      kafka-3:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - kafka-1
+      - postgres
+      - redis
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
 
-  # All microservices - Internal only
-  user-service:
-    build:
-      context: ./user-service
-    container_name: user-service
-    expose:
-      - "8001"  # Internal only
+  auth-service:
+    image: ${REGISTRY}/metro-auth-service:${IMAGE_TAG}
+    container_name: auth-service
     env_file:
-      - ./user-service/.env
-    volumes:
-      - ./user-service:/app
-      - /app/node_modules
-      - ./libs:/libs
+      - /opt/env/auth-service.env
+    expose:
+      - "8001"
     depends_on:
-      kafka-1:
-        condition: service_healthy
-      kafka-2:
-        condition: service_healthy
-      kafka-3:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      - kafka-1
+      - postgres
+      - redis
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
+  user-service:
+    image: ${REGISTRY}/metro-user-service:${IMAGE_TAG}
+    container_name: user-service
+    env_file:
+      - /opt/env/user-service.env
+    expose:
+      - "8002"
+    depends_on:
+      - kafka-1
+      - postgres
+      - redis
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
 
   transport-service:
-    build:
-      context: ./transport-service
+    image: ${REGISTRY}/metro-transport-service:${IMAGE_TAG}
     container_name: transport-service
-    expose:
-      - "8002"    # HTTP
-      - "50051"   # gRPC
     env_file:
-      - ./transport-service/.env
-    environment:
-      - TRANSPORT_GRPC_PORT=50051
-    volumes:
-      - ./transport-service:/app
-      - /app/node_modules
+      - /opt/env/transport-service.env
+    expose:
+      - "8003"
+      - "50051"
     depends_on:
-      kafka-1:
-        condition: service_healthy
-      kafka-2:
-        condition: service_healthy
-      kafka-3:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      - kafka-1
+      - postgres
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
 
   ticket-service:
-    build:
-      context: ./ticket-service
+    image: ${REGISTRY}/metro-ticket-service:${IMAGE_TAG}
     container_name: ticket-service
-    expose:
-      - "8003"    # HTTP
-      - "50052"   # gRPC
     env_file:
-      - ./ticket-service/.env
-    volumes:
-      - ./ticket-service:/app
-      - /app/node_modules
-      - ./libs:/libs
+      - /opt/env/ticket-service.env
+    expose:
+      - "8004"
+      - "50052"
     depends_on:
-      kafka-1:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      - kafka-1
+      - postgres
+      - redis
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-
-  # customer-support-service:
-  #   build:
-  #     context: ./customer-support-service
-  #   container_name: customer-support-service
-  #   expose:
-  #     - "8004"
-  #   env_file:
-  #     - ./customer-support-service/.env
-  #   volumes:
-  #     - ./customer-support-service:/app
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
-
-  payment-service:
-    build:
-      context: ./payment-service
-    container_name: payment-service
-    expose:
-      - "8005"
-    env_file:
-      - ./payment-service/.env
-    volumes:
-      - ./payment-service:/app
-      - /app/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-
-  report-service:
-    build:
-      context: ./report-service
-    container_name: report-service
-    expose:
-      - "8006"
-    env_file:
-      - ./report-service/.env
-    volumes:
-      - ./report-service:/app
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
 
   public-service:
-    build:
-      context: ./public-service
+    image: ${REGISTRY}/metro-public-service:${IMAGE_TAG}
     container_name: public-service
+    env_file:
+      - /opt/env/public-service.env
+    expose:
+      - "8005"
+    depends_on:
+      - transport-service
+      - ticket-service
+      - redis
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
+  payment-service:
+    image: ${REGISTRY}/metro-payment-service:${IMAGE_TAG}
+    container_name: payment-service
+    env_file:
+      - /opt/env/payment-service.env
+    expose:
+      - "8006"
+    depends_on:
+      - postgres
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+
+  report-service:
+    image: ${REGISTRY}/metro-report-service:${IMAGE_TAG}
+    container_name: report-service
+    env_file:
+      - /opt/env/report-service.env
     expose:
       - "8007"
-    env_file:
-      - ./public-service/.env
-    environment:
-      - SCHEDULER_ENABLED=true
-      - TRANSPORT_SERVICE_GRPC_URL=transport-service:50051
-      - TICKET_SERVICE_GRPC_URL=ticket-service:50052
-    volumes:
-      - ./public-service:/app
-      - /app/node_modules
     depends_on:
-      transport-service:
-        condition: service_healthy
-      ticket-service:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - kafka-1
+      - postgres
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8007/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
-  # Health monitoring - Internal access only
-  healthcheck:
-    build:
-      context: ./healthcheck
-    container_name: healthcheck
+  control-service:
+    image: ${REGISTRY}/metro-control-service:${IMAGE_TAG}
+    container_name: control-service
+    env_file:
+      - /opt/env/control-service.env
     expose:
-      - "3000"  # Internal only
-    env_file:
-      - ./healthcheck/.env
-    volumes:
-      - ./healthcheck:/app
+      - "8008"
+      - "50053"
     depends_on:
-      redis:
-        condition: service_healthy
+      - transport-service
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
 
-  # Database - Custom non-standard port, internal only
+  management-service:
+    image: ${REGISTRY}/metro-management-service:${IMAGE_TAG}
+    container_name: management-service
+    env_file:
+      - /opt/env/management-service.env
+    expose:
+      - "3001"
+    depends_on:
+      - postgres
+      - kafka-1
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
+  # Infra (internal-only)
   postgres:
     image: postgres:15-alpine
     container_name: postgres
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-railway_system}
-    expose:
-      - "5432"  # Internal only
+    env_file:
+      - /opt/env/init_db.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  # Redis - Custom non-standard port, internal only  
   redis:
     image: redis:7-alpine
     container_name: redis
-    expose:
-      - "6379"  # Internal only
+    command: ["redis-server", "--requirepass", "redispass123"]
     volumes:
       - redis_data:/data
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
-  # Management UIs - Separate compose file hoặc chỉ enable khi cần
-  # Uncomment below for development/debugging only
-  
-  # redis-commander:
-  #   image: rediscommander/redis-commander:latest
-  #   container_name: redis-commander
-  #   environment:
-  #     - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD}
-  #   ports:
-  #     - "127.0.0.1:8081:8081"  # Bind to localhost only
-  #   depends_on:
-  #     - redis
-  #   networks:
-  #     - backend-network
-  #   profiles:
-  #     - debug
-
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   container_name: pgadmin
-  #   environment:
-  #     - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
-  #     - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
-  #   ports:
-  #     - "127.0.0.1:5050:80"  # Bind to localhost only
-  #   depends_on:
-  #     - postgres
-  #   networks:
-  #     - backend-network
-  #   volumes:
-  #     - pgadmin_data:/var/lib/pgadmin
-  #   profiles:
-  #     - debug
-
-  # Kafka Cluster - Internal only
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
     container_name: zookeeper
@@ -362,9 +274,19 @@ services:
       - "2181"
     networks:
       - backend-network
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   kafka-1:
     image: confluentinc/cp-kafka:7.5.3
@@ -379,25 +301,30 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_MIN_INSYNC_REPLICAS: 2
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'  # Disable for production
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
       - zookeeper
     networks:
       - backend-network
-    volumes:
-      - kafka1_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   kafka-2:
     image: confluentinc/cp-kafka:7.5.3
@@ -412,26 +339,85 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 2
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19093,EXTERNAL://0.0.0.0:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_MIN_INSYNC_REPLICAS: 2
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
       - zookeeper
     networks:
       - backend-network
-    volumes:
-      - kafka2_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /opt/metro/management-service/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/metro/management-service/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - /opt/metro/management-service/prometheus/services.json:/etc/prometheus/services.json:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+    depends_on:
+      - api-gateway
+      - auth-service
+      - user-service
+      - transport-service
+      - ticket-service
+      - public-service
+      - payment-service
+      - report-service
+      - management-service
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - /opt/metro/management-service/prometheus/alertmanger.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+    depends_on:
+      - prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - /opt/metro/dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - /opt/metro/dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - /opt/metro/dashboard/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
   kafka-3:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-3
@@ -445,64 +431,37 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 3
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:19094,EXTERNAL://0.0.0.0:9094
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_MIN_INSYNC_REPLICAS: 2
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
       - zookeeper
     networks:
       - backend-network
-    volumes:
-      - kafka3_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9094", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
       start_period: 60s
-    restart: unless-stopped
-
-  # Kafka UI - Only for debugging, disable in production
-  # kafdrop:
-  #   image: obsidiandynamics/kafdrop
-  #   container_name: kafdrop
-  #   ports:
-  #     - "127.0.0.1:9000:9000"  # Localhost only
-  #   environment:
-  #     KAFKA_BROKERCONNECT: kafka-1:19092,kafka-2:19093,kafka-3:19094
-  #     JVM_OPTS: '-Xms128M -Xmx256M'
-  #   depends_on:
-  #     - kafka-1
-  #     - kafka-2
-  #     - kafka-3
-  #   networks:
-  #     - backend-network
-  #   profiles:
-  #     - debug
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
-  pgadmin_data:
-    driver: local
-  zookeeper_data:
-    driver: local
-  kafka1_data:
-    driver: local
-  kafka2_data:
-    driver: local
-  kafka3_data:
-    driver: local
 
 networks:
   backend-network:
     driver: bridge
-    internal: true  # Internal only network
-  frontend-network:
-    driver: bridge
-    # External network for nginx only

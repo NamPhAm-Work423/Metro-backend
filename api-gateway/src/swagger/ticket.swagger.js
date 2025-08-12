@@ -298,6 +298,281 @@
 
 /**
  * @swagger
+ * /v1/route/ticket/transitPasses/getActiveTransitPasses:
+ *   get:
+ *     summary: Get active transit passes
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active transit passes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TransitPass'
+ *                 count:
+ *                   type: integer
+ *
+ * /v1/route/ticket/transitPasses/getTransitPassByType/{transitPassType}:
+ *   get:
+ *     summary: Get transit pass by type
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: transitPassType
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *     responses:
+ *       200:
+ *         description: Transit pass detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/TransitPass'
+ *
+ * /v1/route/ticket/transitPasses/getAllTransitPasses:
+ *   get:
+ *     summary: Get all transit passes (staff, admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of transit passes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TransitPass'
+ *                 count:
+ *                   type: integer
+ *
+ * /v1/route/ticket/transitPasses/getTransitPassById/{id}:
+ *   get:
+ *     summary: Get transit pass by id (staff, admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transit pass detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/TransitPass'
+ *
+ * /v1/route/ticket/transitPasses/createTransitPass:
+ *   post:
+ *     summary: Create transit pass (admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - transitPassType
+ *               - price
+ *             properties:
+ *               transitPassType:
+ *                 type: string
+ *                 enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *               price:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *                 enum: [VND, USD, CNY]
+ *               isActive:
+ *                 type: boolean
+ *                 default: true
+ *     responses:
+ *       201:
+ *         description: Transit pass created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/TransitPass'
+ *
+ * /v1/route/ticket/transitPasses/updateTransitPass/{id}:
+ *   put:
+ *     summary: Update transit pass (admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               price:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *                 enum: [VND, USD, CNY]
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Transit pass updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/TransitPass'
+ *
+ * /v1/route/ticket/transitPasses/setTransitPassActive/{id}:
+ *   put:
+ *     summary: Activate/deactivate transit pass (admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - isActive
+ *             properties:
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Status updated
+ *
+ * /v1/route/ticket/transitPasses/bulkUpdateTransitPasses:
+ *   put:
+ *     summary: Bulk update transit passes (admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - filters
+ *               - updateData
+ *             properties:
+ *               filters:
+ *                 type: object
+ *                 properties:
+ *                   currency:
+ *                     type: string
+ *                     enum: [VND, USD, CNY]
+ *                   isActive:
+ *                     type: boolean
+ *                   transitPassType:
+ *                     type: string
+ *                     enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *               updateData:
+ *                 type: object
+ *                 properties:
+ *                   price:
+ *                     type: number
+ *                   currency:
+ *                     type: string
+ *                     enum: [VND, USD, CNY]
+ *                   isActive:
+ *                     type: boolean
+ *     responses:
+ *       200:
+ *         description: Bulk update completed
+ *
+ * /v1/route/ticket/transitPasses/deleteTransitPass/{id}:
+ *   delete:
+ *     summary: Delete transit pass (admin)
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transit pass deleted
+ */
+
+/**
+ * @swagger
  * /v1/route/ticket/tickets/calculate-price:
  *   post:
  *     summary: Calculate ticket price with comprehensive breakdown
@@ -2320,5 +2595,30 @@
  *                       type: number
  *                     discount:
  *                       $ref: '#/components/schemas/PassengerDiscount'
+  *     TransitPass:
+  *       type: object
+  *       description: Transit pass product for long-term access
+  *       properties:
+  *         transitPassId:
+  *           type: string
+  *           format: uuid
+  *         transitPassType:
+  *           type: string
+  *           enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+  *         price:
+  *           type: number
+  *           format: decimal
+  *         currency:
+  *           type: string
+  *           enum: [VND, USD, CNY]
+  *           default: VND
+  *         isActive:
+  *           type: boolean
+  *         createdAt:
+  *           type: string
+  *           format: date-time
+  *         updatedAt:
+  *           type: string
+  *           format: date-time
  */
 
