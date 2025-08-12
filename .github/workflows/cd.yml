@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image tag (semver vX.Y.Z or short SHA)"
+        description: "Image tag"
         required: true
   release:
     types: [published]
