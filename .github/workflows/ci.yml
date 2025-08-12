@@ -47,6 +47,10 @@ jobs:
             path: transport-service
             dockerfile: Dockerfile
             runtime: node
+          - name: control-service
+            path: control-service
+            dockerfile: Dockerfile
+            runtime: python
           - name: user-service
             path: user-service
             dockerfile: Dockerfile
