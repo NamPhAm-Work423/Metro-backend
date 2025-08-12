@@ -461,7 +461,11 @@ volumes:
     driver: local
   redis_data:
     driver: local
-
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+    
 networks:
   backend-network:
     driver: bridge
