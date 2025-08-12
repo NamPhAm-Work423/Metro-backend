@@ -1,0 +1,91 @@
+name: Deploy to VPS (self-hosted runner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use current context
+        required: false
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  DEFAULT_VPS_PATH: /opt/metro
+
+jobs:
+  deploy-local:
+    name: Local deploy on self-hosted runner
+    runs-on: self-hosted
+    timeout-minutes: 30
+    concurrency:
+      group: deploy-selfhosted-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve deploy tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ inputs.tag || '' }}" ]]; then
+            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "value=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set REGISTRY env (lowercase owner)
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Docker login GHCR (if private)
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          REGISTRY_USER: ${{ secrets.GHCR_USERNAME || github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set +e
+          echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          true
+
+      - name: Compose pull & up (in VPS_PATH)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$VPS_PATH"
+          DOCKER_COMPOSE="docker compose"
+          $DOCKER_COMPOSE version >/dev/null
+          COMPOSE_FILES=""
+          if [ -f docker-compose.prod.yml ]; then
+            COMPOSE_FILES="-f docker-compose.prod.yml"
+          elif [ -f compose.prod.yml ]; then
+            COMPOSE_FILES="-f compose.prod.yml"
+          elif [ -f docker-compose.yml ]; then
+            COMPOSE_FILES="-f docker-compose.yml"
+          elif [ -f compose.yml ]; then
+            COMPOSE_FILES="-f compose.yml"
+          else
+            echo "No compose file found in $VPS_PATH" >&2; exit 1
+          fi
+          echo "Using tag: $IMAGE_TAG"
+          $DOCKER_COMPOSE $COMPOSE_FILES pull || true
+          $DOCKER_COMPOSE $COMPOSE_FILES up -d
+          docker image prune -f || true
+          $DOCKER_COMPOSE $COMPOSE_FILES ps
+
+
