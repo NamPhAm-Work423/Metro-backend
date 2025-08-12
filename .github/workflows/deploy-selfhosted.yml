@@ -60,14 +60,23 @@ jobs:
           echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           true
 
-      - name: Compose pull & up (in VPS_PATH)
+      - name: Compose pull & up
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
           VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
         shell: bash
         run: |
           set -euo pipefail
-          cd "$VPS_PATH"
+          # Choose directory containing compose file: prefer repo checkout, fallback to VPS_PATH
+          DEPLOY_DIR="$GITHUB_WORKSPACE"
+          if [ ! -f "$DEPLOY_DIR/docker-compose.prod.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/compose.prod.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/docker-compose.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/compose.yml" ]; then
+            DEPLOY_DIR="${VPS_PATH:-/opt/metro}"
+          fi
+          echo "Using deploy directory: $DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
           DOCKER_COMPOSE="docker compose"
           $DOCKER_COMPOSE version >/dev/null
           COMPOSE_FILES=""
