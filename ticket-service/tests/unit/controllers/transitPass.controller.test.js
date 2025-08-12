@@ -17,6 +17,10 @@ describe('TransitPass Controller', () => {
   const app = express();
   app.use(express.json());
   app.use('/api/v1/ticket/transitPasses', router);
+  // Attach minimal error handler to return JSON like the real app
+  app.use((err, req, res, next) => {
+    res.status(500).json({ success: false, message: err.message });
+  });
 
   it('should validate create payload', async () => {
     const res = await request(app)
