@@ -27,10 +27,6 @@ jobs:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
-      - name: Fix permissions
-        run: |
-          sudo chown -R $USER:$USER /home/nampham423/actions-runner/_work/Metro-backend/Metro-backend
-          sudo chmod -R u+rwX /home/nampham423/actions-runner/_work/Metro-backend/Metro-backend
       - name: Clean workspace before checkout
         shell: bash
         run: |
@@ -44,7 +40,8 @@ jobs:
           
       - name: Checkout
         uses: actions/checkout@v4
-
+        with:
+          clean: false
       - name: Resolve deploy tag
         id: tag
         shell: bash
