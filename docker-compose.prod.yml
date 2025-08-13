@@ -378,7 +378,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis
-    command: ["redis-server", "--requirepass", "redispass123"]
+    env_file:
+      - /opt/env/init_db.env
+    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
     volumes:
       - redis_data:/data
     networks:
@@ -612,8 +614,8 @@ services:
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379:0:redispass123
+    env_file:
+      - /opt/env/init_db.env
     ports:
       - "8081:8081"
     depends_on:

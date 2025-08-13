@@ -14,6 +14,9 @@ async function setupRedisClient() {
         socket: {
             host,
             port: Number(port),
+            reconnectStrategy(retries) {
+                return Math.min(50 * Math.pow(2, retries), 2000);
+            },
         },
     };
 
@@ -27,18 +30,18 @@ async function setupRedisClient() {
 
     redisClient.on('error', (err) => {
         console.log('Redis Client Error', err);
-        redisClient.removeAllListeners();
-        redisClient.quit().catch(() => {});
-        client = null;
+        // Let node-redis handle auto-reconnect; do not quit/clear client
     });
     redisClient.on('end', () => {
-        redisClient.removeAllListeners();
-        redisClient.quit().catch(() => {});
-        client = null;
+        console.log('Redis connection ended');
+        // Keep reference so auto-reconnect can resume when available
     });
 
     redisClient.on('connect', () => {
         console.log('Redis connected');
+    });
+    redisClient.on('ready', () => {
+        console.log('Redis ready (authenticated)');
     });
 
     await redisClient.connect();
@@ -55,7 +58,7 @@ async function setupRedisClient() {
 
 async function tryConnect() {
     try {
-        if (!client) {
+        if (!client || client.isOpen === false) {
             console.log('Trying to connect to redis...');
             await setupRedisClient();
         }
@@ -80,7 +83,7 @@ async function initializeRedis() {
 async function withRedisClient(operation) {
     await tryConnect();
     
-    if (!client) {
+    if (!client || client.isOpen === false) {
         console.error('Redis client is not available');
         return null;
     }
