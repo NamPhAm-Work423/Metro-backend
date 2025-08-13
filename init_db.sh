@@ -19,15 +19,15 @@ read_secret() {
   return 1
 }
 
-# Fast path: if any required secret is missing, skip secure init and let init_db.sql run
+# Validate required secrets exist; fail fast if any missing
 REQUIRED_VARS="GATEWAY_DB_PASSWORD AUTH_DB_PASSWORD USER_DB_PASSWORD TRANSPORT_DB_PASSWORD TICKET_DB_PASSWORD PAYMENT_DB_PASSWORD REPORT_DB_PASSWORD MANAGEMENT_DB_PASSWORD CONTROL_DB_PASSWORD"
 for var in $REQUIRED_VARS; do
   file_var="${var}_FILE"
   eval val="\${$var:-}"
   eval file_path="\${$file_var:-}"
   if [ -z "$val" ] && { [ -z "$file_path" ] || [ ! -f "$file_path" ]; }; then
-    echo "[init_db] $var not provided. Skipping secure init (using init_db.sql defaults)."
-    exit 0
+    echo "[init_db] ERROR: $var is required but not provided via env or *_FILE. Aborting init." >&2
+    exit 1
   fi
 done
 
@@ -61,12 +61,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'gateway_db') THEN
-    CREATE DATABASE gateway_db OWNER gateway_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE gateway_db OWNER gateway_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'gateway_db')\gexec
 \c gateway_db
 ALTER SCHEMA public OWNER TO gateway_service;
 GRANT ALL ON SCHEMA public TO gateway_service;
@@ -83,12 +79,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'control_db') THEN
-    CREATE DATABASE control_db OWNER control_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE control_db OWNER control_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'control_db')\gexec
 \c control_db
 ALTER SCHEMA public OWNER TO control_service;
 GRANT ALL ON SCHEMA public TO control_service;
@@ -105,12 +97,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'auth_db') THEN
-    CREATE DATABASE auth_db OWNER auth_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE auth_db OWNER auth_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'auth_db')\gexec
 \c auth_db
 ALTER SCHEMA public OWNER TO auth_service;
 GRANT ALL ON SCHEMA public TO auth_service;
@@ -127,12 +115,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'user_db') THEN
-    CREATE DATABASE user_db OWNER user_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE user_db OWNER user_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'user_db')\gexec
 \c user_db
 ALTER SCHEMA public OWNER TO user_service;
 GRANT ALL ON SCHEMA public TO user_service;
@@ -149,12 +133,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'transport_db') THEN
-    CREATE DATABASE transport_db OWNER transport_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE transport_db OWNER transport_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'transport_db')\gexec
 \c transport_db
 ALTER SCHEMA public OWNER TO transport_service;
 GRANT ALL ON SCHEMA public TO transport_service;
@@ -171,12 +151,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ticket_db') THEN
-    CREATE DATABASE ticket_db OWNER ticket_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE ticket_db OWNER ticket_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ticket_db')\gexec
 \c ticket_db
 ALTER SCHEMA public OWNER TO ticket_service;
 GRANT ALL ON SCHEMA public TO ticket_service;
@@ -193,12 +169,8 @@ BEGIN
   END IF;
 END$$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'payment_db') THEN
-    CREATE DATABASE payment_db OWNER payment_service;
-  END IF;
-END$$;
+SELECT 'CREATE DATABASE payment_db OWNER payment_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'payment_db')\gexec
 \c payment_db
 ALTER SCHEMA public OWNER TO payment_service;
 GRANT ALL ON SCHEMA public TO payment_service;
