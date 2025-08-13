@@ -3,7 +3,7 @@
 echo "🧹 STARTING VPS COMPLETE CLEANUP"
 echo "=================================="
 
-# 1. DOCKER CLEANUP (bạn đã có)
+# 1. DOCKER CLEANUP
 echo "🐳 Cleaning Docker..."
 docker stop $(docker ps -aq) 2>/dev/null || true
 docker rm -f $(docker ps -aq) 2>/dev/null || true
@@ -11,7 +11,7 @@ docker volume prune -f
 docker network prune -f
 docker image prune -af
 docker builder prune -af
-docker system prune -af --volumes
+docker system prune -af --volumes //delete all 
 
 # 2. DOCKER COMPOSE CLEANUP
 echo "🔧 Cleaning Docker Compose..."
