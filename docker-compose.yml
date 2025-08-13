@@ -503,7 +503,7 @@ services:
       - "5432:5432"  # External cho dev tools (pgAdmin, DBeaver, etc.)
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+      # - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
       - ./init_db.sh:/docker-entrypoint-initdb.d/99_init_db.sh:ro
     networks:
       - backend-network

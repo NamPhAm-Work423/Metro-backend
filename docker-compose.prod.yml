@@ -29,7 +29,8 @@ services:
       - /opt/metro/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /opt/metro/nginx/certs:/etc/nginx/certs:ro
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
@@ -46,9 +47,22 @@ services:
     expose:
       - "8000"
     depends_on:
-      - kafka-1
-      - postgres
-      - redis
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - backend-network
     logging: *default-logging
@@ -64,9 +78,22 @@ services:
     expose:
       - "8001"
     depends_on:
-      - kafka-1
-      - postgres
-      - redis
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - backend-network
     logging: *default-logging
@@ -82,9 +109,16 @@ services:
     expose:
       - "8002"
     depends_on:
-      - kafka-1
-      - postgres
-      - redis
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
@@ -93,6 +127,12 @@ services:
       - *default-deploy
     volumes:
       - /opt/metro/libs:/libs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   transport-service:
     image: ${REGISTRY}/metro-transport-service:${IMAGE_TAG}
@@ -103,14 +143,26 @@ services:
       - "8003"
       - "50051"
     depends_on:
-      - kafka-1
-      - postgres
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   ticket-service:
     image: ${REGISTRY}/metro-ticket-service:${IMAGE_TAG}
@@ -121,9 +173,16 @@ services:
       - "8004"
       - "50052"
     depends_on:
-      - kafka-1
-      - postgres
-      - redis
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
@@ -132,6 +191,12 @@ services:
       - *default-deploy
     volumes:
       - /opt/metro/libs:/libs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   public-service:
     image: ${REGISTRY}/metro-public-service:${IMAGE_TAG}
@@ -141,15 +206,24 @@ services:
     expose:
       - "8005"
     depends_on:
-      - transport-service
-      - ticket-service
-      - redis
+      transport-service:
+        condition: service_healthy
+      ticket-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   payment-service:
     image: ${REGISTRY}/metro-payment-service:${IMAGE_TAG}
@@ -159,11 +233,18 @@ services:
     expose:
       - "8006"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   report-service:
     image: ${REGISTRY}/metro-report-service:${IMAGE_TAG}
@@ -173,12 +254,24 @@ services:
     expose:
       - "8007"
     depends_on:
-      - kafka-1
-      - postgres
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8007'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     deploy:
       resources:
         limits:
@@ -197,13 +290,20 @@ services:
       - "8008"
       - "50053"
     depends_on:
-      - transport-service
+      transport-service:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   management-service:
     image: ${REGISTRY}/metro-management-service:${IMAGE_TAG}
@@ -213,14 +313,26 @@ services:
     expose:
       - "3001"
     depends_on:
-      - postgres
-      - kafka-1
+      postgres:
+        condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3001'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Infra (internal-only)
   postgres:
@@ -230,6 +342,7 @@ services:
       - /opt/env/init_db.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - /opt/metro/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
     healthcheck:
@@ -369,61 +482,6 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - /opt/metro/management-service/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - /opt/metro/management-service/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
-      - /opt/metro/management-service/prometheus/services.json:/etc/prometheus/services.json:ro
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-    ports:
-      - "9090:9090"
-    networks:
-      - backend-network
-    logging: *default-logging
-    <<: *default-restart
-    depends_on:
-      - api-gateway
-      - auth-service
-      - user-service
-      - transport-service
-      - ticket-service
-      - public-service
-      - payment-service
-      - report-service
-      - management-service
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: alertmanager
-    volumes:
-      - /opt/metro/management-service/prometheus/alertmanger.yml:/etc/alertmanager/alertmanager.yml:ro
-    ports:
-      - "9093:9093"
-    networks:
-      - backend-network
-    logging: *default-logging
-    <<: *default-restart
-    depends_on:
-      - prometheus
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - /opt/metro/dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - /opt/metro/dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - /opt/metro/dashboard/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    networks:
-      - backend-network
-    logging: *default-logging
-    <<: *default-restart
   kafka-3:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-3
@@ -461,6 +519,71 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+          
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /opt/metro/management-service/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/metro/management-service/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - /opt/metro/management-service/prometheus/services.json:/etc/prometheus/services.json:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      transport-service:
+        condition: service_healthy
+      ticket-service:
+        condition: service_healthy
+      public-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      report-service:
+        condition: service_healthy
+      management-service:
+        condition: service_healthy
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - /opt/metro/management-service/prometheus/alertmanger.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+    depends_on:
+      - prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - /opt/metro/dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - /opt/metro/dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - /opt/metro/dashboard/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+  
 
 volumes:
   postgres_data:

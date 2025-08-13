@@ -109,6 +109,15 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache pip
+        if: matrix.runtime == 'python'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements.txt', matrix.path)) }}-${{ hashFiles(format('{0}/requirements-dev.txt', matrix.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install deps (Node)
         if: matrix.runtime == 'node'
         working-directory: ${{ matrix.path }}
@@ -193,6 +202,8 @@ jobs:
           file: ${{ matrix.path }}/${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
+          cache-from: type=gha,scope=metro-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=metro-${{ matrix.name }}
           tags: |
             ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
           build-args: |
@@ -205,16 +216,19 @@ jobs:
           context: ${{ matrix.path }}
           file: ${{ matrix.path }}/${{ matrix.dockerfile }}
           push: true
+          cache-from: type=gha,scope=metro-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=metro-${{ matrix.name }}
           tags: |
             ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.release_tag }}
           build-args: |
             APP_VERSION=${{ steps.vars.outputs.release_tag }}
 
-      - name: Pull image for scan (non-PR)
-        if: github.event_name != 'pull_request'
+      - name: Pull image for scan (release only)
+        if: steps.vars.outputs.is_release == 'true'
         run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
 
-      - name: Trivy scan (SHA image)
+      - name: Trivy scan (release only)
+        if: steps.vars.outputs.is_release == 'true'
         uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
@@ -228,20 +242,21 @@ jobs:
           hide-progress: true
 
       - name: Save Trivy DB cache
+        if: steps.vars.outputs.is_release == 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ env.TRIVY_CACHE_DIR }}
           key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
 
       - name: Upload SARIF
-        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && env.ENABLE_SARIF_UPLOAD == 'true'
+        if: steps.vars.outputs.is_release == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && env.ENABLE_SARIF_UPLOAD == 'true'
         uses: github/codeql-action/upload-sarif@v3
         continue-on-error: true
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
 
       - name: Attach SARIF as artifact (always)
-        if: always()
+        if: steps.vars.outputs.is_release == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-${{ matrix.name }}-sarif
