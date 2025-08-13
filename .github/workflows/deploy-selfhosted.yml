@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy VPS
 
 on:
   workflow_run:
