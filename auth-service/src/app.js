@@ -78,14 +78,22 @@ const corsOptions = {
         if (!origin) {
             return callback(null, true);
         }
-        
+
+        // Load extra allowed origins from env
+        const envAllowed = (process.env.ALLOWED_ORIGINS || '')
+            .split(',')
+            .map(o => o.trim())
+            .filter(Boolean);
+
         const allowedOrigins = [
-            'http://localhost:8000',    // API Gateway
-            'http://api-gateway:8000',  // Docker service
+            // 'http://localhost:8000',    // API Gateway (dev)
+            // 'http://api-gateway:8000',  // Docker service
+            process.env.API_GATEWAY_ORIGIN, // e.g., https://api.metrohcm.io.vn
+            ...envAllowed,
             undefined                   // For same-origin requests
         ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1) {
+
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             // Log blocked origins for debugging

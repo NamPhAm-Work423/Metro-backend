@@ -628,10 +628,10 @@ services:
     container_name: redis-commander
     env_file:
       - /opt/env/init_db.env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command:
+      - sh
+      - -lc
+      - node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$REDIS_PASSWORD"
     ports:
       - "8081:8081"
     depends_on:

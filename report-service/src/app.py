@@ -81,15 +81,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add CORS middleware (env-driven)
 settings = get_settings()
+allowed_env = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+gateway_origin = os.getenv("API_GATEWAY_ORIGIN")
+allow_origins = []
+if gateway_origin:
+    allow_origins.append(gateway_origin)
+allow_origins.extend(allowed_env)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://api-gateway:8000",
-        "http://localhost:3000",
-    ],
+    allow_origins=allow_origins or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

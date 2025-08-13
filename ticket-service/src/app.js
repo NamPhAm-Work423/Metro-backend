@@ -59,13 +59,20 @@ const validateNetworkSource = (req, res, next) => {
 // CORS configuration
 const corsOptions = {
     origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+
+        const envAllowed = (process.env.ALLOWED_ORIGINS || '')
+            .split(',')
+            .map(o => o.trim())
+            .filter(Boolean);
+
         const allowedOrigins = [
-            'http://localhost:8000',    // API Gateway
-            'http://api-gateway:8000',  // Docker service
-            undefined                   // For same-origin requests
+            process.env.API_GATEWAY_ORIGIN,
+            ...envAllowed,
+            undefined
         ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
