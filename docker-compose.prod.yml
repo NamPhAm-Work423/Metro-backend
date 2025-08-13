@@ -375,21 +375,35 @@ services:
           cpus: '0.5'
           memory: 512M
 
+# Fixed Redis Docker Compose Configuration
+
   redis:
     image: redis:7-alpine
     container_name: redis
     env_file:
       - /opt/env/init_db.env
-    command: ["sh", "-c", "test -n \"$REDIS_PASSWORD\" || { echo 'REDIS_PASSWORD is not set'; exit 1; }; exec redis-server --requirepass \"$REDIS_PASSWORD\""]
+    command: 
+      - sh
+      - -c
+      - |
+        if [ -z "$$REDIS_PASSWORD" ]; then
+          echo "ERROR: REDIS_PASSWORD is not set or empty"
+          exit 1
+        fi
+        echo "Starting Redis with authentication..."
+        exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --save 60 1
     volumes:
       - redis_data:/data
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    test:
+      - CMD-SHELL
+      - redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
     deploy:
       resources:
         limits:
@@ -616,6 +630,10 @@ services:
     container_name: redis-commander
     env_file:
       - /opt/env/init_db.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
       - "8081:8081"
     depends_on:
