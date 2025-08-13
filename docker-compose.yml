@@ -49,7 +49,6 @@ services:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
-      - DB_PASSWORD=${GATEWAY_DB_PASSWORD}
     volumes:
       - ./api-gateway:/app
       - /app/node_modules
@@ -90,7 +89,6 @@ services:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
-      - DB_PASSWORD=${AUTH_DB_PASSWORD}
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -126,8 +124,6 @@ services:
       - "8002" 
     env_file:
       - ./user-service/.env
-    environment:
-      - DB_PASSWORD=${USER_DB_PASSWORD}
     volumes:
       - ./user-service:/app
       - /app/node_modules
@@ -165,9 +161,6 @@ services:
       - "50051"   # Internal gRPC
     env_file:
       - ./transport-service/.env
-    environment:
-      - TRANSPORT_GRPC_PORT=50051
-      - DB_PASSWORD=${TRANSPORT_DB_PASSWORD}
     volumes:
       - ./transport-service:/app
       - /app/node_modules
@@ -202,8 +195,6 @@ services:
       - "50052"   # Internal gRPC
     env_file:
       - ./ticket-service/.env
-    environment:
-      - DB_PASSWORD=${TICKET_DB_PASSWORD}
     volumes:
       - ./ticket-service:/app
       - /app/node_modules
@@ -276,13 +267,13 @@ services:
       - "8006"  # Internal only
     env_file:
       - ./payment-service/.env
-    environment:
-      - DB_PASSWORD=${PAYMENT_DB_PASSWORD}
     volumes:
       - ./payment-service:/app
       - /app/node_modules
     depends_on:
       postgres:
+        condition: service_healthy
+      api-gateway:
         condition: service_healthy
     networks:
       - backend-network
@@ -303,8 +294,6 @@ services:
       - "8007"  # Internal only
     env_file:
       - ./report-service/.env
-    environment:
-      - DB_PASSWORD=${REPORT_DB_PASSWORD}
     volumes:
       - ./report-service:/app
     command: ["python", "src/main.py"]
@@ -345,8 +334,6 @@ services:
       - "50053"   # Internal gRPC
     env_file:
       - ./control-service/.env
-    environment:
-      - DB_PASSWORD=${CONTROL_DB_PASSWORD}
     volumes:
       - ./control-service:/app
     depends_on:
@@ -401,8 +388,6 @@ services:
       - "3001"
     env_file:
       - ./management-service/.env
-    environment:
-      - DB_PASSWORD=${MANAGEMENT_DB_PASSWORD}
     volumes:
       - ./management-service:/app
     networks:
@@ -494,17 +479,44 @@ services:
     restart: unless-stopped
 
   # Infrastructure - External ports for dev tools
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: postgres
+  #   env_file:
+  #     - ./init_db.env
+  #   ports:
+  #     - "5432:5432"  # External cho dev tools (pgAdmin, DBeaver, etc.)
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+  #     # - ./init_db.sh:/docker-entrypoint-initdb.d/99_init_db.sh:ro
+  #   networks:
+  #     - backend-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 1G
+  #       reservations:
+  #         cpus: '0.5'
+  #         memory: 512M
+
   postgres:
     image: postgres:15-alpine
     container_name: postgres
-    env_file:
-      - ./init_db.env
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     ports:
       - "5432:5432"  # External cho dev tools (pgAdmin, DBeaver, etc.)
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
-      - ./init_db.sh:/docker-entrypoint-initdb.d/99_init_db.sh:ro
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
     healthcheck:
@@ -584,7 +596,7 @@ services:
       ZOOKEEPER_SYNC_LIMIT: 5
       ZOOKEEPER_INIT_LIMIT: 10
     expose:
-      - "2181"  # Internal only
+      - "2181"
     networks:
       - backend-network
     healthcheck:
@@ -605,16 +617,15 @@ services:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-1
     expose:
-      - "9092"   # Internal only
-      - "19092"  # Internal only
+      - "9092"
+      - "19092"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:19092,EXTERNAL://kafka-1:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 1
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
-      # Dev settings
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -622,12 +633,11 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      zookeeper:
-        condition: service_healthy
+      - zookeeper
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19092", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
@@ -648,12 +658,12 @@ services:
       - "9093"
       - "19093"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:19093,EXTERNAL://kafka-2:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:19093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 2
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:19093,EXTERNAL://0.0.0.0:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -661,12 +671,11 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      zookeeper:
-        condition: service_healthy
+      - zookeeper
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19093", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8
@@ -679,7 +688,6 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-
   kafka-3:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-3
@@ -687,12 +695,12 @@ services:
       - "9094"
       - "19094"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:19094,EXTERNAL://kafka-3:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:19094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 3
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:19094,EXTERNAL://0.0.0.0:9094
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19094
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -700,12 +708,11 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      zookeeper:
-        condition: service_healthy
+      - zookeeper
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9094", "--list"]
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19094", "--list"]
       interval: 15s
       timeout: 10s
       retries: 8

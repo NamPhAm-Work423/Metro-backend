@@ -423,6 +423,9 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19092
+      KAFKA_HEAP_OPTS: "-Xms256M -Xmx256M"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: "60000"
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: "60000"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -430,7 +433,8 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     networks:
       - backend-network
     healthcheck:
@@ -438,7 +442,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 8
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -468,7 +472,8 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     networks:
       - backend-network
     healthcheck:
@@ -476,7 +481,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 8
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -498,6 +503,9 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 3
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19094
+      KAFKA_HEAP_OPTS: "-Xms256M -Xmx256M"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: "60000"
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: "60000"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -505,7 +513,8 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     networks:
       - backend-network
     healthcheck:
@@ -513,7 +522,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 8
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -586,7 +595,37 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
-  
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redispass123
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:5050"
+    depends_on:
+      - postgres
+    networks:
+      - backend-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json:ro
+
 
 volumes:
   postgres_data:
