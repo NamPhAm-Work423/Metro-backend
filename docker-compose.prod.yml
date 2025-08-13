@@ -397,13 +397,11 @@ services:
     networks:
       - backend-network
     healthcheck:
-    test:
-      - CMD-SHELL
-      - redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG
-    interval: 10s
-    timeout: 5s
-    retries: 5
-    start_period: 10s
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
