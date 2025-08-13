@@ -38,7 +38,6 @@ services:
     profiles:
       - nginx
 
-  # Microservices (use images from GHCR, env from ../env)
   api-gateway:
     image: ${REGISTRY}/metro-api-gateway:${IMAGE_TAG}
     container_name: api-gateway
@@ -358,7 +357,7 @@ services:
       - /opt/env/init_db.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - /opt/metro/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:ro
+      - /opt/metro/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:rw
       # - /opt/metro/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
       - backend-network
