@@ -19,6 +19,11 @@ read_secret() {
   return 1
 }
 
+# Function to escape single quotes in passwords for SQL
+escape_sql_string() {
+  echo "$1" | sed "s/'/''/g"
+}
+
 # Validate required secrets exist; fail fast if any missing
 REQUIRED_VARS="GATEWAY_DB_PASSWORD AUTH_DB_PASSWORD USER_DB_PASSWORD TRANSPORT_DB_PASSWORD TICKET_DB_PASSWORD PAYMENT_DB_PASSWORD REPORT_DB_PASSWORD MANAGEMENT_DB_PASSWORD CONTROL_DB_PASSWORD"
 for var in $REQUIRED_VARS; do
@@ -31,197 +36,210 @@ for var in $REQUIRED_VARS; do
   fi
 done
 
-# Collect passwords (provided via env or *_FILE)
-GW_PASS="$(read_secret GATEWAY_DB_PASSWORD)" || exit 1
-AUTH_PASS="$(read_secret AUTH_DB_PASSWORD)" || exit 1
-USR_PASS="$(read_secret USER_DB_PASSWORD)" || exit 1
-TR_PASS="$(read_secret TRANSPORT_DB_PASSWORD)" || exit 1
-TK_PASS="$(read_secret TICKET_DB_PASSWORD)" || exit 1
-PAY_PASS="$(read_secret PAYMENT_DB_PASSWORD)" || exit 1
-RPT_PASS="$(read_secret REPORT_DB_PASSWORD)" || exit 1
-MGMT_PASS="$(read_secret MANAGEMENT_DB_PASSWORD)" || exit 1
-CTRL_PASS="$(read_secret CONTROL_DB_PASSWORD)" || exit 1
+# Collect passwords (provided via env or *_FILE) and escape them
+GW_PASS="$(escape_sql_string "$(read_secret GATEWAY_DB_PASSWORD)")" || exit 1
+AUTH_PASS="$(escape_sql_string "$(read_secret AUTH_DB_PASSWORD)")" || exit 1
+USR_PASS="$(escape_sql_string "$(read_secret USER_DB_PASSWORD)")" || exit 1
+TR_PASS="$(escape_sql_string "$(read_secret TRANSPORT_DB_PASSWORD)")" || exit 1
+TK_PASS="$(escape_sql_string "$(read_secret TICKET_DB_PASSWORD)")" || exit 1
+PAY_PASS="$(escape_sql_string "$(read_secret PAYMENT_DB_PASSWORD)")" || exit 1
+RPT_PASS="$(escape_sql_string "$(read_secret REPORT_DB_PASSWORD)")" || exit 1
+MGMT_PASS="$(escape_sql_string "$(read_secret MANAGEMENT_DB_PASSWORD)")" || exit 1
+CTRL_PASS="$(escape_sql_string "$(read_secret CONTROL_DB_PASSWORD)")" || exit 1
 
 # Use provided defaults from image env if not set
 : "${POSTGRES_USER:=postgres}"
 : "${POSTGRES_DB:=postgres}"
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-  -v gw="$GW_PASS" -v auth="$AUTH_PASS" -v usr="$USR_PASS" \
-  -v tr="$TR_PASS" -v tk="$TK_PASS" -v pay="$PAY_PASS" \
-  -v rpt="$RPT_PASS" -v mgmt="$MGMT_PASS" -v ctrl="$CTRL_PASS" <<-'EOSQL'
+echo "[init_db] Creating databases and roles..."
 
--- ---------- GATEWAY SERVICE ----------
-DO $$
+# ---------- GATEWAY SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'gateway_service') THEN
-    CREATE ROLE gateway_service LOGIN PASSWORD :'gw';
+    CREATE ROLE gateway_service LOGIN PASSWORD '$GW_PASS';
   ELSE
-    ALTER ROLE gateway_service WITH PASSWORD :'gw';
+    ALTER ROLE gateway_service WITH PASSWORD '$GW_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE gateway_db OWNER gateway_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'gateway_db')\gexec
-\c gateway_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "gateway_db" <<EOSQL
 ALTER SCHEMA public OWNER TO gateway_service;
 GRANT ALL ON SCHEMA public TO gateway_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- CONTROL SERVICE ----------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'control_service') THEN
-    CREATE ROLE control_service LOGIN PASSWORD :'ctrl';
-  ELSE
-    ALTER ROLE control_service WITH PASSWORD :'ctrl';
-  END IF;
-END$$;
-
-SELECT 'CREATE DATABASE control_db OWNER control_service'
-WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'control_db')\gexec
-\c control_db
-ALTER SCHEMA public OWNER TO control_service;
-GRANT ALL ON SCHEMA public TO control_service;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
-
--- ---------- AUTH SERVICE ----------
-DO $$
+# ---------- AUTH SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'auth_service') THEN
-    CREATE ROLE auth_service LOGIN PASSWORD :'auth';
+    CREATE ROLE auth_service LOGIN PASSWORD '$AUTH_PASS';
   ELSE
-    ALTER ROLE auth_service WITH PASSWORD :'auth';
+    ALTER ROLE auth_service WITH PASSWORD '$AUTH_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE auth_db OWNER auth_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'auth_db')\gexec
-\c auth_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "auth_db" <<EOSQL
 ALTER SCHEMA public OWNER TO auth_service;
 GRANT ALL ON SCHEMA public TO auth_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- USER SERVICE ----------
-DO $$
+# ---------- USER SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'user_service') THEN
-    CREATE ROLE user_service LOGIN PASSWORD :'usr';
+    CREATE ROLE user_service LOGIN PASSWORD '$USR_PASS';
   ELSE
-    ALTER ROLE user_service WITH PASSWORD :'usr';
+    ALTER ROLE user_service WITH PASSWORD '$USR_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE user_db OWNER user_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'user_db')\gexec
-\c user_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "user_db" <<EOSQL
 ALTER SCHEMA public OWNER TO user_service;
 GRANT ALL ON SCHEMA public TO user_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- TRANSPORT SERVICE ----------
-DO $$
+# ---------- TRANSPORT SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'transport_service') THEN
-    CREATE ROLE transport_service LOGIN PASSWORD :'tr';
+    CREATE ROLE transport_service LOGIN PASSWORD '$TR_PASS';
   ELSE
-    ALTER ROLE transport_service WITH PASSWORD :'tr';
+    ALTER ROLE transport_service WITH PASSWORD '$TR_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE transport_db OWNER transport_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'transport_db')\gexec
-\c transport_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "transport_db" <<EOSQL
 ALTER SCHEMA public OWNER TO transport_service;
 GRANT ALL ON SCHEMA public TO transport_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- TICKET SERVICE ----------
-DO $$
+# ---------- TICKET SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ticket_service') THEN
-    CREATE ROLE ticket_service LOGIN PASSWORD :'tk';
+    CREATE ROLE ticket_service LOGIN PASSWORD '$TK_PASS';
   ELSE
-    ALTER ROLE ticket_service WITH PASSWORD :'tk';
+    ALTER ROLE ticket_service WITH PASSWORD '$TK_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE ticket_db OWNER ticket_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ticket_db')\gexec
-\c ticket_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "ticket_db" <<EOSQL
 ALTER SCHEMA public OWNER TO ticket_service;
 GRANT ALL ON SCHEMA public TO ticket_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- PAYMENT SERVICE ----------
-DO $$
+# ---------- PAYMENT SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'payment_service') THEN
-    CREATE ROLE payment_service LOGIN PASSWORD :'pay';
+    CREATE ROLE payment_service LOGIN PASSWORD '$PAY_PASS';
   ELSE
-    ALTER ROLE payment_service WITH PASSWORD :'pay';
+    ALTER ROLE payment_service WITH PASSWORD '$PAY_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE payment_db OWNER payment_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'payment_db')\gexec
-\c payment_db
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "payment_db" <<EOSQL
 ALTER SCHEMA public OWNER TO payment_service;
 GRANT ALL ON SCHEMA public TO payment_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- REPORT SERVICE ----------
-DO $$
+# ---------- REPORT SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'report_service') THEN
-    CREATE ROLE report_service LOGIN PASSWORD :'rpt';
+    CREATE ROLE report_service LOGIN PASSWORD '$RPT_PASS';
   ELSE
-    ALTER ROLE report_service WITH PASSWORD :'rpt';
+    ALTER ROLE report_service WITH PASSWORD '$RPT_PASS';
   END IF;
-END$$;
+END\$\$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'report_db') THEN
-    CREATE DATABASE report_db OWNER report_service;
-  END IF;
-END$$;
-\c report_db
+SELECT 'CREATE DATABASE report_db OWNER report_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'report_db')\gexec
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "report_db" <<EOSQL
 ALTER SCHEMA public OWNER TO report_service;
 GRANT ALL ON SCHEMA public TO report_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
+EOSQL
 
--- ---------- MANAGEMENT SERVICE ----------
-DO $$
+# ---------- MANAGEMENT SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'management_service') THEN
-    CREATE ROLE management_service LOGIN PASSWORD :'mgmt';
+    CREATE ROLE management_service LOGIN PASSWORD '$MGMT_PASS';
   ELSE
-    ALTER ROLE management_service WITH PASSWORD :'mgmt';
+    ALTER ROLE management_service WITH PASSWORD '$MGMT_PASS';
   END IF;
-END$$;
+END\$\$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'management_db') THEN
-    CREATE DATABASE management_db OWNER management_service;
-  END IF;
-END$$;
-\c management_db
+SELECT 'CREATE DATABASE management_db OWNER management_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'management_db')\gexec
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "management_db" <<EOSQL
 ALTER SCHEMA public OWNER TO management_service;
 GRANT ALL ON SCHEMA public TO management_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c postgres
-
 EOSQL
 
-echo "[init_db] Databases and roles ensured with provided secrets."
+# ---------- CONTROL SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'control_service') THEN
+    CREATE ROLE control_service LOGIN PASSWORD '$CTRL_PASS';
+  ELSE
+    ALTER ROLE control_service WITH PASSWORD '$CTRL_PASS';
+  END IF;
+END\$\$;
 
+SELECT 'CREATE DATABASE control_db OWNER control_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'control_db')\gexec
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "control_db" <<EOSQL
+ALTER SCHEMA public OWNER TO control_service;
+GRANT ALL ON SCHEMA public TO control_service;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+EOSQL
+
+echo "[init_db] Databases and roles created successfully with provided secrets."
