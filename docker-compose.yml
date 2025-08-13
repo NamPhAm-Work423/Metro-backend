@@ -551,7 +551,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"  # External cho dev tools (RedisInsight, etc.)
+      - "6379:6379" 
     volumes:
       - redis_data:/data
     networks:
