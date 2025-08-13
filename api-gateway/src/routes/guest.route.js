@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const routingController = require('../controllers/routing.controller');
-const { apiRateLimiter, burstProtection } = require('../middlewares/rateLimiter');
+const { apiRateLimiter } = require('../middlewares/rateLimiter');
 const { logger } = require('../config/logger');
 
 // Middleware to validate that only public service endpoints are accessed
@@ -43,8 +43,7 @@ const logGuestAccess = (req, res, next) => {
   next();
 };
 
-// Apply security middlewares to all guest routes
-router.use(burstProtection);
+// Apply rate limiter to all guest routes
 router.use(apiRateLimiter);
 router.use(logGuestAccess);
 
