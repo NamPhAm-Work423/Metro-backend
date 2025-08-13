@@ -18,7 +18,6 @@ x-deploy: &default-deploy
         memory: 256M
 
 services:
-  # Public entry
   nginx-proxy:
     image: nginx:1.25-alpine
     container_name: nginx-proxy
