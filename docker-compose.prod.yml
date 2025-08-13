@@ -380,7 +380,7 @@ services:
     container_name: redis
     env_file:
       - /opt/env/init_db.env
-    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
+    command: ["sh", "-c", "test -n \"$REDIS_PASSWORD\" || { echo 'REDIS_PASSWORD is not set'; exit 1; }; exec redis-server --requirepass \"$REDIS_PASSWORD\""]
     volumes:
       - redis_data:/data
     networks:
