@@ -11,7 +11,7 @@ docker volume prune -f
 docker network prune -f
 docker image prune -af
 docker builder prune -af
-docker system prune -af --volumes //delete all 
+docker system prune -af --volumes 
 
 # 2. DOCKER COMPOSE CLEANUP
 echo "🔧 Cleaning Docker Compose..."
