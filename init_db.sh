@@ -49,7 +49,7 @@ CTRL_PASS="$(read_secret CONTROL_DB_PASSWORD)" || exit 1
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v gw="$GW_PASS" -v auth="$AUTH_PASS" -v usr="$USR_PASS" \
   -v tr="$TR_PASS" -v tk="$TK_PASS" -v pay="$PAY_PASS" \
-  -v rpt="$RPT_PASS" -v mgmt="$MGMT_PASS" <<-'EOSQL'
+  -v rpt="$RPT_PASS" -v mgmt="$MGMT_PASS" -v ctrl="$CTRL_PASS" <<-'EOSQL'
 
 -- ---------- GATEWAY SERVICE ----------
 DO $$
@@ -77,9 +77,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'control_service') THEN
-    CREATE ROLE control_service LOGIN PASSWORD :'CTRL_PASS';
+    CREATE ROLE control_service LOGIN PASSWORD :'ctrl';
   ELSE
-    ALTER ROLE control_service WITH PASSWORD :'CTRL_PASS';
+    ALTER ROLE control_service WITH PASSWORD :'ctrl';
   END IF;
 END$$;
 
