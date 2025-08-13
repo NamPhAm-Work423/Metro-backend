@@ -235,6 +235,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      api-gateway:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging

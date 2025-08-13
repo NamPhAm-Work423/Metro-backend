@@ -1,14 +1,19 @@
 name: Deploy VPS
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use computed tag
-        required: false
+  pull_request:
+  push:
+      branches: [ main ]
+      tags:
+        - 'v*.*.*'
+  # workflow_run:
+  #   workflows: ["CI"]
+  #   types: [completed]
+  # workflow_dispatch:
+  #   inputs:
+  #     tag:
+  #       description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use computed tag
+  #       required: false
 
 permissions:
   contents: read
