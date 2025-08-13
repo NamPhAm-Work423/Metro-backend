@@ -27,6 +27,17 @@ jobs:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
+      - name: Clean workspace before checkout
+        shell: bash
+        run: |
+          # Fix ownership of all files in workspace
+          sudo chown -R nampham423:nampham423 $GITHUB_WORKSPACE || true
+          # Make files writable for deletion
+          sudo chmod -R u+w $GITHUB_WORKSPACE || true
+          # Force remove problematic files
+          sudo rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
+          sudo rm -rf $GITHUB_WORKSPACE/.git/ || true
+          
       - name: Checkout
         uses: actions/checkout@v4
 

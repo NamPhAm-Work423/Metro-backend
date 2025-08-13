@@ -89,6 +89,9 @@ services:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispass123
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -124,6 +127,10 @@ services:
       - "8002" 
     env_file:
       - ./user-service/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispass123
     volumes:
       - ./user-service:/app
       - /app/node_modules
@@ -195,6 +202,10 @@ services:
       - "50052"   # Internal gRPC
     env_file:
       - ./ticket-service/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispass123
     volumes:
       - ./ticket-service:/app
       - /app/node_modules
@@ -235,6 +246,9 @@ services:
       - SCHEDULER_ENABLED=true
       - TRANSPORT_SERVICE_GRPC_URL=transport-service:50051
       - TICKET_SERVICE_GRPC_URL=ticket-service:50052
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispass123
     volumes:
       - ./public-service:/app
       - /app/node_modules

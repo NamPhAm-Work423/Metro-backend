@@ -26,7 +26,7 @@ class RedisStore {
   async increment(key) {
     try {
       const redis = this.getRedisClient();
-      if (!redis) {
+      if (!redis || redis.isOpen === false) {
         logger.warn('Redis client not available, allowing request');
         return {
           totalHits: 1,
@@ -62,7 +62,7 @@ class RedisStore {
   async decrement(key) {
     try {
       const redis = this.getRedisClient();
-      if (!redis) {
+      if (!redis || redis.isOpen === false) {
         return;
       }
 
