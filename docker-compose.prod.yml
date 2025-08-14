@@ -64,6 +64,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
@@ -106,6 +108,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
       interval: 30s
@@ -143,6 +147,8 @@ services:
       redis:
         condition: service_healthy
       api-gateway:
+        condition: service_healthy
+      promtail:
         condition: service_healthy
     networks:
       - backend-network
@@ -183,6 +189,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     networks:
       - backend-network
     logging:
@@ -222,6 +230,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     networks:
       - backend-network
     logging:
@@ -258,6 +268,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     networks:
       - backend-network
     logging:
@@ -287,6 +299,8 @@ services:
       postgres:
         condition: service_healthy
       api-gateway:
+        condition: service_healthy
+      promtail:
         condition: service_healthy
     networks:
       - backend-network
@@ -321,6 +335,8 @@ services:
       postgres:
         condition: service_healthy
       api-gateway:
+        condition: service_healthy
+      promtail:
         condition: service_healthy
     networks:
       - backend-network
@@ -359,6 +375,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      promtail:
+        condition: service_healthy
     networks:
       - backend-network
     logging:
@@ -392,6 +410,8 @@ services:
       kafka-2:
         condition: service_healthy
       kafka-3:
+        condition: service_healthy
+      promtail:
         condition: service_healthy
     networks:
       - backend-network
@@ -714,6 +734,12 @@ services:
       - loki
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9080/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     <<: *default-restart
 
   redis-commander:
