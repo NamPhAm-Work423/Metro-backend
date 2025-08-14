@@ -35,7 +35,12 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://127.0.0.1:1514"
+        syslog-format: "rfc5424"
+        tag: "nginx-proxy"
     <<: *default-restart
     profiles:
       - nginx
@@ -70,7 +75,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "api-gateway"
     <<:
@@ -112,7 +117,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "auth-service"
     <<:
@@ -144,7 +149,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "user-service"
     <<:
@@ -183,7 +188,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "transport-service"
     <<:
@@ -222,7 +227,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "ticket-service"
     <<:
@@ -258,7 +263,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "public-service"
     <<:
@@ -288,7 +293,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "payment-service"
     <<: *default-restart
@@ -322,7 +327,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "report-service"
     <<: *default-restart
@@ -359,7 +364,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "control-service"
     <<:
@@ -393,7 +398,7 @@ services:
     logging:
       driver: syslog
       options:
-        syslog-address: "udp://promtail:1514"
+        syslog-address: "tcp://127.0.0.1:1514"
         syslog-format: "rfc5424"
         tag: "management-service"
     <<:
@@ -628,7 +633,12 @@ services:
       - "9090:9090"
     networks:
       - backend-network
-    logging: *default-logging
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://127.0.0.1:1514"
+        syslog-format: "rfc5424"
+        tag: "prometheus"
     <<: *default-restart
     depends_on:
       api-gateway:
@@ -659,7 +669,12 @@ services:
       - "9093:9093"
     networks:
       - backend-network
-    logging: *default-logging
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://127.0.0.1:1514"
+        syslog-format: "rfc5424"
+        tag: "alertmanager"
     <<: *default-restart
     depends_on:
       - prometheus
@@ -688,6 +703,8 @@ services:
     expose:
       - "1514"
       - "9080"
+    ports:
+      - "127.0.0.1:1514:1514"
     command:
       - -config.file=/etc/promtail/config.yml
       - -config.expand-env=true
