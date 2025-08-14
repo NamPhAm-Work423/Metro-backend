@@ -734,12 +734,6 @@ services:
       - loki
     networks:
       - backend-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9080/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
     <<: *default-restart
 
   redis-commander:
