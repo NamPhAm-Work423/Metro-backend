@@ -75,6 +75,10 @@ services:
     container_name: auth-service
     env_file:
       - /opt/env/auth-service.env
+    environment:
+      - NEED_EMAIL_VERIFICATION=false  # Easier for dev
+      - NEED_API_KEY=false
+      - SEND_ACCESS_TOKEN_TO_CLIENT=false
     expose:
       - "8001"
     depends_on:
