@@ -1,166 +1,135 @@
 name: CD
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Image tag"
-        required: true
-  release:
-    types: [published]
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-
-env:
-  CHART_PATH: deploy/helm/metro
-  NAMESPACE: metro
+      tag:
+        description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use computed tag
+        required: false
 
 permissions:
   contents: read
   packages: read
-  id-token: write
+
+env:
+  DEFAULT_VPS_PATH: /opt/metro
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  deploy-local:
+    name: Local deploy on self-hosted runner
+    runs-on: self-hosted
+    timeout-minutes: 30
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     concurrency:
-      group: cd-prod-${{ github.workflow }}-${{ matrix.name }}-${{ github.ref_name }}
+      group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: api-gateway
-            repo: metro-api-gateway
-            values: api-gateway.yaml
-          - name: auth-service
-            repo: metro-auth-service
-            values: auth-service.yaml
-          - name: payment-service
-            repo: metro-payment-service
-            values: payment-service.yaml
-          - name: public-service
-            repo: metro-public-service
-            values: public-service.yaml
-          - name: ticket-service
-            repo: metro-ticket-service
-            values: ticket-service.yaml
-          - name: transport-service
-            repo: metro-transport-service
-            values: transport-service.yaml
-          - name: user-service
-            repo: metro-user-service
-            values: user-service.yaml
-          - name: report-service
-            repo: metro-report-service
-            values: report-service.yaml
-          - name: management-service
-            repo: metro-management-service
-            values: management-service.yaml
-
-    # no job-level secrets references; will export via a step env
-
     steps:
+      - name: Clean workspace before checkout
+        shell: bash
+        run: |
+          # Fix ownership of all files in workspace
+          sudo chown -R nampham423:nampham423 $GITHUB_WORKSPACE || true
+          # Make files writable for deletion
+          sudo chmod -R u+w $GITHUB_WORKSPACE || true
+          # Force remove problematic files
+          sudo rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
+          sudo rm -rf $GITHUB_WORKSPACE/.git/ || true
+          
       - name: Checkout
         uses: actions/checkout@v4
-
-      # Authenticate to cluster
-      - name: Export kubeconfig secret to env
-        id: kcfg
+        with:
+          clean: false
+      - name: Resolve deploy tag
+        id: tag
         shell: bash
-        env:
-          KCFG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          if [[ -n "${KCFG:-}" ]]; then
-            echo "KUBE_CONFIG=$KCFG" >> $GITHUB_ENV
-            echo "present=true" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          if [[ -n "${{ inputs.tag || '' }}" ]]; then
+            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "value=${SHA:0:7}" >> $GITHUB_OUTPUT
           else
-            echo "present=false" >> $GITHUB_OUTPUT
+            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           fi
-
-      - name: Set kubeconfig (if provided)
-        uses: ./.github/actions/kubeconfig
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
 
       - name: Set REGISTRY env (lowercase owner)
         run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
-      - name: Ensure namespace
-        if: ${{ steps.kcfg.outputs.present == 'true' }}
-        run: kubectl create ns $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Resolve version
-        id: ver
+      - name: Docker login GHCR (if private)
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          REGISTRY_USER: ${{ secrets.GHCR_USERNAME || github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "release" || "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          set +e
+          echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          true
+
+      - name: Verify images exist for tag
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            api-gateway auth-service payment-service public-service ticket-service 
+            transport-service user-service report-service management-service control-service
+          )
+          missing=()
+          for s in "${services[@]}"; do
+            if ! docker manifest inspect "$REGISTRY/metro-$s:$IMAGE_TAG" >/dev/null 2>&1; then
+              missing+=("$REGISTRY/metro-$s:$IMAGE_TAG")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing images for tag '$IMAGE_TAG':" >&2
+            printf ' - %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+      - name: Compose pull & up
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
+          COMPOSE_PROFILES: nginx
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Choose directory containing compose file: prefer repo checkout, fallback to VPS_PATH
+          DEPLOY_DIR="$GITHUB_WORKSPACE"
+          if [ ! -f "$DEPLOY_DIR/docker-compose.prod.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/compose.prod.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/docker-compose.yml" ] \
+             && [ ! -f "$DEPLOY_DIR/compose.yml" ]; then
+            DEPLOY_DIR="${VPS_PATH:-/opt/metro}"
+          fi
+          echo "Using deploy directory: $DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+          DOCKER_COMPOSE="docker compose"
+          $DOCKER_COMPOSE version >/dev/null
+          COMPOSE_FILES=""
+          if [ -f docker-compose.prod.yml ]; then
+            COMPOSE_FILES="-f docker-compose.prod.yml"
+          elif [ -f compose.prod.yml ]; then
+            COMPOSE_FILES="-f compose.prod.yml"
+          elif [ -f docker-compose.yml ]; then
+            COMPOSE_FILES="-f docker-compose.yml"
+          elif [ -f compose.yml ]; then
+            COMPOSE_FILES="-f compose.yml"
           else
-            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "No compose file found in $VPS_PATH" >&2; exit 1
           fi
-
-      - name: Validate version input
-        run: |
-          set -euo pipefail
-          TAG='${{ steps.ver.outputs.tag }}'
-          if [[ -z "$TAG" ]]; then
-            echo "Empty tag provided" >&2
-            exit 1
-          fi
-          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ && ! "$TAG" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
-            echo "Tag '$TAG' must be semver (vX.Y.Z) or a git SHA" >&2
-            exit 1
-          fi
-
-      - name: Helm dependency update
-        run: |
-          set -euo pipefail
-          helm dependency update "$CHART_PATH"
-
-      - name: Helm lint
-        run: |
-          set -euo pipefail
-          helm lint "$CHART_PATH" \
-            --values "$CHART_PATH/values/${{ matrix.values }}" \
-            --set name="${{ matrix.name }}" \
-            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
-            --set image.tag="${{ steps.ver.outputs.tag }}"
-
-      - name: Deploy service
-        if: ${{ steps.kcfg.outputs.present == 'true' }}
-        run: |
-          set -euo pipefail
-          # Server-side dry-run validation
-          helm template "${{ matrix.name }}" "$CHART_PATH" \
-            --namespace "$NAMESPACE" \
-            --values "$CHART_PATH/values/${{ matrix.values }}" \
-            --set name="${{ matrix.name }}" \
-            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
-            --set image.tag="${{ steps.ver.outputs.tag }}" \
-          | kubectl apply -n "$NAMESPACE" --dry-run=server -f -
-
-          # Atomic deploy with wait and timeout
-          helm upgrade --install "${{ matrix.name }}" "$CHART_PATH" \
-            --namespace "$NAMESPACE" \
-            --values "$CHART_PATH/values/${{ matrix.values }}" \
-            --set name="${{ matrix.name }}" \
-            --set image.repository="$REGISTRY/${{ matrix.repo }}" \
-            --set image.tag="${{ steps.ver.outputs.tag }}" \
-            --atomic --wait --timeout 15m --history-max 10
-
-      - name: Post-deploy status
-        if: ${{ steps.kcfg.outputs.present == 'true' }}
-        run: |
-          set -euo pipefail
-          kubectl get deploy,sts,po,svc -n "$NAMESPACE" -l app.kubernetes.io/instance=${{ matrix.name }} || true
+          echo "Using tag: $IMAGE_TAG"
+          $DOCKER_COMPOSE $COMPOSE_FILES pull || true
+          # Start core services first (without nginx profile), then bring up nginx
+          $DOCKER_COMPOSE $COMPOSE_FILES up -d --remove-orphans
+          docker image prune -f || true
+          $DOCKER_COMPOSE $COMPOSE_FILES ps
 
 

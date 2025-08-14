@@ -622,6 +622,9 @@ services:
       - ./dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./dashboard/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
     networks:
       - backend-network
     logging: *default-logging
@@ -661,6 +664,39 @@ services:
       - pgadmin_data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json:ro
 
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    expose:
+      - "3100"
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    volumes:
+      - ./loki/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - -config.file=/etc/promtail/config.yml
+      - -config.expand-env=true
+    depends_on:
+      - loki
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
+
 
 volumes:
   postgres_data:
@@ -670,6 +706,8 @@ volumes:
   grafana_data:
     driver: local
   pgadmin_data:
+    driver: local
+  loki_data:
     driver: local
     
 networks:
