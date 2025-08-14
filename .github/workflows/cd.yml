@@ -1,4 +1,5 @@
 name: CD
+run-name: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.display_title) || (github.event_name == 'workflow_dispatch' && format('Deploy {0}', inputs.tag || github.ref_name || github.sha)) || format('Deploy {0}', github.ref_name || github.sha) }}
 
 on:
   workflow_run:

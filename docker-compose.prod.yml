@@ -17,6 +17,16 @@ x-deploy: &default-deploy
         cpus: '0.25'
         memory: 256M
 
+x-loki-logging: &loki-logging
+  logging:
+    driver: loki
+    options:
+      loki-url: http://127.0.0.1:3100/loki/api/v1/push
+      loki-external-labels: job=docker,container={{.Name}},image={{.ImageName}}
+      loki-batch-size: "102400"
+      loki-batch-wait: "1s"
+      loki-timeout: "10s"
+
 services:
   # Public entry
   nginx-proxy:
@@ -65,10 +75,10 @@ services:
       start_period: 40s
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
 
   auth-service:
     image: ${REGISTRY}/metro-auth-service:${IMAGE_TAG}
@@ -102,10 +112,10 @@ services:
       start_period: 40s
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
 
   user-service:
     image: ${REGISTRY}/metro-user-service:${IMAGE_TAG}
@@ -129,10 +139,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -163,10 +173,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
       interval: 30s
@@ -197,10 +207,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -228,10 +238,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
       interval: 30s
@@ -253,8 +263,9 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
-    <<: *default-restart
+    <<:
+      - *default-restart
+      - *loki-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
       interval: 30s
@@ -282,8 +293,9 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
-    <<: *default-restart
+    <<:
+      - *default-restart
+      - *loki-logging
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8007'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -314,10 +326,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -343,10 +355,10 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
+      - *loki-logging
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3001'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -669,6 +681,8 @@ services:
     container_name: loki
     expose:
       - "3100"
+    ports:
+      - "127.0.0.1:3100:3100"
     command:
       - -config.file=/etc/loki/local-config.yaml
     volumes:
@@ -679,23 +693,6 @@ services:
     <<:
       - *default-restart
       - *default-deploy
-
-  promtail:
-    image: grafana/promtail:2.9.4
-    container_name: promtail
-    volumes:
-      - ./loki/promtail-config.yml:/etc/promtail/config.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command:
-      - -config.file=/etc/promtail/config.yml
-      - -config.expand-env=true
-    depends_on:
-      - loki
-    networks:
-      - backend-network
-    logging: *default-logging
-    <<: *default-restart
 
 
 volumes:
