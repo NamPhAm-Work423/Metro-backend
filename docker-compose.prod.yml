@@ -17,15 +17,7 @@ x-deploy: &default-deploy
         cpus: '0.25'
         memory: 256M
 
-x-loki-logging: &loki-logging
-  logging:
-    driver: loki
-    options:
-      loki-url: http://127.0.0.1:3100/loki/api/v1/push
-      loki-external-labels: job=docker,container={{.Name}},image={{.ImageName}}
-      loki-batch-size: "102400"
-      loki-batch-wait: "1s"
-      loki-timeout: "10s"
+ 
 
 services:
   # Public entry
@@ -75,10 +67,15 @@ services:
       start_period: 40s
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "api-gateway"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
 
   auth-service:
     image: ${REGISTRY}/metro-auth-service:${IMAGE_TAG}
@@ -112,10 +109,15 @@ services:
       start_period: 40s
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "auth-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
 
   user-service:
     image: ${REGISTRY}/metro-user-service:${IMAGE_TAG}
@@ -139,10 +141,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "user-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -173,10 +180,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "transport-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
       interval: 30s
@@ -207,10 +219,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "ticket-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -238,10 +255,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "public-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
       interval: 30s
@@ -263,9 +285,13 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    <<:
-      - *default-restart
-      - *loki-logging
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "payment-service"
+    <<: *default-restart
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
       interval: 30s
@@ -293,9 +319,13 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    <<:
-      - *default-restart
-      - *loki-logging
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "report-service"
+    <<: *default-restart
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8007'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -326,10 +356,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "control-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -355,10 +390,15 @@ services:
         condition: service_healthy
     networks:
       - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://promtail:1514"
+        syslog-format: "rfc5424"
+        tag: "management-service"
     <<:
       - *default-restart
       - *default-deploy
-      - *loki-logging
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3001'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
