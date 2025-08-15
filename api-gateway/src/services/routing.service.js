@@ -167,7 +167,6 @@ class RoutingService {
                     // This prevents frontend origin (localhost:5173) from being forwarded to backend services
                     proxyReqOpts.headers['origin'] = process.env.API_GATEWAY_ORIGIN || 'http://localhost:8000';
                     
-                    // SECURITY: Generate secure service-to-service JWT
                     if (srcReq.user) {
                         const serviceToken = this.generateServiceToken(srcReq.user);
                         proxyReqOpts.headers['x-service-auth'] = `Bearer ${serviceToken}`;

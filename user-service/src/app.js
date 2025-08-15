@@ -75,6 +75,10 @@ const corsOptions = {
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            logger.warn('CORS origin rejected', { 
+                origin, 
+                allowedOrigins: allowedOrigins.filter(Boolean) 
+            });
             callback(new Error('Not allowed by CORS'));
         }
     },

@@ -188,12 +188,16 @@ function destroyUserSession(req) {
  */
 function updateSessionActivity(req) {
     if (req.session) {
-        // Clean up empty sessions (sessions without userId)
-        if (!req.session.userId && Object.keys(req.session).length <= 2) {
-            // Only cookie and lastActivity, no user data
+        const authRoutes = ['/v1/auth/login', '/v1/auth/register', '/v1/auth/signup'];
+        const isAuthRoute = authRoutes.some(route => req.url.includes(route));
+        
+        // Clean up empty sessions (sessions without userId) but skip auth routes
+        if (!req.session.userId && Object.keys(req.session).length <= 2 && !isAuthRoute) {
+            // Only cookie and lastActivity, no user data - safe to clean up
             logger.debug('Cleaning up empty session', {
                 sessionId: req.sessionID,
-                sessionKeys: Object.keys(req.session)
+                sessionKeys: Object.keys(req.session),
+                url: req.url
             });
             req.session.destroy((err) => {
                 if (err) {
