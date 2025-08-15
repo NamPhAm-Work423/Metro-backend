@@ -186,7 +186,6 @@ class RoutingService {
                     return proxyReqOpts;
                 }.bind(this),
                 userResHeaderDecorator: function(headers, proxyRes, userReq, userRes) {
-                    // Remove any CORS headers from backend services to prevent conflicts with Nginx
                     delete headers['access-control-allow-origin'];
                     delete headers['access-control-allow-credentials'];
                     delete headers['access-control-allow-methods'];
