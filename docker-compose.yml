@@ -19,30 +19,30 @@ x-deploy: &default-deploy
 
 services:
   # NGINX - Optional
-  nginx-proxy:
-    image: nginx
-    container_name: nginx-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/certs:/etc/nginx/certs
-    depends_on:
-      - api-gateway
-    networks:
-      - backend-network
-    restart: unless-stopped
-    profiles:
-      - nginx  # Optional: docker-compose --profile nginx up
+  # nginx-proxy:
+  #   image: nginx
+  #   container_name: nginx-proxy
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+  #     - ./nginx/certs:/etc/nginx/certs
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - backend-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - nginx  # Optional: docker-compose --profile nginx up
 
   # API Gateway - internal only (use nginx-proxy profile to expose 80/443)
   api-gateway:
     build:
       context: ./api-gateway
     container_name: api-gateway
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     env_file:
       - ./api-gateway/.env
     environment:

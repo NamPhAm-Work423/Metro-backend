@@ -12,7 +12,7 @@ function configureSession() {
     const redisClient = getClient();
     
     let sessionConfig = {
-        name: process.env.SESSION_NAME || 'metro_session',
+        name: process.env.SESSION_NAME || 'sessionToken',
         secret: process.env.SESSION_SECRET || 'fallback-secret-change-in-production',
         resave: false,
         saveUninitialized: false,
@@ -21,7 +21,8 @@ function configureSession() {
             httpOnly: process.env.SESSION_COOKIE_HTTPONLY !== 'false',
             sameSite: process.env.SESSION_COOKIE_SAMESITE || 'strict',
             maxAge: parseInt(process.env.SESSION_MAX_AGE) || 24 * 60 * 60 * 1000, // 24 hours
-            domain: process.env.NODE_ENV === 'production' ? '.metrohcm.io.vn' : undefined
+            domain: process.env.NODE_ENV === 'production' ? '.metrohcm.io.vn' : undefined,
+            path: '/'
         },
         rolling: true, // Extend session on each request
         unset: 'destroy' // Remove session from store when unset
@@ -54,7 +55,21 @@ function configureSession() {
         });
     }
 
-    return session(sessionConfig);
+    const sessionMiddleware = session(sessionConfig);
+    
+    logger.debug('Session configuration details', {
+        cookieName: sessionConfig.name,
+        cookieSecure: sessionConfig.cookie.secure,
+        cookieHttpOnly: sessionConfig.cookie.httpOnly,
+        cookieSameSite: sessionConfig.cookie.sameSite,
+        cookieDomain: sessionConfig.cookie.domain,
+        cookiePath: sessionConfig.cookie.path,
+        cookieMaxAge: sessionConfig.cookie.maxAge,
+        hasStore: !!sessionConfig.store,
+        storeType: sessionConfig.store ? 'Redis' : 'Memory'
+    });
+    
+    return sessionMiddleware;
 }
 
 /**

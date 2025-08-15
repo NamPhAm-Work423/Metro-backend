@@ -79,7 +79,23 @@ const userController = {
       });
 
       // Create session for user (in addition to JWT)
+      logger.debug('About to create user session', {
+        hasSession: !!req.session,
+        sessionId: req.sessionID,
+        userId: user.id,
+        userRole: user.role
+      });
+      
       createUserSession(req, user);
+      
+      // Verify session was created
+      logger.debug('Session creation verification', {
+        hasSession: !!req.session,
+        sessionId: req.sessionID,
+        sessionKeys: req.session ? Object.keys(req.session) : [],
+        hasUserId: req.session ? !!req.session.userId : false,
+        userId: req.session ? req.session.userId : null
+      });
 
 
       //If flag is true, send access token to client

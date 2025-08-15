@@ -42,8 +42,6 @@ services:
         syslog-format: "rfc5424"
         tag: "nginx-proxy"
     <<: *default-restart
-    profiles:
-      - nginx
 
   # Microservices (use images from GHCR, env from ../env)
   api-gateway:
@@ -804,3 +802,4 @@ volumes:
 networks:
   backend-network:
     driver: bridge
+    external: false

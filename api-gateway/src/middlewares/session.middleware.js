@@ -9,6 +9,16 @@ const { logger } = require('../config/logger');
  */
 function validateAndForwardSession(req, res, next) {
     try {
+        // Debug session state
+        logger.debug('Session validation debug', {
+            hasSession: !!req.session,
+            sessionId: req.sessionID,
+            sessionKeys: req.session ? Object.keys(req.session) : [],
+            hasUserId: req.session ? !!req.session.userId : false,
+            url: req.url,
+            method: req.method
+        });
+
         // Check if session exists
         if (!req.session || !req.session.userId) {
             logger.debug('No session found, proceeding without user context');

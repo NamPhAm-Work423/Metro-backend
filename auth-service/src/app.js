@@ -36,6 +36,15 @@ app.use(async (req, res, next) => {
             return next(err);
         }
         
+        // Debug session state after middleware
+        logger.debug('Session middleware applied', {
+            hasSession: !!req.session,
+            sessionId: req.sessionID,
+            sessionKeys: req.session ? Object.keys(req.session) : [],
+            url: req.url,
+            method: req.method
+        });
+        
         // Session activity tracking
         updateSessionActivity(req);
         next();
