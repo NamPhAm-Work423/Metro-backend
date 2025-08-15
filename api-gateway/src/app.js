@@ -19,7 +19,7 @@ dotenv.config();
 // CORS options
 const corsOptions = {
     origin: [
-        process.env.UV_DESK_CLIENT, 
+        process.env.UV_VERCEL_CLIENT, 
         process.env.UI_CLIENT,
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
