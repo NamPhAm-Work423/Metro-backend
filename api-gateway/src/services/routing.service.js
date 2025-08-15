@@ -186,23 +186,15 @@ class RoutingService {
                     return proxyReqOpts;
                 }.bind(this),
                 userResHeaderDecorator: function(headers, proxyRes, userReq, userRes) {
+                    // Remove any CORS headers from backend services to prevent conflicts with Nginx
                     delete headers['access-control-allow-origin'];
                     delete headers['access-control-allow-credentials'];
+                    delete headers['access-control-allow-methods'];
+                    delete headers['access-control-allow-headers'];
+                    delete headers['access-control-expose-headers'];
+                    delete headers['access-control-max-age'];
 
-                    const allowedOrigins = [
-                        process.env.UV_VERCEL_CLIENT,
-                        process.env.UI_CLIENT,
-                    ];
-
-                    // Check if userReq exists and has headers
-                    if (userReq && userReq.headers && userReq.headers.origin) {
-                        const origin = userReq.headers.origin;
-                        if (allowedOrigins.includes(origin)) {
-                            headers['access-control-allow-origin'] = origin;
-                            headers['access-control-allow-credentials'] = 'true';
-                        }
-                    }
-
+                    
                     return headers;
                 }
             });

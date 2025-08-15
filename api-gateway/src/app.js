@@ -28,8 +28,14 @@ const corsOptions = {
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// Only use CORS in development - in production, Nginx handles CORS
+if (process.env.NODE_ENV !== 'production') {
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
+} else {
+    // In production, skip CORS middleware to avoid conflicts with Nginx
+    logger.info('Production mode: CORS handled by Nginx, skipping Express CORS middleware');
+}
 
 app.use(cookieParser());
 

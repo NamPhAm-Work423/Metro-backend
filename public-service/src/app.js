@@ -30,11 +30,15 @@ class App {
             contentSecurityPolicy: false
         }));
 
-        // CORS middleware
-        this.app.use(cors({
-            origin: process.env.CORS_ORIGIN || '*',
-            credentials: true
-        }));
+        // CORS middleware - only in development, production uses Nginx
+        if (process.env.NODE_ENV !== 'production') {
+            this.app.use(cors({
+                origin: process.env.CORS_ORIGIN || '*',
+                credentials: true
+            }));
+        } else {
+            console.log('Production mode: CORS handled by Nginx, skipping Express CORS middleware');
+        }
 
         // Compression middleware
         this.app.use(compression());

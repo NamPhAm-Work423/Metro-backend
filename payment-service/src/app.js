@@ -83,7 +83,14 @@ const corsOptions = {
 
 // Apply network validation before CORS
 app.use(validateNetworkSource);
-app.use(cors(corsOptions));
+
+// Only use CORS in development - in production, Nginx handles CORS
+if (process.env.NODE_ENV !== 'production') {
+    app.use(cors(corsOptions));
+} else {
+    // In production, skip CORS middleware to avoid conflicts with Nginx
+    logger.info('Production mode: CORS handled by Nginx, skipping Express CORS middleware');
+}
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
