@@ -7,6 +7,27 @@ jest.mock('../../src/services/user.service', () => ({
 }));
 jest.mock('../../src/events/user.producer.event', () => ({ publishUserLogin: jest.fn().mockResolvedValue() }));
 
+// Mock session configuration for tests
+jest.mock('../../src/config/session', () => ({
+  createUserSession: jest.fn(),
+  destroyUserSession: jest.fn(),
+  requireSession: jest.fn((req, res, next) => next()),
+  optionalSession: jest.fn((req, res, next) => next()),
+  updateSessionActivity: jest.fn()
+}));
+
+// Mock Redis for tests
+jest.mock('../../src/config/redis', () => ({
+  getRedisClient: jest.fn(() => ({
+    connect: jest.fn(),
+    on: jest.fn(),
+    get: jest.fn(),
+    set: jest.fn(),
+    setEx: jest.fn(),
+    del: jest.fn()
+  }))
+}));
+
 const express = require('express');
 const request = require('supertest');
 const cookieParser = require('cookie-parser');
@@ -17,6 +38,14 @@ function appWith(route) {
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
+  
+  // Mock session middleware for tests
+  app.use((req, res, next) => {
+    req.session = {};
+    req.sessionID = 'test-session-id';
+    next();
+  });
+  
   route(app);
   return app;
 }
