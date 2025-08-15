@@ -13,6 +13,12 @@ docker image prune -af
 docker builder prune -af
 docker system prune -af --volumes 
 
+
+docker update --restart=no $(docker ps -aq)
+
+sudo docker volume rm $(docker volume ls -q)
+
+
 # 2. DOCKER COMPOSE CLEANUP
 echo "🔧 Cleaning Docker Compose..."
 find /opt -name "docker-compose*.yml" -exec dirname {} \; | xargs -I {} bash -c 'cd {} && docker-compose down --volumes --remove-orphans 2>/dev/null || true'
