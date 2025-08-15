@@ -2,6 +2,7 @@ const { logger } = require('../config/logger');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const userService = require('../services/user.service');
 const userProducer = require('../events/user.producer.event');
+const { createUserSession, destroyUserSession } = require('../config/session');
 
 
 const userController = {
@@ -77,6 +78,9 @@ const userController = {
         roles: user.roles
       });
 
+      // Create session for user (in addition to JWT)
+      createUserSession(req, user);
+
 
       //If flag is true, send access token to client
       if(process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'false'){
@@ -123,6 +127,9 @@ const userController = {
    */
   logout: asyncErrorHandler(async (req, res, next) => {
     logger.info('User logged out', { userId: req.user.id });
+
+    // Destroy session (in addition to clearing JWT cookies)
+    destroyUserSession(req);
 
     res.clearCookie('accessToken', {
       httpOnly: true,

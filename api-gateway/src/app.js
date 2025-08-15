@@ -10,6 +10,7 @@ const { logger, requestLogger } = require('./config/logger');
 const dotenv = require('dotenv');
 const { register, errorCount } = require('./config/metrics');
 const metricsMiddleware = require('./middlewares/metrics.middleware');
+const { configureSession, updateSessionActivity } = require('./config/session');
 
 app.use(metricsMiddleware);
 
@@ -31,6 +32,15 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use(cookieParser());
+
+// Session middleware (must be after cookie-parser)
+app.use(configureSession());
+
+// Session activity tracking middleware
+app.use((req, res, next) => {
+    updateSessionActivity(req);
+    next();
+});
 
 app.use(helmet());
 app.use(express.json());

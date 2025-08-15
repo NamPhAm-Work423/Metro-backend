@@ -6,11 +6,22 @@ const routes = require('./routes');
 const { register, errorCount } = require('./config/metrics');
 const cookieParser = require('cookie-parser');
 const metricsMiddleware = require('./middlewares/metrics.middleware');
+const { configureSession, updateSessionActivity } = require('./config/session');
 
 const app = express();
 
 app.use(metricsMiddleware);
 app.use(cookieParser());
+
+// Session middleware (must be after cookie-parser)
+app.use(configureSession());
+
+// Session activity tracking middleware
+app.use((req, res, next) => {
+    updateSessionActivity(req);
+    next();
+});
+
 // Security middleware
 app.use(helmet());
 app.use(express.json());

@@ -8,6 +8,7 @@ const routingRoutes = require('./routing.route');
 const guestRoutes = require('./guest.route');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { defaultRateLimiter } = require('../middlewares/rateLimiter');
+const { validateAndForwardSession } = require('../middlewares/session.middleware');
 
 const config = require('../config')();
 
@@ -16,17 +17,17 @@ const config = require('../config')();
  */
 
 // Authentication routes - mounted at /
-router.use('/v1/auth', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
+router.use('/v1/auth', validateAndForwardSession, process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : authRoutes);
 
 // Service management routes - mounted at /v1/service
-router.use('/v1/service', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
+router.use('/v1/service', validateAndForwardSession, process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : serviceRoutes);
 
 // Guest routes - mounted at /v1/guest (NO authentication required, only public service access)
-router.use('/v1/guest', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
+router.use('/v1/guest', validateAndForwardSession, process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : guestRoutes);
 
 //** ALL SERVICE WILL BE MOUNTED HERE, YOU HAVE TO CALL THE SERVICE ROUTE BY USING THE ENDPOINT v1/route/serviceName */
 // Dynamic service routing - mounted at /v1/route (rate limiting applied in routing.route.js)
-router.use('/v1/route', process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
+router.use('/v1/route', validateAndForwardSession, process.env.NEED_API_KEY === 'true' ? authMiddleware.validateAPIKeyMiddleware : routingRoutes);
 
 // Health check endpoint - with rate limiting
 router.get('/health', defaultRateLimiter, (req, res) => {
