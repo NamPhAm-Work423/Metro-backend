@@ -1,6 +1,6 @@
 const session = require('express-session');
 const RedisStore = require('connect-redis').default;
-const { getRedisClient } = require('./redis');
+const { getClient } = require('./redis');
 const { logger } = require('./logger');
 
 /**
@@ -8,18 +8,10 @@ const { logger } = require('./logger');
  * @returns {Function} Express session middleware
  */
 function configureSession() {
-    const redisClient = getRedisClient();
+    // Try to get Redis client, but don't fail if not available
+    const redisClient = getClient();
     
-    if (!redisClient) {
-        logger.error('Redis client not available for session store');
-        throw new Error('Redis client required for session management');
-    }
-
-    const sessionConfig = {
-        store: new RedisStore({ 
-            client: redisClient,
-            prefix: `${process.env.REDIS_KEY_PREFIX || 'api-gateway:'}session:`
-        }),
+    let sessionConfig = {
         name: process.env.SESSION_NAME || 'metro_session',
         secret: process.env.SESSION_SECRET || 'fallback-secret-change-in-production',
         resave: false,
@@ -35,16 +27,46 @@ function configureSession() {
         unset: 'destroy' // Remove session from store when unset
     };
 
-    logger.info('Session configuration initialized', {
-        store: 'Redis',
-        cookieName: sessionConfig.name,
-        secure: sessionConfig.cookie.secure,
-        httpOnly: sessionConfig.cookie.httpOnly,
-        sameSite: sessionConfig.cookie.sameSite,
-        maxAge: sessionConfig.cookie.maxAge
-    });
+    // Add Redis store if available
+    if (redisClient && redisClient.isOpen) {
+        sessionConfig.store = new RedisStore({ 
+            client: redisClient,
+            prefix: `${process.env.REDIS_KEY_PREFIX || 'api-gateway:'}session:`
+        });
+        
+        logger.info('Session configuration initialized with Redis store', {
+            store: 'Redis',
+            cookieName: sessionConfig.name,
+            secure: sessionConfig.cookie.secure,
+            httpOnly: sessionConfig.cookie.httpOnly,
+            sameSite: sessionConfig.cookie.sameSite,
+            maxAge: sessionConfig.cookie.maxAge
+        });
+    } else {
+        logger.warn('Redis client not available, using memory store for sessions');
+        logger.info('Session configuration initialized with memory store', {
+            store: 'Memory',
+            cookieName: sessionConfig.name,
+            secure: sessionConfig.cookie.secure,
+            httpOnly: sessionConfig.cookie.httpOnly,
+            sameSite: sessionConfig.cookie.sameSite,
+            maxAge: sessionConfig.cookie.maxAge
+        });
+    }
 
     return session(sessionConfig);
+}
+
+/**
+ * Configure session middleware with Redis store (async version)
+ * @returns {Promise<Function>} Express session middleware
+ */
+async function configureSessionAsync() {
+    // Wait for Redis to be available
+    const { tryConnect } = require('./redis');
+    await tryConnect();
+    
+    return configureSession();
 }
 
 /**
@@ -122,6 +144,7 @@ function updateSessionActivity(req) {
 
 module.exports = {
     configureSession,
+    configureSessionAsync,
     requireSession,
     optionalSession,
     createUserSession,

@@ -10,7 +10,7 @@ const { logger, requestLogger } = require('./config/logger');
 const dotenv = require('dotenv');
 const { register, errorCount } = require('./config/metrics');
 const metricsMiddleware = require('./middlewares/metrics.middleware');
-const { configureSession, updateSessionActivity } = require('./config/session');
+const { configureSession, configureSessionAsync, updateSessionActivity } = require('./config/session');
 
 app.use(metricsMiddleware);
 
@@ -34,12 +34,32 @@ app.options('*', cors(corsOptions));
 app.use(cookieParser());
 
 // Session middleware (must be after cookie-parser)
-app.use(configureSession());
+// Initialize session middleware after Redis is ready
+let sessionMiddleware = null;
 
-// Session activity tracking middleware
-app.use((req, res, next) => {
-    updateSessionActivity(req);
-    next();
+// Create a wrapper middleware that waits for session to be ready
+app.use(async (req, res, next) => {
+    if (!sessionMiddleware) {
+        try {
+            sessionMiddleware = await configureSessionAsync();
+        } catch (error) {
+            console.error('Failed to configure session middleware:', error);
+            // Fallback to basic session without Redis
+            sessionMiddleware = configureSession();
+        }
+    }
+    
+    // Apply session middleware
+    sessionMiddleware(req, res, (err) => {
+        if (err) {
+            console.error('Session middleware error:', err);
+            return next(err);
+        }
+        
+        // Session activity tracking
+        updateSessionActivity(req);
+        next();
+    });
 });
 
 app.use(helmet());
