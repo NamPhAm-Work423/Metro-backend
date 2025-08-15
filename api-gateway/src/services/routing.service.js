@@ -195,10 +195,13 @@ class RoutingService {
                         process.env.UI_CLIENT,
                     ];
 
-                    const origin = userReq.headers.origin;
-                    if (origin && allowedOrigins.includes(origin)) {
-                        headers['access-control-allow-origin'] = origin;
-                        headers['access-control-allow-credentials'] = 'true';
+                    // Check if userReq exists and has headers
+                    if (userReq && userReq.headers && userReq.headers.origin) {
+                        const origin = userReq.headers.origin;
+                        if (allowedOrigins.includes(origin)) {
+                            headers['access-control-allow-origin'] = origin;
+                            headers['access-control-allow-credentials'] = 'true';
+                        }
                     }
 
                     return headers;
