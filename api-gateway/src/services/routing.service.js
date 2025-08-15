@@ -187,18 +187,20 @@ class RoutingService {
                     return proxyReqOpts;
                 }.bind(this),
                 userResHeaderDecorator: function(headers, proxyRes, userReq, userRes) {
-                    // Remove CORS headers that the inner service might have set
                     delete headers['access-control-allow-origin'];
                     delete headers['access-control-allow-credentials'];
- 
-                    if (userReq && userReq.headers && userReq.headers.origin) {
-                        headers['access-control-allow-origin'] = userReq.headers.origin;
-                        headers['access-control-allow-credentials'] = 'true';
-                    } else {
-                        // Fallback: Set CORS for localhost:5173 if no origin available
-                        headers['access-control-allow-origin'] = 'http://localhost:5173';
+
+                    const allowedOrigins = [
+                        process.env.UV_VERCEL_CLIENT,
+                        process.env.UI_CLIENT,
+                    ];
+
+                    const origin = userReq.headers.origin;
+                    if (origin && allowedOrigins.includes(origin)) {
+                        headers['access-control-allow-origin'] = origin;
                         headers['access-control-allow-credentials'] = 'true';
                     }
+
                     return headers;
                 }
             });
