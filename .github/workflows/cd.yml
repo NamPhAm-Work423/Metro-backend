@@ -31,12 +31,21 @@ jobs:
       - name: Clean workspace before checkout
         shell: bash
         run: |
-          # Clean workspace (runner should be configured with proper user permissions)
-          rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
-          rm -rf $GITHUB_WORKSPACE/.git/ || true
-          # Ensure workspace is writable for current user
-          find $GITHUB_WORKSPACE -type d -exec chmod u+w {} + 2>/dev/null || true
-          find $GITHUB_WORKSPACE -type f -exec chmod u+w {} + 2>/dev/null || true
+          # First try to clean workspace without sudo
+          chmod -R u+w $GITHUB_WORKSPACE 2>/dev/null || true
+          rm -rf $GITHUB_WORKSPACE/nginx/certs/ 2>/dev/null || true
+          rm -rf $GITHUB_WORKSPACE/.git/ 2>/dev/null || true
+          
+          # If files still exist, use sudo as fallback (certificates often need root)
+          if [ -d "$GITHUB_WORKSPACE/nginx/certs/" ]; then
+            sudo rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
+          fi
+          if [ -d "$GITHUB_WORKSPACE/.git/" ]; then
+            sudo rm -rf $GITHUB_WORKSPACE/.git/ || true
+          fi
+          
+          # Ensure workspace ownership for current user
+          sudo chown -R $(whoami):$(whoami) $GITHUB_WORKSPACE 2>/dev/null || true
           
       - name: Checkout
         uses: actions/checkout@v4
