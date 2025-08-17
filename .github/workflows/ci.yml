@@ -13,15 +13,15 @@ permissions:
   security-events: write
   actions: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test-scan-push:
     runs-on: [self-hosted, linux, x64, ci]
     # Fallback nếu runner bận/không available:
     # runs-on: ${{ (contains(join(runner.labels, ','), 'ci') && 'self-hosted') || 'ubuntu-latest' }}
-    
-    concurrency:
-      group: ci-${{ github.ref }}
-      cancel-in-progress: true
     
     env:
       REGISTRY: ghcr.io/metro-app
