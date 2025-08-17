@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   build-test-scan-push:
-    runs-on: [self-hosted, linux, x64, ci]
-    # Fallback nếu runner bận/không available:
-    # runs-on: ${{ (contains(join(runner.labels, ','), 'ci') && 'self-hosted') || 'ubuntu-latest' }}
+    # runs-on: [self-hosted, linux, x64, ci]
+    # Fallback nếu runner chưa có label 'ci':
+    runs-on: ubuntu-latest
     
     env:
       REGISTRY: ghcr.io/metro-app
