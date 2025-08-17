@@ -39,11 +39,27 @@ class TicketController {
         }
         
         if (!passenger) {
-            logger.error('Passenger not found in cache. Please sync your passenger profile or authenticate again.', {
-                passengerId,
-                userId
-            });
-            throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
+            // Try to fetch from user-service as fallback
+            try {
+                logger.warn('Passenger not found in cache, attempting to sync from user-service', {
+                    passengerId,
+                    userId
+                });
+                
+                logger.error('Passenger not found in cache. Please sync your passenger profile or authenticate again.', {
+                    passengerId,
+                    userId,
+                    message: 'Cache miss - user-service sync not implemented'
+                });
+                throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
+            } catch (fallbackError) {
+                logger.error('Failed to sync passenger from user-service', {
+                    passengerId,
+                    userId,
+                    error: fallbackError.message
+                });
+                throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
+            }
         }
 
         return { passengerId, passenger };

@@ -37,7 +37,7 @@ class TicketRepository extends ITicketRepository {
                 {
                     model: Promotion,
                     as: 'promotion',
-                    attributes: ['promotionId', 'code', 'name', 'type', 'value', 'description'],
+                    attributes: ['promotionId', 'promotionCode', 'name', 'type', 'value', 'description'],
                     required: false
                 }
             ];
@@ -121,7 +121,7 @@ class TicketRepository extends ITicketRepository {
                 {
                     model: Promotion,
                     as: 'promotion',
-                    attributes: ['promotionId', 'code', 'name', 'type', 'value'],
+                    attributes: ['promotionId', 'promotionCode', 'name', 'type', 'value'],
                     required: false
                 }
             ];
@@ -169,7 +169,7 @@ class TicketRepository extends ITicketRepository {
                 {
                     model: Promotion,
                     as: 'promotion',
-                    attributes: ['promotionId', 'code', 'name', 'type'],
+                    attributes: ['promotionId', 'promotionCode', 'name', 'type'],
                     required: false
                 }
             ];
