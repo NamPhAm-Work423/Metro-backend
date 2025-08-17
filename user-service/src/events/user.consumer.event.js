@@ -3,7 +3,8 @@ const { logger } = require('../config/logger');
 const { Passenger, Staff } = require('../models/index.model');
 const passengerService = require('../services/passenger.service');
 const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../../../../libs/cache/passenger.cache');
+const PassengerCacheService = require('../services/cache/PassengerCacheService');
+const passengerProducer = require('./passenger.producer.event');
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
@@ -282,6 +283,47 @@ class UserEventConsumer {
             });
         }
     }
+
+    /**
+     * Handle passenger-sync-request events from ticket-service
+     * @param {Object} payload - The event payload containing userId
+     */
+    async handlePassengerSyncRequest(payload) {
+        try {
+            const { userId, requestedBy } = payload;
+            
+            logger.info('Processing passenger-sync-request', { 
+                userId, 
+                requestedBy: requestedBy || 'unknown',
+                source: payload.source || 'unknown'
+            });
+
+            // Lookup passenger from database
+            const passenger = await passengerService.getPassengerByUserId(userId);
+            
+            if (!passenger) {
+                logger.warn('Passenger not found for sync request', { userId, requestedBy });
+                return;
+            }
+
+            // Publish passenger-cache-sync event
+            await passengerProducer.publishPassengerCacheSync(passenger);
+            
+            logger.info('Successfully published passenger-cache-sync in response to sync request', {
+                userId,
+                passengerId: passenger.passengerId,
+                requestedBy
+            });
+
+        } catch (error) {
+            logger.error('Error handling passenger-sync-request', {
+                error: error.message,
+                stack: error.stack,
+                payload
+            });
+        }
+    }
+
     /**
      * Process incoming Kafka messages
      * @param {Object} messageData - Raw message data from Kafka
@@ -320,6 +362,11 @@ class UserEventConsumer {
             handledTopics.push('user.login');
         }
 
+        if (topic === 'passenger-sync-request') {
+            await this.handlePassengerSyncRequest(payload);
+            handledTopics.push('passenger-sync-request');
+        }
+
         if (handledTopics.length === 0) {
             logger.warn('Unhandled topic', { topic });
         }
@@ -331,7 +378,8 @@ class UserEventConsumer {
     async start() {
         const topics = [
             process.env.USER_CREATED_TOPIC || 'user.created',
-            process.env.USER_LOGIN_TOPIC || 'user.login'
+            process.env.USER_LOGIN_TOPIC || 'user.login',
+            'passenger-sync-request'
         ];
 
         this.eventConsumer = new KafkaEventConsumer({

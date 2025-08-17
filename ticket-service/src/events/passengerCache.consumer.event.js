@@ -1,7 +1,7 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../../../libs/cache/passenger.cache');
+const PassengerCacheService = require('../services/cache/PassengerCacheService');
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
 /**

@@ -4,7 +4,8 @@ const { Ticket } = require('../models/index.model');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../../../libs/cache/passenger.cache');
+const PassengerCacheService = require('../services/cache/PassengerCacheService');
+const { publish } = require('../kafka/kafkaProducer');
 
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
@@ -12,6 +13,55 @@ const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 
 
 class TicketController {
+    // Helper method to wait for passenger sync via Kafka
+    async _requestPassengerSync(userId) {
+        try {
+            logger.info('Requesting passenger sync via Kafka', { userId });
+            
+            await publish('passenger-sync-request', userId, {
+                eventType: 'REQUEST_PASSENGER_SYNC',
+                userId: userId,
+                requestedBy: 'ticket-service',
+                timestamp: new Date().toISOString(),
+                source: 'cache-miss'
+            });
+            
+            // Wait for sync to complete (with retry)
+            const maxRetries = 3;
+            const retryDelayMs = 1000; // 1 second
+            
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                logger.debug(`Waiting for passenger sync, attempt ${attempt}/${maxRetries}`, { userId });
+                
+                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+                
+                // Check cache again
+                const redisClient = getClient();
+                const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+                const passenger = await passengerCache.getPassengerByUserId(userId);
+                
+                if (passenger) {
+                    logger.info('Passenger sync successful via Kafka', { 
+                        userId, 
+                        passengerId: passenger.passengerId,
+                        attempts: attempt 
+                    });
+                    return passenger;
+                }
+            }
+            
+            logger.warn('Passenger sync timeout after retries', { userId, maxRetries });
+            return null;
+            
+        } catch (error) {
+            logger.error('Failed to request passenger sync via Kafka', {
+                userId,
+                error: error.message
+            });
+            return null;
+        }
+    }
+
     // Helper method to get passenger from cache
     async _getPassengerFromCache(req) {
         let passengerId = req.headers['x-passenger-id'];
@@ -39,24 +89,24 @@ class TicketController {
         }
         
         if (!passenger) {
-            // Try to fetch from user-service as fallback
-            try {
-                logger.warn('Passenger not found in cache, attempting to sync from user-service', {
+            // Try to sync passenger via Kafka as fallback
+            if (userId) {
+                logger.warn('Passenger not found in cache, requesting sync via Kafka', {
                     passengerId,
                     userId
                 });
                 
-                logger.error('Passenger not found in cache. Please sync your passenger profile or authenticate again.', {
+                passenger = await this._requestPassengerSync(userId);
+                if (passenger) {
+                    passengerId = passenger.passengerId;
+                }
+            }
+            
+            // If still no passenger after Kafka sync attempt
+            if (!passenger) {
+                logger.error('Passenger not found in cache after sync attempt. Please sync your passenger profile or authenticate again.', {
                     passengerId,
-                    userId,
-                    message: 'Cache miss - user-service sync not implemented'
-                });
-                throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
-            } catch (fallbackError) {
-                logger.error('Failed to sync passenger from user-service', {
-                    passengerId,
-                    userId,
-                    error: fallbackError.message
+                    userId
                 });
                 throw new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.');
             }
