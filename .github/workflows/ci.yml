@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-test-scan-push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       REGISTRY: ghcr.io/metro-app
       ENABLE_SARIF_UPLOAD: 'false'
