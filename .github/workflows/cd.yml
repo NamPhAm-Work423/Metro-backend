@@ -21,7 +21,7 @@ env:
 jobs:
   deploy-local:
     name: Local deploy on self-hosted runner
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, x64, deploy]
     timeout-minutes: 30
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     concurrency:
@@ -31,13 +31,12 @@ jobs:
       - name: Clean workspace before checkout
         shell: bash
         run: |
-          # Fix ownership of all files in workspace
-          sudo chown -R nampham423:nampham423 $GITHUB_WORKSPACE || true
-          # Make files writable for deletion
-          sudo chmod -R u+w $GITHUB_WORKSPACE || true
-          # Force remove problematic files
-          sudo rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
-          sudo rm -rf $GITHUB_WORKSPACE/.git/ || true
+          # Clean workspace (runner should be configured with proper user permissions)
+          rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
+          rm -rf $GITHUB_WORKSPACE/.git/ || true
+          # Ensure workspace is writable for current user
+          find $GITHUB_WORKSPACE -type d -exec chmod u+w {} + 2>/dev/null || true
+          find $GITHUB_WORKSPACE -type f -exec chmod u+w {} + 2>/dev/null || true
           
       - name: Checkout
         uses: actions/checkout@v4

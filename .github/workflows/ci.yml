@@ -15,7 +15,14 @@ permissions:
 
 jobs:
   build-test-scan-push:
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, x64, ci]
+    # Fallback nếu runner bận/không available:
+    # runs-on: ${{ (contains(join(runner.labels, ','), 'ci') && 'self-hosted') || 'ubuntu-latest' }}
+    
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
+    
     env:
       REGISTRY: ghcr.io/metro-app
       ENABLE_SARIF_UPLOAD: 'false'
@@ -261,5 +268,12 @@ jobs:
         with:
           name: trivy-${{ matrix.name }}-sarif
           path: trivy-${{ matrix.name }}.sarif
+      
+      - name: Cleanup Docker & caches
+        if: always()
+        run: |
+          docker system prune -af --volumes || true
+          rm -rf ~/.cache/npm/_cacache || true
+          rm -rf ~/.cache/pip || true
 
 
