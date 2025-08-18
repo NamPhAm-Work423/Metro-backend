@@ -1802,7 +1802,7 @@
  *                 message:
  *                   type: string
  *
- * /v1/route/ticket/promotion/activePromotions:
+ * /v1/route/ticket/promotions/activePromotions:
  *   get:
  *     summary: Get active promotions
  *     tags: [Promotions]
@@ -1825,7 +1825,7 @@
  *                   items:
  *                     $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/searchPromotions:
+ * /v1/route/ticket/promotions/searchPromotions:
  *   get:
  *     summary: Search promotions
  *     tags: [Promotions]
@@ -1861,7 +1861,7 @@
  *                   items:
  *                     $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/validatePromotion/{code}:
+ * /v1/route/ticket/promotions/validatePromotion/{code}:
  *   post:
  *     summary: Validate promotion code
  *     tags: [Promotions]
@@ -1922,7 +1922,7 @@
  *                       type: string
  *                       nullable: true
  *
- * /v1/route/ticket/promotion/applyPromotion/{code}:
+ * /v1/route/ticket/promotions/applyPromotion/{code}:
  *   post:
  *     summary: Apply promotion code
  *     tags: [Promotions]
@@ -1954,7 +1954,7 @@
  *                     discountAmount:
  *                       type: number
  *
- * /v1/route/ticket/promotion/validatePromotionsBulk:
+ * /v1/route/ticket/promotions/validatePromotionsBulk:
  *   post:
  *     summary: Bulk validate promotions (staff, admin)
  *     tags: [Promotions]
@@ -2015,7 +2015,7 @@
  *                       promotion:
  *                         $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/getPromotionByCode/{code}:
+ * /v1/route/ticket/promotions/getPromotionByCode/{code}:
  *   get:
  *     summary: Get promotion by code
  *     tags: [Promotions]
@@ -2042,7 +2042,7 @@
  *                 data:
  *                   $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/promotionStatistics:
+ * /v1/route/ticket/promotions/promotionStatistics:
  *   get:
  *     summary: Get promotion statistics (staff, admin)
  *     tags: [Promotions]
@@ -2072,7 +2072,7 @@
  *                     totalDiscount:
  *                       type: number
  *
- * /v1/route/ticket/promotion/promotionUsageReport/{id}:
+ * /v1/route/ticket/promotions/promotionUsageReport/{id}:
  *   get:
  *     summary: Get promotion usage report (staff, admin)
  *     tags: [Promotions]
@@ -2110,7 +2110,7 @@
  *                       items:
  *                         type: object
  *
- * /v1/route/ticket/promotion/expirePromotions:
+ * /v1/route/ticket/promotions/expirePromotions:
  *   post:
  *     summary: Expire promotions (admin)
  *     tags: [Promotions]
@@ -2147,7 +2147,7 @@
  *                     expiredCount:
  *                       type: integer
  *
- * /v1/route/ticket/promotion/allPromotions:
+ * /v1/route/ticket/promotions/allPromotions:
  *   get:
  *     summary: Get all promotions (staff, admin)
  *     tags: [Promotions]
@@ -2170,7 +2170,7 @@
  *                   items:
  *                     $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/createPromotion:
+ * /v1/route/ticket/promotions/createPromotion:
  *   post:
  *     summary: Create a new promotion (admin)
  *     tags: [Promotions]
@@ -2257,7 +2257,7 @@
  *                 data:
  *                   $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/getPromotionById/{id}:
+ * /v1/route/ticket/promotions/getPromotionById/{id}:
  *   get:
  *     summary: Get promotion by ID
  *     tags: [Promotions]
@@ -2284,7 +2284,7 @@
  *                 data:
  *                   $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/updatePromotion/{id}:
+ * /v1/route/ticket/promotions/updatePromotion/{id}:
  *   put:
  *     summary: Update promotion (admin)
  *     tags: [Promotions]
@@ -2366,7 +2366,7 @@
  *                 data:
  *                   $ref: '#/components/schemas/Promotion'
  *
- * /v1/route/ticket/promotion/deletePromotion/{id}:
+ * /v1/route/ticket/promotions/deletePromotion/{id}:
  *   delete:
  *     summary: Delete promotion (admin)
  *     tags: [Promotions]

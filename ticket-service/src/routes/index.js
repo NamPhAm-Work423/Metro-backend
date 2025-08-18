@@ -14,8 +14,8 @@ const ticketServiceRouter = express.Router();
 // Mount specific route modules
 ticketServiceRouter.use('/tickets', ticketRoutes);
 ticketServiceRouter.use('/fares', fareRoutes);
- ticketServiceRouter.use('/promotions', promotionRoutes);
- ticketServiceRouter.use('/transitPasses', transitPassRoutes);
+ticketServiceRouter.use('/promotions', promotionRoutes);
+ticketServiceRouter.use('/transitPasses', transitPassRoutes);
 ticketServiceRouter.use('/passengerDiscounts', passengerDiscountRoutes);
 
 // Health check for the entire service
