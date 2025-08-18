@@ -23,7 +23,7 @@ async function createVnpayPayment({ ticketId, passengerId, amount, orderInfo, re
         ticketId,
         passengerId,
         paymentAmount: amount,
-        paymentMethod: 'VNPAY',
+        paymentMethod: 'vnpay',
         paymentStatus: 'PENDING',
         paymentDate,
         paymentGatewayResponse: null
@@ -163,7 +163,7 @@ async function createPaypalPayment({ paymentId, ticketId, passengerId, amount, o
         ticketId,
         passengerId,
         paymentAmount: amount,
-        paymentMethod: 'PAYPAL',
+        paymentMethod: 'paypal',
         paymentStatus: 'PENDING',
         paymentDate: new Date(),
         paymentGatewayResponse: null
@@ -247,7 +247,7 @@ async function capturePaypalPayment(orderId) {
         // Find the payment record by PayPal order ID
         const payment = await Payment.findOne({
             where: {
-                paymentMethod: 'PAYPAL',
+                paymentMethod: 'paypal',
                 paymentStatus: 'PENDING'
             },
             order: [['paymentDate', 'DESC']]

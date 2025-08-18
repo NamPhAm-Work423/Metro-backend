@@ -138,6 +138,12 @@ function destroyUserSession(req) {
     const sessionId = req.sessionID;
     const userId = req.session?.userId;
     
+    // Check if session exists before attempting to destroy it
+    if (!req.session) {
+        logger.warn('No session to destroy', { sessionId, userId });
+        return;
+    }
+    
     req.session.destroy((err) => {
         if (err) {
             logger.error('Error destroying session', { error: err.message, sessionId });

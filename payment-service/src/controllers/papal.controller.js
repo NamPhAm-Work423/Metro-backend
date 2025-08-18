@@ -23,7 +23,7 @@ async function createPaypalOrder(req, res) {
             ticketId,
             passengerId,
             paymentAmount: amount,
-            paymentMethod: 'PAYPAL',
+            paymentMethod: 'paypal',
             paymentStatus: 'PENDING',
             paymentDate: new Date(),
             paymentGatewayResponse: null
@@ -67,7 +67,7 @@ async function createPaypalOrder(req, res) {
             passengerId,
             amount,
             orderInfo,
-            paymentMethod: 'PAYPAL',
+            paymentMethod: 'paypal',
             status: 'PENDING',
             paypalOrderId: paypalOrder.id,
             createdAt: payment.paymentDate
@@ -111,7 +111,7 @@ async function capturePaypalPayment(req, res) {
         // Find the payment record
         const payment = await Payment.findOne({
             where: {
-                paymentMethod: 'PAYPAL',
+                paymentMethod: 'paypal',
                 paymentStatus: 'PENDING'
             },
             order: [['paymentDate', 'DESC']]
@@ -259,7 +259,7 @@ async function handlePaymentCaptureCompleted(event) {
         // Find payment by PayPal order ID
         const payment = await Payment.findOne({
             where: {
-                paymentMethod: 'PAYPAL',
+                paymentMethod: 'paypal',
                 paymentStatus: 'PENDING'
             },
             order: [['paymentDate', 'DESC']]
@@ -321,7 +321,7 @@ async function handlePaymentCaptureDenied(event) {
         // Find payment by PayPal order ID
         const payment = await Payment.findOne({
             where: {
-                paymentMethod: 'PAYPAL',
+                paymentMethod: 'paypal',
                 paymentStatus: 'PENDING'
             },
             order: [['paymentDate', 'DESC']]
