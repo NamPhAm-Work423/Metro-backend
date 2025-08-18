@@ -15,9 +15,6 @@ const swaggerDefinition = {
 This API uses **cookie-based authentication** for maximum security and ease of use.
 
 
-### FRONT END DEVELOPER MUST DO THIS WHEN HANDLING WITH PAGES 
-- **Must call /v1/route/user/passenger/sync-passenger route when access to ticket buy page to sync passenger data to cache**
-
 
 ### How it works:
 1. **Login** using \`/v1/auth/login\` - JWT token is automatically stored in HTTP-only cookie
@@ -70,8 +67,12 @@ This API uses **cookie-based authentication** for maximum security and ease of u
             description: 'Local Development Server' 
         },
         { 
-            url: 'https://api.metro.com', 
+            url: 'https://metrohcm.io.vn', 
             description: 'Production Server' 
+        },
+        { 
+            url: 'https://api.metrohcm.io.vn', 
+            description: 'Production API Server' 
         }
     ],
     components: {

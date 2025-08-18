@@ -351,6 +351,38 @@
  *                 data:
  *                   $ref: '#/components/schemas/TransitPass'
  *
+ * /v1/route/ticket/transitPasses/getTransitPassesByCurrency/{currency}:
+ *   get:
+ *     summary: Get transit passes by currency
+ *     tags: [Transit Passes]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: currency
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [VND, USD, CNY]
+ *     responses:
+ *       200:
+ *         description: List of transit passes by currency
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TransitPass'
+ *                 count:
+ *                   type: integer
+ *
  * /v1/route/ticket/transitPasses/getAllTransitPasses:
  *   get:
  *     summary: Get all transit passes (staff, admin)
