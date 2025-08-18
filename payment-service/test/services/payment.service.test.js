@@ -24,7 +24,7 @@ describe('payment.service', () => {
 
       expect(result.paymentUrl).toBe('https://vnpay.example/redirect');
       expect(result.payment).toBeDefined();
-      expect(result.payment.paymentMethod).toBe('VNPAY');
+      expect(result.payment.paymentMethod).toBe('vnpay');
       expect(result.payment.paymentStatus).toBe('PENDING');
     });
   });

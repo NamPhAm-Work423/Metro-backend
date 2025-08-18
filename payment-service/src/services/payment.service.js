@@ -63,7 +63,7 @@ async function handleVnpayReturn(query) {
     // Find payment by order ID (TxnRef is not stored, so we may need to match by other means)
     // For demo, assume vnp_TxnRef is unique and stored in paymentGatewayResponse
     let payment = await Payment.findOne({
-        where: { paymentMethod: 'VNPAY' },
+        where: { paymentMethod: 'vnpay' },
         order: [['paymentDate', 'DESC']]
     });
     if (!payment) {
@@ -108,7 +108,7 @@ async function handleVnpayIpn(query) {
     const txnRef = query.vnp_TxnRef;
     // Find payment by order ID (TxnRef is not stored, so we may need to match by other means)
     let payment = await Payment.findOne({
-        where: { paymentMethod: 'VNPAY' },
+        where: { paymentMethod: 'vnpay' },
         order: [['paymentDate', 'DESC']]
     });
     if (!payment) {
