@@ -120,7 +120,36 @@ class FareRepository {
             throw error;
         }
     }
-
+    async delete(fareId) {
+        try {
+            const fare = await Fare.findByPk(fareId);
+            
+            if (!fare) {
+                throw new Error('Fare not found');
+            }
+            
+            // Check if fare is used in any active tickets
+            const activeTickets = await Ticket.count({
+                where: {
+                    fareId,
+                    status: { [Op.in]: ['active', 'used'] },
+                    isActive: true
+                }
+            });
+            
+            if (activeTickets > 0) {
+                throw new Error('Cannot delete fare that is used in active tickets');
+            }
+            await Fare.destroy({ where: { fareId } });
+            logger.info('Fare deleted successfully', { fareId });
+            return { message: 'Fare deleted successfully' };
+            
+        }
+        catch (error) {
+            logger.error('Error deleting fare', { error: error.message, fareId });
+            throw error;
+        }
+    }
     async findByRoute(routeId, filters = {}) {
         try {
             const where = { routeId, isActive: true };

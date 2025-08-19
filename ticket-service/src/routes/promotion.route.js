@@ -25,6 +25,7 @@ router.get('/allPromotions', ...authorizeRoles('staff', 'admin'), promotionContr
 router.post('/createPromotion', ...authorizeRoles('admin'), promotionController.createPromotion);
 router.get('/getPromotionById/:id', ...authorizeRoles('staff', 'admin'), promotionController.getPromotionById);
 router.put('/updatePromotion/:id', ...authorizeRoles('admin'), promotionController.updatePromotion);
+router.put('/updatePromotionByCode/:code', ...authorizeRoles('admin'), promotionController.updatePromotionByCode);
 router.delete('/deletePromotion/:id', ...authorizeRoles('admin'), promotionController.deletePromotion);
 
 module.exports = router;

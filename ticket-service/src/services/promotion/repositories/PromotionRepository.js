@@ -113,19 +113,51 @@ class PromotionRepository {
         }
         }
 
-    async update(promotionId, updateData) {
+    async update(promotionIdOrCode, updateData) {
         try {
-            const promotion = await Promotion.findByPk(promotionId);
+            let promotion;
+            
+            // First, try to find by UUID (primary key)
+            try {
+                promotion = await Promotion.findByPk(promotionIdOrCode);
+            } catch (uuidError) {
+                // If it's not a valid UUID, try finding by promotion code
+                if (uuidError.message && uuidError.message.includes('invalid input syntax for type uuid')) {
+                    logger.info('Invalid UUID format, attempting to find by promotion code', { 
+                        input: promotionIdOrCode 
+                    });
+                    promotion = await Promotion.findOne({
+                        where: { promotionCode: promotionIdOrCode }
+                    });
+                } else {
+                    throw uuidError;
+                }
+            }
+            
+            // If still not found by UUID, try by promotion code
+            if (!promotion) {
+                promotion = await Promotion.findOne({
+                    where: { promotionCode: promotionIdOrCode }
+                });
+            }
             
             if (!promotion) {
                 throw new Error('Promotion not found');
             }
             
             const updatedPromotion = await promotion.update(updateData);
-            logger.info('Promotion updated successfully', { promotionId });
+            logger.info('Promotion updated successfully', { 
+                promotionId: promotion.promotionId,
+                promotionCode: promotion.promotionCode,
+                searchedBy: promotionIdOrCode 
+            });
             return updatedPromotion;
         } catch (error) {
-            logger.error('Error updating promotion', { error: error.message, promotionId });
+            logger.error('Error updating promotion', { 
+                error: error.message, 
+                promotionIdOrCode,
+                updateData 
+            });
             throw error;
         }
     }
@@ -152,8 +184,8 @@ class PromotionRepository {
             }
             
             await promotion.destroy();
-            logger.info('Promotion deactivated successfully', { promotionId });
-            return { message: 'Promotion deactivated successfully' };
+            logger.info('Promotion deleted successfully', { promotionId });
+            return { message: 'Promotion deleted successfully' };
         } catch (error) {
             logger.error('Error deleting promotion', { error: error.message, promotionId });
             throw error;

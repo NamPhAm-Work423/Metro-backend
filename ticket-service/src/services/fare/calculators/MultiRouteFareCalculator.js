@@ -434,9 +434,12 @@ class MultiRouteFareCalculator extends IFareCalculator {
                 totalPrice += segmentTotalPrice;
             }
 
-            // Step 3: Calculate total price for each passenger type across all segments
+            // Step 3: Calculate passenger breakdown from existing totalPrice
             const passengerBreakdown = [];
             const passengerMultipliers = await this.getPassengerMultipliers();
+
+            // Reset totalPrice to recalculate properly
+            totalPrice = 0;
 
             // Calculate for each passenger type
             const passengerTypes = [
@@ -466,6 +469,7 @@ class MultiRouteFareCalculator extends IFareCalculator {
                         subtotal: passengerTotalPrice * passenger.count
                     });
                     
+                    // Add to total price only once
                     totalPrice += passengerTotalPrice * passenger.count;
                 }
             }

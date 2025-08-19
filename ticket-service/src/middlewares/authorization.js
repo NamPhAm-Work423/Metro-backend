@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-// 🔐 SECURE: Verify service-to-service JWT token
+//SECURE: Verify service-to-service JWT token
 const verifyServiceAuth = (req, res, next) => {
     const authHeader = req.headers['x-service-auth'];
     

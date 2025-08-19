@@ -31,8 +31,12 @@ class PromotionService extends IPromotionService {
         return await this.promotionRepository.findByCode(promotionCode);
     }
 
-    async updatePromotion(promotionId, updateData) {
-        return await this.promotionRepository.update(promotionId, updateData);
+    async updatePromotion(promotionIdOrCode, updateData) {
+        return await this.promotionRepository.update(promotionIdOrCode, updateData);
+    }
+
+    async updatePromotionByCode(promotionCode, updateData) {
+        return await this.promotionRepository.update(promotionCode, updateData);
     }
 
     async deletePromotion(promotionId) {

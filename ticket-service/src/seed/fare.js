@@ -18,16 +18,7 @@ const seedFares = async () => {
                 const stationCount = (routeStationsResponse && routeStationsResponse.routeStations) ? routeStationsResponse.routeStations.length : 0;
 
                 // Calculate base price using business rule
-                let basePrice = 10000; // default
-                if (stationCount > 0) {
-                    if (stationCount <= 5) basePrice = 10000;
-                    else if (stationCount <= 10) basePrice = 12000;
-                    else if (stationCount <= 15) basePrice = 14000;
-                    else if (stationCount <= 20) basePrice = 16000;
-                    else if (stationCount <= 25) basePrice = 18000;
-                    else basePrice = 20000;
-                }
-
+                let basePrice = 10000;
                 // Route-based fare for one-way tickets
                 routeFares.push({
                     fareId: uuidv4(),

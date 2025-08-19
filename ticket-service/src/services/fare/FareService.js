@@ -33,7 +33,7 @@ class FareService extends IFareService {
     }
 
     async deleteFare(fareId) {
-        return await this.fareRepository.softDelete(fareId);
+        return await this.fareRepository.delete(fareId);
     }
 
     async getActiveFares() {

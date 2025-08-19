@@ -40,6 +40,11 @@ jest.mock('../../../src/controllers/promotion.controller', () => {
       message: 'Promotion updated successfully',
       data: { promotionId: req.params.id, ...req.body }
     })),
+    updatePromotionByCode: jest.fn((req, res) => res.status(200).json({
+      success: true,
+      message: 'Promotion updated successfully',
+      data: { promotionCode: req.params.code, ...req.body }
+    })),
     deletePromotion: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       message: 'Promotion deleted successfully'

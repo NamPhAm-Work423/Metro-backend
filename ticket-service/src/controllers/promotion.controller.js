@@ -74,20 +74,47 @@ class PromotionController {
         const { id } = req.params;
         const updateData = req.body;
         
-        const promotion = await promotionService.updatePromotion(id, updateData);
-        
-        if (!promotion) {
-            return res.status(404).json({
-                success: false,
-                message: 'Promotion not found'
+        try {
+            const promotion = await promotionService.updatePromotion(id, updateData);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotion updated successfully',
+                data: promotion
             });
+        } catch (error) {
+            if (error.message === 'Promotion not found') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Promotion not found'
+                });
+            }
+            throw error;
         }
+    });
+
+    // PUT /v1/promotions/code/:code
+    updatePromotionByCode = asyncErrorHandler(async (req, res, next) => {
+        const { code } = req.params;
+        const updateData = req.body;
         
-        res.status(200).json({
-            success: true,
-            message: 'Promotion updated successfully',
-            data: promotion
-        });
+        try {
+            const promotion = await promotionService.updatePromotionByCode(code, updateData);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotion updated successfully',
+                data: promotion
+            });
+        } catch (error) {
+            if (error.message === 'Promotion not found') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Promotion with code not found'
+                });
+            }
+            throw error;
+        }
     });
 
     // DELETE /v1/promotions/:id
