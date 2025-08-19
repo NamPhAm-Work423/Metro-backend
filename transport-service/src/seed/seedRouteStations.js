@@ -33,7 +33,7 @@ const routeStationsData = {
     'Dân Chủ',
     'Tao Đàn',  //Connect M3a
     'Bến Thành',  //Big Station
-    'Mễ Linh',
+    'Mê Linh',
     'Quảng Trường Thủ Thiêm',
     'Trần Não',
     'Bình Khánh',
@@ -105,7 +105,7 @@ const routeStationsData = {
     'Bến Xe Cần Giuộc',
     'Bình Hưng',
     'Tạ Quang Bửu',
-    'Xóm Cùi',
+    'Xóm Củi',
     'Thuận Kiều', //Connect M3a
     'Phú Thọ',
     'Bách Khoa',

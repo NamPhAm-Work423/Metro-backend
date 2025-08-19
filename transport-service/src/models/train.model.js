@@ -20,6 +20,14 @@ const Train = sequelize.define('Train', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    routeId: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        references: {
+            model: 'Routes',
+            key: 'routeId',
+        },
+    },
     status: {
         type: DataTypes.ENUM('active', 'maintenance', 'out-of-service'),
         allowNull: false,

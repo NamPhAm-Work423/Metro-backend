@@ -368,7 +368,7 @@ const stationsData = [
     connections: ['metro_line_2', 'bus_station']
   },
   {
-    name: 'Mễ Linh',
+    name: 'Mê Linh',
     location: 'Quận 4, TP.HCM',
     latitude: 10.7650,
     longitude: 106.7050,
@@ -380,8 +380,8 @@ const stationsData = [
   {
     name: 'Quảng Trường Thủ Thiêm',
     location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7881,
+    longitude: 106.7197,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -390,8 +390,8 @@ const stationsData = [
   {
     name: 'Trần Não',
     location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7903,
+    longitude: 106.7283,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -400,8 +400,8 @@ const stationsData = [
   {
     name: 'Bình Khánh',
     location: 'TP. Thủ Đức, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7756,
+    longitude: 106.7389,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -481,8 +481,8 @@ const stationsData = [
   {
     name: 'Công Viên Phú Lâm',
     location: 'Quận 6, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7417,
+    longitude: 106.6292,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -511,8 +511,8 @@ const stationsData = [
   {
     name: 'Chợ Lớn',
     location: 'Quận 6, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7539,
+    longitude: 106.6667,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -521,8 +521,8 @@ const stationsData = [
   {
     name: 'Thuận Kiều',
     location: 'Quận 5, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7517,
+    longitude: 106.6831,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -531,8 +531,8 @@ const stationsData = [
   {
     name: 'Văn Lang',
     location: 'Quận 5, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7631,
+    longitude: 106.6789,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -561,8 +561,8 @@ const stationsData = [
   {
     name: '23 Tháng 9',
     location: 'Quận 1, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7694,
+    longitude: 106.6917,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -572,8 +572,8 @@ const stationsData = [
   {
     name: 'Dinh Độc Lập',
     location: 'Quận 1, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7775,
+    longitude: 106.6928,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -602,8 +602,8 @@ const stationsData = [
   {
     name: 'Thị Nghè',
     location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.8036,
+    longitude: 106.7028,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -862,7 +862,7 @@ const stationsData = [
     connections: ['metro_line_5', 'bus_station']
   },
   {
-    name: 'Xóm Cùi',
+    name: 'Xóm Củi',
     location: 'Huyện Bình Chánh, TP.HCM',
     latitude: 10.6200,
     longitude: 106.5200,
@@ -874,8 +874,8 @@ const stationsData = [
   {
     name: 'Bách Khoa',
     location: 'Quận 10, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7717,
+    longitude: 106.6583,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -884,8 +884,8 @@ const stationsData = [
   {
     name: 'Bắc Hải',
     location: 'Quận 10, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7700,
+    longitude: 106.6667,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -894,8 +894,8 @@ const stationsData = [
   {
     name: 'Chợ Tân Bình',
     location: 'Quận Tân Bình, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.7997,
+    longitude: 106.6544,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -914,8 +914,8 @@ const stationsData = [
   {
     name: 'Hoàng Văn Thụ',
     location: 'Quận Tân Bình, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.8014,
+    longitude: 106.6522,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -924,8 +924,8 @@ const stationsData = [
   {
     name: 'Nguyễn Văn Đậu',
     location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.8089,
+    longitude: 106.7042,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -934,8 +934,8 @@ const stationsData = [
   {
     name: 'Bà Chiểu',
     location: 'Quận Bình Thạnh, TP.HCM',
-    latitude: 0,
-    longitude: 0,
+    latitude: 10.8133,
+    longitude: 106.7111,
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom'],
@@ -1213,13 +1213,14 @@ routesData.forEach((route) => {
 const existingStationNames = new Set(stationsData.map((s) => s.name));
 
 // Add placeholder objects for any missing stations so seeding doesn't fail
+// Using a default central HCMC location instead of 0,0 coordinates
 requiredStationNames.forEach((name) => {
   if (!existingStationNames.has(name)) {
     stationsData.push({
       name,
       location: 'TP.HCM',
-      latitude: 0,
-      longitude: 0,
+      latitude: 10.7769, // Ben Thanh Market area - central HCMC
+      longitude: 106.7009,
       openTime: '05:00:00',
       closeTime: '23:00:00',
       facilities: ['elevator', 'escalator', 'restroom'],

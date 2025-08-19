@@ -3,27 +3,27 @@
  * tags:
  *   - name: Gateway
  *     description: |
- *       Tổng hợp các nhóm route chính của toàn bộ hệ thống Metro Backend:
+ *       Summary of all routes in the Metro Backend system:
  *       
- *       - /v1/auth/auth/: Các route xác thực (login, register, ...)
- *       - /v1/guest/public: Các route public, không cần xác thực
- *       - /v1/route/user/admin/: Quản lý admin user
- *       - /v1/route/user/passenger/: Quản lý passenger user
- *       - /v1/route/user/staff/: Quản lý staff user
- *       - /v1/route/ticket/tickets/: Quản lý vé
- *       - /v1/route/ticket/fares/: Quản lý giá vé
- *       - /v1/route/ticket/promotions/: Quản lý khuyến mãi
- *       - /v1/route/transport/station/: Quản lý station
- *       - /v1/route/transport/route/: Quản lý route
- *       - /v1/route/transport/train/: Quản lý train
- *       - /v1/route/transport/trip/: Quản lý trip
- *       - /v1/route/transport/stop/: Quản lý stop
- *       - /v1/route/transport/route-station/: Quản lý mapping giữa route và station
- *       - /v1/discovery: Danh sách các service đang hoạt động
- *       - /health: Health check cho gateway
+ *       - /v1/auth/auth/: Authentication routes (login, register, ...)
+ *       - /v1/guest/public: Public routes, no authentication required
+ *       - /v1/route/user/admin/: Admin user management
+ *       - /v1/route/user/passenger/: Passenger user management
+ *       - /v1/route/user/staff/: Staff user management
+ *       - /v1/route/ticket/tickets/: Ticket management
+ *       - /v1/route/ticket/fares/: Fare management
+ *       - /v1/route/ticket/promotions/: Promotion management
+ *       - /v1/route/transport/station/: Station management
+ *       - /v1/route/transport/route/: Route management
+ *       - /v1/route/transport/train/: Train management
+ *       - /v1/route/transport/trip/: Trip management
+ *       - /v1/route/transport/stop/: Stop management
+ *       - /v1/route/transport/route-station/: Route-station mapping
+ *       - /v1/discovery: List of active services
+ *       - /health: Health check for gateway
  *
- *       Khi truy cập qua API Gateway, bạn sẽ dùng dạng `/v1/route/{service}/{entity}/...`
+ *       When accessing through API Gateway, use the format `/v1/route/{service}/{entity}/...`
  *
- *       Xem chi tiết từng nhóm route ở các file swagger tương ứng.
+ *       See detailed information about each route in the corresponding swagger files.
  */
 module.exports = {};

@@ -13,6 +13,17 @@ service TransportService {
   rpc ListTrains(ListTrainsRequest) returns (TrainsResponse);
   rpc BulkUpsertTrips(BulkUpsertTripsRequest) returns (BulkUpsertTripsResponse);
   rpc BulkUpsertStops(BulkUpsertStopsRequest) returns (BulkUpsertStopsResponse);
+  
+  // ===============================
+  // REAL-TIME TRIP MANAGEMENT
+  // ===============================
+  rpc UpdateTripStatus(UpdateTripStatusRequest) returns (UpdateTripStatusResponse);
+  rpc CancelTrip(CancelTripRequest) returns (CancelTripResponse);
+  rpc AddEmergencyTrip(AddEmergencyTripRequest) returns (AddEmergencyTripResponse);
+  rpc GetTripsByTimeRange(GetTripsByTimeRangeRequest) returns (TripsByTimeRangeResponse);
+  rpc UpdateTrainAssignment(UpdateTrainAssignmentRequest) returns (UpdateTrainAssignmentResponse);
+  rpc GetAvailableTrains(GetAvailableTrainsRequest) returns (AvailableTrainsResponse);
+  rpc GetTripMetrics(GetTripMetricsRequest) returns (TripMetricsResponse);
 }
 
 message GetRouteRequest { string routeId = 1; }
@@ -50,5 +61,113 @@ message BulkUpsertTripsResponse { repeated TripResponse trips = 1; }
 message StopInput { string tripId = 1; string stationId = 2; string arrivalTime = 3; string departureTime = 4; int32 sequence = 5; }
 message BulkUpsertStopsRequest { repeated StopInput stops = 1; }
 message BulkUpsertStopsResponse { int32 created = 1; }
+
+// ===============================
+// REAL-TIME TRIP MANAGEMENT MESSAGES
+// ===============================
+
+message UpdateTripStatusRequest {
+  string tripId = 1;
+  string status = 2;                // "active", "cancelled", "delayed", "completed"
+  string reason = 3;                // Optional reason for status change
+  int32 delayMinutes = 4;          // For delayed status
+}
+
+message UpdateTripStatusResponse {
+  bool success = 1;
+  string message = 2;
+  TripResponse updatedTrip = 3;
+}
+
+message CancelTripRequest {
+  string tripId = 1;
+  string reason = 2;                // "insufficient_demand", "train_breakdown", "emergency", etc.
+  bool notifyPassengers = 3;        // Whether to send notifications
+}
+
+message CancelTripResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string affectedPassengers = 3; // List of affected passenger IDs (if available)
+}
+
+message AddEmergencyTripRequest {
+  string routeId = 1;
+  string trainId = 2;
+  string departureTime = 3;         // HH:MM:SS
+  string arrivalTime = 4;           // HH:MM:SS
+  string dayOfWeek = 5;
+  string reason = 6;                // "high_demand", "cancelled_trip_replacement", etc.
+  int32 priority = 7;               // 1-10, 10 being highest
+}
+
+message AddEmergencyTripResponse {
+  bool success = 1;
+  string message = 2;
+  TripResponse newTrip = 3;
+}
+
+message GetTripsByTimeRangeRequest {
+  string routeId = 1;               // Optional, if empty returns all routes
+  string startTime = 2;             // HH:MM:SS
+  string endTime = 3;               // HH:MM:SS
+  string dayOfWeek = 4;
+  repeated string statuses = 5;     // Filter by status, if empty returns all
+}
+
+message TripsByTimeRangeResponse {
+  repeated TripResponse trips = 1;
+  int32 totalCount = 2;
+}
+
+message UpdateTrainAssignmentRequest {
+  string tripId = 1;
+  string newTrainId = 2;
+  string reason = 3;                // "original_train_maintenance", "optimization", etc.
+}
+
+message UpdateTrainAssignmentResponse {
+  bool success = 1;
+  string message = 2;
+  TripResponse updatedTrip = 3;
+  TrainMessage previousTrain = 4;
+  TrainMessage newTrain = 5;
+}
+
+message GetAvailableTrainsRequest {
+  string routeId = 1;
+  string timeSlot = 2;              // HH:MM:SS
+  string dayOfWeek = 3;
+  int32 minCapacity = 4;            // Minimum required capacity
+}
+
+message AvailableTrainsResponse {
+  repeated TrainMessage availableTrains = 1;
+  int32 totalAvailable = 2;
+}
+
+message TripMetrics {
+  string tripId = 1;
+  string routeId = 2;
+  double punctuality = 3;           // On-time performance (0.0-1.0)
+  int32 passengerCount = 4;         // Actual passenger count
+  double occupancyRate = 5;         // Actual occupancy rate (0.0-1.0)
+  int32 delayMinutes = 6;           // Delay in minutes (negative if early)
+  string status = 7;                // Current status
+}
+
+message GetTripMetricsRequest {
+  string routeId = 1;               // Optional
+  string startTime = 2;             // Time range start
+  string endTime = 3;               // Time range end
+  string dayOfWeek = 4;
+}
+
+message TripMetricsResponse {
+  repeated TripMetrics metrics = 1;
+  double avgPunctuality = 2;        // Average punctuality across all trips
+  double avgOccupancy = 3;          // Average occupancy rate
+  int32 totalTrips = 4;
+}
 
 

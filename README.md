@@ -6,75 +6,88 @@ A comprehensive event-driven microservices backend platform for urban transit ma
 
 ```mermaid
 graph TB
-    subgraph "Client Layer"
-        WEB[Web Application]
-        MOBILE[Mobile App]
-        ADMIN[Admin Panel]
-    end
+  subgraph Clients
+    W[Web]
+    A[Admin Panel]
+  end
 
-    subgraph "API Gateway Layer"
-        GATEWAY[API Gateway :8000]
-        AUTH[Authentication]
-        ROUTER[Dynamic Routing]
-        LB[Load Balancer]
-        CB[Circuit Breaker]
-    end
+  subgraph Edge
+    NGINX[Nginx Reverse Proxy]
+  end
 
-    subgraph "Core Services"
-        AUTH_SVC[auth-service :8001]
-        USER[user-service :8002]
-        TRANSPORT[transport-service :8003]
-        TICKET[ticket-service :8004]
-        PUBLIC[public-service :8005]
-        PAYMENT[payment-service :8006]
-    end
+  subgraph Gateway
+    GW[API Gateway]
+    RL[Rate Limiter]
+    CB[Circuit Breaker]
+    RT[Dynamic Router]
+    SEC[Auth & Security]
+    SSS[Session Management]
+  end
 
-    subgraph "Supporting Services"
-        MANAGEMENT[management-service :8007]
-        REPORT[report-service :8008]
-        NOTIFICATION[notification-service :8009]
-        CARD[card-service :8010]
-    end
+  subgraph Core Services
+    AUTH[auth-service]
+    USER[user-service]
+    TRANS[transport-service]
+    TICKET[ticket-service]
+    PUBLIC[public-service]
+    PAY[payment-service]
+    REPORT[report-service]
+    CONTROL[control-service]
+  end
 
-    subgraph "Infrastructure"
-        POSTGRES[(PostgreSQL)]
-        REDIS[(Redis Cache)]
-        KAFKA[Kafka Cluster]
-    end
+  subgraph Data
+    PG[(PostgreSQL)]
+    REDIS[(Redis Cache)]
+    KAFKA[(Kafka Cluster)]
+  end
 
-    subgraph "Monitoring"
-        PROMETHEUS[Prometheus]
-        GRAFANA[Grafana]
-        ALERTMANAGER[AlertManager]
-    end
+  subgraph Observability
+    PROM[Prometheus]
+    GRAF[Grafana]
+    ALERT[Alertmanager]
+    LOKI[Loki Logs Collector]
+  end
 
-    WEB --> GATEWAY
-    MOBILE --> GATEWAY
-    ADMIN --> GATEWAY
+  W --> NGINX --> GW
+  A --> NGINX
 
-    GATEWAY --> AUTH_SVC
-    GATEWAY --> USER
-    GATEWAY --> TRANSPORT
-    GATEWAY --> TICKET
-    GATEWAY --> PUBLIC
-    GATEWAY --> PAYMENT
+  GW --> AUTH
+  GW --> USER
+  GW --> TRANS
+  GW --> TICKET
+  GW --> PUBLIC
+  GW --> PAY
 
-    USER --> POSTGRES
-    TRANSPORT --> POSTGRES
-    TICKET --> POSTGRES
-    PAYMENT --> POSTGRES
+  AUTH --> PROM
+  USER --> PROM
+  TRANS --> PROM
+  TICKET --> PROM
+  PUBLIC --> PROM
+  PAY --> PROM
 
-    GATEWAY --> REDIS
-    USER --> KAFKA
-    TRANSPORT --> KAFKA
-    TICKET --> KAFKA
-    PAYMENT --> KAFKA
+  AUTH --> LOKI
+  USER --> LOKI
+  TRANS --> LOKI
+  TICKET --> LOKI
+  PUBLIC --> LOKI
+  PAY --> LOKI
 
-    style GATEWAY fill:#e1f5fe
-    style USER fill:#f3e5f5
-    style TRANSPORT fill:#e8f5e8
-    style TICKET fill:#fff3e0
-    style PAYMENT fill:#f1f8e9
+  PROM --> ALERT
+  USER --> PG
+  TRANS --> PG
+  TICKET --> PG
+
+  GW --> REDIS
+  USER --> KAFKA
+  TRANS --> KAFKA
+  TICKET --> KAFKA
+  ALERT --> GRAF
+  LOKI --> GRAF
+  PROM --> GRAF
+  GW --> PROM
+  USER --> PROM
+  TRANS --> PROM
+  TICKET --> PROM
 ```
 
 ## 🚀 Quick Start

@@ -1,4 +1,4 @@
-const { Train, Trip } = require('../models/index.model');
+const { Train, Trip, Route } = require('../models/index.model');
 const { Op } = require('sequelize');
 
 class TrainService {
@@ -30,7 +30,9 @@ class TrainService {
             if (filters.name) {
                 where.name = { [Op.iLike]: `%${filters.name}%` };
             }
-
+            if (filters.routeId) {
+                where.routeId = filters.routeId;
+            }
             const trains = await Train.findAll({
                 where,
                 include: [
@@ -38,6 +40,11 @@ class TrainService {
                         model: Trip,
                         as: 'trips',
                         attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek']
+                    },
+                    {
+                        model: Route,
+                        as: 'route',
+                        attributes: ['routeId', 'name', 'originId', 'destinationId', 'distance']
                     }
                 ],
                 order: [['name', 'ASC']]
@@ -57,6 +64,11 @@ class TrainService {
                         model: Trip,
                         as: 'trips',
                         attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek', 'isActive']
+                    },
+                    {
+                        model: Route,
+                        as: 'route',
+                        attributes: ['routeId', 'name', 'originId', 'destinationId', 'distance']
                     }
                 ]
             });

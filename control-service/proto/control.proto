@@ -3,10 +3,13 @@ syntax = "proto3";
 package control;
 
 service ControlService {
+  // ===============================
+  // AI SCHEDULER CORE FUNCTIONS
+  // ===============================
   rpc GenerateSchedule(GenerateScheduleRequest) returns (GenerateScheduleResponse);
+  rpc GenerateDailySchedules(GenerateDailyRequest) returns (GenerateScheduleResponse);
   rpc Reschedule(RescheduleRequest) returns (RescheduleResponse);
   rpc GetPlan(GetPlanRequest) returns (GetPlanResponse);
-  rpc GenerateDailySchedules(GenerateDailyRequest) returns (GenerateScheduleResponse);
 }
 
 message GenerateScheduleRequest {
