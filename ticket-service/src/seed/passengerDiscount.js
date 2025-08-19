@@ -13,7 +13,7 @@ const seedPassengerDiscounts = async () => {
             },
             {
                 passengerType: 'senior',
-                discountType: 'free',
+                discountType: 'percentage',
                 discountValue: 0,
                 description: 'Seniors get 0% discount'
             },
@@ -31,7 +31,7 @@ const seedPassengerDiscounts = async () => {
             },
             {
                 passengerType: 'elder',
-                discountType: 'percentage',
+                discountType: 'free',
                 discountValue: 100,
                 description: 'Elders travel free'
             },

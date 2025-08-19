@@ -40,7 +40,8 @@ class TicketService extends ITicketService {
 
             // Validate passenger counts
             const totalPassengers = (ticketData.numAdults || 0) + (ticketData.numElder || 0) + 
-                                  (ticketData.numTeenager || 0) + (ticketData.numChild || 0);
+                                  (ticketData.numTeenager || 0) + (ticketData.numChild || 0) + 
+                                  (ticketData.numStudent || 0) + (ticketData.numSenior || 0);
             if (totalPassengers === 0) {
                 throw new Error('At least one passenger is required');
             }
@@ -255,38 +256,45 @@ class TicketService extends ITicketService {
                 }
             }
 
-            // Apply passenger type discount if applicable
-            let originalPrice = parseFloat(transitPass.price);
+            // Apply passenger type discount using PassengerDiscount model
+            const originalPrice = parseFloat(transitPass.price);
+            let discountedPrice = originalPrice;
             
-            switch(passengerType) {
-                case 'child':
-                    originalPrice = originalPrice * 0.5; // 50% discount for children
-                    break;
-                case 'teen':
-                    originalPrice = originalPrice * 0.7; // 30% discount for teenagers
-                    break;
-                case 'senior':
-                    originalPrice = 0; // 100% discount for seniors
-                    break;
-                default:
-                    // Adult price remains as is
-                    break;
+            const passengerDiscount = await PassengerDiscount.findOne({
+                where: { 
+                    passengerType: passengerType,
+                    isActive: true 
+                }
+            });
+            
+            if (passengerDiscount && passengerDiscount.isCurrentlyValid()) {
+                discountedPrice = passengerDiscount.getFinalPrice(originalPrice);
+                logger.info('Applied passenger discount', {
+                    passengerType,
+                    originalPrice,
+                    discountedPrice,
+                    discountType: passengerDiscount.discountType,
+                    discountValue: passengerDiscount.discountValue
+                });
+            } else {
+                logger.info('No valid discount found for passenger type', { passengerType });
             }
 
-            let discountAmount = 0;
-            let finalPrice = originalPrice;
+            let discountAmount = originalPrice - discountedPrice;
+            let finalPrice = discountedPrice;
 
             // Apply promotion if provided
             if (ticketData.promotionCode) {
                 const promotion = await Promotion.findOne({ 
                     where: { promotionCode: ticketData.promotionCode }
                 });
-                if (promotion && promotion.isCurrentlyValid()) {
-                    // Validate promotion applicability for long-term tickets
-                    if (promotion.applicableTicketTypes.length === 0 || 
-                        promotion.applicableTicketTypes.includes(ticketData.passType)) {
-                        discountAmount = promotion.calculateDiscount(originalPrice);
-                        finalPrice = originalPrice - discountAmount;
+                                    if (promotion && promotion.isCurrentlyValid()) {
+                        // Validate promotion applicability for long-term tickets
+                        if (promotion.applicableTicketTypes.length === 0 || 
+                            promotion.applicableTicketTypes.includes(ticketData.passType)) {
+                            const promotionDiscount = promotion.calculateDiscount(finalPrice);
+                            discountAmount += promotionDiscount;
+                            finalPrice = finalPrice - promotionDiscount;
                         
                         // Increment promotion usage
                         await promotion.incrementUsage();

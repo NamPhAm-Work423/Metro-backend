@@ -577,6 +577,13 @@ class TicketController {
 
             // Validate required parameters
             if (!fromStation || !toStation) {
+                logger.warn('Missing required parameters for price calculation', {
+                    fromStationPresent: !!fromStation,
+                    toStationPresent: !!toStation,
+                    path: req.originalUrl,
+                    method: req.method,
+                    requestId: req.headers['x-request-id'] || null,
+                });
                 return res.status(400).json({
                     success: false,
                     message: 'From station and to station are required'
@@ -597,6 +604,19 @@ class TicketController {
             const promotionData = promotionId ? { promotionId } : 
                                     promotionCode ? { promotionCode } : null;
 
+            // Entry log
+            logger.info('Calculate ticket price request received', {
+                fromStation,
+                toStation,
+                tripType: String(tripType).toLowerCase(),
+                passengerCounts,
+                promotionData,
+                userId: req.user?.id || null,
+                path: req.originalUrl,
+                method: req.method,
+                requestId: req.headers['x-request-id'] || null,
+            });
+
             // Use TicketPriceCalculator for comprehensive price calculation
             const priceCalculation = await TicketPriceCalculator.calculateTotalPriceForPassengers(
                 fromStation,
@@ -606,13 +626,29 @@ class TicketController {
                 promotionData
             );
 
+            // Success log
+            logger.info('Ticket price calculated successfully', {
+                fromStation,
+                toStation,
+                tripType: String(tripType).toLowerCase(),
+                totalPrice: priceCalculation?.data?.totalPrice ?? priceCalculation?.totalPrice ?? null,
+                totalPassengers: priceCalculation?.data?.totalPassengers ?? priceCalculation?.totalPassengers ?? null,
+                currency: priceCalculation?.data?.currency ?? priceCalculation?.currency ?? null,
+                success: priceCalculation?.success ?? true,
+                requestId: req.headers['x-request-id'] || null,
+            });
+
             res.json(priceCalculation);
 
         } catch (error) {
             logger.error('Error calculating ticket price', {
                 error: error.message,
                 code: error.code,
-                body: req.body
+                body: req.body,
+                path: req.originalUrl,
+                method: req.method,
+                userId: req.user?.id || null,
+                requestId: req.headers['x-request-id'] || null,
             });
 
             if (error.code === 'DUPLICATE_STATION') {

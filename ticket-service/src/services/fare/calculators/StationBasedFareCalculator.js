@@ -162,10 +162,10 @@ class StationBasedFareCalculator extends IFareCalculator {
     /**
      * Calculate fare for multiple passengers
      */
-    async calculateStationBasedFare(fromStation, toStation, numAdults = 0, numElder = 0, numTeenager = 0, numChild = 0, tripType = 'Oneway') {
+    async calculateStationBasedFare(fromStation, toStation, numAdults = 0, numElder = 0, numTeenager = 0, numChild = 0, numStudent = 0, numSenior = 0, tripType = 'Oneway') {
         try {
             // Validate inputs
-            const totalPassengers = numAdults + numElder + numTeenager + numChild;
+            const totalPassengers = numAdults + numElder + numTeenager + numChild + numStudent + numSenior;
             if (totalPassengers === 0) {
                 throw new Error('At least one passenger is required');
             }
@@ -298,6 +298,34 @@ class StationBasedFareCalculator extends IFareCalculator {
                 totalPassengerCount += numChild;
             }
 
+            // Students
+            if (numStudent > 0) {
+                const studentPrice = Math.round((baseStationPrice * passengerMultipliers.student) / 1000) * 1000;
+                const studentTotal = studentPrice * numStudent;
+                passengerBreakdown.push({
+                    type: 'student',
+                    count: numStudent,
+                    pricePerPerson: studentPrice,
+                    subtotal: studentTotal
+                });
+                totalPrice += studentTotal;
+                totalPassengerCount += numStudent;
+            }
+
+            // Seniors
+            if (numSenior > 0) {
+                const seniorPrice = Math.round((baseStationPrice * passengerMultipliers.senior) / 1000) * 1000;
+                const seniorTotal = seniorPrice * numSenior;
+                passengerBreakdown.push({
+                    type: 'senior',
+                    count: numSenior,
+                    pricePerPerson: seniorPrice,
+                    subtotal: seniorTotal
+                });
+                totalPrice += seniorTotal;
+                totalPassengerCount += numSenior;
+            }
+
             return {
                 routeId,
                 originStationId: fromStation,
@@ -325,6 +353,7 @@ class StationBasedFareCalculator extends IFareCalculator {
                 numElder,
                 numTeenager,
                 numChild,
+                numStudent,
                 tripType
             });
             throw error;

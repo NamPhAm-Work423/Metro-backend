@@ -322,8 +322,8 @@ class MultiRouteFareCalculator extends IFareCalculator {
     async calculateJourneyFareForMultiplePassengers(fromStation, toStation, passengerCounts, tripType = 'Oneway') {
         try {
             // Validate inputs
-            const { numAdults = 0, numElder = 0, numTeenager = 0, numChild = 0 } = passengerCounts;
-            const totalPassengers = numAdults + numElder + numTeenager + numChild;
+            const { numAdults = 0, numElder = 0, numTeenager = 0, numChild = 0, numStudent = 0, numSenior = 0 } = passengerCounts;
+            const totalPassengers = numAdults + numElder + numTeenager + numChild + numStudent + numSenior;
             
             if (totalPassengers === 0) {
                 throw new Error('At least one passenger is required');
@@ -377,7 +377,9 @@ class MultiRouteFareCalculator extends IFareCalculator {
                     { type: 'adult', count: numAdults, multiplier: passengerMultipliers.adult },
                     { type: 'elder', count: numElder, multiplier: passengerMultipliers.elder },
                     { type: 'teenager', count: numTeenager, multiplier: passengerMultipliers.teenager },
-                    { type: 'child', count: numChild, multiplier: passengerMultipliers.child }
+                    { type: 'child', count: numChild, multiplier: passengerMultipliers.child },
+                    { type: 'student', count: numStudent, multiplier: passengerMultipliers.student },
+                    { type: 'senior', count: numSenior, multiplier: passengerMultipliers.senior }
                 ];
 
                 for (const passenger of passengerTypes) {
@@ -446,7 +448,9 @@ class MultiRouteFareCalculator extends IFareCalculator {
                 { type: 'adult', count: numAdults, multiplier: passengerMultipliers.adult },
                 { type: 'elder', count: numElder, multiplier: passengerMultipliers.elder },
                 { type: 'teenager', count: numTeenager, multiplier: passengerMultipliers.teenager },
-                { type: 'child', count: numChild, multiplier: passengerMultipliers.child }
+                { type: 'child', count: numChild, multiplier: passengerMultipliers.child },
+                { type: 'student', count: numStudent, multiplier: passengerMultipliers.student },
+                { type: 'senior', count: numSenior, multiplier: passengerMultipliers.senior }
             ];
 
             for (const passenger of passengerTypes) {

@@ -1,6 +1,7 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 const { logger } = require('../config/logger');
+const PassengerTypeHelper = require('../helpers/passengerType.helper');
 
 const PassengerDiscount = sequelize.define('PassengerDiscount', {
     discountId: {
@@ -9,9 +10,20 @@ const PassengerDiscount = sequelize.define('PassengerDiscount', {
         primaryKey: true,
     },
     passengerType: {
-        type: DataTypes.ENUM('adult', 'child', 'senior', 'student', 'elder', 'teenager'),
+        type: DataTypes.STRING,
         allowNull: false,
-        unique: true
+        unique: true,
+        validate: {
+            isValidType(value) {
+                if (!PassengerTypeHelper.isValidType(value)) {
+                    throw new Error(`Invalid passenger type: ${value}. Valid types are: ${PassengerTypeHelper.VALID_TYPES.join(', ')}`);
+                }
+            }
+        },
+        set(value) {
+            // Normalize to lowercase
+            this.setDataValue('passengerType', value ? value.toLowerCase() : value);
+        }
     },
     discountType: {
         type: DataTypes.ENUM('percentage', 'fixed_amount', 'free'),
