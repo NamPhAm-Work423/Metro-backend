@@ -27,23 +27,17 @@ class PayPalConfig {
         return;
       }
 
-      // Configure environment based on NODE_ENV
-      const isProduction = process.env.NODE_ENV === 'production';
-      this.environment = isProduction 
-        ? new paypal.core.LiveEnvironment(
-            process.env.PAYPAL_CLIENT_ID,
-            process.env.PAYPAL_SECRET
-          )
-        : new paypal.core.SandboxEnvironment(
-            process.env.PAYPAL_CLIENT_ID,
-            process.env.PAYPAL_SECRET
-          );
+      // Always use sandbox environment for academic project
+      this.environment = new paypal.core.SandboxEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_SECRET
+      );
 
       this.client = new paypal.core.PayPalHttpClient(this.environment);
       this.isConfigured = true;
 
       logger.info('PayPal client configured successfully', {
-        environment: isProduction ? 'production' : 'sandbox',
+        environment: 'sandbox',
         hasCredentials: true,
         clientIdLength: process.env.PAYPAL_CLIENT_ID?.length || 0,
         secretLength: process.env.PAYPAL_SECRET?.length || 0
@@ -126,7 +120,7 @@ class PayPalConfig {
       isConfigured: this.isConfigured,
       hasClient: !!this.client,
       hasEnvironment: !!this.environment,
-      environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+      environment: 'sandbox'
     };
   }
 }

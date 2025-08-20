@@ -122,19 +122,15 @@ async function handleTicketCreated(event) {
                     
                     // If no approval link found, create a fallback URL
                     if (!approvalLink) {
-                        const isProduction = process.env.NODE_ENV === 'production';
-                        const baseUrl = isProduction 
-                            ? 'https://www.paypal.com/checkoutnow'
-                            : 'https://www.sandbox.paypal.com/checkoutnow';
+                        // Always use sandbox URLs for academic project
+                        const baseUrl = 'https://www.sandbox.paypal.com/checkoutnow';
                         
                         // Create approval URL with order ID
                         approvalLink = `${baseUrl}?token=${paypalOrder.id}`;
                         
                         // Alternative fallback URL format
                         if (!approvalLink || approvalLink.includes('undefined')) {
-                            const altBaseUrl = isProduction 
-                                ? 'https://www.paypal.com/webapps/checkout'
-                                : 'https://www.sandbox.paypal.com/webapps/checkout';
+                            const altBaseUrl = 'https://www.sandbox.paypal.com/webapps/checkout';
                             approvalLink = `${altBaseUrl}?token=${paypalOrder.id}`;
                         }
                     }

@@ -5,6 +5,16 @@
 logs
 logs/*
 api-gateway/src/logs/
+auth-service/src/logs/
+user-service/src/logs/
+transport-service/src/logs/
+ticket-service/src/logs/
+public-service/src/logs/
+payment-service/src/logs/
+notification-service/src/logs/
+report-service/src/logs/
+review-service/src/logs/
+
 *.log
 *.log.*
 *.log.*.*
