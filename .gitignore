@@ -4,6 +4,7 @@
 # Logs
 logs
 logs/*
+api-gateway/src/logs/
 *.log
 *.log.*
 *.log.*.*
