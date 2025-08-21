@@ -281,9 +281,11 @@ class EmailService {
       logger.info('Verification email event published', { email });
       return { messageId: 'queued', info: 'Verification email published' };
     }
-    const { verificationEmailTemplate } = require('./templates/email/verificationEmail');
-    const { subject, html, text } = verificationEmailTemplate({ verifyUrl });
-    return this.sendEmail(email, subject, html, text);
+    else {
+      const { verificationEmailTemplate } = require('./templates/email/verificationEmail');
+      const { subject, html, text } = verificationEmailTemplate({ verifyUrl });
+      return this.sendEmail(email, subject, html, text);
+    }
   }
 
   async sendPasswordResetEmail(email, token, userId) {
@@ -294,9 +296,11 @@ class EmailService {
       logger.info('Password reset email event published', { email });
       return { messageId: 'queued', info: 'Password reset email published' };
     }
-    const { passwordResetEmailTemplate } = require('./templates/email/passwordResetEmail');
-    const { subject, html, text } = passwordResetEmailTemplate({ resetUrl });
-    return this.sendEmail(email, subject, html, text);
+    else {
+      const { passwordResetEmailTemplate } = require('./templates/email/passwordResetEmail');
+      const { subject, html, text } = passwordResetEmailTemplate({ resetUrl });
+      return this.sendEmail(email, subject, html, text);
+    }
   }
 
   async sendWelcomeEmail(email, firstName) {
@@ -306,9 +310,11 @@ class EmailService {
       logger.info('Welcome email event published', { email });
       return { messageId: 'queued', info: 'Welcome email published' };
     }
-    const { welcomeEmailTemplate } = require('./templates/email/welcomeEmail');
-    const { subject, html, text } = welcomeEmailTemplate({ firstName, dashboardUrl });
-    return this.sendEmail(email, subject, html, text);
+    else {
+      const { welcomeEmailTemplate } = require('./templates/email/welcomeEmail');
+      const { subject, html, text } = welcomeEmailTemplate({ firstName, dashboardUrl });
+      return this.sendEmail(email, subject, html, text);
+    }
   }
 
   async testConnection() {

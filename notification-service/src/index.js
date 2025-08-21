@@ -9,6 +9,7 @@ const TemplateService = require('./services/template.service');
 const NotificationEventHandler = require('./events/notification.event');
 const { startAuthConsumer } = require('./events/auth.consumer');
 const { initializeRedis } = require('./config/redis');
+const { sequelize } = require('./models');
 
 async function start() {
 	const port = process.env.PORT || 8009;
@@ -19,18 +20,30 @@ async function start() {
 		port
 	});
 
-	// Initialize infra
+	// Initialize infrastructure
 	await initializeRedis().catch((err) => logger.warn('Redis init failed', { error: err.message }));
+	
+	// Initialize database
+	try {
+		await sequelize.sync({ alter: true }); // Use alter in development, force: false in production
+		logger.info('Database synchronized successfully');
+	} catch (error) {
+		logger.error('Database initialization failed', { error: error.message });
+		// Don't exit - service should work without database logging
+	}
 
-	// Setup providers
-	const emailProvider = new ResendEmailProvider(
-		process.env.RESEND_API_KEY,
-		process.env.EMAIL_FROM
-	);
+	// Setup providers with enhanced configuration
+	const emailProvider = new ResendEmailProvider({
+		apiKey: process.env.RESEND_API_KEY,
+		defaultFromAddress: process.env.EMAIL_FROM,
+		maxRetries: parseInt(process.env.EMAIL_MAX_RETRIES) || 3
+	});
+	
 	const smsProvider = new VonageSmsProvider({
 		apiKey: process.env.VONAGE_API_KEY,
 		apiSecret: process.env.VONAGE_API_SECRET,
-		from: process.env.VONAGE_FROM
+		from: process.env.VONAGE_FROM,
+		maxRetries: parseInt(process.env.SMS_MAX_RETRIES) || 3
 	});
 	const templateService = new TemplateService();
 	const notificationService = new NotificationService({ emailProvider, smsProvider, templateService });

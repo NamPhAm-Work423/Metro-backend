@@ -393,41 +393,41 @@ services:
       retries: 3
       start_period: 40s
 
-    # notification-service:
-    #   image: ${REGISTRY}/metro-notification-service:${IMAGE_TAG}
-    #   container_name: notification-service
-    #   env_file:
-    #     - /opt/env/notification-service.env
-    #   expose:
-    #     - "8009"
-    #   depends_on:
-    #     kafka-1:
-    #       condition: service_healthy
-    #     kafka-2:
-    #       condition: service_healthy
-    #     kafka-3:
-    #       condition: service_healthy
-    #     promtail:
-    #       condition: service_started
-    #     api-gateway:
-    #       condition: service_healthy
-    #   healthcheck:
-    #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8009/health"]
-    #     interval: 30s
-    #     timeout: 10s
-    #     retries: 3
-    #     start_period: 40s
-    #   networks:
-    #     - backend-network
-    #   logging:
-    #     driver: syslog
-    #     options:
-    #       syslog-address: "tcp://127.0.0.1:1514"
-    #       syslog-format: "rfc5424"
-    #       tag: "notification-service"
-    #   <<:
-    #     - *default-restart
-    #     - *default-deploy
+    notification-service:
+      image: ${REGISTRY}/metro-notification-service:${IMAGE_TAG}
+      container_name: notification-service
+      env_file:
+        - /opt/env/notification-service.env
+      expose:
+        - "8009"
+      depends_on:
+        kafka-1:
+          condition: service_healthy
+        kafka-2:
+          condition: service_healthy
+        kafka-3:
+          condition: service_healthy
+        promtail:
+          condition: service_started
+        api-gateway:
+          condition: service_healthy
+      healthcheck:
+        test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8009/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 40s
+      networks:
+        - backend-network
+      logging:
+        driver: syslog
+        options:
+          syslog-address: "tcp://127.0.0.1:1514"
+          syslog-format: "rfc5424"
+          tag: "notification-service"
+      <<:
+        - *default-restart
+        - *default-deploy
   management-service:
     image: ${REGISTRY}/metro-management-service:${IMAGE_TAG}
     container_name: management-service

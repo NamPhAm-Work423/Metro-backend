@@ -66,6 +66,10 @@ jobs:
             path: report-service
             dockerfile: Dockerfile
             runtime: python
+          - name: notification-service
+            path: notification-service
+            dockerfile: Dockerfile
+            runtime: node
           - name: management-service
             path: management-service
             dockerfile: Dockerfile

@@ -75,6 +75,26 @@
                     "port": 8007
                 }
             ]
+        },
+        {
+            "name": "control-service",
+            "endPoint": "control",
+            "instances": [
+                {
+                    "host": "control-service",
+                    "port": 8008
+                }
+            ]
+        },
+        {
+            "name": "notification-service",
+            "endPoint": "notification",
+            "instances": [
+                {
+                    "host": "notification-service",
+                    "port": 8009
+                }
+            ]
         }
     ]
 }

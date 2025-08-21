@@ -106,6 +106,24 @@ class UserService {
                             });
                         })
                 );
+            } else {
+                // If verification not required, send welcome email immediately
+                backgroundTasks.push(
+                    emailService.sendWelcomeEmail(email, firstName || username)
+                        .then(() => {
+                            logger.info('Welcome email sent successfully', { 
+                                userId: user.id, 
+                                email: user.email 
+                            });
+                        })
+                        .catch(err => {
+                            logger.error('Failed to send welcome email', { 
+                                error: err.message,
+                                userId: user.id,
+                                email: user.email 
+                            });
+                        })
+                );
             }
 
             const backgroundStartTime = process.hrtime.bigint();
@@ -541,6 +559,24 @@ class UserService {
             logger.info('Email verified successfully through service', { 
                 userId: user.id, 
                 email: user.email 
+            });
+
+            // Send welcome email after successful verification
+            setImmediate(() => {
+                emailService.sendWelcomeEmail(user.email, user.username)
+                    .then(() => {
+                        logger.info('Welcome email sent after verification', { 
+                            userId: user.id, 
+                            email: user.email 
+                        });
+                    })
+                    .catch(err => {
+                        logger.error('Failed to send welcome email after verification', { 
+                            error: err.message,
+                            userId: user.id,
+                            email: user.email 
+                        });
+                    });
             });
 
             return {

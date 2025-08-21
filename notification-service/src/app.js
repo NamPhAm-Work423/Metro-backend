@@ -26,6 +26,10 @@ class App {
 				res.status(500).end(ex.message);
 			}
 		});
+
+		// Mount all routes through main routes index
+		const routes = require('./routes');
+		this.app.use('/', routes);
 	}
 
 	getApp() {

@@ -19,5 +19,13 @@ const errorCount = new client.Counter({
 });
 register.registerMetric(errorCount);
 
+// Count notifications sent by channel and status
+const notificationsSent = new client.Counter({
+  name: 'notifications_sent_total',
+  help: 'Total number of notifications sent',
+  labelNames: ['channel', 'status']
+});
+register.registerMetric(notificationsSent);
+
 // Export
-module.exports = { register, httpRequestDuration, errorCount };
+module.exports = { register, httpRequestDuration, errorCount, notificationsSent };

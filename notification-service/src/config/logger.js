@@ -13,7 +13,7 @@ const isTest = process.env.NODE_ENV === 'test';
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
   format: logformat,
-  defaultMeta: { service: 'user-service' },
+  defaultMeta: { service: 'notification-service' },
   transports: isTest
     ? [
         // Keep a transport to avoid winston warnings, but silence output in tests
