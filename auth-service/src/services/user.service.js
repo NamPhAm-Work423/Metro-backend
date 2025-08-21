@@ -89,41 +89,48 @@ class UserService {
                     { expiresIn: '24h' }
                 );
 
-                // Send verification email in background
-                backgroundTasks.push(
-                    emailService.sendVerificationEmail(email, verificationToken)
-                        .then(() => {
-                            logger.info('Verification email sent successfully', { 
-                                userId: user.id, 
-                                email: user.email 
-                            });
-                        })
-                        .catch(err => {
-                            logger.error('Failed to send verification email', { 
-                                error: err.message,
-                                userId: user.id,
-                                email: user.email 
-                            });
-                        })
-                );
+                if (typeof emailService.sendVerificationEmail === 'function') {
+                    backgroundTasks.push(
+                        Promise.resolve(emailService.sendVerificationEmail(email, verificationToken))
+                            .then(() => {
+                                logger.info('Verification email sent successfully', { 
+                                    userId: user.id, 
+                                    email: user.email 
+                                });
+                            })
+                            .catch(err => {
+                                logger.error('Failed to send verification email', { 
+                                    error: err.message,
+                                    userId: user.id,
+                                    email: user.email 
+                                });
+                            })
+                    );
+                } else {
+                    logger.warn('emailService.sendVerificationEmail is not a function - skipping', { userId: user.id, email: user.email });
+                }
             } else {
-                // If verification not required, send welcome email immediately
-                backgroundTasks.push(
-                    emailService.sendWelcomeEmail(email, firstName || username)
-                        .then(() => {
-                            logger.info('Welcome email sent successfully', { 
-                                userId: user.id, 
-                                email: user.email 
-                            });
-                        })
-                        .catch(err => {
-                            logger.error('Failed to send welcome email', { 
-                                error: err.message,
-                                userId: user.id,
-                                email: user.email 
-                            });
-                        })
-                );
+                // If verification not required, send welcome email immediately (guard for mocked functions)
+                if (typeof emailService.sendWelcomeEmail === 'function') {
+                    backgroundTasks.push(
+                        Promise.resolve(emailService.sendWelcomeEmail(email, firstName || username))
+                            .then(() => {
+                                logger.info('Welcome email sent successfully', { 
+                                    userId: user.id, 
+                                    email: user.email 
+                                });
+                            })
+                            .catch(err => {
+                                logger.error('Failed to send welcome email', { 
+                                    error: err.message,
+                                    userId: user.id,
+                                    email: user.email 
+                                });
+                            })
+                    );
+                } else {
+                    logger.warn('emailService.sendWelcomeEmail is not a function - skipping', { userId: user.id, email: user.email });
+                }
             }
 
             const backgroundStartTime = process.hrtime.bigint();
@@ -563,20 +570,24 @@ class UserService {
 
             // Send welcome email after successful verification
             setImmediate(() => {
-                emailService.sendWelcomeEmail(user.email, user.username)
-                    .then(() => {
-                        logger.info('Welcome email sent after verification', { 
-                            userId: user.id, 
-                            email: user.email 
+                if (typeof emailService.sendWelcomeEmail === 'function') {
+                    Promise.resolve(emailService.sendWelcomeEmail(user.email, user.username))
+                        .then(() => {
+                            logger.info('Welcome email sent after verification', { 
+                                userId: user.id, 
+                                email: user.email 
+                            });
+                        })
+                        .catch(err => {
+                            logger.error('Failed to send welcome email after verification', { 
+                                error: err.message,
+                                userId: user.id,
+                                email: user.email 
+                            });
                         });
-                    })
-                    .catch(err => {
-                        logger.error('Failed to send welcome email after verification', { 
-                            error: err.message,
-                            userId: user.id,
-                            email: user.email 
-                        });
-                    });
+                } else {
+                    logger.warn('emailService.sendWelcomeEmail is not a function - skipping', { userId: user.id, email: user.email });
+                }
             });
 
             return {
