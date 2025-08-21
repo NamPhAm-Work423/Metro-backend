@@ -61,7 +61,7 @@ class TicketService extends ITicketService {
                 },
                 ticketData.promotionCode ? { promotionCode: ticketData.promotionCode } : null
             );
-
+            
             // Extract values from price calculation
             const { 
                 totalPrice: finalPrice, 
@@ -158,6 +158,28 @@ class TicketService extends ITicketService {
                 paymentMethod: ticketData.paymentMethod,
                 qrCode: qrCodeData
             });
+
+            // Increment promotion usage only after successful ticket creation
+            if (appliedPromotion && appliedPromotion.promotionId) {
+                try {
+                    const promotion = await Promotion.findByPk(appliedPromotion.promotionId);
+                    if (promotion) {
+                        await promotion.incrementUsage();
+                        logger.info('Promotion usage incremented after successful ticket creation', {
+                            promotionId: appliedPromotion.promotionId,
+                            promotionCode: ticketData.promotionCode,
+                            ticketId: ticket.ticketId
+                        });
+                    }
+                } catch (promotionError) {
+                    logger.error('Failed to increment promotion usage', {
+                        error: promotionError.message,
+                        promotionId: appliedPromotion.promotionId,
+                        ticketId: ticket.ticketId
+                    });
+                    // Don't fail the whole transaction for this
+                }
+            }
 
             // Process payment
             const paymentAmount = Number(finalPrice || 0).toFixed(2);
@@ -296,9 +318,6 @@ class TicketService extends ITicketService {
                             discountAmount += promotionDiscount;
                             finalPrice = finalPrice - promotionDiscount;
                         
-                        // Increment promotion usage
-                        await promotion.incrementUsage();
-                        
                         // Set promotionId for database reference
                         ticketData.promotionId = promotion.promotionId;
                     } else {
@@ -358,6 +377,29 @@ class TicketService extends ITicketService {
                 paymentMethod: ticketData.paymentMethod || 'vnpay',
                 qrCode: qrCodeData
             });
+
+            // Increment promotion usage only after successful ticket creation
+            if (ticketData.promotionId && ticketData.promotionCode) {
+                try {
+                    const promotion = await Promotion.findByPk(ticketData.promotionId);
+                    if (promotion) {
+                        await promotion.incrementUsage();
+                        logger.info('Promotion usage incremented after successful long-term ticket creation', {
+                            promotionId: ticketData.promotionId,
+                            promotionCode: ticketData.promotionCode,
+                            ticketId: ticket.ticketId,
+                            passType: ticketData.passType
+                        });
+                    }
+                } catch (promotionError) {
+                    logger.error('Failed to increment promotion usage for long-term ticket', {
+                        error: promotionError.message,
+                        promotionId: ticketData.promotionId,
+                        ticketId: ticket.ticketId
+                    });
+                    // Don't fail the whole transaction for this
+                }
+            }
 
             // Process payment
             const paymentAmount = Number(finalPrice || 0).toFixed(2);

@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { logger } = require('../config/logger');
+const authNotifier = require('../events/auth.producer.event');
 
 class EmailService {
   constructor() {
@@ -119,6 +120,9 @@ class EmailService {
     }
 
     try {
+      // Prefer async notification via Kafka -> notification-service
+      // Generic sendEmail without a known template will use legacy path
+
       const mailOptions = {
         from: `"${process.env.EMAIL_FROM_NAME || 'Metro System'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
         to,
@@ -272,6 +276,11 @@ class EmailService {
 
   async sendVerificationEmail(email, token) {
     const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
+    if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
+      await authNotifier.publishVerificationEmail({ email, verifyUrl });
+      logger.info('Verification email event published', { email });
+      return { messageId: 'queued', info: 'Verification email published' };
+    }
     const { verificationEmailTemplate } = require('./templates/email/verificationEmail');
     const { subject, html, text } = verificationEmailTemplate({ verifyUrl });
     return this.sendEmail(email, subject, html, text);
@@ -280,6 +289,11 @@ class EmailService {
   async sendPasswordResetEmail(email, token, userId) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}&uid=${userId}`;
+    if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
+      await authNotifier.publishPasswordResetEmail({ email, resetUrl });
+      logger.info('Password reset email event published', { email });
+      return { messageId: 'queued', info: 'Password reset email published' };
+    }
     const { passwordResetEmailTemplate } = require('./templates/email/passwordResetEmail');
     const { subject, html, text } = passwordResetEmailTemplate({ resetUrl });
     return this.sendEmail(email, subject, html, text);
@@ -287,6 +301,11 @@ class EmailService {
 
   async sendWelcomeEmail(email, firstName) {
     const dashboardUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`;
+    if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
+      await authNotifier.publishWelcomeEmail({ email, firstName, dashboardUrl });
+      logger.info('Welcome email event published', { email });
+      return { messageId: 'queued', info: 'Welcome email published' };
+    }
     const { welcomeEmailTemplate } = require('./templates/email/welcomeEmail');
     const { subject, html, text } = welcomeEmailTemplate({ firstName, dashboardUrl });
     return this.sendEmail(email, subject, html, text);

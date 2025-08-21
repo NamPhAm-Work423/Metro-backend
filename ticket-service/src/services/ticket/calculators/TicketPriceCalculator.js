@@ -51,8 +51,8 @@ class TicketPriceCalculator {
                         discountAmount = promo.calculateDiscount(baseFare);
                         finalPrice = Math.max(0, baseFare - discountAmount);
                         
-                        // Increment promotion usage
-                        await promo.incrementUsage();
+                        // Because there will be calculation and create ticket using this function, we don't need to increment usage here, instead of we will increment usage when create ticket
+                        // await promo.incrementUsage();
                         
                         promotion = {
                             promotionId: promo.promotionId,

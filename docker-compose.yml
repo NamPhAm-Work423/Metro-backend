@@ -89,6 +89,11 @@ services:
       - NEED_EMAIL_VERIFICATION=false  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false  # For dev testing
+      - NOTIFICATION_EVENTS_ENABLED=true
+      - AUTH_WELCOME_EMAIL=auth.welcome.email
+      - AUTH_VERIFICATION_EMAIL=auth.verification.email
+      - AUTH_PASSWORD_RESET_EMAIL=auth.password.reset.email
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=redispass123
@@ -110,6 +115,43 @@ services:
       - backend-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: notification-service
+    expose:
+      - "8009"
+    env_file:
+      - ./notification-service/.env
+    environment:
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+      - KAFKA_AUTH_TOPICS=auth.welcome.email,auth.verification.email,auth.password.reset.email
+      - NODE_ENV=development
+    volumes:
+      - ./notification-service:/app
+      - /app/node_modules
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8009/health"]
       interval: 30s
       timeout: 10s
       retries: 3
