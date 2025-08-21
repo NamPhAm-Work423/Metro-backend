@@ -266,46 +266,13 @@ const userController = {
   }),
 
   /**
-   * @description: Verify email
-   * @param {Object} req - Request object
-   * @param {Object} res - Response object
-   * @returns {Object} - Verify email response
-   */
-  verifyEmail: asyncErrorHandler(async (req, res) => {
-    const { token } = req.params;
-
-    try {
-      const result = await userService.verifyEmailToken(token);
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.message,
-          error: 'INVALID_TOKEN'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Email verified successfully'
-      });
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired verification token',
-        error: 'INVALID_TOKEN'
-      });
-    }
-  }),
-
-  /**
    * @description: Verify email from query parameter (for clickable links)
    * @param {Object} req - Request object
    * @param {Object} res - Response object
    * @returns {Object} - Verify email response
    */
   verifyEmailFromQuery: asyncErrorHandler(async (req, res) => {
-    const { token } = req.query;
+    const token = req.query?.token || req.body?.token;
 
     if (!token) {
       return res.status(400).json({
@@ -320,197 +287,24 @@ const userController = {
 
       if (!result.success) {
         // Return error HTML page for better UX
-        return res.status(400).send(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Verification Failed - Metro System</title>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              }
-              .container {
-                background: white;
-                padding: 40px;
-                border-radius: 10px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                text-align: center;
-                max-width: 400px;
-              }
-              .error-icon {
-                font-size: 48px;
-                color: #dc3545;
-                margin-bottom: 20px;
-              }
-              h1 {
-                color: #333;
-                margin-bottom: 15px;
-              }
-              p {
-                color: #666;
-                line-height: 1.6;
-              }
-              .btn {
-                display: inline-block;
-                background: #28a745;
-                color: white;
-                padding: 12px 24px;
-                text-decoration: none;
-                border-radius: 5px;
-                margin-top: 20px;
-              }
-              .btn:hover {
-                background: #218838;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="error-icon">❌</div>
-              <h1>Verification Failed</h1>
-              <p>${result.message}</p>
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/resend-verification" class="btn">Request New Link</a>
-            </div>
-          </body>
-          </html>
-        `);
+        return res.status(400).json({
+          success: false,
+          message: 'Verification failed',
+          error: 'VERIFICATION_FAILED'
+        });
       }
 
-      // Return a nice HTML page instead of JSON for better UX when clicking from email
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Email Verified - Metro System</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .container {
-              background: white;
-              padding: 40px;
-              border-radius: 10px;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-              text-align: center;
-              max-width: 400px;
-            }
-            .success-icon {
-              font-size: 48px;
-              color: #28a745;
-              margin-bottom: 20px;
-            }
-            h1 {
-              color: #333;
-              margin-bottom: 15px;
-            }
-            p {
-              color: #666;
-              line-height: 1.6;
-            }
-            .btn {
-              display: inline-block;
-              background: #007bff;
-              color: white;
-              padding: 12px 24px;
-              text-decoration: none;
-              border-radius: 5px;
-              margin-top: 20px;
-            }
-            .btn:hover {
-              background: #0056b3;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="success-icon">✅</div>
-            <h1>Email Verified Successfully!</h1>
-            <p>Your email address has been verified. You can now use all features of Metro System.</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/login" class="btn">Go to Login</a>
-          </div>
-        </body>
-        </html>
-      `);
+      return res.status(200).json({
+        success: true,
+        message: 'Email verified successfully'
+      });
     } catch (error) {
       // Return error HTML page for better UX
-      res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Verification Failed - Metro System</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .container {
-              background: white;
-              padding: 40px;
-              border-radius: 10px;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-              text-align: center;
-              max-width: 400px;
-            }
-            .error-icon {
-              font-size: 48px;
-              color: #dc3545;
-              margin-bottom: 20px;
-            }
-            h1 {
-              color: #333;
-              margin-bottom: 15px;
-            }
-            p {
-              color: #666;
-              line-height: 1.6;
-            }
-            .btn {
-              display: inline-block;
-              background: #28a745;
-              color: white;
-              padding: 12px 24px;
-              text-decoration: none;
-              border-radius: 5px;
-              margin-top: 20px;
-            }
-            .btn:hover {
-              background: #218838;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="error-icon">❌</div>
-            <h1>Verification Failed</h1>
-            <p>The verification link is invalid or has expired. Please request a new verification email.</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:8000'}/resend-verification" class="btn">Request New Link</a>
-          </div>
-        </body>
-        </html>
-      `);
+      res.status(400).json({
+        success: false,
+        message: 'Verification failed',
+        error: 'VERIFICATION_FAILED'
+      });
     }
   }),
 

@@ -91,9 +91,7 @@ router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', userController.resetPassword);
 
 // Email verification
-router.get('/verify/:token', userController.verifyEmail);
-
-router.get('/verify-email', userController.verifyEmailFromQuery);
+router.post('/verify-email', userController.verifyEmailFromQuery);
 
 /**Those routes will not be used in the future, but we keep them for now */
 router.get('/key/:id', authMiddleware.authenticate, authController.generateAPIToken);
