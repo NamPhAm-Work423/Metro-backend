@@ -1,5 +1,5 @@
 // kafkaProducer.js
-const { Kafka } = require('kafkajs');
+const { Kafka, Partitioners } = require('kafkajs');
 require('dotenv').config();
 
 // Brokers list comes from env or default to localhost
@@ -8,7 +8,9 @@ const kafka = new Kafka({
     brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(',')
 });
 
-const producer = kafka.producer();
+const producer = kafka.producer({
+    createPartitioner: Partitioners.LegacyPartitioner
+});
 const admin = kafka.admin();
 let connected = false;
 const ensuredTopics = new Set();
