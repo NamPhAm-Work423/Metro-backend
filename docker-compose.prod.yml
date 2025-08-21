@@ -393,7 +393,7 @@ services:
       retries: 3
       start_period: 40s
 
-    notification-service:
+  notification-service:
       image: ${REGISTRY}/metro-notification-service:${IMAGE_TAG}
       container_name: notification-service
       env_file:
