@@ -10,7 +10,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -28,7 +28,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -44,7 +44,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -60,7 +60,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -77,7 +77,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -93,7 +93,7 @@ class StopController {
                 message: 'Stop deleted successfully'
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -109,7 +109,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -125,7 +125,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -141,7 +141,7 @@ class StopController {
                 data: schedule
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -176,7 +176,7 @@ class StopController {
                 data: validation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message

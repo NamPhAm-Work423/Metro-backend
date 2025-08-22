@@ -10,7 +10,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -26,7 +26,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -42,7 +42,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -59,7 +59,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -75,7 +75,7 @@ class StationController {
                 message: 'Station deactivated successfully'
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -91,7 +91,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -108,7 +108,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -126,7 +126,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message

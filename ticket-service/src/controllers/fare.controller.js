@@ -179,6 +179,7 @@ class FareController {
         } catch (error) {
             logger.error('Error calculating fare price', { error: error.message });
             next(error);
+            throw error;
         }
     });
 

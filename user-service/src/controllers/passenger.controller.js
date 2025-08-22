@@ -85,6 +85,7 @@ const deletePassenger = asyncErrorHandler(async (req, res, next) => {
         });
     } catch (error) {
         next(error);
+        throw error;
     }
 });
 
@@ -272,6 +273,7 @@ const deletePassengerById = asyncErrorHandler(async (req, res, next) => {
         });
     } catch (error) {
         next(error);
+        throw error;
     }
 });
 

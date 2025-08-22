@@ -10,7 +10,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -26,7 +26,7 @@ class RouteStationController {
                 data: routeStations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -42,7 +42,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -59,7 +59,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -75,7 +75,7 @@ class RouteStationController {
                 message: 'RouteStation deleted successfully'
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -91,7 +91,7 @@ class RouteStationController {
                 data: stations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -107,7 +107,7 @@ class RouteStationController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -126,7 +126,7 @@ class RouteStationController {
                 data: result.routeStations
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -142,7 +142,7 @@ class RouteStationController {
                 data: routePath
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -159,7 +159,7 @@ class RouteStationController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -175,7 +175,7 @@ class RouteStationController {
                 data: validation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -194,7 +194,7 @@ class RouteStationController {
                 data: result.validation
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message

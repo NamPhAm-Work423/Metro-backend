@@ -10,7 +10,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -26,7 +26,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -42,7 +42,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -59,7 +59,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -75,7 +75,7 @@ class RouteController {
                 message: 'Route deactivated successfully'
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -91,7 +91,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -107,7 +107,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -124,7 +124,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -140,7 +140,7 @@ class RouteController {
                 data: distance
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message

@@ -10,7 +10,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -26,7 +26,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -42,7 +42,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -59,7 +59,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -75,7 +75,7 @@ class TrainController {
                 message: 'Train deactivated successfully'
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -91,7 +91,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -107,7 +107,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -123,7 +123,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -141,7 +141,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -159,7 +159,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -176,7 +176,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -192,7 +192,7 @@ class TrainController {
                 data: utilization
             });
         } catch (error) {
-            next(error);
+            if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
                 message: error.message
