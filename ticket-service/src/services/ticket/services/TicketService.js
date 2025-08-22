@@ -542,6 +542,15 @@ class TicketService extends ITicketService {
     }
 
     /**
+     * Delete ticket (delegates to repository)
+     * @param {string} ticketId - Ticket ID
+     * @returns {Promise<boolean>} Deletion result
+     */
+    async deleteTicket(ticketId) {
+        return await this.repository.delete(ticketId);
+    }
+
+    /**
      * Cancel ticket
      * @param {string} ticketId - Ticket ID
      * @param {string} reason - Cancellation reason

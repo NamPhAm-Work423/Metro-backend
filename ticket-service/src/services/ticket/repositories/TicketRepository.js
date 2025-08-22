@@ -222,12 +222,14 @@ class TicketRepository extends ITicketRepository {
             const ticket = await Ticket.findByPk(ticketId);
             
             if (!ticket) {
-                throw new Error('Ticket not found');
+                logger.error('Ticket not found', { ticketId });
+                return false;
             }
             
             if (ticket.status === 'used') {
-                throw new Error('Cannot delete a used ticket');
-            }
+                logger.error('Cannot delete a used ticket', { ticketId });
+                return false;
+            }   
             
             await ticket.destroy();
             
