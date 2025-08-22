@@ -1,7 +1,7 @@
 const routeStationService = require('../services/routeStation.service');
 
 class RouteStationController {
-    async createRouteStation(req, res) {
+    async createRouteStation(req, res, next) {
         try {
             const routeStation = await routeStationService.createRouteStation(req.body);
             res.status(201).json({
@@ -10,6 +10,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -17,7 +18,7 @@ class RouteStationController {
         }
     }
 
-    async getAllRouteStations(req, res) {
+    async getAllRouteStations(req, res, next) {
         try {
             const routeStations = await routeStationService.getAllRouteStations(req.query);
             res.status(200).json({
@@ -25,6 +26,7 @@ class RouteStationController {
                 data: routeStations
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -32,7 +34,7 @@ class RouteStationController {
         }
     }
 
-    async getRouteStationById(req, res) {
+    async getRouteStationById(req, res, next) {
         try {
             const routeStation = await routeStationService.getRouteStationById(req.params.id);
             res.status(200).json({
@@ -40,6 +42,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
+            next(error);
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -47,7 +50,7 @@ class RouteStationController {
         }
     }
 
-    async updateRouteStation(req, res) {
+    async updateRouteStation(req, res, next) {
         try {
             const routeStation = await routeStationService.updateRouteStation(req.params.id, req.body);
             res.status(200).json({
@@ -56,6 +59,7 @@ class RouteStationController {
                 data: routeStation
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -63,7 +67,7 @@ class RouteStationController {
         }
     }
 
-    async deleteRouteStation(req, res) {
+    async deleteRouteStation(req, res, next) {
         try {
             await routeStationService.deleteRouteStation(req.params.id);
             res.status(200).json({
@@ -71,6 +75,7 @@ class RouteStationController {
                 message: 'RouteStation deleted successfully'
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -78,7 +83,7 @@ class RouteStationController {
         }
     }
 
-    async getStationsByRoute(req, res) {
+    async getStationsByRoute(req, res, next) {
         try {
             const stations = await routeStationService.getStationsByRoute(req.params.routeId);
             res.status(200).json({
@@ -86,6 +91,7 @@ class RouteStationController {
                 data: stations
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -93,7 +99,7 @@ class RouteStationController {
         }
     }
 
-    async getRoutesByStation(req, res) {
+    async getRoutesByStation(req, res, next) {
         try {
             const routes = await routeStationService.getRoutesByStation(req.params.stationId);
             res.status(200).json({
@@ -101,6 +107,7 @@ class RouteStationController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -108,7 +115,7 @@ class RouteStationController {
         }
     }
 
-    async setupCompleteRoute(req, res) {
+    async setupCompleteRoute(req, res, next) {
         try {
             const { routeId } = req.params;
             const { stationSequences } = req.body;
@@ -119,6 +126,7 @@ class RouteStationController {
                 data: result.routeStations
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -126,7 +134,7 @@ class RouteStationController {
         }
     }
 
-    async getRoutePathWithDetails(req, res) {
+    async getRoutePathWithDetails(req, res, next) {
         try {
             const routePath = await routeStationService.getRoutePathWithDetails(req.params.routeId);
             res.status(200).json({
@@ -134,6 +142,7 @@ class RouteStationController {
                 data: routePath
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -141,7 +150,7 @@ class RouteStationController {
         }
     }
 
-    async findRoutesBetweenTwoStations(req, res) {
+    async findRoutesBetweenTwoStations(req, res, next) {
         try {
             const { originStationId, destinationStationId } = req.query;
             const routes = await routeStationService.findRoutesBetweenTwoStations(originStationId, destinationStationId);
@@ -150,6 +159,7 @@ class RouteStationController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -157,7 +167,7 @@ class RouteStationController {
         }
     }
 
-    async validateRouteSequence(req, res) {
+    async validateRouteSequence(req, res, next) {
         try {
             const validation = await routeStationService.validateRouteSequence(req.params.routeId);
             res.status(200).json({
@@ -165,6 +175,7 @@ class RouteStationController {
                 data: validation
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -172,7 +183,7 @@ class RouteStationController {
         }
     }
 
-    async reorderRouteStations(req, res) {
+    async reorderRouteStations(req, res, next) {
         try {
             const { routeId } = req.params;
             const { newSequences } = req.body;
@@ -183,6 +194,7 @@ class RouteStationController {
                 data: result.validation
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message

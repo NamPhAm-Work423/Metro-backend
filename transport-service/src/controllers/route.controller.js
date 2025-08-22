@@ -1,7 +1,7 @@
 const routeService = require('../services/route.service');
 
 class RouteController {
-    async createRoute(req, res) {
+    async createRoute(req, res, next) {
         try {
             const route = await routeService.createRoute(req.body);
             res.status(201).json({
@@ -10,6 +10,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -17,7 +18,7 @@ class RouteController {
         }
     }
 
-    async getAllRoutes(req, res) {
+    async getAllRoutes(req, res, next) {
         try {
             const routes = await routeService.getAllRoutes(req.query);
             res.status(200).json({
@@ -25,6 +26,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -32,7 +34,7 @@ class RouteController {
         }
     }
 
-    async getRouteById(req, res) {
+    async getRouteById(req, res, next) {
         try {
             const route = await routeService.getRouteById(req.params.id);
             res.status(200).json({
@@ -40,6 +42,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
+            next(error);
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -47,7 +50,7 @@ class RouteController {
         }
     }
 
-    async updateRoute(req, res) {
+    async updateRoute(req, res, next) {
         try {
             const route = await routeService.updateRoute(req.params.id, req.body);
             res.status(200).json({
@@ -56,6 +59,7 @@ class RouteController {
                 data: route
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -63,7 +67,7 @@ class RouteController {
         }
     }
 
-    async deleteRoute(req, res) {
+    async deleteRoute(req, res, next) {
         try {
             await routeService.deleteRoute(req.params.id);
             res.status(200).json({
@@ -71,6 +75,7 @@ class RouteController {
                 message: 'Route deactivated successfully'
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -78,7 +83,7 @@ class RouteController {
         }
     }
 
-    async getActiveRoutes(req, res) {
+    async getActiveRoutes(req, res, next) {
         try {
             const routes = await routeService.getActiveRoutes();
             res.status(200).json({
@@ -86,6 +91,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -93,7 +99,7 @@ class RouteController {
         }
     }
 
-    async getRoutesByStation(req, res) {
+    async getRoutesByStation(req, res, next) {
         try {
             const routes = await routeService.getRoutesByStation(req.params.stationId);
             res.status(200).json({
@@ -101,6 +107,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -108,7 +115,7 @@ class RouteController {
         }
     }
 
-    async findRoutesBetweenStations(req, res) {
+    async findRoutesBetweenStations(req, res, next) {
         try {
             const { originId, destinationId } = req.query;
             const routes = await routeService.findRoutesBetweenStations(originId, destinationId);
@@ -117,6 +124,7 @@ class RouteController {
                 data: routes
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -124,7 +132,7 @@ class RouteController {
         }
     }
 
-    async calculateRouteDistance(req, res) {
+    async calculateRouteDistance(req, res, next) {
         try {
             const distance = await routeService.calculateRouteDistance(req.params.id);
             res.status(200).json({
@@ -132,6 +140,7 @@ class RouteController {
                 data: distance
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message

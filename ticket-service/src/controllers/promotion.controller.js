@@ -1,49 +1,65 @@
 const promotionService = require('../services/promotion.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
+const { logger } = require('../config/logger');
 
 class PromotionController {
     // POST /v1/promotions
     createPromotion = asyncErrorHandler(async (req, res, next) => {
-        const promotionData = req.body;
-        const promotion = await promotionService.createPromotion(promotionData);
+        try {
+            const promotionData = req.body;
+            const promotion = await promotionService.createPromotion(promotionData);
 
-        res.status(201).json({
-            success: true,
-            message: 'Promotion created successfully',
-            data: promotion
-        });
+            res.status(201).json({
+                success: true,
+                message: 'Promotion created successfully',
+                data: promotion
+            });
+        } catch (error) {
+            logger.error('Error creating promotion', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions
     getAllPromotions = asyncErrorHandler(async (req, res, next) => {
-        const filters = req.query;
-        const promotions = await promotionService.getAllPromotions(filters);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Promotions retrieved successfully',
-            data: promotions,
-            count: promotions.length
-        });
+        try {
+            const filters = req.query;
+            const promotions = await promotionService.getAllPromotions(filters);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotions retrieved successfully',
+                data: promotions,
+                count: promotions.length
+            });
+        } catch (error) {
+            logger.error('Error getting all promotions', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions/:id
     getPromotionById = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const promotion = await promotionService.getPromotionById(id);
-        
-        if (!promotion) {
-            return res.status(404).json({
-                success: false,
-                message: 'Promotion not found'
+        try {
+            const { id } = req.params;
+            const promotion = await promotionService.getPromotionById(id);
+            
+            if (!promotion) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Promotion not found'
+                });
+            }
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotion retrieved successfully',
+                data: promotion
             });
+        } catch (error) {
+            logger.error('Error getting promotion by id', { error: error.message });
+            next(error);
         }
-        
-        res.status(200).json({
-            success: true,
-            message: 'Promotion retrieved successfully',
-            data: promotion
-        });
     });
 
     // GET /v1/promotions/code/:code
@@ -119,29 +135,39 @@ class PromotionController {
 
     // DELETE /v1/promotions/:id
     deletePromotion = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const result = await promotionService.deletePromotion(id);
-        
-        res.status(200).json({
-            success: true,
-            message: result.message
-        });
+        try {
+            const { id } = req.params;
+            const result = await promotionService.deletePromotion(id);
+            
+            res.status(200).json({
+                success: true,
+                message: result.message
+            });
+        } catch (error) {
+            logger.error('Error deleting promotion', { error: error.message });
+            next(error);
+        }
     });
 
     // POST /v1/promotions/:code/validate
     validatePromotion = asyncErrorHandler(async (req, res, next) => {
-        const { code } = req.params;
-        const validationData = req.body;
-        
-        const validation = await promotionService.validatePromotion(code, validationData);
-        
-        const statusCode = validation.valid ? 200 : 400;
-        
-        res.status(statusCode).json({
-            success: validation.valid,
-            message: validation.valid ? 'Promotion is valid' : validation.reason,
-            data: validation
-        });
+        try {
+            const { code } = req.params;
+            const validationData = req.body;
+            
+            const validation = await promotionService.validatePromotion(code, validationData);
+            
+            const statusCode = validation.valid ? 200 : 400;
+            
+            res.status(statusCode).json({
+                success: validation.valid,
+                message: validation.valid ? 'Promotion is valid' : validation.reason,
+                data: validation
+            });
+        } catch (error) {
+            logger.error('Error validating promotion', { error: error.message });
+            next(error);
+        }
     });
 
     // POST /v1/promotions/:code/apply
@@ -167,150 +193,180 @@ class PromotionController {
 
     // GET /v1/promotions/active
     getActivePromotions = asyncErrorHandler(async (req, res, next) => {
-        const filters = req.query;
-        const promotions = await promotionService.getActivePromotions(filters);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Active promotions retrieved successfully',
-            data: promotions,
-            count: promotions.length
-        });
+        try {
+            const filters = req.query;
+            const promotions = await promotionService.getActivePromotions(filters);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Active promotions retrieved successfully',
+                data: promotions,
+                count: promotions.length
+            });
+        } catch (error) {
+            logger.error('Error getting active promotions', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions/statistics
     getPromotionStatistics = asyncErrorHandler(async (req, res, next) => {
-        const filters = req.query;
-        const stats = await promotionService.getPromotionStatistics(filters);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Promotion statistics retrieved successfully',
-            data: stats
-        });
+        try {
+            const filters = req.query;
+            const stats = await promotionService.getPromotionStatistics(filters);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotion statistics retrieved successfully',
+                data: stats
+            });
+        } catch (error) {
+            logger.error('Error getting promotion statistics', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions/:id/usage-report
     getPromotionUsageReport = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const report = await promotionService.getPromotionUsageReport(id);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Promotion usage report retrieved successfully',
-            data: report
-        });
+        try {
+            const { id } = req.params;
+            const report = await promotionService.getPromotionUsageReport(id);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotion usage report retrieved successfully',
+                data: report
+            });
+        } catch (error) {
+            logger.error('Error getting promotion usage report', { error: error.message });
+            next(error);
+        }
     });
 
     // POST /v1/promotions/expire
     expirePromotions = asyncErrorHandler(async (req, res, next) => {
-        const expiredCount = await promotionService.expirePromotions();
-        
-        res.status(200).json({
-            success: true,
-            message: 'Expired promotions processed successfully',
-            data: {
-                expiredCount,
-                processedAt: new Date()
-            }
-        });
+        try {
+            const expiredCount = await promotionService.expirePromotions();
+            
+            res.status(200).json({
+                success: true,
+                message: 'Expired promotions processed successfully',
+                data: {
+                    expiredCount,
+                    processedAt: new Date()
+                }
+            });
+        } catch (error) {
+            logger.error('Error expiring promotions', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions/search
     searchPromotions = asyncErrorHandler(async (req, res, next) => {
-        const { 
-            ticketType, 
-            passengerType, 
-            routeId, 
-            dateTime,
-            minPurchaseAmount 
-        } = req.query;
-        
-        const filters = {};
-        
-        if (ticketType) filters.ticketType = ticketType;
-        if (passengerType) filters.passengerType = passengerType;
-        
-        const promotions = await promotionService.getActivePromotions(filters);
-        
-        // Further filter by route and other criteria
-        const filteredPromotions = promotions.filter(promotion => {
-            // Check route restriction
-            if (routeId && promotion.applicableRoutes.length > 0) {
-                if (!promotion.applicableRoutes.includes(routeId)) {
-                    return false;
-                }
-            }
+        try {
+            const { 
+                ticketType, 
+                passengerType, 
+                routeId, 
+                dateTime,
+                minPurchaseAmount 
+            } = req.query;
             
-            // Check minimum purchase amount
-            if (minPurchaseAmount && promotion.minPurchaseAmount) {
-                if (parseFloat(minPurchaseAmount) < promotion.minPurchaseAmount) {
-                    return false;
-                }
-            }
+            const filters = {};
             
-            // Check date/time validity
-            if (dateTime) {
-                const checkDate = new Date(dateTime);
-                if (!promotion.isValidForDateTime(checkDate)) {
-                    return false;
-                }
-            }
+            if (ticketType) filters.ticketType = ticketType;
+            if (passengerType) filters.passengerType = passengerType;
             
-            return true;
-        });
-        
-        res.status(200).json({
-            success: true,
-            message: 'Promotions searched successfully',
-            data: filteredPromotions,
-            count: filteredPromotions.length
-        });
+            const promotions = await promotionService.getActivePromotions(filters);
+            
+            // Further filter by route and other criteria
+            const filteredPromotions = promotions.filter(promotion => {
+                // Check route restriction
+                if (routeId && promotion.applicableRoutes.length > 0) {
+                    if (!promotion.applicableRoutes.includes(routeId)) {
+                        return false;
+                    }
+                }
+                
+                // Check minimum purchase amount
+                if (minPurchaseAmount && promotion.minPurchaseAmount) {
+                    if (parseFloat(minPurchaseAmount) < promotion.minPurchaseAmount) {
+                        return false;
+                    }
+                }
+                
+                // Check date/time validity
+                if (dateTime) {
+                    const checkDate = new Date(dateTime);
+                    if (!promotion.isValidForDateTime(checkDate)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+            
+            res.status(200).json({
+                success: true,
+                message: 'Promotions searched successfully',
+                data: filteredPromotions,
+                count: filteredPromotions.length
+            });
+        } catch (error) {
+            logger.error('Error searching promotions', { error: error.message });
+            next(error);
+        }
     });
 
     // POST /v1/promotions/validate-bulk
     validatePromotionsBulk = asyncErrorHandler(async (req, res, next) => {
-        const { codes, validationData } = req.body;
-        
-        if (!codes || !Array.isArray(codes)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Codes array is required'
-            });
-        }
-        
-        const validations = await Promise.all(
-            codes.map(async (code) => {
-                try {
-                    const validation = await promotionService.validatePromotion(code, validationData);
-                    return {
-                        code,
-                        ...validation
-                    };
-                } catch (error) {
-                    return {
-                        code,
-                        valid: false,
-                        reason: error.message
-                    };
-                }
-            })
-        );
-        
-        const validPromotions = validations.filter(v => v.valid);
-        const invalidPromotions = validations.filter(v => !v.valid);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Bulk promotion validation completed',
-            data: {
-                validPromotions,
-                invalidPromotions,
-                totalValidated: validations.length,
-                validCount: validPromotions.length,
-                invalidCount: invalidPromotions.length
+        try {
+            const { codes, validationData } = req.body;
+            
+            if (!codes || !Array.isArray(codes)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Codes array is required'
+                });
             }
-        });
+            
+            const validations = await Promise.all(
+                codes.map(async (code) => {
+                    try {
+                        const validation = await promotionService.validatePromotion(code, validationData);
+                        return {
+                            code,
+                            ...validation
+                        };
+                    } catch (error) {
+                        return {
+                            code,
+                            valid: false,
+                            reason: error.message
+                        };
+                    }
+                })
+            );
+            
+            const validPromotions = validations.filter(v => v.valid);
+            const invalidPromotions = validations.filter(v => !v.valid);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Bulk promotion validation completed',
+                data: {
+                    validPromotions,
+                    invalidPromotions,
+                    totalValidated: validations.length,
+                    validCount: validPromotions.length,
+                    invalidCount: invalidPromotions.length
+                }
+            });
+        } catch (error) {
+            logger.error('Error validating promotions in bulk', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/promotions/health

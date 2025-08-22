@@ -1,7 +1,7 @@
 const stopService = require('../services/stop.service');
 
 class StopController {
-    async createStop(req, res) {
+    async createStop(req, res, next) {
         try {
             const stop = await stopService.createStop(req.body);
             res.status(201).json({
@@ -10,6 +10,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -17,7 +18,7 @@ class StopController {
         }
     }
 
-    async createMultipleStops(req, res) {
+    async createMultipleStops(req, res, next) {
         try {
             const { stopsData } = req.body;
             const stops = await stopService.createMultipleStops(stopsData);
@@ -27,6 +28,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -34,7 +36,7 @@ class StopController {
         }
     }
 
-    async getAllStops(req, res) {
+    async getAllStops(req, res, next) {
         try {
             const stops = await stopService.getAllStops(req.query);
             res.status(200).json({
@@ -42,6 +44,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -49,7 +52,7 @@ class StopController {
         }
     }
 
-    async getStopById(req, res) {
+    async getStopById(req, res, next) {
         try {
             const stop = await stopService.getStopById(req.params.id);
             res.status(200).json({
@@ -57,6 +60,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
+            next(error);
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -64,7 +68,7 @@ class StopController {
         }
     }
 
-    async updateStop(req, res) {
+    async updateStop(req, res, next) {
         try {
             const stop = await stopService.updateStop(req.params.id, req.body);
             res.status(200).json({
@@ -73,6 +77,7 @@ class StopController {
                 data: stop
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -80,7 +85,7 @@ class StopController {
         }
     }
 
-    async deleteStop(req, res) {
+    async deleteStop(req, res, next) {
         try {
             await stopService.deleteStop(req.params.id);
             res.status(200).json({
@@ -88,6 +93,7 @@ class StopController {
                 message: 'Stop deleted successfully'
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -95,7 +101,7 @@ class StopController {
         }
     }
 
-    async getStopsByTrip(req, res) {
+    async getStopsByTrip(req, res, next) {
         try {
             const stops = await stopService.getStopsByTrip(req.params.tripId);
             res.status(200).json({
@@ -103,6 +109,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -110,7 +117,7 @@ class StopController {
         }
     }
 
-    async getStopsByStation(req, res) {
+    async getStopsByStation(req, res, next) {
         try {
             const stops = await stopService.getStopsByStation(req.params.stationId);
             res.status(200).json({
@@ -118,6 +125,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -125,7 +133,7 @@ class StopController {
         }
     }
 
-    async getTripScheduleWithStops(req, res) {
+    async getTripScheduleWithStops(req, res, next) {
         try {
             const schedule = await stopService.getTripScheduleWithStops(req.params.tripId);
             res.status(200).json({
@@ -133,6 +141,7 @@ class StopController {
                 data: schedule
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -140,7 +149,7 @@ class StopController {
         }
     }
 
-    async getNextStopsAtStation(req, res) {
+    async getNextStopsAtStation(req, res, next) {
         try {
             const { currentTime, dayOfWeek, limit } = req.query;
             const stops = await stopService.getNextStopsAtStation(req.params.stationId, currentTime, dayOfWeek, limit);
@@ -149,6 +158,7 @@ class StopController {
                 data: stops
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -156,7 +166,7 @@ class StopController {
         }
     }
 
-    async validateStopSequence(req, res) {
+    async validateStopSequence(req, res, next) {
         try {
             const { tripId } = req.params;
             const { stops } = req.body;
@@ -166,6 +176,7 @@ class StopController {
                 data: validation
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message

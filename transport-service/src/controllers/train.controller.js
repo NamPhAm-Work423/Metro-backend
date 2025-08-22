@@ -1,7 +1,7 @@
 const trainService = require('../services/train.service');
 
 class TrainController {
-    async createTrain(req, res) {
+    async createTrain(req, res, next) {
         try {
             const train = await trainService.createTrain(req.body);
             res.status(201).json({
@@ -10,6 +10,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -17,7 +18,7 @@ class TrainController {
         }
     }
 
-    async getAllTrains(req, res) {
+    async getAllTrains(req, res, next) {
         try {
             const trains = await trainService.getAllTrains(req.query);
             res.status(200).json({
@@ -25,6 +26,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -32,7 +34,7 @@ class TrainController {
         }
     }
 
-    async getTrainById(req, res) {
+    async getTrainById(req, res, next) {
         try {
             const train = await trainService.getTrainById(req.params.id);
             res.status(200).json({
@@ -40,6 +42,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
+            next(error);
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -47,7 +50,7 @@ class TrainController {
         }
     }
 
-    async updateTrain(req, res) {
+    async updateTrain(req, res, next) {
         try {
             const train = await trainService.updateTrain(req.params.id, req.body);
             res.status(200).json({
@@ -56,6 +59,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -63,7 +67,7 @@ class TrainController {
         }
     }
 
-    async deleteTrain(req, res) {
+    async deleteTrain(req, res, next) {
         try {
             await trainService.deleteTrain(req.params.id);
             res.status(200).json({
@@ -71,6 +75,7 @@ class TrainController {
                 message: 'Train deactivated successfully'
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -78,7 +83,7 @@ class TrainController {
         }
     }
 
-    async getActiveTrains(req, res) {
+    async getActiveTrains(req, res, next) {
         try {
             const trains = await trainService.getActiveTrains();
             res.status(200).json({
@@ -86,6 +91,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -93,7 +99,7 @@ class TrainController {
         }
     }
 
-    async getTrainsByType(req, res) {
+    async getTrainsByType(req, res, next) {
         try {
             const trains = await trainService.getTrainsByType(req.params.type);
             res.status(200).json({
@@ -101,6 +107,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -108,7 +115,7 @@ class TrainController {
         }
     }
 
-    async getTrainsByStatus(req, res) {
+    async getTrainsByStatus(req, res, next) {
         try {
             const trains = await trainService.getTrainsByStatus(req.params.status);
             res.status(200).json({
@@ -116,6 +123,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -123,7 +131,7 @@ class TrainController {
         }
     }
 
-    async updateTrainStatus(req, res) {
+    async updateTrainStatus(req, res, next) {
         try {
             const { status } = req.body;
             const train = await trainService.updateTrainStatus(req.params.id, status);
@@ -133,6 +141,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -140,7 +149,7 @@ class TrainController {
         }
     }
 
-    async scheduleTrainMaintenance(req, res) {
+    async scheduleTrainMaintenance(req, res, next) {
         try {
             const { maintenanceDate } = req.body;
             const train = await trainService.scheduleMaintenanceForTrain(req.params.id, maintenanceDate);
@@ -150,6 +159,7 @@ class TrainController {
                 data: train
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -157,7 +167,7 @@ class TrainController {
         }
     }
 
-    async getTrainsNeedingMaintenance(req, res) {
+    async getTrainsNeedingMaintenance(req, res, next) {
         try {
             const { daysThreshold } = req.query;
             const trains = await trainService.getTrainsNeedingMaintenance(daysThreshold);
@@ -166,6 +176,7 @@ class TrainController {
                 data: trains
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -173,7 +184,7 @@ class TrainController {
         }
     }
 
-    async getTrainUtilization(req, res) {
+    async getTrainUtilization(req, res, next) {
         try {
             const utilization = await trainService.getTrainUtilization(req.params.id);
             res.status(200).json({
@@ -181,6 +192,7 @@ class TrainController {
                 data: utilization
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message

@@ -4,72 +4,88 @@ const passengerProducer = require('../events/passenger.producer.event');
 
 // GET /v1/passengers/getallPassengers
 const getAllPassengers = asyncErrorHandler(async (req, res, next) => {
-    const passengers = await passengerService.getAllPassengers();
-    res.status(200).json({ 
-        success: true,
-        message: 'Passengers retrieved successfully', 
-        data: passengers,
-        count: passengers.length
-    });
+    try {
+        const passengers = await passengerService.getAllPassengers();
+        res.status(200).json({ 
+            success: true,
+            message: 'Passengers retrieved successfully', 
+            data: passengers,
+            count: passengers.length
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // GET /v1/passengers/getPassengerById/:id
 const getPassengerById = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const passenger = await passengerService.getPassengerById(id);
-    
-    if (!passenger) {
-        return res.status(404).json({
-            success: false,
-            message: 'Passenger not found'
+    try {
+        const { id } = req.params;
+        const passenger = await passengerService.getPassengerById(id);
+        
+        if (!passenger) {
+            return res.status(404).json({
+                success: false,
+                message: 'Passenger not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Passenger retrieved successfully',
+            data: passenger
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Passenger retrieved successfully',
-        data: passenger
-    });
 });
 
 // PUT /v1/passengers/updatePassenger/:id
 const updatePassenger = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const updateData = req.body;
-    
-    const passenger = await passengerService.updatePassengerById(id, updateData);
-    
-    if (!passenger) {
-        return res.status(404).json({
-            success: false,
-            message: 'Passenger not found'
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        
+        const passenger = await passengerService.updatePassengerById(id, updateData);
+        
+        if (!passenger) {
+            return res.status(404).json({
+                success: false,
+                message: 'Passenger not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Passenger updated successfully',
+            data: passenger
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Passenger updated successfully',
-        data: passenger
-    });
 });
 
 // DELETE /v1/passengers/deletePassenger/:id
 const deletePassenger = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    
-    const result = await passengerService.deletePassengerById(id);
-    
-    if (!result) {
-        return res.status(404).json({
-            success: false,
-            message: 'Passenger not found'
+    try {
+        const { id } = req.params;
+        
+        const result = await passengerService.deletePassengerById(id);
+        
+        if (!result) {
+            return res.status(404).json({
+                success: false,
+                message: 'Passenger not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Passenger deleted successfully'
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Passenger deleted successfully'
-    });
 });
 
 // POST /v1/passengers/createPassenger
@@ -181,70 +197,82 @@ const updateMe = async (req, res, next) => {
 
 // DELETE /v1/passengers/me
 const deleteMe = asyncErrorHandler(async (req, res, next) => {
-    const userId = req.user.userId || req.user.id;
-    
-    if (!userId) {
-        return res.status(400).json({
-            success: false,
-            message: 'User ID not found in request'
+    try {
+        const userId = req.user.userId || req.user.id;
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID not found in request'
+            });
+        }
+
+        const result = await passengerService.deletePassengerByUserId(userId);
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result
         });
+    } catch (error) {
+        next(error);
     }
-
-    const result = await passengerService.deletePassengerByUserId(userId);
-
-    res.status(200).json({
-        success: true,
-        message: result.message,
-        data: result
-    });
 });
 
 // POST /v1/passengers/sync-passenger
 const syncPassenger = asyncErrorHandler(async (req, res, next) => {
-    const userId = req.user.userId || req.user.id;
-    
-    if (!userId) {
-        return res.status(400).json({
-            success: false,
-            message: 'User ID not found in request'
-        });
-    }
-
-    // Get passenger data from database
-    const passenger = await passengerService.getPassengerByUserId(userId);
-    
-    if (!passenger) {
-        return res.status(404).json({
-            success: false,
-            message: 'Passenger profile not found'
-        });
-    }
-
-    // Import passenger producer
-    
-    // Send passenger data to ticket-service cache via Kafka
-    await passengerProducer.publishPassengerCacheSync(passenger);
-    
-    res.status(200).json({
-        success: true,
-        message: 'Passenger data synchronized successfully',
-        data: {
-            passengerId: passenger.passengerId,
-            syncedAt: new Date().toISOString()
+    try {
+        const userId = req.user.userId || req.user.id;
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID not found in request'
+            });
         }
-    });
+
+        // Get passenger data from database
+        const passenger = await passengerService.getPassengerByUserId(userId);
+        
+        if (!passenger) {
+            return res.status(404).json({
+                success: false,
+                message: 'Passenger profile not found'
+            });
+        }
+
+        // Import passenger producer
+        
+        // Send passenger data to ticket-service cache via Kafka
+        await passengerProducer.publishPassengerCacheSync(passenger);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Passenger data synchronized successfully',
+            data: {
+                passengerId: passenger.passengerId,
+                syncedAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // DELETE /v1/passengers/deletePassengerById/:id
 
 const deletePassengerById = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const result = await passengerService.deletePassengerById(id);
-    res.status(200).json({
-        success: true,
-        message: 'Passenger deleted successfully',
-        data: result
-    });
+    try {
+        const { id } = req.params;
+        const result = await passengerService.deletePassengerById(id);
+        res.status(200).json({
+            success: true,
+            message: 'Passenger deleted successfully',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 module.exports = { 

@@ -3,72 +3,88 @@ const asyncErrorHandler = require('../helpers/errorHandler.helper');
 
 // GET /v1/staff/getAllStaff
 const getAllStaff = asyncErrorHandler(async (req, res, next) => {
-    const staff = await staffService.getAllStaff();
-    res.status(200).json({ 
-        success: true,
-        message: 'Staff retrieved successfully', 
-        data: staff,
-        count: staff.length
-    });
+    try {
+        const staff = await staffService.getAllStaff();
+        res.status(200).json({ 
+            success: true,
+            message: 'Staff retrieved successfully', 
+            data: staff,
+            count: staff.length
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // GET /v1/staff/getStaffById/:id
 const getStaffById = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const staff = await staffService.getStaffById(id);
-    
-    if (!staff) {
-        return res.status(404).json({
-            success: false,
-            message: 'Staff not found'
+    try {
+        const { id } = req.params;
+        const staff = await staffService.getStaffById(id);
+        
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Staff retrieved successfully',
+            data: staff
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Staff retrieved successfully',
-        data: staff
-    });
 });
 
 // PUT /v1/staff/updateStaff/:id
 const updateStaff = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const updateData = req.body;
-    
-    const staff = await staffService.updateStaffById(id, updateData);
-    
-    if (!staff) {
-        return res.status(404).json({
-            success: false,
-            message: 'Staff not found'
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        
+        const staff = await staffService.updateStaffById(id, updateData);
+        
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Staff updated successfully',
+            data: staff
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Staff updated successfully',
-        data: staff
-    });
 });
 
 // DELETE /v1/staff/deleteStaff/:id
 const deleteStaff = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    
-    const result = await staffService.deleteStaffById(id);
-    
-    if (!result) {
-        return res.status(404).json({
-            success: false,
-            message: 'Staff not found'
+    try {
+        const { id } = req.params;
+        
+        const result = await staffService.deleteStaffById(id);
+        
+        if (!result) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Staff deleted successfully'
         });
+    } catch (error) {
+        next(error);
     }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Staff deleted successfully'
-    });
 });
 
 // POST /v1/staff/createStaff
@@ -174,49 +190,57 @@ const updateMe = async (req, res, next) => {
 
 // DELETE /v1/staff/me
 const deleteMe = asyncErrorHandler(async (req, res, next) => {
-    const userId = req.user.userId || req.user.id;
-    
-    if (!userId) {
-        return res.status(400).json({
-            success: false,
-            message: 'User ID not found in request'
+    try {
+        const userId = req.user.userId || req.user.id;
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID not found in request'
+            });
+        }
+
+        const result = await staffService.deleteStaffByUserId(userId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Staff profile deleted successfully'
         });
+    } catch (error) {
+        next(error);
     }
-
-    const result = await staffService.deleteStaffByUserId(userId);
-
-    res.status(200).json({
-        success: true,
-        message: 'Staff profile deleted successfully'
-    });
 });
 
 // PUT /v1/staff/updateStaffStatus/:id
 const updateStaffStatus = asyncErrorHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { isActive } = req.body;
-    
-    if (typeof isActive !== 'boolean') {
-        return res.status(400).json({
-            success: false,
-            message: 'isActive must be a boolean value'
+    try {
+        const { id } = req.params;
+        const { isActive } = req.body;
+        
+        if (typeof isActive !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'isActive must be a boolean value'
+            });
+        }
+        
+        const staff = await staffService.updateStaffStatus(id, isActive);
+        
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Staff status updated successfully',
+            data: staff
         });
+    } catch (error) {
+        next(error);
     }
-    
-    const staff = await staffService.updateStaffStatus(id, isActive);
-    
-    if (!staff) {
-        return res.status(404).json({
-            success: false,
-            message: 'Staff not found'
-        });
-    }
-    
-    res.status(200).json({
-        success: true,
-        message: 'Staff status updated successfully',
-        data: staff
-    });
 });
 
 module.exports = {

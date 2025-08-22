@@ -347,114 +347,154 @@ class TicketController {
 
     // POST /v1/tickets/:id/phoneTicket
     getPhoneTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const { phoneNumber } = req.body;
-        const { passengerId } = await this._getPassengerFromCache(req);
-        
-        const result = await ticketService.sendTicketToPhone(id, phoneNumber, passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket sent to phone successfully',
-            data: result
-        });
+        try {
+            const { id } = req.params;
+            const { phoneNumber } = req.body;
+            const { passengerId } = await this._getPassengerFromCache(req);
+            
+            const result = await ticketService.sendTicketToPhone(id, phoneNumber, passengerId);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket sent to phone successfully',
+                data: result
+            });
+        } catch (error) {
+            logger.error('Error sending ticket to phone', { error: error.message, ticketId: req.params.id });
+            next(error);
+        }
     });
 
     // POST /v1/tickets/:id/mailTicket
     getMailTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const { email } = req.body;
-        const { passengerId } = await this._getPassengerFromCache(req);
-        
-        const result = await ticketService.sendTicketToEmail(id, email, passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket sent to email successfully',
-            data: result
-        });
+        try {
+            const { id } = req.params;
+            const { email } = req.body;
+            const { passengerId } = await this._getPassengerFromCache(req);
+            
+            const result = await ticketService.sendTicketToEmail(id, email, passengerId);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket sent to email successfully',
+                data: result
+            });
+        } catch (error) {
+            logger.error('Error sending ticket to email', { error: error.message, ticketId: req.params.id });
+            next(error);
+        }
     });
 
     // GET /v1/tickets/:id/validate
     validateTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const validation = await ticketService.validateTicket(id);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket validation completed',
-            data: validation
-        });
+        try {
+            const { id } = req.params;
+            const validation = await ticketService.validateTicket(id);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket validation completed',
+                data: validation
+            });
+        } catch (error) {
+            logger.error('Error validating ticket', { error: error.message, ticketId: req.params.id });
+            next(error);
+        }
     });
 
     // GET /v1/tickets/:id/detail
     getTicketDetail = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const ticket = await ticketService.getTicketDetail(id);
-        
-        if (!ticket) {
-            return res.status(404).json({
-                success: false,
-                message: 'Ticket not found'
+        try {
+            const { id } = req.params;
+            const ticket = await ticketService.getTicketDetail(id);
+            
+            if (!ticket) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Ticket not found'
+                });
+            }
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket details retrieved successfully',
+                data: ticket
             });
+        } catch (error) {
+            logger.error('Error getting ticket detail', { error: error.message, ticketId: req.params.id });
+            next(error);
         }
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket details retrieved successfully',
-            data: ticket
-        });
     });
 
     // PUT /v1/tickets/:id/update
     updateTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const updateData = req.body;
-        
-        const ticket = await ticketService.updateTicket(id, updateData);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket updated successfully',
-            data: ticket
-        });
+        try {
+            const { id } = req.params;
+            const updateData = req.body;
+            
+            const ticket = await ticketService.updateTicket(id, updateData);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket updated successfully',
+                data: ticket
+            });
+        } catch (error) {
+            logger.error('Error updating ticket', { error: error.message, ticketId: req.params.id });
+            next(error);
+        }
     });
 
     // DELETE /v1/tickets/:id/delete
     deleteTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        await ticketService.deleteTicket(id);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket deleted successfully'
-        });
+        try {
+            const { id } = req.params;
+            await ticketService.deleteTicket(id);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket deleted successfully'
+            });
+        } catch (error) {
+            logger.error('Error deleting ticket', { error: error.message, ticketId: req.params.id });
+            next(error);
+        }
     });
 
     // GET /v1/tickets/getTicketStatistics
     getTicketStatistics = asyncErrorHandler(async (req, res, next) => {
-        const filters = req.query;
-        const stats = await ticketService.getTicketStatistics(filters);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket statistics retrieved successfully',
-            data: stats
-        });
+        try {
+            const filters = req.query;
+            const stats = await ticketService.getTicketStatistics(filters);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Ticket statistics retrieved successfully',
+                data: stats
+            });
+        } catch (error) {
+            logger.error('Error getting ticket statistics', { error: error.message });
+            next(error);
+        }
     });
 
     // POST /v1/tickets/expire
     expireTickets = asyncErrorHandler(async (req, res, next) => {
-        const expiredCount = await ticketService.expireTickets();
-        
-        res.status(200).json({
-            success: true,
-            message: 'Expired tickets processed successfully',
-            data: {
-                expiredCount,
-                processedAt: new Date()
-            }
-        });
+        try {
+            const expiredCount = await ticketService.expireTickets();
+            
+            res.status(200).json({
+                success: true,
+                message: 'Expired tickets processed successfully',
+                data: {
+                    expiredCount,
+                    processedAt: new Date()
+                }
+            });
+        } catch (error) {
+            logger.error('Error expiring tickets', { error: error.message });
+            next(error);
+        }
     });
 
     // GET /v1/tickets/health

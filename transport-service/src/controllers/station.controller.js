@@ -1,7 +1,7 @@
 const stationService = require('../services/station.service');
 
 class StationController {
-    async createStation(req, res) {
+    async createStation(req, res, next) {
         try {
             const station = await stationService.createStation(req.body);
             res.status(201).json({
@@ -10,6 +10,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -17,7 +18,7 @@ class StationController {
         }
     }
 
-    async getAllStations(req, res) {
+    async getAllStations(req, res, next) {
         try {
             const stations = await stationService.getAllStations(req.query);
             res.status(200).json({
@@ -25,6 +26,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -32,7 +34,7 @@ class StationController {
         }
     }
 
-    async getStationById(req, res) {
+    async getStationById(req, res, next) {
         try {
             const station = await stationService.getStationById(req.params.id);
             res.status(200).json({
@@ -40,6 +42,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
+            next(error);
             res.status(404).json({
                 success: false,
                 message: error.message
@@ -47,7 +50,7 @@ class StationController {
         }
     }
 
-    async updateStation(req, res) {
+    async updateStation(req, res, next) {
         try {
             const station = await stationService.updateStation(req.params.id, req.body);
             res.status(200).json({
@@ -56,6 +59,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -63,7 +67,7 @@ class StationController {
         }
     }
 
-    async deleteStation(req, res) {
+    async deleteStation(req, res, next) {
         try {
             await stationService.deleteStation(req.params.id);
             res.status(200).json({
@@ -71,6 +75,7 @@ class StationController {
                 message: 'Station deactivated successfully'
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message
@@ -78,7 +83,7 @@ class StationController {
         }
     }
 
-    async getActiveStations(req, res) {
+    async getActiveStations(req, res, next) {
         try {
             const stations = await stationService.getActiveStations();
             res.status(200).json({
@@ -86,6 +91,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -93,7 +99,7 @@ class StationController {
         }
     }
 
-    async getStationsByOperatingHours(req, res) {
+    async getStationsByOperatingHours(req, res, next) {
         try {
             const { currentTime } = req.query;
             const stations = await stationService.getStationsByOperatingHours(currentTime);
@@ -102,6 +108,7 @@ class StationController {
                 data: stations
             });
         } catch (error) {
+            next(error);
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -109,7 +116,7 @@ class StationController {
         }
     }
 
-    async updateStationFacilities(req, res) {
+    async updateStationFacilities(req, res, next) {
         try {
             const { facilities } = req.body;
             const station = await stationService.updateStationFacilities(req.params.id, facilities);
@@ -119,6 +126,7 @@ class StationController {
                 data: station
             });
         } catch (error) {
+            next(error);
             res.status(400).json({
                 success: false,
                 message: error.message

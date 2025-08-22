@@ -12,43 +12,47 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - User registration response
    */
-  signup: asyncErrorHandler(async (req, res) => {
-    const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles, isVerified } = req.body;
+  signup: asyncErrorHandler(async (req, res, next) => {
+    try {
+      const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles, isVerified } = req.body;
 
-    const { user } = await userService.signup({
-      firstName,
-      lastName,
-      email,
-      password,
-      username,
-      phoneNumber,
-      dateOfBirth,
-      gender,
-      address,
-      roles: roles || ['passenger']
-    });
-    //If in roles have admin, reject create user
-    if (Array.isArray(roles) && roles.includes('admin')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Admin role is not allowed to be created',
-        error: 'ADMIN_ROLE_NOT_ALLOWED'
+      const { user } = await userService.signup({
+        firstName,
+        lastName,
+        email,
+        password,
+        username,
+        phoneNumber,
+        dateOfBirth,
+        gender,
+        address,
+        roles: roles || ['passenger']
       });
-    }
-    // Remove all fields from response except email, username, and roles
-    const userResponse = {
-      email: user.email,
-      username: user.username,
-      roles: user.roles
-    };
-
-    res.status(200).json({
-      success: true,
-      message: 'User registered successfully. Please verify your email to activate your account.',
-      data: {
-        user: userResponse
+      //If in roles have admin, reject create user
+      if (Array.isArray(roles) && roles.includes('admin')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Admin role is not allowed to be created',
+          error: 'ADMIN_ROLE_NOT_ALLOWED'
+        });
       }
-    });
+      // Remove all fields from response except email, username, and roles
+      const userResponse = {
+        email: user.email,
+        username: user.username,
+        roles: user.roles
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'User registered successfully. Please verify your email to activate your account.',
+        data: {
+          user: userResponse
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
   }),
 
   /**
@@ -130,7 +134,6 @@ const userController = {
       // Clear any existing cookies on login failure
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      // Forward the error to the global error handler
       next(error);
     }
   }),
@@ -142,29 +145,33 @@ const userController = {
    * @returns {Object} - User logout response
    */
   logout: asyncErrorHandler(async (req, res, next) => {
-    logger.info('User logged out', { userId: req.user.id });
+    try {
+      logger.info('User logged out', { userId: req.user.id });
 
-    // Destroy session (in addition to clearing JWT cookies)
-    destroyUserSession(req);
+      // Destroy session (in addition to clearing JWT cookies)
+      destroyUserSession(req);
 
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/'
-    });
+      res.clearCookie('accessToken', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/'
+      });
 
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/'
-    });
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/'
+      });
 
-    res.json({
-      success: true,
-      message: 'Logout successful'
-    });
+      res.json({
+        success: true,
+        message: 'Logout successful'
+      });
+    } catch (error) {
+      next(error);
+    }
   }),
 
   /**
@@ -173,46 +180,50 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - Refresh token response
    */
-  refreshToken: asyncErrorHandler(async (req, res) => {
-    //check in cookie if refresh token is present
-    const refreshToken = req.cookies.refreshToken;
+  refreshToken: asyncErrorHandler(async (req, res, next) => {
+    try {
+        //check in cookie if refresh token is present
+        const refreshToken = req.cookies.refreshToken;
 
-    // Debug logging
-    logger.debug('Refresh token request debug', {
-      hasCookies: !!req.cookies,
-      cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
-      hasRefreshToken: !!refreshToken,
-      userAgent: req.get('User-Agent'),
-      origin: req.get('Origin')
-    });
+        // Debug logging
+        logger.debug('Refresh token request debug', {
+          hasCookies: !!req.cookies,
+          cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
+          hasRefreshToken: !!refreshToken,
+          userAgent: req.get('User-Agent'),
+          origin: req.get('Origin')
+        });
 
-    if(!refreshToken){
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token is required',
-        error: 'REFRESH_TOKEN_REQUIRED'
-      });
+        if(!refreshToken){
+          return res.status(401).json({
+            success: false,
+            message: 'Refresh token is required',
+            error: 'REFRESH_TOKEN_REQUIRED'
+          });
+        }
+
+        const { accessToken, user } = await userService.refreshToken(refreshToken);
+
+        logger.info('Token refreshed successfully', { userId: user.id });
+
+        const userResponse = {
+          email: user.email,
+          username: user.username,
+          roles: user.roles
+        };
+
+        res.json({
+          success: true,
+          message: 'Token refreshed successfully',
+          data: {
+            user: userResponse,
+            accessToken,
+            expiresIn: '1h'
+          }
+        });
+    } catch (error) {
+      next(error);
     }
-
-    const { accessToken, user } = await userService.refreshToken(refreshToken);
-
-    logger.info('Token refreshed successfully', { userId: user.id });
-
-    const userResponse = {
-      email: user.email,
-      username: user.username,
-      roles: user.roles
-    };
-
-    res.json({
-      success: true,
-      message: 'Token refreshed successfully',
-      data: {
-        user: userResponse,
-        accessToken,
-        expiresIn: '1h'
-      }
-    });
   }),
 
   /**
@@ -221,23 +232,27 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - Request password reset response
    */
-  forgotPassword: asyncErrorHandler(async (req, res) => {
-    const { email } = req.body;
+  forgotPassword: asyncErrorHandler(async (req, res, next) => {
+    try {
+        const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required',
-        error: 'EMAIL_REQUIRED'
-      });
+        if (!email) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email is required',
+            error: 'EMAIL_REQUIRED'
+          });
+        }
+
+        await userService.forgotPassword(email);
+
+        res.json({
+          success: true,
+          message: 'If an account exists with this email, you will receive a password reset link'
+        });
+    } catch (error) {
+      next(error);
     }
-
-    await userService.forgotPassword(email);
-
-    res.json({
-      success: true,
-      message: 'If an account exists with this email, you will receive a password reset link'
-    });
   }),
 
   /**
@@ -246,23 +261,27 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - Reset password response
    */
-  resetPassword: asyncErrorHandler(async (req, res) => {
-    const { token, uid, newPassword } = req.body;
+  resetPassword: asyncErrorHandler(async (req, res, next) => {
+    try {
+        const { token, uid, newPassword } = req.body;
 
-    if (!token || !uid || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token, user ID, and new password are required',
-        error: 'INVALID_REQUEST'
-      });
+        if (!token || !uid || !newPassword) {
+          return res.status(400).json({
+            success: false,
+            message: 'Token, user ID, and new password are required',
+            error: 'INVALID_REQUEST'
+          });
+        }
+
+        await userService.resetPassword(token, uid, newPassword);
+
+        res.json({
+          success: true,
+          message: 'Password reset successful'
+        });
+    } catch (error) {
+      next(error);
     }
-
-    await userService.resetPassword(token, uid, newPassword);
-
-    res.json({
-      success: true,
-      message: 'Password reset successful'
-    });
   }),
 
   /**
@@ -271,58 +290,37 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - Verify email response
    */
-  verifyEmailFromQuery: asyncErrorHandler(async (req, res) => {
-    const token = req.query?.token || req.body?.token;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Verification token is required',
-        error: 'TOKEN_REQUIRED'
-      });
-    }
-
+  verifyEmailFromQuery: asyncErrorHandler(async (req, res, next) => {
     try {
-      const result = await userService.verifyEmailToken(token);
+        const token = req.query?.token || req.body?.token;
 
-      if (!result.success) {
-        // Return error HTML page for better UX
-        return res.status(400).json({
-          success: false,
-          message: 'Verification failed',
-          error: 'VERIFICATION_FAILED'
+        if (!token) {
+          return res.status(400).json({
+            success: false,
+            message: 'Verification token is required',
+            error: 'TOKEN_REQUIRED'
+          });
+        }
+
+        const result = await userService.verifyEmailToken(token);
+
+        if (!result.success) {
+          return res.status(400).json({
+            success: false,
+            message: 'Verification failed',
+            error: 'VERIFICATION_FAILED'
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Email verified successfully'
         });
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: 'Email verified successfully'
-      });
     } catch (error) {
-      // Return error HTML page for better UX
-      res.status(400).json({
-        success: false,
-        message: 'Verification failed',
-        error: 'VERIFICATION_FAILED'
-      });
+      next(error);
     }
   }),
 
-  /**
-   * @description: Verify token
-   * @param {Object} req - Request object
-   * @param {Object} res - Response object
-   * @returns {Object} - Verify token response
-   */
-  verifyToken: asyncErrorHandler(async (req, res) => {
-    res.json({
-      success: true,
-      message: 'Token is valid',
-      data: {
-        user: req.user
-      }
-    });
-  }),
 
   /**
    * @description: Unlock user account (Admin only)
@@ -330,32 +328,36 @@ const userController = {
    * @param {Object} res - Response object
    * @returns {Object} - Unlock account response
    */
-  unlockAccount: asyncErrorHandler(async (req, res) => {
-    const { userId } = req.params;
+  unlockAccount: asyncErrorHandler(async (req, res, next) => {
+    try {
+        const { userId } = req.params;
 
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required',
-        error: 'INVALID_REQUEST'
-      });
-    }
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            message: 'User ID is required',
+            error: 'INVALID_REQUEST'
+          });
+        }
 
-    const result = await userService.unlockUserAccount(userId, req.user?.id);
-    
-    if (!result.success) {
-      return res.status(404).json({
-        success: false,
-        message: result.message,
-        error: 'USER_NOT_FOUND'
-      });
-    }
+        const result = await userService.unlockUserAccount(userId, req.user?.id);
+        
+        if (!result.success) {
+          return res.status(404).json({
+            success: false,
+            message: result.message,
+            error: 'USER_NOT_FOUND'
+          });
+        }
 
-    res.json({
-      success: true,
-      message: 'Account unlocked successfully',
-      data: result.data
+        res.json({
+          success: true,
+          message: 'Account unlocked successfully',
+          data: result.data
     });
+    } catch (error) {
+      next(error);
+    }
   }),
 };
 

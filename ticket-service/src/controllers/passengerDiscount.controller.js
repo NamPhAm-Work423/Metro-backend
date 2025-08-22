@@ -15,11 +15,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error retrieving passenger discounts', { error: error.message });
-            res.status(500).json({
-                success: false,
-                message: 'Failed to retrieve passenger discounts',
-                error: error.message
-            });
+            next(error);
         }
     });
 
@@ -41,11 +37,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error retrieving passenger discount', { error: error.message, passengerType: req.params.passengerType });
-            res.status(500).json({
-                success: false,
-                message: 'Failed to retrieve passenger discount',
-                error: error.message
-            });
+            next(error);
         }
     });
 
@@ -67,11 +59,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error creating passenger discount', { error: error.message, discountData: req.body });
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to create passenger discount',
-                error: error.message
-            });
+            next(error);
         }
     });
 
@@ -93,11 +81,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error updating passenger discount', { error: error.message, discountId: req.params.discountId });
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to update passenger discount',
-                error: error.message
-            });
+            next(error);
         }
     });
 
@@ -115,11 +99,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error deleting passenger discount', { error: error.message, discountId: req.params.discountId });
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to delete passenger discount',
-                error: error.message
-            });
+            next(error);
         }
     });
 
@@ -142,11 +122,7 @@ class PassengerDiscountController {
             });
         } catch (error) {
             logger.error('Error calculating passenger discount', { error: error.message, passengerType: req.params.passengerType });
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to calculate passenger discount',
-                error: error.message
-            });
+            next(error);
         }
     });
 }
