@@ -397,6 +397,49 @@ services:
       - *default-restart
       - *default-deploy
 
+  # Webhook Service - External port for PayPal and other webhook providers
+  webhook:
+    build:
+      context: ./webhook
+    container_name: webhook
+    ports:
+      - "3003:3003"  # External port for webhook providers (PayPal, etc.)
+    env_file:
+      - ./webhook/.env
+    environment:
+      - MONGODB_URI=mongodb://webhook_user:webhook_pass123@mongodb:27017/webhook_db?authSource=webhook_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispass123
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+      - NODE_ENV=development
+    volumes:
+      - ./webhook:/app
+      - /app/node_modules
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
 
   healthcheck:
     build:
@@ -606,6 +649,55 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+
+  # MongoDB for webhook service
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"  # External for dev tools (Mongo Compass, etc.)
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=mongopass123
+      - MONGO_INITDB_DATABASE=webhook_db
+    volumes:
+      - mongodb_data:/data/db
+      - ./init_mongo.sh:/docker-entrypoint-initdb.d/init_mongo.sh:ro
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # MongoDB management interface
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express
+    ports:
+      - "8082:8081"  # External for dev - MongoDB web interface
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=mongopass123
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:mongopass123@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=mongopass123
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+    depends_on:
+      - mongodb
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<: *default-restart
 
   redis:
     image: redis:7-alpine
@@ -821,6 +913,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  mongodb_data:
     driver: local
   redis_data:
     driver: local

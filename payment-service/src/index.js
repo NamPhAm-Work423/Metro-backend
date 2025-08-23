@@ -5,6 +5,7 @@ const { logger } = require('./config/logger');
 const sequelize = require('./config/database');
 const { Payment, Transaction, PaymentLog } = require('./models/index.model');
 const ticketEventConsumer = require('./events/ticket.consumer');
+const PayPalHookConsumer = require('./events/paypal.hook.consumer');
 
 const PORT = process.env.PORT || 8006;
 const SERVICE_NAME = 'payment-service';
@@ -33,6 +34,9 @@ async function syncDatabase() {
     }
 }
 
+// Initialize PayPal Hook Consumer
+const paypalHookConsumer = new PayPalHookConsumer();
+
 // Graceful shutdown handling
 const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
@@ -41,6 +45,11 @@ const gracefulShutdown = async (signal) => {
         if (ticketEventConsumer) {
             await ticketEventConsumer.stopTicketConsumer();
             logger.info('Ticket event consumer stopped successfully');
+        }
+        
+        if (paypalHookConsumer) {
+            await paypalHookConsumer.stop();
+            logger.info('PayPal hook consumer stopped successfully');
         }
         
         // Close database connection
@@ -69,6 +78,11 @@ async function startApplication() {
         if (ticketEventConsumer) {
             await ticketEventConsumer.startTicketConsumer();
             logger.info('Ticket event consumer started successfully');
+        }
+        
+        if (paypalHookConsumer) {
+            await paypalHookConsumer.start();
+            logger.info('PayPal hook consumer started successfully');
         }
         
         // Start HTTP server

@@ -464,6 +464,64 @@ services:
       retries: 3
       start_period: 40s
 
+  # MongoDB for production
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    env_file:
+      - /opt/env/init_db.env
+    expose:
+      - "27017"  # Internal only for security
+    volumes:
+      - mongodb_data:/data/db
+      - ./init_mongo.sh:/docker-entrypoint-initdb.d/init_mongo.sh:ro
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://127.0.0.1:1514"
+        syslog-format: "rfc5424"
+        tag: "mongodb"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    <<: *default-restart
+
+  # MongoDB management interface for production
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express
+    env_file:
+      - /opt/env/init_db.env
+    ports:
+      - "8082:8081"  # External for admin access
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017/
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - backend-network
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://127.0.0.1:1514"
+        syslog-format: "rfc5424"
+        tag: "mongo-express"
+    <<: *default-restart
+
   # Infra (internal-only)
   postgres:
     image: postgres:15-alpine
@@ -488,8 +546,22 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    env_file:
+      - /opt/env/init_db.env
+    ports:
+      - "5050:5050"
+    depends_on:
+      - postgres
+    networks:
+      - backend-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json:ro
 
-# Fixed Redis Docker Compose Configuration
+
 
   redis:
     image: redis:7-alpine
@@ -793,21 +865,6 @@ services:
     logging: *default-logging
     <<: *default-restart
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
-    ports:
-      - "5050:5050"
-    depends_on:
-      - postgres
-    networks:
-      - backend-network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./servers.json:/pgadmin4/servers.json:ro
 
   loki:
     image: grafana/loki:2.9.4
@@ -830,6 +887,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  mongodb_data:
     driver: local
   redis_data:
     driver: local

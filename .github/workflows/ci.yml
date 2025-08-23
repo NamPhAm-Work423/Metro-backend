@@ -74,6 +74,10 @@ jobs:
             path: management-service
             dockerfile: Dockerfile
             runtime: python
+          - name: webhook
+            path: webhook
+            dockerfile: Dockerfile
+            runtime: node
 
 
     steps:

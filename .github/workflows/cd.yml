@@ -88,7 +88,8 @@ jobs:
           set -euo pipefail
           services=(
             api-gateway auth-service payment-service public-service ticket-service 
-            transport-service user-service report-service management-service control-service
+            transport-service user-service report-service management-service control-service notification-service
+            webhook
           )
           missing=()
           for s in "${services[@]}"; do
