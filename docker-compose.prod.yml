@@ -35,12 +35,7 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "nginx-proxy"
+    logging: *default-logging
     <<: *default-restart
 
   # Microservices (use images from GHCR, env from ../env)
@@ -72,12 +67,7 @@ services:
       start_period: 40s
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "api-gateway"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -116,12 +106,7 @@ services:
       start_period: 40s
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "auth-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -150,12 +135,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "user-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -191,12 +171,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "transport-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -232,12 +207,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "ticket-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -270,12 +240,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "public-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -302,12 +267,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "payment-service"
+    logging: *default-logging
     <<: *default-restart
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
@@ -338,12 +298,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "report-service"
+    logging: *default-logging
     <<: *default-restart
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8007'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
@@ -377,12 +332,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "control-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -419,12 +369,7 @@ services:
         start_period: 40s
       networks:
         - backend-network
-      logging:
-        driver: syslog
-        options:
-          syslog-address: "tcp://127.0.0.1:1514"
-          syslog-format: "rfc5424"
-          tag: "notification-service"
+      logging: *default-logging
       <<:
         - *default-restart
         - *default-deploy
@@ -448,12 +393,7 @@ services:
         condition: service_started
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "management-service"
+    logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
@@ -482,12 +422,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "mongodb"
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -514,12 +449,7 @@ services:
         condition: service_healthy
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "mongo-express"
+    logging: *default-logging
     <<: *default-restart
 
   # Infra (internal-only)
@@ -758,12 +688,7 @@ services:
       - "9090:9090"
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "prometheus"
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       api-gateway:
@@ -794,12 +719,7 @@ services:
       - "9093:9093"
     networks:
       - backend-network
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://127.0.0.1:1514"
-        syslog-format: "rfc5424"
-        tag: "alertmanager"
+    logging: *default-logging
     <<: *default-restart
     depends_on:
       - prometheus
