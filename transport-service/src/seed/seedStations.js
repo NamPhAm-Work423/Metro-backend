@@ -771,6 +771,16 @@ const stationsData = [
     connections: ['metro_line_4', 'metro_line_2', 'bus_station']
   },
   {
+    name: 'Tân Phong',
+    location: 'Quận 7, TP.HCM',
+    latitude: 10.729376,
+    longitude: 106.705298,
+    openTime: '05:00:00',
+    closeTime: '23:00:00',
+    facilities: ['elevator', 'escalator', 'restroom'],
+    connections: ['metro_line_4', 'metro_line_2', 'bus_station']
+  },
+  {
     name: 'Nguyễn Văn Linh',
     location: 'Quận 7, TP.HCM',
     latitude: 10.7450,
