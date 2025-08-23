@@ -6,7 +6,7 @@
 echo "Starting MongoDB initialization..."
 
 # Wait for MongoDB to be ready
-mongosh --host localhost --port 27017 --username admin --password mongopass123 --authenticationDatabase admin --eval "
+mongosh --host localhost --port 27017 --username admin --password nam422003 --authenticationDatabase admin --eval "
   // Create application databases
   db = db.getSiblingDB('webhook_db');
   
