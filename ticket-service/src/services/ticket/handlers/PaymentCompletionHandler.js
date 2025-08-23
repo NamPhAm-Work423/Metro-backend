@@ -50,6 +50,13 @@ class PaymentCompletionHandler {
      * @returns {boolean} True if ticket is valid for processing
      */
     static validateTicketForCompletion(ticket, paymentId) {
+        if (!ticket) {
+            logger.warn('Null ticket provided for payment completion validation', {
+                paymentId
+            });
+            return false;
+        }
+        
         const validStatuses = ['pending_payment'];
         
         if (!validStatuses.includes(ticket.status)) {
@@ -105,28 +112,56 @@ class PaymentCompletionHandler {
      * @returns {Object} Update result
      */
     static async processPaymentCompletion(ticket, paymentId, paymentData) {
+        // Validate required parameters
+        if (!paymentId) {
+            return {
+                success: false,
+                reason: 'Payment ID is required'
+            };
+        }
+
+        if (!ticket) {
+            return {
+                success: false,
+                reason: 'Ticket object is required'
+            };
+        }
+
         // Validate ticket state
         if (!this.validateTicketForCompletion(ticket, paymentId)) {
             return {
                 success: false,
-                reason: 'Invalid ticket state'
+                reason: 'Invalid ticket state for payment completion'
             };
         }
 
-        // Determine appropriate status
-        const updateData = this.determineTicketStatusAfterPayment(ticket);
-        
-        // Apply update
-        await ticket.update(updateData);
-        
-        // Log completion
-        this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
-        
-        return {
-            success: true,
-            updateData,
-            ticketType: this.getTicketTypeDescription(ticket)
-        };
+        try {
+            // Determine appropriate status
+            const updateData = this.determineTicketStatusAfterPayment(ticket);
+            
+            // Apply update
+            await ticket.update(updateData);
+            
+            // Log completion
+            this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
+            
+            return {
+                success: true,
+                updateData,
+                ticketType: this.getTicketTypeDescription(ticket)
+            };
+        } catch (error) {
+            logger.error('Database error during payment completion', {
+                ticketId: ticket?.ticketId,
+                paymentId,
+                error: error.message
+            });
+            
+            return {
+                success: false,
+                reason: `Database error: ${error.message}`
+            };
+        }
     }
 }
 
