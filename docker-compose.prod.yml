@@ -464,7 +464,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "mongosh", "--username", "admin", "--password", "$$MONGO_INITDB_ROOT_PASSWORD", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongosh --username admin --password \"$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

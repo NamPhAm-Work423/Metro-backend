@@ -351,5 +351,20 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
     // Bulk create tickets
     return await Ticket.bulkCreate(ticketsToCreate);
 };
+// //If ticket turn status to inactive, mark the date of inactive, after 30 days, turn to active
+// Ticket.prototype.turnToInactive = async function() {
+//     const now = new Date();
+//     this.status = 'inactive';
+//     this.inactiveAt = now;
+//     await this.save();  
+//     //After 30 days, turn to active
+//     setTimeout(async () => {
+//         if (this.status === 'inactive') {
+//             this.status = 'active';
+//             this.inactiveAt = null;
+//             await this.save();
+//         }
+//     }, 30 * 24 * 60 * 60 * 1000);
+// };
 
 module.exports = Ticket;
