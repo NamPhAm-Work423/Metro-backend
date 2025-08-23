@@ -459,16 +459,6 @@ const stationsData = [
     connections: ['metro_line_3a', 'bus_terminal']
   },
   {
-    name: 'Tân Kiệt',
-    location: 'Quận Bình Tân, TP.HCM',
-    latitude: 10.7500,
-    longitude: 106.6150,
-    openTime: '05:00:00',
-    closeTime: '23:00:00',
-    facilities: ['elevator', 'escalator', 'restroom'],
-    connections: ['metro_line_3a', 'bus_station']
-  },
-  {
     name: 'An Lạc',
     location: 'Quận Bình Tân, TP.HCM',
     latitude: 10.7450,
@@ -1081,7 +1071,7 @@ const stationsData = [
     openTime: '05:00:00',
     closeTime: '23:00:00',
     facilities: ['elevator', 'escalator', 'restroom', 'depot'],
-    connections: ['bus_station']
+    connections: ['metro_line_3a', 'bus_station']
   },
   {
     name: 'Sân bay Tân Sơn Nhất',
