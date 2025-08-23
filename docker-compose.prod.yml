@@ -373,6 +373,41 @@ services:
       <<:
         - *default-restart
         - *default-deploy
+
+  # Webhook Service - External port for PayPal and other webhook providers
+  webhook:
+    image: ${REGISTRY}/metro-webhook:${IMAGE_TAG}
+    container_name: webhook
+    ports:
+      - "3003:3003"  # External port for webhook providers (PayPal, etc.)
+    env_file:
+      - /opt/env/webhook.env
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      promtail:
+        condition: service_started
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
   management-service:
     image: ${REGISTRY}/metro-management-service:${IMAGE_TAG}
     container_name: management-service
@@ -418,7 +453,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username", "admin", "--password", "nam422003", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -441,9 +476,6 @@ services:
       - /opt/env/init_db.env
     ports:
       - "8082:8081"  # External for admin access
-    environment:
-      - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017/
-      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
     depends_on:
       mongodb:
         condition: service_healthy

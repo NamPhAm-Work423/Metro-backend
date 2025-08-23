@@ -17,6 +17,12 @@ router.post('/paypal',
     // paypalController.parseRawBody,
     paypalController.handleWebhook
 );
+if(process.env.NODE_ENV === 'development'){
+    router.post('/paypal', 
+        defaultRateLimiter,
+        paypalController.handleWebhook
+    );
+}
 
 // Health check endpoint
 router.get('/health', paypalController.healthCheck);
