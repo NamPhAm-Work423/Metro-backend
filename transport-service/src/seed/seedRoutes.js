@@ -54,7 +54,7 @@ const routesData = [
     name: 'Tuyến Metro số 4 (Thuận An - Nhà Bè)',
     originName: 'Thuận An',
     destinationName: 'Nhà Bè',
-    // numberOfStations: 23,
+    // numberOfStations: 24,
     distance: 36.2, // km
     duration: 70, // phút
     isActive: true 
