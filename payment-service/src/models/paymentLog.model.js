@@ -8,7 +8,7 @@ const { DataTypes } = require('sequelize');
  * @property {number} paymentId - Associated payment ID (foreign key from Payment)
  * @property {string} paymentLogType - Log type (PAYMENT, REFUND, CHARGEBACK)
  * @property {Date} paymentLogDate - Date/time of log entry
- * @property {string} paymentLogStatus - Status (PENDING, COMPLETED, FAILED)
+ * @property {string} paymentLogStatus - Status (PENDING, APPROVED, COMPLETED, FAILED)
  */
 const PaymentLog = sequelize.define('PaymentLog', {
     /** Primary key, auto-incremented */
@@ -25,7 +25,7 @@ const PaymentLog = sequelize.define('PaymentLog', {
     },
     /** Log type (PAYMENT, REFUND, CHARGEBACK) */
     paymentLogType: {
-        type: DataTypes.ENUM('PAYMENT', 'REFUND', 'CHARGEBACK'),
+        type: DataTypes.ENUM('PAYMENT', 'CAPTURE', 'WEBHOOK', 'REFUND', 'CHARGEBACK'),
         allowNull: false
     },
     /** Date/time of log entry */
@@ -33,9 +33,9 @@ const PaymentLog = sequelize.define('PaymentLog', {
         type: DataTypes.DATE,
         allowNull: false
     },
-    /** Status (PENDING, COMPLETED, FAILED) */
+    /** Status (PENDING, APPROVED, COMPLETED, FAILED) */
     paymentLogStatus: {
-        type: DataTypes.ENUM('PENDING', 'COMPLETED', 'FAILED'),
+        type: DataTypes.ENUM('PENDING', 'APPROVED', 'COMPLETED', 'FAILED'),
         allowNull: false
     },
 });

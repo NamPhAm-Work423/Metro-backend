@@ -406,17 +406,6 @@ services:
       - "3003:3003"  # External port for webhook providers (PayPal, etc.)
     env_file:
       - ./webhook/.env
-    environment:
-      - MONGODB_HOST=mongodb
-      - MONGODB_PORT=27017
-      - MONGODB_DB_NAME=webhook_db
-      - MONGODB_USER=${WEBHOOK_DB_USER}
-      - MONGODB_PASSWORD=${WEBHOOK_DB_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redispass123
-      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
-      - NODE_ENV=development
     volumes:
       - ./webhook:/app
       - /app/node_modules

@@ -115,10 +115,15 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Rejection', { 
-        reason, 
-        promise 
+        reason: reason?.message || reason,
+        stack: reason?.stack,
+        promise: promise?.constructor?.name || 'Unknown'
     });
-    process.exit(1);
+    
+    // Don't exit in development to avoid crashes during testing
+    if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
+    }
 });
 
 // Start the application

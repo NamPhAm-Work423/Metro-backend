@@ -2,9 +2,10 @@ const express = require('express');
 const { 
     createPaypalOrder, 
     capturePaypalPayment, 
-    getPaypalOrder, 
+    getPaypalOrder,
+    checkPaypalOrderStatus,
     handlePaypalWebhook 
-} = require('../controllers/papal.controller');
+} = require('../controllers/paypal.controller');
 
 const router = express.Router();
 
@@ -28,6 +29,13 @@ router.post('/capture/:orderId', capturePaypalPayment);
  * @access Public
  */
 router.get('/order/:orderId', getPaypalOrder);
+
+/**
+ * @route GET /v1/payment/paypal/check-status/:orderId
+ * @desc Check if PayPal order is ready for capture
+ * @access Public
+ */
+router.get('/check-status/:orderId', checkPaypalOrderStatus);
 
 /**
  * @route POST /v1/payment/paypal/webhook

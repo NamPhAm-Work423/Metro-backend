@@ -1,5 +1,8 @@
 const { client: paypalClient, paypal, isConfigured } = require('../config/paypal');
 const { logger } = require('../config/logger');
+const { Payment, PaymentLog, Transaction } = require('../models/index.model');
+const { Op } = require('sequelize');
+const { publish } = require('../kafka/kafkaProducer');
 
 /**
  * PayPal Service
@@ -281,6 +284,356 @@ class PayPalService {
         error: error.message, 
         statusCode: error.statusCode 
       };
+    }
+  }
+
+  /**
+   * Create a complete PayPal payment (DB record + PayPal order)
+   * @param {Object} paymentData - Payment data
+   * @returns {Promise<Object>} Payment result with PayPal order
+   */
+  async createPaymentOrder(paymentData) {
+    try {
+      const { ticketId, passengerId, amount, currency = 'USD', orderInfo } = paymentData;
+
+      // Create payment record (PENDING)
+      const payment = await Payment.create({
+        ticketId,
+        passengerId,
+        paymentAmount: amount,
+        paymentMethod: 'paypal',
+        paymentStatus: 'PENDING',
+        paymentDate: new Date(),
+        paymentGatewayResponse: null
+      });
+
+      // Prepare PayPal order data
+      const paypalOrderData = {
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: {
+            currency_code: currency,
+            value: amount.toString()
+          },
+          description: orderInfo || `Ticket payment for ticket ${ticketId}`,
+          custom_id: payment.paymentId.toString()
+        }]
+      };
+
+      // Create PayPal order
+      const paypalOrder = await this.createOrder(paypalOrderData);
+
+      // Update payment with PayPal order ID
+      payment.paymentGatewayResponse = {
+        paypalOrderId: paypalOrder.id,
+        paypalOrderData: paypalOrder
+      };
+      await payment.save();
+
+      // Log payment initiation
+      await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'PAYMENT',
+        paymentLogDate: new Date(),
+        paymentLogStatus: 'PENDING',
+      });
+
+      // Publish event to Kafka
+      try {
+        await publish('payment.initiated', payment.paymentId, {
+          paymentId: payment.paymentId,
+          ticketId,
+          passengerId,
+          amount,
+          orderInfo,
+          paymentMethod: 'paypal',
+          status: 'PENDING',
+          paypalOrderId: paypalOrder.id,
+          createdAt: payment.paymentDate
+        });
+      } catch (kafkaError) {
+        logger.warn('Failed to publish payment.initiated event:', kafkaError.message);
+      }
+
+      return {
+        payment,
+        paypalOrder,
+        approvalUrl: paypalOrder.links.find(link => link.rel === 'approve')?.href,
+        captureUrl: paypalOrder.links.find(link => link.rel === 'capture')?.href
+      };
+    } catch (error) {
+      logger.error('Error creating PayPal payment order:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Capture PayPal payment and update database
+   * @param {string} orderId - PayPal order ID
+   * @returns {Promise<Object>} Capture result
+   */
+  async capturePayment(orderId) {
+    try {
+      // First, check order status to ensure it's approved
+      const orderDetails = await this.getOrder(orderId);
+      
+      if (orderDetails.status !== 'APPROVED') {
+        throw new Error(`ORDER_NOT_APPROVED:${orderDetails.status}`);
+      }
+
+      // Capture the payment
+      const captureResult = await this.captureOrder(orderId);
+
+      // Find the payment record by PayPal order ID
+      let payment;
+      try {
+        payment = await Payment.findOne({
+          where: {
+            paymentMethod: 'paypal',
+            paymentStatus: 'PENDING',
+            [Op.and]: [
+              { 'paymentGatewayResponse.paypalOrderId': orderId }
+            ]
+          }
+        });
+      } catch (jsonQueryError) {
+        logger.warn('JSON query failed, using fallback method:', jsonQueryError.message);
+        
+        const allPayments = await Payment.findAll({
+          where: {
+            paymentMethod: 'paypal',
+            paymentStatus: 'PENDING'
+          }
+        });
+        
+        payment = allPayments.find(p => 
+          p.paymentGatewayResponse?.paypalOrderId === orderId
+        );
+      }
+
+      if (!payment) {
+        throw new Error(`PAYMENT_NOT_FOUND:${orderId}`);
+      }
+
+      // Update payment status based on capture result
+      if (captureResult.status === 'COMPLETED') {
+        payment.paymentStatus = 'APPROVED';
+      } else {
+        payment.paymentStatus = 'FAILED';
+      }
+
+      payment.paymentGatewayResponse = {
+        ...payment.paymentGatewayResponse,
+        captureResult
+      };
+      await payment.save();
+
+      // Log payment result
+      await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'CAPTURE',
+        paymentLogDate: new Date(),
+        paymentLogStatus: payment.paymentStatus,
+      });
+
+      return {
+        payment,
+        captureResult,
+        orderDetails
+      };
+    } catch (error) {
+      logger.error('Error capturing PayPal payment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle PayPal webhook events
+   * @param {Object} event - Webhook event data
+   * @returns {Promise<void>}
+   */
+  async handleWebhookEvent(event) {
+    try {
+      logger.info('PayPal webhook received:', { eventType: event.event_type });
+
+      switch (event.event_type) {
+        case 'PAYMENT.CAPTURE.COMPLETED':
+          await this._handlePaymentCaptureCompleted(event);
+          break;
+        case 'PAYMENT.CAPTURE.DENIED':
+          await this._handlePaymentCaptureDenied(event);
+          break;
+        case 'PAYMENT.CAPTURE.PENDING':
+          await this._handlePaymentCapturePending(event);
+          break;
+        default:
+          logger.info('Unhandled PayPal webhook event:', { eventType: event.event_type });
+      }
+    } catch (error) {
+      logger.error('Error handling PayPal webhook:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle PAYMENT.CAPTURE.COMPLETED webhook
+   * @private
+   */
+  async _handlePaymentCaptureCompleted(event) {
+    try {
+      const capture = event.resource;
+      const orderId = capture.supplementary_data?.related_ids?.order_id;
+
+      // Find payment by PayPal order ID that has been approved
+      let payment;
+      try {
+        payment = await Payment.findOne({
+          where: {
+            paymentMethod: 'paypal',
+            paymentStatus: 'APPROVED',
+            [Op.and]: [
+              { 'paymentGatewayResponse.paypalOrderId': orderId }
+            ]
+          }
+        });
+      } catch (jsonQueryError) {
+        logger.warn('JSON query failed in webhook, using fallback:', jsonQueryError.message);
+        
+        const allPayments = await Payment.findAll({
+          where: {
+            paymentMethod: 'paypal',
+            paymentStatus: 'APPROVED'
+          }
+        });
+        
+        payment = allPayments.find(p => 
+          p.paymentGatewayResponse?.paypalOrderId === orderId
+        );
+      }
+
+      if (!payment) {
+        logger.warn('Approved payment not found for PayPal order:', { orderId });
+        return;
+      }
+
+      // Update payment status from APPROVED to COMPLETED
+      payment.paymentStatus = 'COMPLETED';
+      payment.paymentGatewayResponse = {
+        ...payment.paymentGatewayResponse,
+        webhookEvent: event,
+        capture
+      };
+      await payment.save();
+
+      // Log payment result
+      await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'WEBHOOK',
+        paymentLogDate: new Date(),
+        paymentLogStatus: 'COMPLETED',
+      });
+
+      // Create transaction
+      await Transaction.create({
+        paymentId: payment.paymentId,
+        transactionAmount: payment.paymentAmount,
+        transactionStatus: 'COMPLETED',
+      });
+
+      // Publish event to Kafka
+      try {
+        await publish('payment.completed', payment.paymentId, {
+          paymentId: payment.paymentId,
+          status: 'COMPLETED',
+          paypalOrderId: orderId,
+          capture
+        });
+      } catch (kafkaError) {
+        logger.warn('Failed to publish payment.completed event:', kafkaError.message);
+      }
+
+      logger.info('Payment completed via PayPal webhook:', { paymentId: payment.paymentId });
+    } catch (error) {
+      logger.error('Error handling PAYMENT.CAPTURE.COMPLETED:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle PAYMENT.CAPTURE.DENIED webhook
+   * @private
+   */
+  async _handlePaymentCaptureDenied(event) {  
+    try {
+      const capture = event.resource;
+      const orderId = capture.supplementary_data?.related_ids?.order_id;
+
+      // Find payment by PayPal order ID that has been approved
+      const allPayments = await Payment.findAll({
+        where: {
+          paymentMethod: 'paypal',
+          paymentStatus: 'APPROVED'
+        }
+      });
+      
+      const payment = allPayments.find(p => 
+        p.paymentGatewayResponse?.paypalOrderId === orderId
+      );
+
+      if (!payment) {
+        logger.warn('Approved payment not found for PayPal order:', { orderId });
+        return;
+      }
+
+      // Update payment status
+      payment.paymentStatus = 'FAILED';
+      payment.paymentGatewayResponse = {
+        ...payment.paymentGatewayResponse,
+        webhookEvent: event,
+        capture
+      };
+      await payment.save();
+
+      // Log payment result
+      await PaymentLog.create({
+        paymentId: payment.paymentId,
+        paymentLogType: 'WEBHOOK',
+        paymentLogDate: new Date(),
+        paymentLogStatus: 'FAILED',
+      });
+
+      // Publish event to Kafka
+      try {
+        await publish('payment.failed', payment.paymentId, {
+          paymentId: payment.paymentId,
+          status: 'FAILED',
+          paypalOrderId: orderId,
+          capture
+        });
+      } catch (kafkaError) {
+        logger.warn('Failed to publish payment.failed event:', kafkaError.message);
+      }
+
+      logger.info('Payment failed via PayPal webhook:', { paymentId: payment.paymentId });
+    } catch (error) {
+      logger.error('Error handling PAYMENT.CAPTURE.DENIED:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle PAYMENT.CAPTURE.PENDING webhook
+   * @private
+   */
+  async _handlePaymentCapturePending(event) {
+    try {
+      const capture = event.resource;
+      const orderId = capture.supplementary_data?.related_ids?.order_id;
+
+      logger.info('PayPal payment capture pending:', { orderId });
+    } catch (error) {
+      logger.error('Error handling PAYMENT.CAPTURE.PENDING:', error);
+      throw error;
     }
   }
 }

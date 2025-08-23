@@ -9,7 +9,7 @@ const { DataTypes } = require('sequelize');
  * @property {number} passengerId - Associated passenger ID (foreign key from user-service)
  * @property {number} paymentAmount - Amount paid (USD)
  * @property {string} paymentMethod - Payment method (paypal, vnpay, card)
- * @property {string} paymentStatus - Status (PENDING, COMPLETED, FAILED)
+ * @property {string} paymentStatus - Status (PENDING, APPROVED, COMPLETED, FAILED)
  * @property {Date} paymentDate - Date/time of payment
  * @property {object} paymentGatewayResponse - Raw response from payment gateway (JSON)
  */
@@ -38,7 +38,7 @@ const Payment = sequelize.define('Payment', {
         allowNull: false
     },
     paymentStatus: {
-        type: DataTypes.ENUM('PENDING', 'COMPLETED', 'FAILED'),
+        type: DataTypes.ENUM('PENDING', 'APPROVED', 'COMPLETED', 'FAILED'),
         allowNull: false
     },
     paymentDate: {
