@@ -33,6 +33,8 @@ services:
     depends_on:
       api-gateway:
         condition: service_healthy
+      webhook:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
