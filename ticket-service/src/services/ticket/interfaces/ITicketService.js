@@ -69,6 +69,16 @@ class ITicketService {
     }
 
     /**
+     * Activate long-term ticket (start countdown)
+     * @param {string} ticketId - Ticket ID
+     * @param {string} passengerId - Passenger ID (optional, for validation)
+     * @returns {Promise<Object>} Activated ticket
+     */
+    async activateTicket(ticketId, passengerId = null) {
+        throw new Error('Method not implemented');
+    }
+
+    /**
      * Update ticket
      * @param {string} ticketId - Ticket ID
      * @param {Object} updateData - Data to update
@@ -138,6 +148,15 @@ class ITicketService {
      * @returns {Promise<Object>} Ticket with QR code
      */
     async getTicketWithQR(ticketId, passengerId) {
+        throw new Error('Method not implemented');
+    }
+
+    /**
+     * Get ticket by payment ID
+     * @param {string} paymentId - Payment ID
+     * @returns {Promise<Object>} Ticket object
+     */
+    async getTicketByPaymentId(paymentId) {
         throw new Error('Method not implemented');
     }
 

@@ -1,6 +1,5 @@
 const ticketService = require('../services/ticket.service');
 const TicketPriceCalculator = require('../services/ticket/calculators/TicketPriceCalculator');
-const { Ticket } = require('../models/index.model');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
@@ -567,9 +566,8 @@ class TicketController {
     getPaymentStatus = asyncErrorHandler(async (req, res, next) => {
         const { paymentId } = req.params;
         
-        const ticket = await Ticket.findOne({
-            where: { paymentId: paymentId }
-        });
+        const ticket = await ticketService.getTicketByPaymentId(paymentId);
+
 
         if (!ticket) {
             return res.status(404).json({
@@ -704,6 +702,37 @@ class TicketController {
                 message: 'Failed to calculate ticket price',
                 error: error.message
             });
+        }
+    });
+
+    // POST /v1/tickets/active-long-term/:id
+    activateLongTermTicket = asyncErrorHandler(async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const passengerId = req.user?.id || null; // Get passenger ID from authenticated user
+            
+            const ticket = await ticketService.activateTicket(id, passengerId);
+            
+            res.status(200).json({ 
+                success: true, 
+                message: 'Long-term ticket activated successfully', 
+                data: {
+                    ticketId: ticket.ticketId,
+                    ticketType: ticket.ticketType,
+                    status: ticket.status,
+                    validFrom: ticket.validFrom,
+                    validUntil: ticket.validUntil,
+                    activatedAt: ticket.activatedAt
+                },
+                timestamp: new Date()
+            });
+        } catch (error) {
+            logger.error('Error activating long-term ticket', { 
+                error: error.message, 
+                ticketId: req.params.id,
+                userId: req.user?.id || null
+            });
+            next(error);
         }
     });
 }

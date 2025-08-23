@@ -275,7 +275,7 @@ describe('Ticket Controller', () => {
 
     it('getPaymentStatus returns ready when paymentUrl present', async () => {
       req.params.paymentId = 'p1';
-      Ticket.findOne.mockResolvedValue({ paymentId: 'p1', paymentUrl: 'http://pay', paymentMethod: 'paypal', paypalOrderId: 'o1' });
+      ticketService.getTicketByPaymentId.mockResolvedValue({ paymentId: 'p1', paymentUrl: 'http://pay', paymentMethod: 'paypal', paypalOrderId: 'o1' });
       await ticketController.getPaymentStatus(req, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ready' }) }));
@@ -283,7 +283,7 @@ describe('Ticket Controller', () => {
 
     it('getPaymentStatus returns processing when paymentUrl missing', async () => {
       req.params.paymentId = 'p2';
-      Ticket.findOne.mockResolvedValue({ paymentId: 'p2' });
+      ticketService.getTicketByPaymentId.mockResolvedValue({ paymentId: 'p2' });
       await ticketController.getPaymentStatus(req, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'processing' }) }));
@@ -291,7 +291,7 @@ describe('Ticket Controller', () => {
 
     it('getPaymentStatus returns 404 when ticket not found', async () => {
       req.params.paymentId = 'p-missing';
-      Ticket.findOne.mockResolvedValue(null);
+      ticketService.getTicketByPaymentId.mockResolvedValue(null);
       await ticketController.getPaymentStatus(req, res, next);
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Ticket not found' });

@@ -97,6 +97,19 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
     getTicketStatistics: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       data: { totalTickets: 100, activeTickets: 50 } 
+    })),
+    activateLongTermTicket: jest.fn((req, res) => res.status(200).json({ 
+      success: true, 
+      message: 'Long-term ticket activated successfully',
+      data: { 
+        ticketId: req.params.id, 
+        ticketType: 'monthly_pass', 
+        status: 'active',
+        validFrom: new Date(),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        activatedAt: new Date()
+      },
+      timestamp: new Date()
     }))
   };
   return mockController;

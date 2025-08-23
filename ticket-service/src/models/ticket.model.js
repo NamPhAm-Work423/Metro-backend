@@ -89,6 +89,11 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.DATE,
         allowNull: true,
     },
+    activatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When long-term ticket was activated (countdown started)'
+    },
     originalPrice: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -122,9 +127,9 @@ const Ticket = sequelize.define('Ticket', {
         comment: 'Payment reference ID - ticket create payment id then use this id to get payment detail'
     },
     status: {
-        type: DataTypes.ENUM('active', 'used', 'expired', 'cancelled', 'pending_payment'),
+        type: DataTypes.ENUM('active', 'inactive', 'pending_payment', 'used', 'expired', 'cancelled'),
         allowNull: false,
-        defaultValue: 'active',
+        defaultValue: 'inactive',
     },
     qrCode: {
         type: DataTypes.TEXT,
@@ -231,6 +236,63 @@ Ticket.calculateValidityPeriod = function(ticketType) {
     }
 
     return { validFrom, validUntil };
+};
+/**
+ * When long-term ticket is activated, start count down for long-term ticket
+ * @param {string} ticketId - Ticket ID
+ * @returns {Promise<Object>} Activated ticket
+ */
+Ticket.startCountDown = async function(ticketId) {
+    try {
+        const ticket = await Ticket.findByPk(ticketId);
+        
+        if (!ticket) {
+            throw new Error('Ticket not found');
+        }
+
+        // Only allow activation for long-term tickets (passes)
+        const longTermTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
+        if (!longTermTypes.includes(ticket.ticketType)) {
+            throw new Error('Only long-term tickets can be activated');
+        }
+
+        // Check if ticket is already active
+        if (ticket.status === 'active') {
+            throw new Error('Ticket is already active');
+        }
+
+        // Check if ticket is paid
+        if (ticket.status !== 'paid') {
+            throw new Error('Ticket must be paid before activation');
+        }
+
+        // Calculate new validity period from activation time
+        const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticket.ticketType);
+
+        // Update ticket with new validity period and status
+        const updatedTicket = await ticket.update({
+            status: 'active',
+            validFrom: validFrom,
+            validUntil: validUntil,
+            activatedAt: new Date()
+        });
+
+        logger.info('Long-term ticket activated successfully', {
+            ticketId: ticket.ticketId,
+            ticketType: ticket.ticketType,
+            validFrom: validFrom,
+            validUntil: validUntil,
+            passengerId: ticket.passengerId
+        });
+
+        return updatedTicket;
+    } catch (error) {
+        logger.error('Error activating long-term ticket', {
+            error: error.message,
+            ticketId: ticketId
+        });
+        throw error;
+    }
 };
 
 /**

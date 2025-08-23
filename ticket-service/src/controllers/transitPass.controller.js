@@ -4,7 +4,7 @@ const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
 
 class TransitPassController {
-  // POST /v1/transitPasses
+  // POST /v1/transitPasses 
   createTransitPass = asyncErrorHandler(async (req, res, next) => {
     try {
       const data = req.body;

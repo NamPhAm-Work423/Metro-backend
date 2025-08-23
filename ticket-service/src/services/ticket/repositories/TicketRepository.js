@@ -186,7 +186,34 @@ class TicketRepository extends ITicketRepository {
             throw error;
         }
     }
+    async findByPaymentId(paymentId) {
+        try {
+            const ticket = await Ticket.findOne({
+                where: { paymentId },
+                order: [['createdAt', 'DESC']]
+            });
+            return ticket;
+        } catch (error) {
+            logger.error('Error finding ticket by payment ID', { error: error.message, paymentId });
+            throw error;
+        }
+    }
 
+    async activateLongTermTicket(ticketId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            ticket.status = 'active';
+            ticket.activatedAt = new Date();
+            await ticket.save();
+            return ticket;
+        } catch (error) {
+            logger.error('Error activating ticket', { error: error.message, ticketId });
+            throw error;
+        }
+    }
     /**
      * Update ticket
      * @param {string} ticketId - Ticket ID

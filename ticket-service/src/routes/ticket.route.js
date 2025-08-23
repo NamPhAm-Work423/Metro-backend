@@ -9,6 +9,7 @@ router.post('/calculate-price', ...authorizeRoles('passenger', 'staff', 'admin')
 // Passenger ticket creation
 router.post('/create-short-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createShortTermTicket);
 router.post('/create-long-term', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.createLongTermTicket);
+router.post('/activate-long-term/:id', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.activateLongTermTicket);
 
 // Passenger self-service routes
 router.get('/me', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMyTickets);

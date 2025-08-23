@@ -44,6 +44,24 @@ class ITicketRepository {
     }
 
     /**
+     * Find ticket by payment ID
+     * @param {string} paymentId - Payment ID
+     * @returns {Promise<Object>} Ticket object
+     */
+    async findByPaymentId(paymentId) {
+        throw new Error('Method not implemented');
+    }
+
+    /**
+     * Activate long-term ticket
+     * @param {string} ticketId - Ticket ID
+     * @returns {Promise<Object>} Activated ticket
+     */
+    async activateLongTermTicket(ticketId) {
+        throw new Error('Method not implemented');
+    }
+
+    /**
      * Update ticket
      * @param {string} ticketId - Ticket ID
      * @param {Object} updateData - Data to update

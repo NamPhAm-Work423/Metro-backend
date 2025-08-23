@@ -1,6 +1,8 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { Ticket } = require('../models/index.model');
+const { paymentCache } = require('../cache/paymentCache');
+const PaymentCompletionHandler = require('../services/ticket/handlers/PaymentCompletionHandler');
 
 /**
  * Payment consumer event for ticket service
@@ -10,7 +12,155 @@ const { Ticket } = require('../models/index.model');
 class PaymentConsumer {
     constructor() {
         this.eventConsumer = null;
-        this.paymentCache = new Map(); // In-memory cache for payment data
+        // Use shared payment cache instead of separate instance
+        this.paymentCache = paymentCache;
+    }
+
+    /**
+     * Handle payment completed event from payment service
+     * @param {Object} eventData - The payment completed event data
+     */
+    async handlePaymentCompleted(eventData) {
+        try {
+            const { 
+                paymentId, 
+                ticketId, 
+                passengerId,
+                status,
+                paymentData = {}
+            } = eventData;
+
+            logger.info('Processing payment completed event', {
+                ticketId,
+                paymentId,
+                passengerId,
+                status,
+                paymentMethod: paymentData.paymentMethod
+            });
+
+            // Find ticket
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                logger.error('Ticket not found for payment completed event', { ticketId });
+                return;
+            }
+
+            // Process payment completion using dedicated handler
+            const result = await PaymentCompletionHandler.processPaymentCompletion(
+                ticket, 
+                paymentId, 
+                paymentData
+            );
+
+            if (!result.success) {
+                logger.warn('Payment completion processing failed', {
+                    ticketId,
+                    paymentId,
+                    reason: result.reason
+                });
+                return;
+            }
+
+            // Store payment completion data in cache for reference
+            this.paymentCache.set(`completed_${paymentId}`, {
+                ticketId,
+                paymentId,
+                status: 'COMPLETED',
+                ticketType: result.ticketType,
+                finalTicketStatus: result.updateData.status,
+                activatedAt: result.updateData.activatedAt,
+                paymentData
+            });
+
+        } catch (error) {
+            logger.error('Error processing payment completed event', {
+                error: error.message,
+                eventData
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Handle payment failed event from payment service
+     * @param {Object} eventData - The payment failed event data
+     */
+    async handlePaymentFailed(eventData) {
+        try {
+            const { paymentId, ticketId, error: failureReason } = eventData;
+
+            logger.info('Processing payment failed event', {
+                ticketId,
+                paymentId,
+                failureReason
+            });
+
+            // Find and update ticket
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                logger.error('Ticket not found for payment failed event', { ticketId });
+                return;
+            }
+
+            // Update ticket to failed status
+            await ticket.update({
+                status: 'payment_failed',
+                updatedAt: new Date()
+            });
+
+            logger.info('Ticket marked as payment failed', {
+                ticketId,
+                paymentId,
+                failureReason
+            });
+
+        } catch (error) {
+            logger.error('Error processing payment failed event', {
+                error: error.message,
+                eventData
+            });
+        }
+    }
+
+    /**
+     * Handle payment cancelled event from payment service
+     * @param {Object} eventData - The payment cancelled event data
+     */
+    async handlePaymentCancelled(eventData) {
+        try {
+            const { paymentId, ticketId, reason } = eventData;
+
+            logger.info('Processing payment cancelled event', {
+                ticketId,
+                paymentId,
+                reason
+            });
+
+            // Find and update ticket
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                logger.error('Ticket not found for payment cancelled event', { ticketId });
+                return;
+            }
+
+            // Update ticket to cancelled status
+            await ticket.update({
+                status: 'cancelled',
+                updatedAt: new Date()
+            });
+
+            logger.info('Ticket marked as cancelled', {
+                ticketId,
+                paymentId,
+                reason
+            });
+
+        } catch (error) {
+            logger.error('Error processing payment cancelled event', {
+                error: error.message,
+                eventData
+            });
+        }
     }
 
     /**
@@ -45,8 +195,7 @@ class PaymentConsumer {
                 paymentMethod,
                 paypalOrderId,
                 status,
-                redirectUrls,
-                timestamp: Date.now()
+                redirectUrls
             });
 
             // Also store by ticket ID for fallback
@@ -57,8 +206,7 @@ class PaymentConsumer {
                 paymentMethod,
                 paypalOrderId,
                 status,
-                redirectUrls,
-                timestamp: Date.now()
+                redirectUrls
             });
 
             // Update ticket with payment information
@@ -123,18 +271,8 @@ class PaymentConsumer {
      * @returns {Object|null} Payment data or null if not found
      */
     getPaymentData(key) {
-        const data = this.paymentCache.get(key);
-        if (data) {
-            // Check if data is not too old (5 minutes)
-            const age = Date.now() - data.timestamp;
-            if (age < 300000) { // 5 minutes
-                return data;
-            } else {
-                // Remove old data
-                this.paymentCache.delete(key);
-            }
-        }
-        return null;
+        // Use shared cache's get method which handles expiry automatically
+        return this.paymentCache.get(key);
     }
 
     /**
@@ -170,10 +308,25 @@ class PaymentConsumer {
         const payload = data.payload || data;
         
         // Route to appropriate handler based on topic
-        if (topic === 'ticket.payment_ready') {
-            await this.handlePaymentReady(payload);
-        } else {
-            logger.warn(`Unknown payment event topic: ${topic}`);
+        switch (topic) {
+            case 'ticket.payment_ready':
+                await this.handlePaymentReady(payload);
+                break;
+                
+            case 'payment.completed':
+                await this.handlePaymentCompleted(payload);
+                break;
+                
+            case 'payment.failed':
+                await this.handlePaymentFailed(payload);
+                break;
+                
+            case 'payment.cancelled':
+                await this.handlePaymentCancelled(payload);
+                break;
+                
+            default:
+                logger.warn(`Unknown payment event topic: ${topic}`);
         }
     }
 
@@ -182,7 +335,12 @@ class PaymentConsumer {
      */
     async start() {
         try {
-            const topics = ['ticket.payment_ready'];
+            const topics = [
+                'ticket.payment_ready',
+                'payment.completed',
+                'payment.failed',
+                'payment.cancelled'
+            ];
 
             this.eventConsumer = new KafkaEventConsumer({
                 clientId: process.env.KAFKA_CLIENT_ID || 'ticket-service',

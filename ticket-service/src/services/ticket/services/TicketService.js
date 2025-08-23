@@ -23,6 +23,143 @@ class TicketService extends ITicketService {
     }
 
     /**
+     * Private helper method to handle promotion logic
+     * @param {Object} ticketData - Ticket data
+     * @param {Object} promotion - Promotion object (can be model instance or plain object)
+     * @param {string} ticketType - Type of ticket for validation
+     * @returns {Object} Promotion result
+     */
+    async _handlePromotion(ticketData, promotion, ticketType = null) {
+        if (!ticketData.promotionCode) {
+            return { appliedPromotion: null, promotionId: null };
+        }
+
+        // Handle both model instance and plain object from TicketPriceCalculator
+        if (!promotion) {
+            logger.warn('No promotion provided', { promotionCode: ticketData.promotionCode });
+            return { appliedPromotion: null, promotionId: null };
+        }
+
+        // Check if promotion is valid (handle both model instance and plain object)
+        let isValid = false;
+        if (typeof promotion.isCurrentlyValid === 'function') {
+            // This is a model instance
+            isValid = promotion.isCurrentlyValid();
+        } else if (promotion.promotionId && promotion.promotionCode) {
+            // This is a plain object from TicketPriceCalculator, assume it's valid if it exists
+            isValid = true;
+        }
+
+        if (!isValid) {
+            logger.warn('Invalid promotion provided', { promotionCode: ticketData.promotionCode });
+            return { appliedPromotion: null, promotionId: null };
+        }
+
+        // Validate promotion applicability for specific ticket types
+        if (ticketType && promotion.applicableTicketTypes && promotion.applicableTicketTypes.length > 0 && 
+            !promotion.applicableTicketTypes.includes(ticketType)) {
+            logger.warn('Promotion not applicable to ticket type', {
+                promotionCode: ticketData.promotionCode,
+                ticketType: ticketType
+            });
+            return { appliedPromotion: null, promotionId: null };
+        }
+
+        return {
+            appliedPromotion: promotion,
+            promotionId: promotion.promotionId
+        };
+    }
+
+    /**
+     * Private helper method to generate QR code data
+     * @param {Object} qrData - QR data object
+     * @returns {string} Base64 encoded QR code
+     */
+    _generateQRCode(qrData) {
+        const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+        return qrCodeData;
+    }
+
+    /**
+     * Private helper method to process payment
+     * @param {Object} ticket - Ticket object
+     * @param {string} ticketType - Type of ticket
+     * @param {Object} paymentOptions - Payment options
+     * @param {boolean} waitForPayment - Whether to wait for payment response
+     * @param {number} timeout - Payment timeout in milliseconds
+     * @returns {Promise<Object>} Payment result
+     */
+    async _processPayment(ticket, ticketType, paymentOptions, waitForPayment = true, timeout = 60000) {
+        const paymentAmount = Number(paymentOptions.amount || 0).toFixed(2);
+        
+        // Validate payment amount before calling payment service
+        if (Number(paymentAmount) <= 0) {
+            logger.error('Cannot process payment: payment amount is zero or negative', { 
+                paymentAmount, 
+                ticketId: ticket.ticketId 
+            });
+            throw new Error('Payment amount is not valid (<= 0). Please check the ticket information or promotion.');
+        }
+        
+        const paymentResult = await this.payment.processTicketPayment(ticket, ticketType, paymentOptions);
+
+        // If waitForPayment is true, wait for payment response
+        let paymentResponse = null;
+        if (waitForPayment !== false) {
+            paymentResponse = await this.payment.waitForPaymentResponse(paymentResult.paymentId, timeout);
+        }
+
+        return { paymentResult, paymentResponse };
+    }
+
+    /**
+     * Private helper method to increment promotion usage
+     * @param {string} promotionId - Promotion ID
+     * @param {string} promotionCode - Promotion code
+     * @param {string} ticketId - Ticket ID
+     * @param {string} context - Context for logging
+     */
+    async _incrementPromotionUsage(promotionId, promotionCode, ticketId, context = 'ticket creation') {
+        if (!promotionId || !promotionCode) return;
+
+        try {
+            const promotion = await Promotion.findByPk(promotionId);
+            if (promotion) {
+                await promotion.incrementUsage();
+                logger.info(`Promotion usage incremented after successful ${context}`, {
+                    promotionId: promotionId,
+                    promotionCode: promotionCode,
+                    ticketId: ticketId
+                });
+            }
+        } catch (promotionError) {
+            logger.error(`Failed to increment promotion usage for ${context}`, {
+                error: promotionError.message,
+                promotionId: promotionId,
+                ticketId: ticketId
+            });
+        }
+    }
+
+    /**
+     * Private helper method to validate passenger counts
+     * @param {Object} ticketData - Ticket data
+     * @returns {number} Total passengers
+     */
+    _validatePassengerCounts(ticketData) {
+        const totalPassengers = (ticketData.numAdults || 0) + (ticketData.numElder || 0) + 
+                              (ticketData.numTeenager || 0) + (ticketData.numChild || 0) + 
+                              (ticketData.numStudent || 0) + (ticketData.numSenior || 0);
+        
+        if (totalPassengers === 0) {
+            throw new Error('At least one passenger is required');
+        }
+        
+        return totalPassengers;
+    }
+
+    /**
      * Create a short-term ticket (oneway or return) based on station count and fare calculation
      * @param {Object} ticketData - The ticket data
      * @returns {Promise<Object>} The created ticket with payment information
@@ -39,12 +176,7 @@ class TicketService extends ITicketService {
             }
 
             // Validate passenger counts
-            const totalPassengers = (ticketData.numAdults || 0) + (ticketData.numElder || 0) + 
-                                  (ticketData.numTeenager || 0) + (ticketData.numChild || 0) + 
-                                  (ticketData.numStudent || 0) + (ticketData.numSenior || 0);
-            if (totalPassengers === 0) {
-                throw new Error('At least one passenger is required');
-            }
+            const totalPassengers = this._validatePassengerCounts(ticketData);
 
             // Use TicketPriceCalculator to get comprehensive price calculation
             const priceCalculation = await this.priceCalculator.calculateTotalPriceForPassengers(
@@ -95,18 +227,9 @@ class TicketService extends ITicketService {
                 throw new Error(`No active fare found for route ${firstSegment.routeId}`);
             }
             
-            // Set promotionId if promotion was applied
-            if (appliedPromotion) {
-                ticketData.promotionId = appliedPromotion.promotionId;
-                logger.info('Promotion applied in ticket creation', {
-                    promotionCode: ticketData.promotionCode,
-                    promotionDiscountAmount: appliedPromotion.discountAmount,
-                    finalPriceAfterPromotion: finalPrice
-                });
-            } else if (ticketData.promotionCode) {
-                logger.warn('Promotion not applied', { promotionCode: ticketData.promotionCode });
-                ticketData.promotionId = null;
-            }
+            // Handle promotion logic
+            const { promotionId } = await this._handlePromotion(ticketData, appliedPromotion);
+            ticketData.promotionId = promotionId;
 
             // Calculate validity period for short-term tickets (30 days validity)
             const validFrom = new Date();
@@ -130,7 +253,7 @@ class TicketService extends ITicketService {
             });
 
             // Generate QR code as base64
-            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+            const qrCodeData = this._generateQRCode(qrData);
 
             // Create ticket with QR code
             const ticket = await this.repository.create({
@@ -160,52 +283,26 @@ class TicketService extends ITicketService {
             });
 
             // Increment promotion usage only after successful ticket creation
-            if (appliedPromotion && appliedPromotion.promotionId) {
-                try {
-                    const promotion = await Promotion.findByPk(appliedPromotion.promotionId);
-                    if (promotion) {
-                        await promotion.incrementUsage();
-                        logger.info('Promotion usage incremented after successful ticket creation', {
-                            promotionId: appliedPromotion.promotionId,
-                            promotionCode: ticketData.promotionCode,
-                            ticketId: ticket.ticketId
-                        });
-                    }
-                } catch (promotionError) {
-                    logger.error('Failed to increment promotion usage', {
-                        error: promotionError.message,
-                        promotionId: appliedPromotion.promotionId,
-                        ticketId: ticket.ticketId
-                    });
-                    // Don't fail the whole transaction for this
-                }
-            }
+            await this._incrementPromotionUsage(
+                appliedPromotion?.promotionId || ticketData.promotionId, 
+                ticketData.promotionCode, 
+                ticket.ticketId, 
+                'short-term ticket creation'
+            );
 
             // Process payment
-            const paymentAmount = Number(finalPrice || 0).toFixed(2);
-            
-            // Validate payment amount before calling payment service
-            if (Number(paymentAmount) <= 0) {
-                logger.error('Cannot process payment: payment amount is zero or negative', { 
-                    paymentAmount, 
-                    finalPrice, 
-                    ticketId: ticket.ticketId 
-                });
-                throw new Error('Payment amount is not valid (<= 0). Please check the ticket information or promotion.');
-            }
-            
-            const paymentResult = await this.payment.processTicketPayment(ticket, 'short-term', {
-                paymentSuccessUrl: ticketData.paymentSuccessUrl,
-                paymentFailUrl: ticketData.paymentFailUrl,
-                currency: ticketData.currency || 'VND',
-                amount: paymentAmount
-            });
-
-            // If waitForPayment is true, wait for payment response
-            let paymentResponse = null;
-            if (ticketData.waitForPayment !== false) {
-                paymentResponse = await this.payment.waitForPaymentResponse(paymentResult.paymentId, 60000); // 60 seconds timeout
-            }
+            const { paymentResult, paymentResponse } = await this._processPayment(
+                ticket, 
+                'short-term', 
+                {
+                    paymentSuccessUrl: ticketData.paymentSuccessUrl,
+                    paymentFailUrl: ticketData.paymentFailUrl,
+                    currency: ticketData.currency || 'VND',
+                    amount: finalPrice
+                },
+                ticketData.waitForPayment,
+                60000
+            );
 
             logger.info('Short-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
@@ -310,26 +407,14 @@ class TicketService extends ITicketService {
                 const promotion = await Promotion.findOne({ 
                     where: { promotionCode: ticketData.promotionCode }
                 });
-                                    if (promotion && promotion.isCurrentlyValid()) {
-                        // Validate promotion applicability for long-term tickets
-                        if (promotion.applicableTicketTypes.length === 0 || 
-                            promotion.applicableTicketTypes.includes(ticketData.passType)) {
-                            const promotionDiscount = promotion.calculateDiscount(finalPrice);
-                            discountAmount += promotionDiscount;
-                            finalPrice = finalPrice - promotionDiscount;
-                        
-                        // Set promotionId for database reference
-                        ticketData.promotionId = promotion.promotionId;
-                    } else {
-                        logger.warn('Promotion not applicable to pass type', {
-                            promotionCode: ticketData.promotionCode,
-                            passType: ticketData.passType
-                        });
-                        ticketData.promotionId = null;
-                    }
-                } else {
-                    logger.warn('Invalid promotion provided', { promotionCode: ticketData.promotionCode });
-                    ticketData.promotionId = null;
+                
+                const { appliedPromotion, promotionId } = await this._handlePromotion(ticketData, promotion, ticketData.passType);
+                ticketData.promotionId = promotionId;
+                
+                if (appliedPromotion) {
+                    const promotionDiscount = appliedPromotion.calculateDiscount(finalPrice);
+                    discountAmount += promotionDiscount;
+                    finalPrice = finalPrice - promotionDiscount;
                 }
             }
 
@@ -347,7 +432,7 @@ class TicketService extends ITicketService {
             });
 
             // Generate QR code as base64
-            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+            const qrCodeData = this._generateQRCode(qrData);
 
             // Create ticket for long-term pass with QR code
             const ticket = await this.repository.create({
@@ -379,42 +464,26 @@ class TicketService extends ITicketService {
             });
 
             // Increment promotion usage only after successful ticket creation
-            if (ticketData.promotionId && ticketData.promotionCode) {
-                try {
-                    const promotion = await Promotion.findByPk(ticketData.promotionId);
-                    if (promotion) {
-                        await promotion.incrementUsage();
-                        logger.info('Promotion usage incremented after successful long-term ticket creation', {
-                            promotionId: ticketData.promotionId,
-                            promotionCode: ticketData.promotionCode,
-                            ticketId: ticket.ticketId,
-                            passType: ticketData.passType
-                        });
-                    }
-                } catch (promotionError) {
-                    logger.error('Failed to increment promotion usage for long-term ticket', {
-                        error: promotionError.message,
-                        promotionId: ticketData.promotionId,
-                        ticketId: ticket.ticketId
-                    });
-                    // Don't fail the whole transaction for this
-                }
-            }
+            await this._incrementPromotionUsage(
+                ticketData.promotionId, 
+                ticketData.promotionCode, 
+                ticket.ticketId, 
+                'long-term ticket creation'
+            );
 
             // Process payment
-            const paymentAmount = Number(finalPrice || 0).toFixed(2);
-            const paymentResult = await this.payment.processTicketPayment(ticket, 'long-term', {
-                paymentSuccessUrl: ticketData.paymentSuccessUrl,
-                paymentFailUrl: ticketData.paymentFailUrl,
-                currency: ticketData.currency || 'VND',
-                amount: paymentAmount
-            });
-            
-            // If waitForPayment is true, wait for payment response
-            let paymentResponse = null;
-            if (ticketData.waitForPayment !== false) {
-                paymentResponse = await this.payment.waitForPaymentResponse(paymentResult.paymentId, 30000); // 30 seconds timeout
-            }
+            const { paymentResult, paymentResponse } = await this._processPayment(
+                ticket, 
+                'long-term', 
+                {
+                    paymentSuccessUrl: ticketData.paymentSuccessUrl,
+                    paymentFailUrl: ticketData.paymentFailUrl,
+                    currency: ticketData.currency || 'VND',
+                    amount: finalPrice
+                },
+                ticketData.waitForPayment,
+                30000
+            );
 
             logger.info('Long-term ticket created successfully', { 
                 ticketId: ticket.ticketId, 
@@ -646,12 +715,58 @@ class TicketService extends ITicketService {
     }
 
     /**
+     * Get ticket by payment ID
+     * @param {string} paymentId - Payment ID
+     * @returns {Promise<Object>} Ticket object
+     */
+    async getTicketByPaymentId(paymentId) {
+        return await this.repository.findByPaymentId(paymentId);
+    }
+
+    /**
      * Get ticket statistics
      * @param {Object} filters - Filter criteria
      * @returns {Promise<Array>} Ticket statistics
      */
     async getTicketStatistics(filters = {}) {
         return await this.repository.getStatistics(filters);
+    }
+
+    /**
+     * Activate long-term ticket (start countdown)
+     * @param {string} ticketId - Ticket ID
+     * @param {string} passengerId - Passenger ID (optional, for validation)
+     * @returns {Promise<Object>} Activated ticket
+     */
+    async activateTicket(ticketId, passengerId = null) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            // If passengerId is provided, validate ownership
+            if (passengerId && ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
+            }
+            
+            // Use the model's startCountDown method
+            const activatedTicket = await Ticket.startCountDown(ticketId);
+            
+            logger.info('Ticket activated successfully', { 
+                ticketId, 
+                passengerId: ticket.passengerId,
+                ticketType: ticket.ticketType,
+                validFrom: activatedTicket.validFrom,
+                validUntil: activatedTicket.validUntil
+            });
+            
+            return activatedTicket;
+        } catch (error) {
+            logger.error('Error activating ticket', { error: error.message, ticketId });
+            throw error;
+        }
     }
 
     /**

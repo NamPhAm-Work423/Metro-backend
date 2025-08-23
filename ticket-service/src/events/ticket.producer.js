@@ -1,9 +1,7 @@
 const { publish } = require('../kafka/kafkaProducer');
 const { logger } = require('../config/logger');
 const { Ticket } = require('../models/index.model');
-
-// In-memory cache for payment data
-const paymentCache = new Map();
+const { paymentCache } = require('../cache/paymentCache');
 
 /**
  * Generate payment ID for ticket
@@ -47,7 +45,7 @@ async function publishTicketCreated(ticket, ticketType, options = {}) {
                 paymentFailUrl: options.paymentFailUrl,
                 currency: options.currency || 'VND'
             },
-            status: 'PENDING_PAYMENT',
+            status: 'pending_payment',
             createdAt: new Date().toISOString()
         };
 
@@ -130,8 +128,7 @@ async function handlePaymentReady(event) {
             paymentUrl,
             paymentMethod,
             paypalOrderId,
-            status,
-            timestamp: Date.now()
+            status
         });
 
         // Also store by ticket ID for fallback
@@ -141,8 +138,7 @@ async function handlePaymentReady(event) {
             paymentUrl,
             paymentMethod,
             paypalOrderId,
-            status,
-            timestamp: Date.now()
+            status
         });
 
         logger.info('Payment data stored in cache', {
@@ -229,7 +225,14 @@ async function publishTicketActivated(ticket, paymentData) {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
-            status: 'ACTIVE',
+            qrCode: ticket.qrCode,
+            totalPrice: ticket.totalPrice,
+            totalPassengers: ticket.totalPassengers,
+            paymentMethod: paymentData.paymentMethod,
+            paymentStatus: paymentData.status,
+            gatewayResponse: paymentData.gatewayResponse,
+            activatedAt: new Date().toISOString(),
+            status: 'active',
             paymentData: {
                 paymentMethod: paymentData.paymentMethod,
                 paymentStatus: paymentData.status,
@@ -243,7 +246,7 @@ async function publishTicketActivated(ticket, paymentData) {
         logger.info('Ticket activated event published', {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
-            status: 'ACTIVE'
+            status: 'active'
         });
     } catch (error) {
         logger.error('Failed to publish ticket activated event', {
@@ -265,7 +268,7 @@ async function publishTicketCancelled(ticket, reason) {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
-            status: 'CANCELLED',
+            status: 'cancelled',
             reason: reason,
             cancelledAt: new Date().toISOString()
         };
@@ -296,7 +299,7 @@ async function publishTicketExpired(ticket) {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
-            status: 'EXPIRED',
+            status: 'expired',
             expiredAt: new Date().toISOString()
         };
 
@@ -326,7 +329,7 @@ async function publishTicketUsed(ticket, usageData) {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
-            status: 'USED',
+            status: 'used',
             usageData: {
                 stationId: usageData.stationId,
                 usedAt: usageData.usedAt,
@@ -357,18 +360,8 @@ async function publishTicketUsed(ticket, usageData) {
  * @returns {Object|null} Payment data or null if not found
  */
 function getPaymentData(key) {
-    const data = paymentCache.get(key);
-    if (data) {
-        // Check if data is not too old (5 minutes)
-        const age = Date.now() - data.timestamp;
-        if (age < 300000) { // 5 minutes
-            return data;
-        } else {
-            // Remove old data
-            paymentCache.delete(key);
-        }
-    }
-    return null;
+    // Use shared cache's get method which handles expiry automatically
+    return paymentCache.get(key);
 }
 
 module.exports = {
