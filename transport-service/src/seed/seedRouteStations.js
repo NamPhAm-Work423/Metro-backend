@@ -45,7 +45,7 @@ const routeStationsData = {
   
   'Tuyến Metro số 3a (BX. Miền Tây Mới - Bến Thành)': [
     'BX. Miền Tây Mới',
-    'Tân Kiệt',
+    'Tân Kiên',
     'An Lạc',
     'Công Viên Phú Lâm',
     'Phú Lâm',
@@ -94,6 +94,7 @@ const routeStationsData = {
     'Bến Thành', //Big Station
     'Khánh Hội',
     'Tân Hưng',
+    'Tân Phong',
     'Nguyễn Văn Linh',
     'Hồ Bán Nguyệt',
     'Nam Sài Gòn',
