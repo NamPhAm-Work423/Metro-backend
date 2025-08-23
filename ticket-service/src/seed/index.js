@@ -11,7 +11,7 @@ async function runSeeds() {
         logger.info('Database connection ready');
 
         // Check if transport service is available before seeding
-        logger.info('🔄 Checking transport service availability...');
+        logger.info('Checking transport service availability...');
         const isTransportReady = await TransportClient.isTransportServiceReady();
         
         if (!isTransportReady) {
@@ -21,7 +21,7 @@ async function runSeeds() {
             return;
         }
 
-        logger.info('✅ Transport service is ready');
+        logger.info('Transport service is ready');
 
         // Run individual seeders
         await seedFares();

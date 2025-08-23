@@ -1,7 +1,11 @@
 // Test setup file
 process.env.NODE_ENV = 'test';
 process.env.PORT = 3001;
-process.env.MONGODB_URI = 'mongodb://localhost:27017/metro_webhook_test';
+process.env.MONGODB_HOST = 'localhost';
+process.env.MONGODB_PORT = '27017';
+process.env.MONGODB_DB_NAME = 'metro_webhook_test';
+process.env.MONGODB_USER = '';
+process.env.MONGODB_PASSWORD = '';
 process.env.REDIS_URL = 'redis://localhost:6379/1';
 process.env.KAFKA_BROKERS = 'localhost:9092';
 process.env.PAYPAL_CLIENT_ID = 'test_client_id';

@@ -382,6 +382,17 @@ services:
       - "3003:3003"  # External port for webhook providers (PayPal, etc.)
     env_file:
       - /opt/env/webhook.env
+    environment:
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DB_NAME=webhook_db
+      - MONGODB_USER=${WEBHOOK_DB_USER}
+      - MONGODB_PASSWORD=${WEBHOOK_DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
+      - NODE_ENV=production
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -453,7 +464,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "mongosh", "--username", "admin", "--password", "$$MONGO_PASSWORD", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username", "admin", "--password", "$$MONGO_INITDB_ROOT_PASSWORD", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5

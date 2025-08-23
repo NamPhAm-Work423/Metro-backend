@@ -275,7 +275,7 @@ class EmailService {
   }
 
   async sendVerificationEmail(email, token) {
-    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/verify-email?token=${token}`;
     if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
       await authNotifier.publishVerificationEmail({ email, verifyUrl });
       logger.info('Verification email event published', { email });
@@ -290,7 +290,7 @@ class EmailService {
 
   async sendPasswordResetEmail(email, token, userId) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}&uid=${userId}`;
+    const resetUrl = `${frontendUrl}/#/reset-password?token=${token}&uid=${userId}`;
     if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
       await authNotifier.publishPasswordResetEmail({ email, resetUrl });
       logger.info('Password reset email event published', { email });
@@ -304,7 +304,7 @@ class EmailService {
   }
 
   async sendWelcomeEmail(email, firstName) {
-    const dashboardUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`;
+    const dashboardUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/dashboard`;
     if (process.env.NOTIFICATION_EVENTS_ENABLED !== 'false') {
       await authNotifier.publishWelcomeEmail({ email, firstName, dashboardUrl });
       logger.info('Welcome email event published', { email });

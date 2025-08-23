@@ -407,7 +407,11 @@ services:
     env_file:
       - ./webhook/.env
     environment:
-      - MONGODB_URI=mongodb://webhook_user:webhook_pass123@mongodb:27017/webhook_db?authSource=webhook_db
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DB_NAME=webhook_db
+      - MONGODB_USER=${WEBHOOK_DB_USER}
+      - MONGODB_PASSWORD=${WEBHOOK_DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=redispass123

@@ -28,8 +28,12 @@ class TransitPassService extends ITransitPassService {
   }
 
   async createTransitPass(transitPassData) {
+    //check if transitPassType is exists, warn if it does
     const existing = await TransitPassRepository.findByType(transitPassData.transitPassType);
-    if (existing) throw new Error('Transit pass type already exists');
+    if (existing) {
+      logger.warn('Transit pass type already exists', { transitPassType: transitPassData.transitPassType });
+      return existing;
+    }
     const created = await TransitPassRepository.create(transitPassData);
     publishTransitPassCreated(created);
     return created;

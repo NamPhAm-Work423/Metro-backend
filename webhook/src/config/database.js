@@ -13,10 +13,6 @@ class DatabaseConnection {
      * @returns {string} - MongoDB URI
      */
     buildConnectionUri() {
-        if (process.env.MONGODB_URI) {
-            return process.env.MONGODB_URI;
-        }
-
         const host = process.env.MONGODB_HOST || 'localhost';
         const port = process.env.MONGODB_PORT || '27017';
         const dbName = process.env.MONGODB_DB_NAME || 'metro_webhook';
@@ -30,6 +26,11 @@ class DatabaseConnection {
         }
         
         uri += `${host}:${port}/${dbName}`;
+        
+        // Add authSource if user is provided
+        if (user && password) {
+            uri += `?authSource=${dbName}`;
+        }
         
         return uri;
     }
