@@ -6,7 +6,7 @@ const sequelize = require('./config/database');
 const { initializeRedis } = require('./config/redis');
 const passengerCacheConsumer = require('./events/passengerCache.consumer.event');
 const PaymentConsumer = require('./events/payment.consumer.event');
-const { startServer } = require('./grpc/fareSever');
+const { startCombinedGrpcServer } = require('./grpc/combinedServer');
 const { runSeeds } = require('./seed/index');
 const PORT = process.env.PORT || 3003;
 const SERVICE_NAME = 'ticket-service';
@@ -98,9 +98,9 @@ async function startApplication() {
             logger.info('Payment consumer started successfully');
         }
         
-        // Start gRPC server
-        await startServer();
-        logger.info('gRPC server started successfully');
+        // Start combined gRPC server (single bind on TICKET_GRPC_PORT)
+        await startCombinedGrpcServer();
+        logger.info('Combined gRPC server started successfully');
         
         // Start HTTP server
         app.listen(PORT, () => {

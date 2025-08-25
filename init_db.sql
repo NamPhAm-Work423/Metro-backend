@@ -115,6 +115,19 @@ GRANT ALL ON SCHEMA public TO management_service;
 -- Back to default database
 \c postgres
 
+-- ---------- NOTIFICATION SERVICE (Notification-Service) ----------
+CREATE DATABASE notification_db;
+CREATE ROLE notification_service WITH LOGIN PASSWORD '1';
+GRANT ALL PRIVILEGES ON DATABASE notification_db TO notification_service;
+
+-- Connect to notification_db and fix schema ownership
+\c notification_db
+ALTER SCHEMA public OWNER TO notification_service;
+GRANT ALL ON SCHEMA public TO notification_service;
+
+-- Back to default database
+\c postgres
+
 -- Enable uuid extension (if not already)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

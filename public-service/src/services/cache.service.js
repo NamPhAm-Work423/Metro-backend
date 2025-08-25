@@ -2,11 +2,15 @@ const { logger } = require('../config/logger');
 const { setWithExpiry, withRedisClient } = require('../config/redis');
 const TransportGrpcService = require('./transport.grpc.service');
 const FareGrpcService = require('./fare.grpc.service');
+const PassengerDiscountService = require('./passengerDiscount.service');
+const TransitPassService = require('./transitPass.service');
 
 class CacheService {
     constructor() {
         this.transportService = new TransportGrpcService();
         this.fareService = new FareGrpcService();
+        this.passengerDiscountService = new PassengerDiscountService();
+        this.transitPassService = new TransitPassService();
         this.keyPrefix = process.env.REDIS_KEY_PREFIX || 'service:';
         this.cacheKeys = {
             TRANSPORT_DATA: `${this.keyPrefix}transport:all`,
@@ -15,6 +19,7 @@ class CacheService {
             ROUTE_STATIONS: `${this.keyPrefix}transport:route_stations`,
             FARES: `${this.keyPrefix}fare:fares`,
             TRANSIT_PASSES: `${this.keyPrefix}fare:transit_passes`,
+            PASSENGER_DISCOUNTS: `${this.keyPrefix}fare:passenger_discounts`,
             LAST_UPDATE: `${this.keyPrefix}cache:last_update`
         };
         this.cacheTTL = 3600; // 1 hour in seconds
@@ -62,24 +67,48 @@ class CacheService {
             logger.info('Caching fare data to Redis');
             
             const fareData = await this.fareService.fetchAllTicketData();
+            const transitPasses = await this.transitPassService.fetchAllTransitPasses();
             
             // Cache complete fare data
-            await setWithExpiry(this.cacheKeys.FARE_DATA, JSON.stringify(fareData), this.cacheTTL);
+            await setWithExpiry(this.cacheKeys.FARE_DATA, JSON.stringify({ ...fareData, transitPasses }), this.cacheTTL);
             
             // Cache individual components for faster access
             await setWithExpiry(this.cacheKeys.FARES, JSON.stringify(fareData.fares || []), this.cacheTTL);
-            await setWithExpiry(this.cacheKeys.TRANSIT_PASSES, JSON.stringify(fareData.transitPasses || []), this.cacheTTL);
+            await setWithExpiry(this.cacheKeys.TRANSIT_PASSES, JSON.stringify(transitPasses || []), this.cacheTTL);
             
             logger.info('Fare data cached successfully', {
                 fareCount: fareData.fares?.length || 0,
-                transitPassCount: fareData.transitPasses?.length || 0,
+                transitPassCount: transitPasses?.length || 0,
                 ttl: this.cacheTTL
             });
             
-            return fareData;
+            return { ...fareData, transitPasses };
         } catch (error) {
             logger.error('Failed to cache fare data', { error: error.message });
             throw new Error(`Failed to cache fare data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Cache passenger discounts to Redis
+     */
+    async cachePassengerDiscountData() {
+        try {
+            logger.info('Caching passenger discounts to Redis');
+
+            const discounts = await this.passengerDiscountService.fetchAllPassengerDiscounts({ onlyCurrentlyValid: true });
+
+            await setWithExpiry(this.cacheKeys.PASSENGER_DISCOUNTS, JSON.stringify(discounts || []), this.cacheTTL);
+
+            logger.info('Passenger discounts cached successfully', {
+                discountCount: discounts?.length || 0,
+                ttl: this.cacheTTL
+            });
+
+            return discounts;
+        } catch (error) {
+            logger.error('Failed to cache passenger discounts', { error: error.message });
+            throw new Error(`Failed to cache passenger discounts: ${error.message}`);
         }
     }
 
@@ -92,21 +121,24 @@ class CacheService {
         const results = {
             transport: false,
             ticket: false,
+            discounts: false,
             error: null,
             timestamp: new Date().toISOString(),
             data: {
                 routes: [],
                 routeStations: [],
                 fares: [],
-                transitPasses: []
+                transitPasses: [],
+                passengerDiscounts: []
             }
         };
 
         try {
             // Cache transport and fare data in parallel
-            const [transportResult, fareResult] = await Promise.allSettled([
+            const [transportResult, fareResult, discountResult] = await Promise.allSettled([
                 this.cacheTransportData(),
-                this.cacheFareData()
+                this.cacheFareData(),
+                this.cachePassengerDiscountData()
             ]);
 
             // Check transport result
@@ -131,17 +163,28 @@ class CacheService {
                 results.error = fareResult.reason.message || results.error;
             }
 
+            // Check passenger discount result
+            if (discountResult.status === 'fulfilled') {
+                results.discounts = true;
+                results.data.passengerDiscounts = discountResult.value || [];
+                logger.info('Passenger discounts cached successfully');
+            } else {
+                logger.error('Failed to cache passenger discounts', { error: discountResult.reason.message });
+                results.error = discountResult.reason.message || results.error;
+            }
+
             // Cache last update timestamp if at least one succeeded
             if (results.transport || results.ticket) {
                 await setWithExpiry(this.cacheKeys.LAST_UPDATE, results.timestamp, this.cacheTTL);
             }
 
             // Log overall result
-            const success = results.transport && results.ticket;
+            const success = results.transport && results.ticket && results.discounts;
             logger.info('Cache all data operation completed', {
                 success,
                 transportCached: results.transport,
                 fareCached: results.ticket,
+                discountsCached: results.discounts,
                 error: results.error
             });
 
@@ -204,27 +247,55 @@ class CacheService {
     }
 
     /**
+     * Get passenger discounts from Redis cache (fallback to gRPC)
+     */
+    async getPassengerDiscounts() {
+        try {
+            const cachedData = await withRedisClient(async (client) => {
+                const data = await client.get(this.cacheKeys.PASSENGER_DISCOUNTS);
+                return data ? JSON.parse(data) : null;
+            });
+
+            if (cachedData) {
+                logger.info('Retrieved passenger discounts from Redis cache');
+                return cachedData;
+            }
+
+            logger.info('Passenger discounts not in cache, fetching from gRPC');
+            return await this.cachePassengerDiscountData();
+        } catch (error) {
+            logger.error('Failed to get passenger discounts', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * Get all data from Redis cache (fallback to gRPC)
      */
     async getAllData() {
         logger.info('Getting all data from Redis cache');
         
         try {
-            const [transportData, fareData] = await Promise.allSettled([
+            const [transportData, fareData, discountData, transitPassData] = await Promise.allSettled([
                 this.getTransportData(),
-                this.getFareData()
+                this.getFareData(),
+                this.getPassengerDiscounts(),
+                this.getTransitPasses()
             ]);
 
             const results = {
                 transport: transportData.status === 'fulfilled',
                 ticket: fareData.status === 'fulfilled',
+                discounts: discountData.status === 'fulfilled',
+                transitPasses: transitPassData.status === 'fulfilled',
                 error: null,
                 timestamp: new Date().toISOString(),
                 data: {
                     routes: [],
                     routeStations: [],
                     fares: [],
-                    transitPasses: []
+                    transitPasses: [],
+                    passengerDiscounts: []
                 }
             };
 
@@ -240,6 +311,21 @@ class CacheService {
                 results.data.transitPasses = fareData.value.transitPasses || [];
             } else {
                 results.error = fareData.reason.message || results.error;
+            }
+
+            // Ensure transit passes are present even if missing from fareData
+            if (transitPassData.status === 'fulfilled') {
+                if ((transitPassData.value || []).length > 0 && (results.data.transitPasses || []).length === 0) {
+                    results.data.transitPasses = transitPassData.value;
+                }
+            } else if (transitPassData.status === 'rejected') {
+                results.error = transitPassData.reason.message || results.error;
+            }
+
+            if (discountData.status === 'fulfilled') {
+                results.data.passengerDiscounts = discountData.value || [];
+            } else {
+                results.error = discountData.reason.message || results.error;
             }
 
             return results;

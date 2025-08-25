@@ -330,6 +330,46 @@ This API uses **cookie-based authentication** for maximum security and ease of u
         {
             name: 'Public API',
             description: 'Public caching service for transport and ticket data'
+        },
+        {
+            name: 'Public Transport',
+            description: 'Public transport routes and stations (guest access)'
+        },
+        {
+            name: 'Public Ticket',
+            description: 'Public fares, transit passes and passenger discounts (guest access)'
+        },
+        {
+            name: 'Payment',
+            description: 'Payment operations (general)' 
+        },
+        {
+            name: 'Payment - PayPal',
+            description: 'PayPal payment operations'
+        },
+        {
+            name: 'Notification Service',
+            description: 'Notification service utilities and health'
+        },
+        {
+            name: 'Notification Emails',
+            description: 'Email notifications management (admin only)'
+        },
+        {
+            name: 'Notification SMS',
+            description: 'SMS notifications management (admin only)'
+        },
+        {
+            name: 'Webhook Service',
+            description: 'Generic webhook service utilities'
+        },
+        {
+            name: 'Webhook - PayPal',
+            description: 'PayPal webhook endpoints'
+        },
+        {
+            name: 'Reports',
+            description: 'Reporting service endpoints (admin only)'
         }
     ]
 }
@@ -338,8 +378,7 @@ const options = {
     definition: swaggerDefinition,
     apis: [
         path.join(__dirname, '..', 'routes', '**/*.js'),
-        path.join(__dirname, '..', 'swagger', '**/*.js'),
-        path.join(__dirname, '..', 'swagger', 'public-service.swagger.js')
+        path.join(__dirname, '..', 'swagger', '**/*.js')
     ],
 };
 

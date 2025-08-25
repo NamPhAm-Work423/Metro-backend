@@ -201,7 +201,7 @@ class TransportClient {
     // Health check method to test connectivity
     static async isTransportServiceReady() {
         try {
-            logger.info('🔄 Testing transport service connectivity...', {
+            logger.info('Testing transport service connectivity...', {
                 transportUrl: TRANSPORT_SERVICE_URL
             });
 
@@ -216,7 +216,7 @@ class TransportClient {
                             });
                             reject(error);
                         } else {
-                            logger.info('✅ Transport service health check successful', {
+                            logger.info('Transport service health check successful', {
                                 routeCount: response?.routes?.length || 0,
                                 transportUrl: TRANSPORT_SERVICE_URL
                             });
@@ -226,10 +226,10 @@ class TransportClient {
                 });
             }, 3, 1000); // Fewer retries for health check
             
-            logger.info('✅ Transport service is ready and accessible');
+            logger.info('Transport service is ready and accessible');
             return true;
         } catch (error) {
-            logger.error('❌ Transport service is not available:', {
+            logger.error('Transport service is not available:', {
                 error: error.message,
                 code: error.code,
                 transportUrl: TRANSPORT_SERVICE_URL,

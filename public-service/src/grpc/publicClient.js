@@ -22,6 +22,8 @@ const config = {
 
 let transportClient = null;
 let ticketClient = null;
+let passengerDiscountClient = null;
+let transitPassClient = null;
 
 // Initialize Transport gRPC client
 function initTransportClient() {
@@ -75,6 +77,58 @@ function initTicketClient() {
     }
 }
 
+// Initialize PassengerDiscount gRPC client
+function initPassengerDiscountClient() {
+    try {
+        const PROTO_PATH = path.resolve(__dirname, '../proto/passengerDiscount.proto');
+        const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+            keepCase: true,
+            longs: String,
+            enums: String,
+            defaults: true,
+            oneofs: true
+        });
+
+        const discountProto = grpc.loadPackageDefinition(packageDefinition).passengerdiscount;
+        passengerDiscountClient = new discountProto.PassengerDiscountService(
+            config.ticket.url,
+            grpc.credentials.createInsecure()
+        );
+
+        logger.info('PassengerDiscount gRPC client initialized', { url: config.ticket.url });
+        return passengerDiscountClient;
+    } catch (error) {
+        logger.error('Failed to initialize passenger discount gRPC client', { error: error.message });
+        throw error;
+    }
+}
+
+// Initialize TransitPass gRPC client
+function initTransitPassClient() {
+    try {
+        const PROTO_PATH = path.resolve(__dirname, '../proto/transitPass.proto');
+        const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+            keepCase: true,
+            longs: String,
+            enums: String,
+            defaults: true,
+            oneofs: true
+        });
+
+        const transitPassProto = grpc.loadPackageDefinition(packageDefinition).transitpass;
+        transitPassClient = new transitPassProto.TransitPassService(
+            config.ticket.url,
+            grpc.credentials.createInsecure()
+        );
+
+        logger.info('TransitPass gRPC client initialized', { url: config.ticket.url });
+        return transitPassClient;
+    } catch (error) {
+        logger.error('Failed to initialize transit pass gRPC client', { error: error.message });
+        throw error;
+    }
+}
+
 // Get Transport client
 function getTransportClient() {
     if (!transportClient) {
@@ -89,6 +143,22 @@ function getTicketClient() {
         ticketClient = initTicketClient();
     }
     return ticketClient;
+}
+
+// Get PassengerDiscount client
+function getPassengerDiscountClient() {
+    if (!passengerDiscountClient) {
+        passengerDiscountClient = initPassengerDiscountClient();
+    }
+    return passengerDiscountClient;
+}
+
+// Get TransitPass client
+function getTransitPassClient() {
+    if (!transitPassClient) {
+        transitPassClient = initTransitPassClient();
+    }
+    return transitPassClient;
 }
 
 // Transport gRPC call with retry
@@ -155,12 +225,82 @@ async function callTicket(method, request) {
     }
 }
 
+// PassengerDiscount gRPC call with retry
+async function callPassengerDiscount(method, request) {
+    const client = getPassengerDiscountClient();
+
+    for (let attempt = 1; attempt <= config.ticket.retries; attempt++) {
+        try {
+            return await new Promise((resolve, reject) => {
+                client[method](request, (error, response) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
+        } catch (error) {
+            logger.warn(`PassengerDiscount gRPC call failed (attempt ${attempt}/${config.ticket.retries})`, {
+                method,
+                error: error.message,
+                attempt,
+                retries: config.ticket.retries
+            });
+
+            if (attempt === config.ticket.retries) {
+                throw error;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, config.ticket.retryDelayMs * attempt));
+        }
+    }
+}
+
+// TransitPass gRPC call with retry
+async function callTransitPass(method, request) {
+    const client = getTransitPassClient();
+
+    for (let attempt = 1; attempt <= config.ticket.retries; attempt++) {
+        try {
+            return await new Promise((resolve, reject) => {
+                client[method](request, (error, response) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
+        } catch (error) {
+            logger.warn(`TransitPass gRPC call failed (attempt ${attempt}/${config.ticket.retries})`, {
+                method,
+                error: error.message,
+                attempt,
+                retries: config.ticket.retries
+            });
+
+            if (attempt === config.ticket.retries) {
+                throw error;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, config.ticket.retryDelayMs * attempt));
+        }
+    }
+}
+
 module.exports = {
     config,
     getTransportClient,
     getTicketClient,
+    getPassengerDiscountClient,
+    getTransitPassClient,
     callTransport,
     callTicket,
+    callPassengerDiscount,
+    callTransitPass,
     initTransportClient,
-    initTicketClient
+    initTicketClient,
+    initPassengerDiscountClient,
+    initTransitPassClient
 };

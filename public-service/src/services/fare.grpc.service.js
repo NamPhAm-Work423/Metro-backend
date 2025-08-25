@@ -13,14 +13,11 @@ class FareGrpcService {
         try {
             logger.info('Fetching all ticket data via gRPC');
             
-            const [faresResponse, transitPassesResponse] = await Promise.all([
-                callTicket('ListFares', {}),
-                callTicket('ListTransitPasses', {})
-            ]);
+            const faresResponse = await callTicket('ListFares', {});
             
             return {
                 fares: faresResponse.fares || [],
-                transitPasses: transitPassesResponse.transitPasses || []
+                transitPasses: []
             };
         } catch (error) {
             logger.error('Failed to fetch ticket data via gRPC', { error: error.message });
@@ -46,17 +43,7 @@ class FareGrpcService {
     /**
      * Fetch all transit passes via gRPC
      */
-    async fetchAllTransitPasses() {
-        try {
-            logger.info('Fetching all transit passes via gRPC');
-            
-            const response = await callTicket('ListTransitPasses', {});
-            return response.transitPasses || [];
-        } catch (error) {
-            logger.error('Failed to fetch transit passes via gRPC', { error: error.message });
-            throw new Error(`Failed to fetch transit passes: ${error.message}`);
-        }
-    }
+    // Transit pass calls moved to dedicated transitPass service
 
     /**
      * Fetch specific fare by ID
@@ -76,17 +63,7 @@ class FareGrpcService {
     /**
      * Fetch specific transit pass by ID
      */
-    async fetchTransitPassById(transitPassId) {
-        try {
-            logger.info('Fetching transit pass by ID via gRPC', { transitPassId });
-            
-            const response = await callTicket('GetTransitPass', { transitPassId });
-            return response;
-        } catch (error) {
-            logger.error('Failed to fetch transit pass via gRPC', { transitPassId, error: error.message });
-            throw new Error(`Failed to fetch transit pass ${transitPassId}: ${error.message}`);
-        }
-    }
+    // Transit pass calls moved to dedicated transitPass service
 }
 
 module.exports = FareGrpcService; 

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package transitpass;
+
+service TransitPassService {
+    rpc GetTransitPass(GetTransitPassRequest) returns (GetTransitPassResponse);
+    rpc ListTransitPasses(ListTransitPassesRequest) returns (ListTransitPassesResponse);
+}
+
+message GetTransitPassRequest {
+    string transitPassId = 1;
+}
+
+message ListTransitPassesRequest {
+    string transitPassType = 1;
+    bool includeInactive = 2;
+}
+
+message GetTransitPassResponse {
+    string transitPassId = 1;
+    string transitPassType = 2;
+    double price = 3;
+    string currency = 4;
+    bool isActive = 5;
+}
+
+message ListTransitPassesResponse {
+    repeated GetTransitPassResponse transitPasses = 1;
+    int32 total = 2;
+}
+
+

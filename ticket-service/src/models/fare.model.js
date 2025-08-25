@@ -25,7 +25,6 @@ const Fare = sequelize.define('Fare', {
         comment: 'Price for oneway/return ticket'
     },
     currency: {
-        type: DataTypes.STRING(3),
         allowNull: false,
         defaultValue: 'VND',
         type: DataTypes.ENUM('VND', 'USD', 'CNY'),

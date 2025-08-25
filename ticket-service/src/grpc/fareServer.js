@@ -3,7 +3,7 @@ const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
 const { logger } = require('../config/logger');
 
-const { Fare, TransitPass } = require('../models/index.model');
+const { Fare } = require('../models/index.model');
 
 const PROTO_PATH = path.join(__dirname, '../proto/fare.proto');
 let fareProto;
@@ -50,31 +50,6 @@ const fareService = {
         }
     },
 
-    async GetTransitPass(call, callback) {
-        try {
-            const { transitPassId } = call.request;
-            const transitPass = await TransitPass.findByPk(transitPassId);
-
-            if (!transitPass) {
-                return callback({
-                    code: grpc.status.NOT_FOUND,
-                    message: 'Transit pass not found'
-                });
-            }
-
-            callback(null, {
-                transitPassId: transitPass.transitPassId,
-                transitPassType: transitPass.transitPassType,
-                price: transitPass.price,
-                currency: transitPass.currency,
-                isActive: transitPass.isActive
-            });
-        } catch (error) {
-            logger.error('Error getting transit pass:', error);
-            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
-        }
-    },
-
     async ListFares(call, callback) {
         try {
             const { routeId, includeInactive } = call.request;
@@ -112,49 +87,14 @@ const fareService = {
         }
     },
 
-    async ListTransitPasses(call, callback) {
-        try {
-            const { transitPassType, includeInactive } = call.request;
-            
-            // Build where clause
-            const where = {};
-            if (transitPassType) {
-                where.transitPassType = transitPassType;
-            }
-            if (!includeInactive) {
-                where.isActive = true;
-            }
-
-            const transitPasses = await TransitPass.findAll({
-                where,
-                order: [['transitPassType', 'ASC']]
-            });
-
-            const transitPassResponses = transitPasses.map(transitPass => ({
-                transitPassId: transitPass.transitPassId,
-                transitPassType: transitPass.transitPassType,
-                price: transitPass.price,
-                currency: transitPass.currency,
-                isActive: transitPass.isActive
-            }));
-
-            callback(null, {
-                transitPasses: transitPassResponses,
-                total: transitPassResponses.length
-            });
-
-        } catch (error) {
-            logger.error('Error listing transit passes:', error);
-            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
-        }
-    }
+    
 };
 
 function startServer() {
     const server = new grpc.Server();
     server.addService(fareProto.FareService.service, fareService);
     
-    const port = process.env.FARE_GRPC_PORT;
+    const port = process.env.TICKET_GRPC_PORT;
     const serverAddress = `0.0.0.0:${port}`;    
     
     server.bindAsync(serverAddress, grpc.ServerCredentials.createInsecure(), (error, port) => {

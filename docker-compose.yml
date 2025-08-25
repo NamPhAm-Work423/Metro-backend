@@ -125,6 +125,12 @@ services:
       - "8009"
     env_file:
       - ./notification-service/.env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=notification_db
+      - DB_USER=notification_service
+      - DB_PASSWORD=1
     volumes:
       - ./notification-service:/app
       - /app/node_modules
@@ -653,6 +659,8 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=mongopass123
       - MONGO_INITDB_DATABASE=webhook_db
+      - WEBHOOK_DB_USER=webhook_user
+      - WEBHOOK_DB_PASSWORD=webhook_pass123
     volumes:
       - mongodb_data:/data/db
       - ./init_mongo.sh:/docker-entrypoint-initdb.d/init_mongo.sh:ro

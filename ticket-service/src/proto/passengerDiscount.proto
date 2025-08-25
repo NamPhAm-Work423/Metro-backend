@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package passengerdiscount;
+
+service PassengerDiscountService {
+    rpc GetPassengerDiscount(GetPassengerDiscountRequest) returns (GetPassengerDiscountResponse);
+    rpc ListPassengerDiscounts(ListPassengerDiscountsRequest) returns (ListPassengerDiscountsResponse);
+}
+
+message GetPassengerDiscountRequest {
+    string discountId = 1;
+}
+
+message ListPassengerDiscountsRequest {
+    string passengerType = 1; // optional filter
+    bool includeInactive = 2;
+    bool onlyCurrentlyValid = 3;
+}
+
+message GetPassengerDiscountResponse {
+    string discountId = 1;
+    string passengerType = 2;
+    string discountType = 3; // percentage | fixed_amount | free
+    double discountValue = 4;
+    string description = 5;
+    bool isActive = 6;
+    string validFrom = 7; // ISO date string
+    string validUntil = 8; // ISO date string or empty
+}
+
+message ListPassengerDiscountsResponse {
+    repeated GetPassengerDiscountResponse discounts = 1;
+    int32 total = 2;
+}
+
+

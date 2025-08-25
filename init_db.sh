@@ -25,7 +25,7 @@ escape_sql_string() {
 }
 
 # Validate required secrets exist; fail fast if any missing
-REQUIRED_VARS="GATEWAY_DB_PASSWORD AUTH_DB_PASSWORD USER_DB_PASSWORD TRANSPORT_DB_PASSWORD TICKET_DB_PASSWORD PAYMENT_DB_PASSWORD REPORT_DB_PASSWORD MANAGEMENT_DB_PASSWORD CONTROL_DB_PASSWORD"
+REQUIRED_VARS="GATEWAY_DB_PASSWORD AUTH_DB_PASSWORD USER_DB_PASSWORD TRANSPORT_DB_PASSWORD TICKET_DB_PASSWORD PAYMENT_DB_PASSWORD REPORT_DB_PASSWORD MANAGEMENT_DB_PASSWORD CONTROL_DB_PASSWORD NOTIFICATION_DB_PASSWORD"
 for var in $REQUIRED_VARS; do
   file_var="${var}_FILE"
   eval val="\${$var:-}"
@@ -46,6 +46,7 @@ PAY_PASS="$(escape_sql_string "$(read_secret PAYMENT_DB_PASSWORD)")" || exit 1
 RPT_PASS="$(escape_sql_string "$(read_secret REPORT_DB_PASSWORD)")" || exit 1
 MGMT_PASS="$(escape_sql_string "$(read_secret MANAGEMENT_DB_PASSWORD)")" || exit 1
 CTRL_PASS="$(escape_sql_string "$(read_secret CONTROL_DB_PASSWORD)")" || exit 1
+NTF_PASS="$(escape_sql_string "$(read_secret NOTIFICATION_DB_PASSWORD)")" || exit 1
 
 # Use provided defaults from image env if not set
 : "${POSTGRES_USER:=postgres}"
@@ -218,6 +219,27 @@ EOSQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "management_db" <<EOSQL
 ALTER SCHEMA public OWNER TO management_service;
 GRANT ALL ON SCHEMA public TO management_service;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+EOSQL
+
+# ---------- NOTIFICATION SERVICE ----------
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'notification_service') THEN
+    CREATE ROLE notification_service LOGIN PASSWORD '$NTF_PASS';
+  ELSE
+    ALTER ROLE notification_service WITH PASSWORD '$NTF_PASS';
+  END IF;
+END$$;
+
+SELECT 'CREATE DATABASE notification_db OWNER notification_service'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'notification_db')\gexec
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "notification_db" <<EOSQL
+ALTER SCHEMA public OWNER TO notification_service;
+GRANT ALL ON SCHEMA public TO notification_service;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 EOSQL
 
