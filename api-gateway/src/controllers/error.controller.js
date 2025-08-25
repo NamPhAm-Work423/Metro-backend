@@ -13,6 +13,17 @@ module.exports = {errorHandler: (err, req, res, next) => {
         requestId: req.id,
     });
 
+    // Check if response has already been sent
+    if (res.headersSent) {
+        logger.warn('Response already sent in error handler, skipping error response', {
+            statusCode: err.statusCode,
+            message: err.message,
+            path: req.originalUrl,
+            method: req.method,
+        });
+        return;
+    }
+
     res.status(err.statusCode).json({
         status: err.status,
         message: err.message,

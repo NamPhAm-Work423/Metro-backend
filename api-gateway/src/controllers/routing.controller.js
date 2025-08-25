@@ -46,6 +46,15 @@ const routingController = {
                 stack: error.stack
             });
 
+            // Check if response has already been sent
+            if (res.headersSent) {
+                logger.warn('Response already sent, skipping error response', {
+                    endPoint,
+                    error: error.message
+                });
+                return;
+            }
+
             if (error instanceof CustomError) {
                 return res.status(error.statusCode).json({
                     success: false,

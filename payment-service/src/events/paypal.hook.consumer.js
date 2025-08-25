@@ -24,63 +24,75 @@ class PayPalHookConsumer {
     async handleCheckoutOrderCompleted(webhookData) {
         try {
             const { resource } = webhookData;
-            const paypalOrderId = resource.id;
-            const orderStatus = resource.status;
-
-            logger.info('Processing PayPal order completed webhook', {
-                paypalOrderId,
-                orderStatus,
+            const captureId = resource.id;
+            const captureStatus = resource.status;
+            const customId = resource.custom_id; // This is our payment ID
+            
+            logger.info('Processing PayPal capture completed webhook', {
+                captureId,
+                captureStatus,
+                customId,
                 eventType: webhookData.event_type
             });
 
-            if (orderStatus !== 'COMPLETED') {
-                logger.warn('PayPal order is not completed', {
-                    paypalOrderId,
-                    orderStatus
-                });
-                return;
-            }
-
-            // Find payment record using paypalOrderId
-            const payment = await this.findPaymentByPayPalOrderId(paypalOrderId);
-            if (!payment) {
-                logger.error('Payment not found for PayPal order', {
-                    paypalOrderId
-                });
-                return;
-            }
-
-            // Extract capture information
-            const captures = resource.purchase_units?.[0]?.payments?.captures || [];
-            if (captures.length === 0) {
-                logger.error('No captures found in PayPal webhook', {
-                    paypalOrderId,
-                    paymentId: payment.paymentId
-                });
-                return;
-            }
-
-            const capture = captures[0];
-            const captureId = capture.id;
-            const captureStatus = capture.status;
-            const captureAmount = parseFloat(capture.amount.value);
-
-            logger.info('PayPal capture details', {
-                paypalOrderId,
-                captureId,
-                captureStatus,
-                captureAmount,
-                paymentId: payment.paymentId
-            });
-
             if (captureStatus !== 'COMPLETED') {
-                logger.warn('PayPal capture not completed', {
-                    paypalOrderId,
+                logger.warn('PayPal capture is not completed', {
                     captureId,
                     captureStatus
                 });
                 return;
             }
+
+            // Find payment record using custom_id (payment ID) as primary method
+            let payment = null;
+            
+            // Method 1: Find by payment ID (custom_id from capture)
+            if (customId) {
+                payment = await Payment.findOne({
+                    where: {
+                        paymentId: customId,
+                        paymentMethod: 'paypal'
+                    }
+                });
+                
+                if (payment) {
+                    logger.info('Payment found by custom_id (payment ID)', {
+                        paymentId: customId,
+                        captureId
+                    });
+                }
+            }
+            
+            // Method 2: Fallback to find by capture ID in gateway response
+            if (!payment) {
+                payment = await this.findPaymentByCaptureId(captureId);
+                if (payment) {
+                    logger.info('Payment found by capture ID fallback', {
+                        paymentId: payment.paymentId,
+                        captureId
+                    });
+                }
+            }
+            
+            if (!payment) {
+                logger.error('Payment not found for PayPal capture', {
+                    captureId,
+                    customId,
+                    eventType: webhookData.event_type
+                });
+                return;
+            }
+
+            // For PAYMENT.CAPTURE.COMPLETED, resource is the capture itself
+            const captureAmount = parseFloat(resource.amount.value);
+            const currency = resource.amount.currency_code;
+
+            logger.info('PayPal capture details', {
+                captureId,
+                captureAmount,
+                currency,
+                paymentId: payment.paymentId
+            });
 
             // Update payment record
             const updatedPaymentData = {
@@ -107,10 +119,9 @@ class PayPalHookConsumer {
                 payment.ticketId,
                 payment.passengerId,
                 {
-                    paypalOrderId: paypalOrderId,
                     captureId: captureId,
                     amount: captureAmount,
-                    currency: capture.amount.currency_code,
+                    currency: currency,
                     paymentMethod: 'paypal',
                     webhookProcessed: true,
                     payer: resource.payer
@@ -118,7 +129,7 @@ class PayPalHookConsumer {
             );
 
             logger.info('PayPal webhook processed successfully', {
-                paypalOrderId,
+                captureId,
                 paymentId: payment.paymentId,
                 ticketId: payment.ticketId
             });
@@ -140,20 +151,39 @@ class PayPalHookConsumer {
     async handleOrderCancelledOrFailed(webhookData) {
         try {
             const { resource } = webhookData;
-            const paypalOrderId = resource.id;
-            const orderStatus = resource.status;
+            const captureId = resource.id;
+            const captureStatus = resource.status;
+            const customId = resource.custom_id;
 
-            logger.info('Processing PayPal order cancelled/failed webhook', {
-                paypalOrderId,
-                orderStatus,
+            logger.info('Processing PayPal capture denied/failed webhook', {
+                captureId,
+                captureStatus,
+                customId,
                 eventType: webhookData.event_type
             });
 
-            // Find payment record
-            const payment = await this.findPaymentByPayPalOrderId(paypalOrderId);
+            // Find payment record using custom_id (payment ID) as primary method
+            let payment = null;
+            
+            // Method 1: Find by payment ID (custom_id from capture)
+            if (customId) {
+                payment = await Payment.findOne({
+                    where: {
+                        paymentId: customId,
+                        paymentMethod: 'paypal'
+                    }
+                });
+            }
+            
+            // Method 2: Fallback to find by capture ID in gateway response
             if (!payment) {
-                logger.error('Payment not found for cancelled PayPal order', {
-                    paypalOrderId
+                payment = await this.findPaymentByCaptureId(captureId);
+            }
+            
+            if (!payment) {
+                logger.error('Payment not found for denied PayPal capture', {
+                    captureId,
+                    customId
                 });
                 return;
             }
@@ -190,9 +220,9 @@ class PayPalHookConsumer {
             }
 
             logger.info('PayPal cancellation/failure webhook processed', {
-                paypalOrderId,
+                captureId,
                 paymentId: payment.paymentId,
-                status: orderStatus
+                status: captureStatus
             });
 
         } catch (error) {
@@ -205,7 +235,50 @@ class PayPalHookConsumer {
     }
 
     /**
-     * Find payment record by PayPal Order ID
+     * Find payment record by PayPal Capture ID
+     * @param {string} captureId - PayPal capture ID
+     * @returns {Object|null} Payment record or null if not found
+     */
+    async findPaymentByCaptureId(captureId) {
+        try {
+            // Search in paymentGatewayResponse JSON field for captureId
+            const payment = await Payment.findOne({
+                where: {
+                    paymentMethod: 'paypal',
+                    paymentGatewayResponse: {
+                        captureId: captureId
+                    }
+                }
+            });
+
+            if (payment) {
+                return payment;
+            }
+
+            // Fallback: search in nested captureResult
+            const allPayments = await Payment.findAll({
+                where: {
+                    paymentMethod: 'paypal'
+                }
+            });
+            
+            const payment2 = allPayments.find(p => 
+                p.paymentGatewayResponse?.captureResult?.id === captureId ||
+                p.paymentGatewayResponse?.captureResult?.purchase_units?.[0]?.payments?.captures?.some(c => c.id === captureId)
+            );
+
+            return payment2 || null;
+        } catch (error) {
+            logger.error('Error finding payment by PayPal capture ID', {
+                error: error.message,
+                captureId
+            });
+            return null;
+        }
+    }
+
+    /**
+     * Find payment record by PayPal Order ID (legacy method, kept for compatibility)
      * @param {string} paypalOrderId - PayPal order ID
      * @returns {Object|null} Payment record or null if not found
      */
@@ -252,7 +325,8 @@ class PayPalHookConsumer {
                 offset: message.offset,
                 key: message.key?.toString(),
                 eventType: webhookData.event_type,
-                paypalOrderId: webhookData.resource?.id
+                resourceId: webhookData.resource?.id,
+                customId: webhookData.resource?.custom_id
             });
         } catch (e) {
             logger.error('JSON parse error for webhook message', { 
@@ -276,7 +350,8 @@ class PayPalHookConsumer {
             default:
                 logger.info(`Unhandled PayPal webhook event type: ${payload.event_type}`, {
                     eventType: payload.event_type,
-                    paypalOrderId: payload.resource?.id
+                    resourceId: payload.resource?.id,
+                    customId: payload.resource?.custom_id
                 });
         }
     }

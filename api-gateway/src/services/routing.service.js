@@ -15,8 +15,9 @@ class RoutingService {
         
         // Circuit breaker for proxy requests
         this.proxyBreaker = new CircuitBreaker(this.proxyServiceRequest.bind(this), this.breakerOptions);
-        this.proxyBreaker.fallback(() => {
-            throw new CustomError('Circuit breaker: service temporarily unavailable', 503);
+        this.proxyBreaker.fallback((err, req, res, selectedInstance, endPoint, proxyEndpoint) => {
+            // Don't throw error here, let the controller handle it
+            return Promise.reject(new CustomError('Circuit breaker: service temporarily unavailable', 503));
         });
     }
 
