@@ -107,7 +107,6 @@ const userController = {
       res.cookie('accessToken', tokens.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-          // Use Lax during development so cookies are sent on cross-site requests from localhost:5173 → localhost:8000
           sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
           maxAge: 60 * 60 * 1000,
           path: '/'
@@ -212,12 +211,23 @@ const userController = {
           roles: user.roles
         };
 
+        // If flag is false, send access token via cookie only
+        if(process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'false'){
+          res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 60 * 60 * 1000, // 1 hour
+            path: '/'
+          });
+        }
+
         res.json({
           success: true,
           message: 'Token refreshed successfully',
           data: {
             user: userResponse,
-            accessToken,
+            accessToken: process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'true' ? accessToken : null,
             expiresIn: '1h'
           }
         });
