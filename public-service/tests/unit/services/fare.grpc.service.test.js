@@ -22,7 +22,6 @@ describe('Fare gRPC Service', () => {
     it('should initialize gRPC client successfully', () => {
       expect(fareService).toBeDefined();
       expect(fareService.fetchAllFares).toBeDefined();
-      expect(fareService.fetchAllTransitPasses).toBeDefined();
       expect(fareService.fetchAllTicketData).toBeDefined();
     });
   });
@@ -57,59 +56,25 @@ describe('Fare gRPC Service', () => {
     });
   });
 
-  describe('fetchAllTransitPasses', () => {
-    it('should fetch all transit passes successfully', async () => {
-      const mockPasses = [
-        { transitPassId: '1', transitPassType: 'DAILY', price: 50.0 },
-        { transitPassId: '2', transitPassType: 'MONTHLY', price: 1000.0 }
-      ];
-      callTicket.mockResolvedValue({ transitPasses: mockPasses });
-
-      const result = await fareService.fetchAllTransitPasses();
-
-      expect(callTicket).toHaveBeenCalledWith('ListTransitPasses', {});
-      expect(result).toEqual(mockPasses);
-    });
-
-    it('should handle empty transit passes response', async () => {
-      callTicket.mockResolvedValue({});
-
-      const result = await fareService.fetchAllTransitPasses();
-
-      expect(result).toEqual([]);
-    });
-
-    it('should handle gRPC errors when fetching transit passes', async () => {
-      const error = new Error('Internal server error');
-      callTicket.mockRejectedValue(error);
-
-      await expect(fareService.fetchAllTransitPasses()).rejects.toThrow('Failed to fetch transit passes: Internal server error');
-    });
-  });
+  // Transit pass methods have moved to transitPass.service
 
   describe('fetchAllTicketData', () => {
-    it('should fetch all ticket data successfully', async () => {
+    it('should fetch all ticket data successfully (fares only)', async () => {
       const mockFares = [{ fareId: '1', routeId: 'R1', basePrice: 10.0 }];
-      const mockPasses = [{ transitPassId: '1', transitPassType: 'DAILY', price: 50.0 }];
 
-      callTicket
-        .mockResolvedValueOnce({ fares: mockFares })
-        .mockResolvedValueOnce({ transitPasses: mockPasses });
+      callTicket.mockResolvedValueOnce({ fares: mockFares });
 
       const result = await fareService.fetchAllTicketData();
 
       expect(callTicket).toHaveBeenCalledWith('ListFares', {});
-      expect(callTicket).toHaveBeenCalledWith('ListTransitPasses', {});
       expect(result).toEqual({
         fares: mockFares,
-        transitPasses: mockPasses
+        transitPasses: []
       });
     });
 
-    it('should handle partial failures in ticket data fetching', async () => {
-      callTicket
-        .mockResolvedValueOnce({ fares: [] })
-        .mockRejectedValueOnce(new Error('Service unavailable'));
+    it('should handle errors in ticket data fetching', async () => {
+      callTicket.mockRejectedValueOnce(new Error('Service unavailable'));
 
       await expect(fareService.fetchAllTicketData()).rejects.toThrow('Failed to fetch ticket data: Service unavailable');
     });
@@ -134,22 +99,5 @@ describe('Fare gRPC Service', () => {
     });
   });
 
-  describe('fetchTransitPassById', () => {
-    it('should fetch transit pass by ID successfully', async () => {
-      const mockPass = { transitPassId: '1', transitPassType: 'DAILY', price: 50.0 };
-      callTicket.mockResolvedValue(mockPass);
-
-      const result = await fareService.fetchTransitPassById('1');
-
-      expect(callTicket).toHaveBeenCalledWith('GetTransitPass', { transitPassId: '1' });
-      expect(result).toEqual(mockPass);
-    });
-
-    it('should handle errors when fetching transit pass by ID', async () => {
-      const error = new Error('Transit pass not found');
-      callTicket.mockRejectedValue(error);
-
-      await expect(fareService.fetchTransitPassById('1')).rejects.toThrow('Failed to fetch transit pass 1: Transit pass not found');
-    });
-  });
+  // Transit pass by ID moved to transitPass.service
 }); 

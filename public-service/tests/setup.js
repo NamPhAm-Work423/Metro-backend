@@ -45,6 +45,25 @@ jest.mock('@grpc/proto-loader', () => ({
   loadSync: jest.fn(() => ({}))
 }));
 
+// Mock prom-client for tests to avoid requiring native metrics in CI
+jest.mock('prom-client', () => {
+  class Registry {
+    constructor() { this._metrics = []; this.contentType = 'text/plain'; }
+    registerMetric(metric) { this._metrics.push(metric); }
+    async metrics() { return '# mock metrics'; }
+  }
+  class Histogram {
+    constructor() { this.observe = jest.fn(); this.startTimer = jest.fn(() => jest.fn()); }
+    labels() { return { observe: jest.fn() }; }
+  }
+  class Counter {
+    constructor() { this.inc = jest.fn(); }
+    labels() { return { inc: jest.fn() }; }
+  }
+  const collectDefaultMetrics = jest.fn();
+  return { Registry, Histogram, Counter, collectDefaultMetrics };
+}, { virtual: true });
+
 // Mock console methods to reduce noise in test output
 global.console = {
   ...console,
