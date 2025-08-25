@@ -8,14 +8,17 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/index.js',
-    '!src/app.js',
-    '!src/config/**',
-    '!src/models/index.model.js',
-    '!src/swagger/**',
-    '!src/utils/**',
+    // Ignore infrastructure and generated/IDL files
     '!src/grpc/**',
+    '!src/events/**',
     '!src/proto/**',
-    '!src/seed/**'
+    '!src/seed/**',
+    '!src/logs/**',
+    // Ignore pure data models and interface contracts (covered via integration)
+    '!src/models/**',
+    '!src/services/**/interfaces/**',
+    // Allow focusing on unit-testable service logic; repositories may require DB
+    '!src/services/**/repositories/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

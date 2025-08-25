@@ -224,14 +224,14 @@ EOSQL
 
 # ---------- NOTIFICATION SERVICE ----------
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
-DO $$
+DO\$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'notification_service') THEN
     CREATE ROLE notification_service LOGIN PASSWORD '$NTF_PASS';
   ELSE
     ALTER ROLE notification_service WITH PASSWORD '$NTF_PASS';
   END IF;
-END$$;
+END\$\$;
 
 SELECT 'CREATE DATABASE notification_db OWNER notification_service'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'notification_db')\gexec
