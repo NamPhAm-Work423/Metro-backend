@@ -157,7 +157,13 @@ jobs:
       - name: Test (Node)
         if: matrix.runtime == 'node'
         working-directory: ${{ matrix.path }}
-        run: npm test --if-present
+        run: |
+          if npm run | grep -q "test"; then
+            npm test --if-present
+          fi
+          if npm run | grep -q "test:coverage"; then
+            npm run test:coverage
+          fi
 
       - name: Install deps (Python)
         if: matrix.runtime == 'python'
