@@ -17,6 +17,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // 🔐 SECURITY: Network source validation middleware
 const validateNetworkSource = (req, res, next) => {
+    // Explicitly bypass validation for health and metrics endpoints used in tests/monitoring
+    if (req.path === '/health' || req.path === '/metrics') {
+        return next();
+    }
     const allowedHosts = [
         'api-gateway',        // Docker service name
         '172.', '10.', '192.168.', // Private network ranges

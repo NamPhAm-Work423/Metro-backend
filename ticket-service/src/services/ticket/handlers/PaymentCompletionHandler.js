@@ -18,62 +18,31 @@ class PaymentCompletionHandler {
             throw new Error('Ticket object is required');
         }
 
-        // Short-term tickets (fareId exists) - check webhook confirmation
+        // Short-term tickets (fareId exists) -> activate immediately
         if (ticket.fareId) {
-            // Only activate if webhook has been processed
-            if (paymentData.webhookProcessed === true) {
-                logger.debug('Setting short-term ticket to active status (webhook confirmed)', {
-                    ticketId: ticket.ticketId,
-                    fareId: ticket.fareId,
-                    webhookProcessed: paymentData.webhookProcessed
-                });
-                
-                return {
-                    status: 'active',
-                    activatedAt: new Date(),
-                    updatedAt: new Date()
-                };
-            } else {
-                logger.debug('Setting short-term ticket to payment_confirmed status (awaiting webhook)', {
-                    ticketId: ticket.ticketId,
-                    fareId: ticket.fareId,
-                    webhookProcessed: paymentData.webhookProcessed
-                });
-                
-                return {
-                    status: 'payment_confirmed',
-                    activatedAt: null,
-                    updatedAt: new Date()
-                };
-            }
-        }
-        
-        // Long-term tickets (fareId is null) - same logic, check webhook
-        if (paymentData.webhookProcessed === true) {
-            logger.debug('Setting long-term ticket to inactive status (webhook confirmed)', {
+            logger.debug('Setting short-term ticket to active status', {
                 ticketId: ticket.ticketId,
-                fareId: ticket.fareId,
-                webhookProcessed: paymentData.webhookProcessed
+                fareId: ticket.fareId
             });
-            
+
             return {
-                status: 'inactive',
-                activatedAt: null,
-                updatedAt: new Date()
-            };
-        } else {
-            logger.debug('Setting long-term ticket to payment_confirmed status (awaiting webhook)', {
-                ticketId: ticket.ticketId,
-                fareId: ticket.fareId,
-                webhookProcessed: paymentData.webhookProcessed
-            });
-            
-            return {
-                status: 'payment_confirmed',
-                activatedAt: null,
+                status: 'active',
+                activatedAt: new Date(),
                 updatedAt: new Date()
             };
         }
+
+        // Long-term tickets (fareId is null) -> remain inactive
+        logger.debug('Setting long-term ticket to inactive status', {
+            ticketId: ticket.ticketId,
+            fareId: ticket.fareId
+        });
+
+        return {
+            status: 'inactive',
+            activatedAt: null,
+            updatedAt: new Date()
+        };
     }
 
     /**
@@ -90,7 +59,7 @@ class PaymentCompletionHandler {
             return false;
         }
         
-        const validStatuses = ['pending_payment', 'payment_confirmed', 'active']; // Accept pending_payment, payment_confirmed, and active status
+        const validStatuses = ['pending_payment'];
         
         if (!validStatuses.includes(ticket.status)) {
             logger.warn('Ticket not in valid state for payment completion', {
@@ -170,7 +139,7 @@ class PaymentCompletionHandler {
         }
 
         // Handle duplicate events for already processed tickets
-        if (['active', 'payment_confirmed'].includes(ticket.status)) {
+        if (['active'].includes(ticket.status)) {
             logger.info('Duplicate payment event for already processed ticket - ignoring', {
                 ticketId: ticket.ticketId,
                 paymentId,
@@ -179,14 +148,14 @@ class PaymentCompletionHandler {
             
             return {
                 success: true,
-                updateData: { status: ticket.status }, // No update needed
+                updateData: { status: ticket.status },
                 ticketType: this.getTicketTypeDescription(ticket),
                 duplicate: true
             };
         }
 
         try {
-            // Determine appropriate status based on webhook confirmation
+            // Determine appropriate status
             const updateData = this.determineTicketStatusAfterPayment(ticket, paymentData);
             
             // Apply update
@@ -195,7 +164,7 @@ class PaymentCompletionHandler {
             // Log completion
             this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
             
-            // Publish ticket activated event only if ticket becomes active (webhook confirmed)
+            // Publish ticket activated event only if ticket becomes active
             if (updateData.status === 'active') {
                 try {
                     await publishTicketActivated(ticket, paymentData);
@@ -212,12 +181,6 @@ class PaymentCompletionHandler {
                     });
                     // Don't fail the whole process if event publishing fails
                 }
-            } else if (updateData.status === 'payment_confirmed') {
-                logger.info('Ticket payment confirmed, awaiting webhook for activation', {
-                    ticketId: ticket.ticketId,
-                    paymentId,
-                    webhookProcessed: paymentData.webhookProcessed
-                });
             }
             
             return {

@@ -7,7 +7,10 @@ jest.mock('../../src/services/repositories/user.repository', () => ({
 }));
 jest.mock('../../src/services/email.service');
 jest.mock('../../src/services/tokens.service');
-jest.mock('../../src/events/user.producer.event', () => ({ publishUserCreated: jest.fn().mockResolvedValue() }));
+jest.mock('../../src/events/user.producer.event', () => ({ 
+  publishUserCreated: jest.fn().mockResolvedValue(),
+  publishUserLogin: jest.fn().mockResolvedValue()
+}));
 jest.mock('../../src/events/user.consumer.event', () => ({ start: jest.fn().mockResolvedValue() }));
 const redisState = { lastClient: null };
 jest.mock('../../src/config/redis', () => ({ withRedisClient: (fn) => {
@@ -133,6 +136,19 @@ describe('UserService', () => {
     const rt = jwt.sign({ userId: 'no' }, process.env.JWT_REFRESH_SECRET);
     userRepository.findByPk.mockResolvedValue(null);
     await expect(userService.refreshToken(rt)).rejects.toThrow('User not found');
+  });
+
+  test('logout updates lastLogoutAt', async () => {
+    userRepository.updateById.mockResolvedValue(1);
+    const ok = await userService.logout('u1');
+    expect(ok).toBe(true);
+    expect(userRepository.updateById).toHaveBeenCalledWith('u1', expect.objectContaining({ lastLogoutAt: expect.any(Date) }));
+  });
+
+  test('deleteUserByUserId handles not found', async () => {
+    userRepository.deleteById.mockResolvedValue(0);
+    const ok = await userService.deleteUserByUserId('no');
+    expect(ok).toBe(false);
   });
 
   test('forgotPassword returns true for unknown email', async () => {
