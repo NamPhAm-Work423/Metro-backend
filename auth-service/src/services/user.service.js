@@ -246,6 +246,19 @@ class UserService {
                         error: err.message,
                         userId: user.id
                     })),
+                
+                Promise.resolve(
+                    userEventProducer.publishUserLogin({
+                        userId: user.id,
+                        email: user.email,
+                        username: user.username,
+                        roles: user.roles
+                    })
+                ).then(() => logger.debug('User.login event published in background', { userId: user.id, email }))
+                 .catch(err => logger.error('Failed to publish user.login event in background', {
+                        error: err.message,
+                        userId: user.id
+                 })),
             ];
 
             // Run all background tasks

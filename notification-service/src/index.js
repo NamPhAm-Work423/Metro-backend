@@ -8,6 +8,7 @@ const VonageSmsProvider = require('./services/providers/vonage.provider');
 const TemplateService = require('./services/template.service');
 const NotificationEventHandler = require('./events/notification.event');
 const { startAuthConsumer } = require('./events/auth.consumer');
+const TicketConsumer = require('./events/ticket.consumer');
 const { initializeRedis } = require('./config/redis');
 const { sequelize } = require('./models');
 
@@ -48,6 +49,9 @@ async function start() {
 	const templateService = new TemplateService();
 	const notificationService = new NotificationService({ emailProvider, smsProvider, templateService });
 	const eventHandler = new NotificationEventHandler(notificationService);
+	
+	// Initialize ticket consumer
+	const ticketConsumer = new TicketConsumer(notificationService);
 
 	// Start HTTP server
 	const app = new App().getApp();
@@ -77,10 +81,19 @@ async function start() {
 
 	// Kafka consumer (auth topics)
 	startAuthConsumer(eventHandler);
+	
+	// Start ticket consumer
+	await ticketConsumer.start();
 
 	// Graceful shutdown
-	const shutdown = (signal) => {
+	const shutdown = async (signal) => {
 		logger.info(`Received ${signal}, shutting down...`);
+		
+		// Stop ticket consumer
+		await ticketConsumer.stop().catch(err => 
+			logger.error('Error stopping ticket consumer', { error: err.message })
+		);
+		
 		server.close(() => process.exit(0));
 	};
 	process.on('SIGINT', () => shutdown('SIGINT'));

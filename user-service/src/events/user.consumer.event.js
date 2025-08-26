@@ -166,7 +166,7 @@ class UserEventConsumer {
 
             // Execute all profile creation in parallel
             if (createPromises.length > 0) {
-                await Promise.all(createPromises);
+                const results = await Promise.all(createPromises);
                 logger.info('All user profiles created successfully', {
                     userId: payload.userId,
                     roles: payload.roles,
@@ -221,6 +221,8 @@ class UserEventConsumer {
                     firstName: 'Admin',
                     lastName: 'User',
                     phoneNumber: '0000000000',
+                    email: userData.email || null,
+                    fullName: 'Admin User',
                     dateOfBirth: null,
                     gender: null,
                     updatedAt: new Date().toISOString()
@@ -261,6 +263,7 @@ class UserEventConsumer {
                 firstName: passenger.firstName,
                 lastName: passenger.lastName,
                 phoneNumber: passenger.phoneNumber,
+                email: userData.email,
                 dateOfBirth: passenger.dateOfBirth,
                 gender: passenger.gender,
                 updatedAt: new Date().toISOString()

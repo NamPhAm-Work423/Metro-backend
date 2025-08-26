@@ -5,10 +5,8 @@ const { createPaypalPayment, createPayment } = require('../services/payment.serv
 const {
     publishTicketPaymentReady,
     publishTicketPaymentReadyFallback,
-    publishPaymentCompleted,
     publishTicketPaymentReadyNonPaypal,
     publishPaymentFailed,
-    publishPaymentCompletedForActivation,
     publishPaymentCancelled
 } = require('./payment.producer');
 
@@ -255,12 +253,8 @@ async function handleTicketCreated(event) {
                 // Publish events in parallel
                 const parallelOperations = [];
 
-                // Add publish operations
-                if (paymentId && ticketId) {
-                    parallelOperations.push(
-                        publishPaymentCompleted(paymentId, ticketId, passengerId, exchangeVNDtoUSD(amount), paymentMethod)
-                    );
-                }
+                // Note: For non-PayPal payments, we only publish payment_ready
+                // payment.completed will be published later when webhook/callback arrives
 
                 if (ticketId && paymentId) {
                     parallelOperations.push(
@@ -310,65 +304,6 @@ async function handleTicketCreated(event) {
     }
 }
 
-/**
- * Handle ticket.activated event (when payment is completed)
- * Updates payment status and creates transaction
- */
-async function handleTicketActivated(event) {
-    try {
-        const { 
-            ticketId, 
-            paymentId, 
-            passengerId, 
-            status,
-            paymentData 
-        } = event;
-
-
-
-        const payment = await Payment.findOne({
-            where: { paymentId: paymentId }
-        });
-
-        if (!payment) {
-            logger.warn('Payment not found for ticket.activated event', { paymentId });
-            return;
-        }
-
-        payment.paymentStatus = 'COMPLETED';
-        payment.paymentGatewayResponse = {
-            ...payment.paymentGatewayResponse,
-            activationEvent: event,
-            paymentData: paymentData
-        };
-        await payment.save();
-
-        await Transaction.create({
-            paymentId: payment.paymentId,
-            transactionAmount: payment.paymentAmount,
-            transactionStatus: 'COMPLETED',
-        });
-
-        await PaymentLog.create({
-            paymentId: payment.paymentId,
-            paymentLogType: 'PAYMENT',
-            paymentLogDate: new Date(),
-            paymentLogStatus: 'COMPLETED',
-        });
-
-        await publishPaymentCompletedForActivation(paymentId, ticketId, passengerId, paymentData);
-
-
-
-    } catch (error) {
-        logger.error('Failed to handle ticket.activated event', {
-            ticketId: event.ticketId,
-            paymentId: event.paymentId,
-            error: error.message
-        });
-        throw error;
-    }
-}
 
 /**
  * Handle ticket.cancelled event
@@ -440,10 +375,6 @@ async function startTicketConsumer() {
             fromBeginning: false 
         });
         await consumer.subscribe({ 
-            topic: 'ticket.activated', 
-            fromBeginning: false 
-        });
-        await consumer.subscribe({ 
             topic: 'ticket.cancelled', 
             fromBeginning: false 
         });
@@ -462,9 +393,6 @@ async function startTicketConsumer() {
                     switch (topic) {
                         case 'ticket.created':
                             await handleTicketCreated(event);
-                            break;
-                        case 'ticket.activated':
-                            await handleTicketActivated(event);
                             break;
                         case 'ticket.cancelled':
                             await handleTicketCancelled(event);
@@ -508,7 +436,6 @@ module.exports = {
     startTicketConsumer,
     stopTicketConsumer,
     handleTicketCreated,
-    handleTicketActivated,
     handleTicketCancelled
 };
 

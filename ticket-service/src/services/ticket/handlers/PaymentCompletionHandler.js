@@ -1,4 +1,5 @@
 const { logger } = require('../../../config/logger');
+const { publishTicketActivated } = require('../../../events/ticket.producer');
 
 /**
  * Handler for payment completion logic following SOLID principles
@@ -9,38 +10,70 @@ class PaymentCompletionHandler {
     /**
      * Determine the appropriate ticket status after payment completion
      * @param {Object} ticket - The ticket object
+     * @param {Object} paymentData - Payment data from event
      * @returns {Object} Status update data
      */
-    static determineTicketStatusAfterPayment(ticket) {
+    static determineTicketStatusAfterPayment(ticket, paymentData = {}) {
         if (!ticket) {
             throw new Error('Ticket object is required');
         }
 
-        // Short-term tickets (fareId exists) become active immediately
+        // Short-term tickets (fareId exists) - check webhook confirmation
         if (ticket.fareId) {
-            logger.debug('Setting short-term ticket to active status', {
+            // Only activate if webhook has been processed
+            if (paymentData.webhookProcessed === true) {
+                logger.debug('Setting short-term ticket to active status (webhook confirmed)', {
+                    ticketId: ticket.ticketId,
+                    fareId: ticket.fareId,
+                    webhookProcessed: paymentData.webhookProcessed
+                });
+                
+                return {
+                    status: 'active',
+                    activatedAt: new Date(),
+                    updatedAt: new Date()
+                };
+            } else {
+                logger.debug('Setting short-term ticket to payment_confirmed status (awaiting webhook)', {
+                    ticketId: ticket.ticketId,
+                    fareId: ticket.fareId,
+                    webhookProcessed: paymentData.webhookProcessed
+                });
+                
+                return {
+                    status: 'payment_confirmed',
+                    activatedAt: null,
+                    updatedAt: new Date()
+                };
+            }
+        }
+        
+        // Long-term tickets (fareId is null) - same logic, check webhook
+        if (paymentData.webhookProcessed === true) {
+            logger.debug('Setting long-term ticket to inactive status (webhook confirmed)', {
                 ticketId: ticket.ticketId,
-                fareId: ticket.fareId
+                fareId: ticket.fareId,
+                webhookProcessed: paymentData.webhookProcessed
             });
             
             return {
-                status: 'active',
-                activatedAt: new Date(),
+                status: 'inactive',
+                activatedAt: null,
+                updatedAt: new Date()
+            };
+        } else {
+            logger.debug('Setting long-term ticket to payment_confirmed status (awaiting webhook)', {
+                ticketId: ticket.ticketId,
+                fareId: ticket.fareId,
+                webhookProcessed: paymentData.webhookProcessed
+            });
+            
+            return {
+                status: 'payment_confirmed',
+                activatedAt: null,
                 updatedAt: new Date()
             };
         }
-        
-        // Long-term tickets (fareId is null) become inactive, ready for activation
-        logger.debug('Setting long-term ticket to inactive status', {
-            ticketId: ticket.ticketId,
-            fareId: ticket.fareId
-        });
-        
-        return {
-            status: 'inactive',
-            activatedAt: null,
-            updatedAt: new Date()
-        };
     }
 
     /**
@@ -57,7 +90,7 @@ class PaymentCompletionHandler {
             return false;
         }
         
-        const validStatuses = ['pending_payment'];
+        const validStatuses = ['pending_payment', 'payment_confirmed', 'active']; // Accept pending_payment, payment_confirmed, and active status
         
         if (!validStatuses.includes(ticket.status)) {
             logger.warn('Ticket not in valid state for payment completion', {
@@ -95,9 +128,10 @@ class PaymentCompletionHandler {
             ticketId: ticket.ticketId,
             paymentId,
             ticketType,
-            previousStatus: 'pending_payment',
+            previousStatus: ticket.status,
             newStatus: updateData.status,
             isActive: updateData.status === 'active',
+            isPaymentConfirmed: updateData.status === 'payment_confirmed',
             paymentMethod: paymentData.paymentMethod,
             webhookProcessed: paymentData.webhookProcessed || false,
             activatedAt: updateData.activatedAt
@@ -135,15 +169,56 @@ class PaymentCompletionHandler {
             };
         }
 
+        // Handle duplicate events for already processed tickets
+        if (['active', 'payment_confirmed'].includes(ticket.status)) {
+            logger.info('Duplicate payment event for already processed ticket - ignoring', {
+                ticketId: ticket.ticketId,
+                paymentId,
+                currentStatus: ticket.status
+            });
+            
+            return {
+                success: true,
+                updateData: { status: ticket.status }, // No update needed
+                ticketType: this.getTicketTypeDescription(ticket),
+                duplicate: true
+            };
+        }
+
         try {
-            // Determine appropriate status
-            const updateData = this.determineTicketStatusAfterPayment(ticket);
+            // Determine appropriate status based on webhook confirmation
+            const updateData = this.determineTicketStatusAfterPayment(ticket, paymentData);
             
             // Apply update
             await ticket.update(updateData);
             
             // Log completion
             this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
+            
+            // Publish ticket activated event only if ticket becomes active (webhook confirmed)
+            if (updateData.status === 'active') {
+                try {
+                    await publishTicketActivated(ticket, paymentData);
+                    logger.info('Ticket activated event published successfully (webhook confirmed)', {
+                        ticketId: ticket.ticketId,
+                        paymentId,
+                        webhookProcessed: paymentData.webhookProcessed
+                    });
+                } catch (publishError) {
+                    logger.error('Failed to publish ticket activated event', {
+                        ticketId: ticket.ticketId,
+                        paymentId,
+                        error: publishError.message
+                    });
+                    // Don't fail the whole process if event publishing fails
+                }
+            } else if (updateData.status === 'payment_confirmed') {
+                logger.info('Ticket payment confirmed, awaiting webhook for activation', {
+                    ticketId: ticket.ticketId,
+                    paymentId,
+                    webhookProcessed: paymentData.webhookProcessed
+                });
+            }
             
             return {
                 success: true,

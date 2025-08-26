@@ -69,24 +69,35 @@ async function publishTicketPaymentReadyFallback(ticketId, paymentId, passengerI
 }
 
 /**
- * Publish payment.completed event for non-PayPal payments
+ * Publish payment.completed event
+ * @param {string} paymentId - Payment ID
+ * @param {string} ticketId - Ticket ID  
+ * @param {string} passengerId - Passenger ID
+ * @param {number} amount - Payment amount
+ * @param {string} paymentMethod - Payment method
+ * @param {Object} paymentData - Additional payment data (optional)
  */
-async function publishPaymentCompleted(paymentId, ticketId, passengerId, amount, paymentMethod) {
+async function publishPaymentCompleted(paymentId, ticketId, passengerId, amount, paymentMethod, paymentData = {}) {
     try {
         await publish('payment.completed', paymentId, {
             paymentId: paymentId,
             ticketId: ticketId,
             passengerId: passengerId,
-            amount: amount,
-            paymentMethod: paymentMethod,
             status: 'COMPLETED',
-            testMode: true
+            paymentData: {
+                amount: amount,
+                paymentMethod: paymentMethod,
+                webhookProcessed: paymentData.webhookProcessed || false,
+                ...paymentData
+            },
+            completedAt: new Date().toISOString()
         });
 
         logger.info('Published payment.completed event', {
             paymentId,
             ticketId,
-            paymentMethod
+            paymentMethod,
+            webhookProcessed: paymentData.webhookProcessed || false
         });
     } catch (error) {
         logger.error('Failed to publish payment.completed event', {
@@ -157,33 +168,8 @@ async function publishPaymentFailed(paymentId, ticketId, errorMessage) {
     }
 }
 
-/**
- * Publish payment.completed event for ticket activation
- */
-async function publishPaymentCompletedForActivation(paymentId, ticketId, passengerId, paymentData) {
-    try {
-        await publish('payment.completed', paymentId, {
-            paymentId: paymentId,
-            ticketId: ticketId,
-            passengerId: passengerId,
-            status: 'COMPLETED',
-            paymentData: paymentData,
-            completedAt: new Date().toISOString()
-        });
-
-        logger.info('Published payment.completed event for activation', {
-            paymentId,
-            ticketId
-        });
-    } catch (error) {
-        logger.error('Failed to publish payment.completed event for activation', {
-            error: error.message,
-            paymentId,
-            ticketId
-        });
-        throw error;
-    }
-}
+// Note: publishPaymentCompletedForActivation function removed
+// Payment completion should only be triggered by webhooks via paypal.hook.consumer.js
 
 /**
  * Publish payment.cancelled event
@@ -220,6 +206,5 @@ module.exports = {
     publishPaymentCompleted,
     publishTicketPaymentReadyNonPaypal,
     publishPaymentFailed,
-    publishPaymentCompletedForActivation,
     publishPaymentCancelled
 };

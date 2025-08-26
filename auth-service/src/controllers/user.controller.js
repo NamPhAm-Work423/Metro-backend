@@ -75,12 +75,6 @@ const userController = {
       };
 
       logger.info('User logged in successfully', { userId: user.id, email });
-      await userProducer.publishUserLogin({
-        userId: user.id,
-        email: user.email,
-        username: user.username,
-        roles: user.roles
-      });
 
       // Create session for user (in addition to JWT)
       logger.debug('About to create user session', {

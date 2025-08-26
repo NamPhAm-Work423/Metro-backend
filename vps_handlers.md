@@ -12,7 +12,8 @@ docker network prune -f
 docker image prune -af
 docker builder prune -af
 docker system prune -af --volumes 
-
+docker volume ls
+docker volume rm metro-backend_grafana_data metro-backend_loki_data metro-backend_pgadmin_data metro-backend_postgres_data metro-backend_redis_data metro-backend_mongodb_data 
 
 docker update --restart=no $(docker ps -aq)
 

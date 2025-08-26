@@ -1,5 +1,7 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
+const { logger } = require('../config/logger');
+const { publishTicketActivated } = require('../events/ticket.producer');
 
 const Ticket = sequelize.define('Ticket', {
     ticketId: {
@@ -13,6 +15,15 @@ const Ticket = sequelize.define('Ticket', {
         validate: {
             min: 0
         }
+    },
+    totalPassengers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+        validate: {
+            min: 1
+        },
+        comment: 'Total number of passengers for this ticket'
     },
     passengerId: {
         //The number of tickets bought is stored by passengerId
@@ -127,7 +138,7 @@ const Ticket = sequelize.define('Ticket', {
         comment: 'Payment reference ID - ticket create payment id then use this id to get payment detail'
     },
     status: {
-        type: DataTypes.ENUM('active', 'inactive', 'pending_payment', 'used', 'expired', 'cancelled'),
+        type: DataTypes.ENUM('active', 'inactive', 'pending_payment', 'payment_confirmed', 'used', 'expired', 'cancelled'),
         allowNull: false,
         defaultValue: 'inactive',
     },
@@ -261,8 +272,8 @@ Ticket.startCountDown = async function(ticketId) {
             throw new Error('Ticket is already active');
         }
 
-        // Check if ticket is paid
-        if (ticket.status !== 'paid') {
+        // Check if ticket is paid (can be 'payment_confirmed' or 'inactive' status)
+        if (!['payment_confirmed', 'inactive'].includes(ticket.status)) {
             throw new Error('Ticket must be paid before activation');
         }
 
@@ -284,6 +295,27 @@ Ticket.startCountDown = async function(ticketId) {
             validUntil: validUntil,
             passengerId: ticket.passengerId
         });
+
+        // Publish ticket activated event for notifications and other services
+        try {
+            const paymentData = {
+                paymentMethod: ticket.paymentMethod,
+                status: ticket.status,
+                gatewayResponse: null
+            };
+            
+            await publishTicketActivated(updatedTicket, paymentData);
+            logger.info('Ticket activated event published for long-term ticket', {
+                ticketId: ticket.ticketId,
+                ticketType: ticket.ticketType
+            });
+        } catch (publishError) {
+            logger.error('Failed to publish ticket activated event for long-term ticket', {
+                ticketId: ticket.ticketId,
+                error: publishError.message
+            });
+            // Don't fail the activation if event publishing fails
+        }
 
         return updatedTicket;
     } catch (error) {
@@ -329,21 +361,20 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
         for (let i = 0; i < category.count; i++) {
             ticketsToCreate.push({
                 totalPrice: finalPrice,
+                totalPassengers: 1, // Each ticket is for 1 passenger
                 fareId: fare.fareId,
                 promotionId: promotion ? promotion.promotionId : null,
                 originStationId: bookingData.fromStation,
                 destinationStationId: bookingData.toStation,
                 validFrom,
                 validUntil,
-                numberOfUses: bookingData.tripType.includes('pass') ? 'many' : 
-                            bookingData.tripType === 'Return' ? 'return' : 'single',
                 originalPrice,
                 discountAmount,
                 finalPrice,
                 ticketType: bookingData.tripType.toLowerCase(),
                 stationCount,
                 paymentMethod: 'card',
-                status: 'active'
+                status: 'pending_payment' // Tickets start as pending payment, not active
             });
         }
     }

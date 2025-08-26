@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vé Tàu Đã Hủy - Metro HCM</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .cancellation-card {
+            border: 2px solid #dc3545;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%);
+        }
+        .cancellation-icon {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .ticket-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .info-value {
+            color: #212529;
+            text-align: right;
+        }
+        .refund-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .refund-info h4 {
+            margin: 0 0 10px 0;
+            color: #0c5460;
+            font-size: 16px;
+        }
+        .refund-info p {
+            margin: 0;
+            color: #0c5460;
+        }
+        .contact-info {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #17a2b8;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>❌ Metro HCM</h1>
+            <p>Thông Báo Hủy Vé Tàu</p>
+        </div>
+
+        <div class="content">
+            <div class="cancellation-card">
+                <div class="cancellation-icon">🚫</div>
+                <h2 style="color: #dc3545; text-align: center; margin-bottom: 20px;">
+                    Vé Tàu Đã Được Hủy
+                </h2>
+                
+                <p style="text-align: center; color: #6c757d; margin-bottom: 30px;">
+                    Chúng tôi xin thông báo rằng vé tàu của bạn đã được hủy thành công.
+                </p>
+
+                <div class="ticket-info">
+                    <div class="info-item">
+                        <span class="info-label">Mã vé:</span>
+                        <span class="info-value">{{ticketId}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Thời gian hủy:</span>
+                        <span class="info-value">{{cancelledAt}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Lý do hủy:</span>
+                        <span class="info-value">{{reason}}</span>
+                    </div>
+                </div>
+
+                <div class="refund-info">
+                    <h4>💰 Thông Tin Hoàn Tiền</h4>
+                    <p>
+                        Số tiền hoàn lại sẽ được xử lý trong vòng 3-5 ngày làm việc. 
+                        Bạn sẽ nhận được email xác nhận khi hoàn tiền hoàn tất.
+                    </p>
+                </div>
+            </div>
+
+            <div class="contact-info">
+                <h3 style="color: #495057; margin-bottom: 15px;">
+                    Cần Hỗ Trợ?
+                </h3>
+                <p style="color: #6c757d; margin-bottom: 15px;">
+                    Nếu bạn có thắc mắc về việc hủy vé hoặc hoàn tiền, 
+                    vui lòng liên hệ với chúng tôi:
+                </p>
+                <p style="margin: 0;">
+                    <strong>Hotline:</strong> 1900-xxxx | 
+                    <strong>Email:</strong> support@metrohcm.io.vn
+                </p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #6c757d; margin-bottom: 15px;">
+                    Cảm ơn bạn đã sử dụng dịch vụ Metro HCM!
+                </p>
+                <a href="https://metrohcm.io.vn" 
+                   style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Mua Vé Mới
+                </a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Metro HCM. Tất cả quyền được bảo lưu.</p>
+            <p>
+                <a href="https://metrohcm.io.vn">Trang chủ</a> | 
+                <a href="https://metrohcm.io.vn/terms">Điều khoản sử dụng</a> | 
+                <a href="https://metrohcm.io.vn/privacy">Chính sách bảo mật</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

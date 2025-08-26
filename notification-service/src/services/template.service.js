@@ -87,7 +87,7 @@ class TemplateService {
 				} catch (fallbackErr) {
 					// Continue to next fallback
 					logger.debug('Fallback template failed', { 
-						fallbackPath: fallbackAbsolutePath,
+						fallbackPath,
 						error: fallbackErr.message 
 					});
 				}

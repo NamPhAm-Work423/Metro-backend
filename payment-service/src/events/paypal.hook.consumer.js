@@ -2,7 +2,7 @@ const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { Payment } = require('../models/index.model');
 const { 
-    publishPaymentCompletedForActivation,
+    publishPaymentCompleted,
     publishPaymentFailed,
     publishPaymentCancelled
 } = require('./payment.producer');
@@ -113,16 +113,16 @@ class PayPalHookConsumer {
                 captureId
             });
 
-            // Publish payment completed event for ticket activation
-            await publishPaymentCompletedForActivation(
+            // Publish payment completed event with webhook confirmation
+            await publishPaymentCompleted(
                 payment.paymentId,
                 payment.ticketId,
                 payment.passengerId,
+                captureAmount,
+                'paypal',
                 {
                     captureId: captureId,
-                    amount: captureAmount,
                     currency: currency,
-                    paymentMethod: 'paypal',
                     webhookProcessed: true,
                     payer: resource.payer
                 }
