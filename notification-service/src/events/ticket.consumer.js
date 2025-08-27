@@ -3,12 +3,21 @@ const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
 const QRCode = require('qrcode');
 const { publish: publishKafka } = require('../kafka/kafkaProducer');
+const PassengerCacheService = require('../cache/PassengerCacheService');
 
 class TicketConsumer {
     constructor(notificationService) {
         this.notificationService = notificationService;
         this.redisClient = getClient();
         this.eventConsumer = null;
+        
+        // Initialize PassengerCacheService with proper prefix
+        const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+        this.passengerCache = new PassengerCacheService(
+            this.redisClient, 
+            logger, 
+            `${SERVICE_PREFIX}user:passenger:`
+        );
     }
 
     /**
@@ -158,34 +167,12 @@ class TicketConsumer {
             const passengerData = await this.getPassengerFromCache(passengerId);
             
             if (!passengerData) {
-                logger.error('Passenger data not found in cache', { 
-                    ticketId, 
-                    passengerId 
+                await this.handlePassengerCacheMiss({
+                    ticketId,
+                    passengerId,
+                    payload,
+                    context: 'ticket.activated'
                 });
-                // Try to request a passenger cache sync if userId is available
-                if (payload.userId) {
-                    try {
-                        await publishKafka('passenger-sync-request', payload.userId, {
-                            eventType: 'passenger-sync-request',
-                            userId: payload.userId,
-                            requestedBy: 'notification-service',
-                            source: 'ticket.activated'
-                        });
-                        logger.info('Requested passenger cache sync due to cache miss', {
-                            userId: payload.userId,
-                            passengerId,
-                            ticketId
-                        });
-                    } catch (pubErr) {
-                        logger.warn('Failed to publish passenger-sync-request', { 
-                            error: pubErr.message,
-                            passengerId
-                        });
-                    }
-                } else {
-                    logger.warn('Cannot request passenger sync: missing userId in payload', { passengerId, ticketId });
-                }
-                // Skip sending notifications for now
                 return;
             }
 
@@ -597,29 +584,32 @@ class TicketConsumer {
     }
 
     /**
-     * Get passenger data from shared Redis cache
+     * Get passenger data from shared Redis cache using PassengerCacheService
      * @param {string} passengerId - Passenger ID
      * @returns {Object|null} Passenger data or null if not found
      */
     async getPassengerFromCache(passengerId) {
-        if (!this.redisClient) {
-            logger.warn('Redis client not available for passenger cache lookup');
+        if (!this.passengerCache || !this.redisClient) {
+            logger.warn('PassengerCacheService or Redis client not available for passenger cache lookup');
             return null;
         }
 
         try {
-            const cacheKey = `service:user:passenger:${passengerId}`;
-            const raw = await this.redisClient.get(cacheKey);
+            const passengerData = await this.passengerCache.getPassenger(passengerId);
             
-            if (!raw) {
-                logger.debug('Passenger not found in cache', { passengerId, cacheKey });
-                return null;
+            if (passengerData) {
+                logger.debug('Found passenger in cache via PassengerCacheService', { 
+                    passengerId,
+                    hasEmail: !!passengerData.email,
+                    hasUserId: !!passengerData.userId 
+                });
+            } else {
+                logger.debug('Passenger not found in cache via PassengerCacheService', { passengerId });
             }
-
-            const parsed = JSON.parse(raw);
-            return parsed.data || null;
+            
+            return passengerData;
         } catch (error) {
-            logger.warn('Failed to get passenger from cache', { 
+            logger.warn('Failed to get passenger from cache via PassengerCacheService', { 
                 passengerId, 
                 error: error.message 
             });
