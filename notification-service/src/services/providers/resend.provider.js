@@ -40,7 +40,16 @@ class ResendEmailProvider extends BaseProvider {
 			hasHtml: !!emailData.html,
 			hasText: !!emailData.text,
 			htmlLength: emailData.html?.length || 0,
-			textLength: emailData.text?.length || 0
+			textLength: emailData.text?.length || 0,
+			hasAttachments: !!emailData.attachments?.length,
+			attachmentCount: emailData.attachments?.length || 0,
+			attachmentDetails: emailData.attachments?.map(att => ({
+				filename: att.filename,
+				contentType: att.contentType,
+				cid: att.cid,
+				disposition: att.disposition,
+				contentLength: att.content?.length || 0
+			})) || []
 		});
 
 		try {
@@ -49,8 +58,9 @@ class ResendEmailProvider extends BaseProvider {
 			);
 			
 			// Enhanced success logging with full response
+			const responseId = response?.id || response?.data?.id;
 			logger.info('Resend API response received', { 
-				responseId: response?.id,
+				responseId,
 				responseData: response,
 				to: Array.isArray(to) ? to.join(', ') : to,
 				subject,
@@ -58,7 +68,7 @@ class ResendEmailProvider extends BaseProvider {
 			});
 
 			// Check if response indicates success
-			if (!response?.id) {
+			if (!responseId) {
 				logger.warn('Resend response missing ID - email may not have been queued', {
 					response,
 					to: Array.isArray(to) ? to.join(', ') : to,
@@ -66,7 +76,7 @@ class ResendEmailProvider extends BaseProvider {
 				});
 			}
 			
-			return this.createResponse(true, response?.id, 'resend', {
+			return this.createResponse(true, responseId, 'resend', {
 				originalResponse: response
 			});
 		} catch (error) {

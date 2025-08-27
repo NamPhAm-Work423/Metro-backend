@@ -221,13 +221,32 @@ async function handlePaymentReady(event) {
  */
 async function publishTicketActivated(ticket, paymentData) {
     try {
+        // Calculate totalPassengers from fareBreakdown if not available
+        let totalPassengers = ticket.totalPassengers;
+        if (!totalPassengers && ticket.fareBreakdown?.totalPassengers) {
+            totalPassengers = ticket.fareBreakdown.totalPassengers;
+        } else if (!totalPassengers && ticket.fareBreakdown?.passengerBreakdown) {
+            // Calculate from passengerBreakdown if available
+            const breakdown = ticket.fareBreakdown.passengerBreakdown;
+            if (Array.isArray(breakdown)) {
+                totalPassengers = breakdown.reduce((total, item) => total + (item.count || 0), 0);
+            } else if (typeof breakdown === 'object') {
+                totalPassengers = Object.values(breakdown).reduce((total, count) => total + (typeof count === 'number' ? count : 0), 0);
+            }
+        }
+        // Default to 1 if still not calculated
+        totalPassengers = totalPassengers || 1;
+
         const eventData = {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
             qrCode: ticket.qrCode,
             totalPrice: ticket.totalPrice,
-            totalPassengers: ticket.totalPassengers,
+            totalPassengers: totalPassengers,
+            originStationId: ticket.originStationId,
+            destinationStationId: ticket.destinationStationId,
+            ticketType: ticket.ticketType, 
             paymentMethod: paymentData.paymentMethod,
             paymentStatus: paymentData.status,
             gatewayResponse: paymentData.gatewayResponse,
@@ -237,21 +256,41 @@ async function publishTicketActivated(ticket, paymentData) {
                 paymentMethod: paymentData.paymentMethod,
                 paymentStatus: paymentData.status,
                 gatewayResponse: paymentData.gatewayResponse
-            },
-            activatedAt: new Date().toISOString()
+            }
+            // REMOVED duplicate activatedAt field
         };
+
+        // Enhanced logging for debugging
+        logger.debug('Publishing ticket activated event with full data', {
+            ticketId: ticket.ticketId,
+            paymentId: ticket.paymentId,
+            passengerId: ticket.passengerId,
+            totalPrice: ticket.totalPrice,
+            totalPassengers: totalPassengers,
+            ticketType: ticket.ticketType,
+            originStationId: ticket.originStationId,
+            destinationStationId: ticket.destinationStationId,
+            qrCodeLength: ticket.qrCode?.length || 0,
+            hasQrCode: !!ticket.qrCode,
+            paymentMethod: paymentData.paymentMethod,
+            paymentStatus: paymentData.status
+        });
 
         await publish('ticket.activated', ticket.ticketId, eventData);
         
-        logger.info('Ticket activated event published', {
+        logger.info('Ticket activated event published successfully', {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
+            passengerId: ticket.passengerId,
+            totalPassengers: totalPassengers,
+            ticketType: ticket.ticketType,
             status: 'active'
         });
     } catch (error) {
         logger.error('Failed to publish ticket activated event', {
             ticketId: ticket.ticketId,
-            error: error.message
+            error: error.message,
+            stack: error.stack
         });
         throw error;
     }

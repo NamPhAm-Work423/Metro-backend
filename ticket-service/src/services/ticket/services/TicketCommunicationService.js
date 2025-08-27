@@ -182,24 +182,75 @@ class TicketCommunicationService {
     }
 
     /**
-     * Generate QR code data for ticket
+     * Generate QR code data for ticket - COMPACT VERSION
+     * Only includes essential information needed for gate validation
      * @param {Object} ticket - Ticket object
-     * @returns {Object} QR code data
+     * @returns {Object} Compact QR code data
      */
     generateQRData(ticket) {
-        return {
+        // Create compact QR data with only essential info
+        const compactData = {
+            ticketId: ticket.ticketId || this._generateShortId(),
             passengerId: ticket.passengerId,
             originStationId: ticket.originStationId,
             destinationStationId: ticket.destinationStationId,
             validFrom: ticket.validFrom,
             validUntil: ticket.validUntil,
-            status: 'active',
-            ticketType: ticket.ticketType.toLowerCase(),
+            status: ticket.status || 'active',
+            ticketType: ticket.ticketType?.toLowerCase() || 'single',
             totalPrice: ticket.totalPrice,
-            totalPassengers: ticket.fareBreakdown?.totalPassengers || 1,
-            passengerBreakdown: ticket.fareBreakdown?.passengerBreakdown || {},
+            totalPassengers: ticket.fareBreakdown?.totalPassengers || 
+                           ticket.totalPassengers || 
+                           this._calculateTotalPassengers(ticket.fareBreakdown?.passengerBreakdown),
             createdAt: new Date().toISOString()
         };
+
+        // Log QR data size for monitoring
+        const qrDataSize = JSON.stringify(compactData).length;
+        logger.debug('Generated compact QR data', {
+            ticketId: ticket.ticketId,
+            qrDataSize,
+            totalPassengers: compactData.totalPassengers,
+            ticketType: compactData.ticketType
+        });
+
+        // Warn if QR data is still large
+        if (qrDataSize > 1000) {
+            logger.warn('QR data is large, may cause scanning issues', {
+                ticketId: ticket.ticketId,
+                qrDataSize,
+                threshold: 1000
+            });
+        }
+
+        return compactData;
+    }
+
+    /**
+     * Calculate total passengers from breakdown if available
+     * @private
+     */
+    _calculateTotalPassengers(passengerBreakdown) {
+        if (!passengerBreakdown || typeof passengerBreakdown !== 'object') {
+            return 1;
+        }
+
+        if (Array.isArray(passengerBreakdown)) {
+            return passengerBreakdown.reduce((total, item) => total + (item.count || 0), 0) || 1;
+        }
+
+        // Handle object format
+        return Object.values(passengerBreakdown).reduce((total, count) => {
+            return total + (typeof count === 'number' ? count : 0);
+        }, 0) || 1;
+    }
+
+    /**
+     * Generate short ticket ID for QR if not available
+     * @private
+     */
+    _generateShortId() {
+        return `TKT_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
     }
 
     /**

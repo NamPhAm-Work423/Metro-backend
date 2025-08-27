@@ -177,62 +177,178 @@
             {{/if}}
             
             <div class="ticket-card">
-                <div class="route-info">
-                    <div class="station">
-                        <h3>{{fromStation}}</h3>
-                        <p>Ga đi</p>
-                    </div>
-                    <div class="arrow">→</div>
-                    <div class="station">
-                        <h3>{{toStation}}</h3>
-                        <p>Ga đến</p>
-                    </div>
-                </div>
+                <!-- Route Info - Table layout -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed #dee2e6;">
+                    <tr>
+                        <td align="center" width="40%" style="vertical-align: top;">
+                            <h3 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 18px; font-weight: 600;">{{fromStation}}</h3>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px;">Ga đi</p>
+                        </td>
+                        <td align="center" width="20%" style="vertical-align: middle;">
+                            <span style="font-size: 24px; color: #007bff;">→</span>
+                        </td>
+                        <td align="center" width="40%" style="vertical-align: top;">
+                            <h3 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 18px; font-weight: 600;">{{toStation}}</h3>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px;">Ga đến</p>
+                        </td>
+                    </tr>
+                </table>
 
-                <div class="ticket-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Mã vé:</span>
-                        <span class="detail-value">{{ticketId}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Loại vé:</span>
-                        <span class="detail-value">{{ticketType}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Ngày đi:</span>
-                        <span class="detail-value">{{departureDate}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Giờ đi:</span>
-                        <span class="detail-value">{{departureTime}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Giá vé:</span>
-                        <span class="detail-value">{{price}} VNĐ</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Trạng thái:</span>
-                        <span class="detail-value">
-                            {{#if isActive}}
-                                <span class="status-active">Có hiệu lực</span>
+                <!-- Ticket Details - Table layout -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 15px; margin: 20px 0; border: 1px solid #dee2e6;">
+                    <tr>
+                        <td style="padding: 25px;">
+                            <!-- Ticket ID -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🎫 Mã vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #495057; font-weight: 600; font-family: 'Courier New', monospace; background: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">{{ticketId}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Ticket Type -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🎟️ Loại vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #495057; font-weight: 600; background: #e3f2fd; padding: 4px 10px; border-radius: 12px; font-size: 13px;">{{ticketType}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Departure Date -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">📅 Ngày đi:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureDate}}</td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Departure Time -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🕐 Giờ đi:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureTime}}</td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Price -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">💰 Giá vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #28a745; font-weight: 700; font-size: 16px; background: #d4edda; padding: 6px 12px; border-radius: 8px;">{{price}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Status -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td style="padding: 12px 0 0 0; color: #6c757d; font-weight: 500; font-size: 14px;">📋 Trạng thái:</td>
+                                    <td align="right" style="padding: 12px 0 0 0;">
+                                        {{#if isActive}}
+                                            <span style="color: #155724; background: #d4edda; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; border: 1px solid #c3e6cb;">✅ Có hiệu lực</span>
+                                        {{else}}
+                                            <span style="color: #721c24; background: #f8d7da; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; border: 1px solid #f5c6cb;">❌ Hết hạn</span>
+                                        {{/if}}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- QR Code Section - Table-based layout for email compatibility -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; background: #f8f9fa; border-radius: 12px;">
+                    <tr>
+                        <td align="center" style="padding: 20px;">
+                            <h4 style="margin: 0 0 20px 0; color: #495057; font-size: 18px; font-weight: 600;">🎫 Mã QR Vé</h4>
+                            
+                            {{#if qrCodeImage}}
+                                <!-- QR Code Image Container -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: white; border-radius: 10px; margin: 0 auto;">
+                                    <tr>
+                                        <td align="center" style="padding: 15px;">
+                                            <img src="{{qrCodeImage}}" alt="QR Code cho vé {{ticketId}}" 
+                                                 width="180" height="180" 
+                                                 style="display: block; border-radius: 8px; max-width: 100%;" />
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Success Message -->
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                    <tr>
+                                        <td align="center" style="padding-top: 15px;">
+                                            <p style="margin: 0; color: #28a745; font-weight: 600; font-size: 14px;">
+                                                ✅ Mã QR đã sẵn sàng sử dụng
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
                             {{else}}
-                                <span class="status-expired">Hết hạn</span>
+                                <!-- Fallback Text QR Code -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: white; border-radius: 10px; margin: 0 auto; max-width: 400px;">
+                                    <tr>
+                                        <td align="center" style="padding: 20px;">
+                                            <div style="font-family: 'Courier New', monospace; font-size: 11px; word-break: break-all; color: #495057; line-height: 1.4; border: 2px dashed #ddd; padding: 15px; border-radius: 8px;">
+                                                {{#if qrCode}}{{qrCode}}{{else}}{{ticketId}}{{/if}}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Warning Message -->
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                    <tr>
+                                        <td align="center" style="padding-top: 10px;">
+                                            <p style="margin: 0; color: #ffc107; font-weight: 600; font-size: 14px;">
+                                                ⚠️ Hiển thị mã này tại ga
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
                             {{/if}}
-                        </span>
-                    </div>
-                </div>
+                            
+                            <!-- Instructions -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding-top: 10px;">
+                                        <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.4;">
+                                            📱 Quét mã QR này tại cổng soát vé để vào ga<br>
+                                            <em>Hoặc hiển thị mã trên điện thoại cho nhân viên</em>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
 
-                <div class="qr-section">
-                    <h4 style="margin-bottom: 15px; color: #495057;">Mã QR Vé</h4>
-                    {{#if qrCodeImage}}
-                        <img src="{{qrCodeImage}}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto 15px auto;border-radius:8px;" />
-                    {{else}}
-                        <div class="qr-code">{{qrCode}}</div>
-                    {{/if}}
-                    <p style="margin: 0; color: #6c757d; font-size: 12px;">
-                        Quét mã QR này tại cổng soát vé để vào ga
-                    </p>
-                </div>
+                            <!-- Backup Ticket ID -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 15px;">
+                                <tr>
+                                    <td align="center">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff; max-width: 400px;">
+                                            <tr>
+                                                <td style="padding: 10px;">
+                                                    <p style="margin: 0; color: #0056b3; font-size: 12px; font-weight: 500; text-align: center;">
+                                                        💡 <strong>Mã vé:</strong> {{ticketId}}
+                                                    </p>
+                                                    <p style="margin: 5px 0 0 0; color: #0056b3; font-size: 11px; text-align: center;">
+                                                        Sử dụng mã này nếu QR code không hoạt động
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+                </table>
             </div>
 
             <div class="important-notice">

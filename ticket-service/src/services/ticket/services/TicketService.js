@@ -72,13 +72,69 @@ class TicketService extends ITicketService {
     }
 
     /**
-     * Private helper method to generate QR code data
+     * Private helper method to generate QR code data with validation
      * @param {Object} qrData - QR data object
      * @returns {string} Base64 encoded QR code
      */
     _generateQRCode(qrData) {
-        const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
-        return qrCodeData;
+        try {
+            // Validate QR data
+            if (!qrData || typeof qrData !== 'object') {
+                throw new Error('QR data must be a valid object');
+            }
+
+            // Essential validation
+            if (!qrData.ticketId && !qrData.passengerId) {
+                throw new Error('QR data must contain either ticketId or passengerId');
+            }
+
+            // Serialize and check size
+            const qrDataString = JSON.stringify(qrData);
+            const qrDataSize = qrDataString.length;
+
+            // Log QR generation metrics
+            logger.debug('Generating QR code', {
+                ticketId: qrData.ticketId,
+                passengerId: qrData.passengerId,
+                qrDataSize,
+                fields: Object.keys(qrData)
+            });
+
+            // Size validation with warnings
+            if (qrDataSize > 2048) {
+                logger.error('QR data too large, may not be scannable', {
+                    ticketId: qrData.ticketId,
+                    qrDataSize,
+                    maxRecommended: 2048
+                });
+                throw new Error(`QR data size (${qrDataSize} bytes) exceeds maximum recommended size (2048 bytes)`);
+            } else if (qrDataSize > 1000) {
+                logger.warn('QR data is large, may cause slow scanning', {
+                    ticketId: qrData.ticketId,
+                    qrDataSize,
+                    recommendedMax: 1000
+                });
+            }
+
+            // Generate base64 encoded QR data
+            const qrCodeData = Buffer.from(qrDataString).toString('base64');
+            
+            logger.debug('QR code generated successfully', {
+                ticketId: qrData.ticketId,
+                originalSize: qrDataSize,
+                encodedSize: qrCodeData.length
+            });
+
+            return qrCodeData;
+
+        } catch (error) {
+            logger.error('Failed to generate QR code', {
+                error: error.message,
+                ticketId: qrData?.ticketId,
+                qrDataKeys: qrData ? Object.keys(qrData) : 'undefined'
+            });
+            throw new Error(`QR code generation failed: ${error.message}`);
+        }
     }
 
     /**
@@ -236,8 +292,9 @@ class TicketService extends ITicketService {
             const validUntil = new Date(validFrom);
             validUntil.setDate(validUntil.getDate() + 30);
 
-            // Generate QR code data for the new ticket
+            // Generate QR code data for the new ticket - COMPACT VERSION
             const qrData = this.communication.generateQRData({
+                ticketId: null, // Will be set after ticket creation
                 passengerId: ticketData.passengerId,
                 originStationId: journeyDetails.routeSegments[0].originStationId,
                 destinationStationId: journeyDetails.routeSegments[journeyDetails.routeSegments.length - 1].destinationStationId,
@@ -245,17 +302,18 @@ class TicketService extends ITicketService {
                 validUntil: validUntil,
                 ticketType: ticketData.tripType.toLowerCase(),
                 totalPrice: finalPrice,
+                totalPassengers: journeyDetails.totalPassengers || totalPassengers,
+                // Only include essential breakdown info, NOT the full complex objects
                 fareBreakdown: {
                     totalPassengers: journeyDetails.totalPassengers || totalPassengers,
-                    passengerBreakdown: passengerBreakdown,
-                    journeyDetails: journeyDetails
+                    passengerBreakdown: passengerBreakdown // This should be compact passenger counts only
                 }
             });
 
-            // Generate QR code as base64
-            const qrCodeData = this._generateQRCode(qrData);
+            // Generate temporary QR code (will be updated after ticket creation)
+            const tempQrCodeData = this._generateQRCode(qrData);
 
-            // Create ticket with QR code
+            // Create ticket with temporary QR code
             const ticket = await this.repository.create({
                 passengerId: ticketData.passengerId,
                 tripId: ticketData.tripId || null,
@@ -279,8 +337,29 @@ class TicketService extends ITicketService {
                     totalPassengers: journeyDetails.totalPassengers || totalPassengers
                 },
                 paymentMethod: ticketData.paymentMethod,
-                qrCode: qrCodeData
+                qrCode: tempQrCodeData
             });
+
+            // Update QR code with actual ticketId after ticket creation
+            try {
+                const finalQrData = { ...qrData, ticketId: ticket.ticketId };
+                const finalQrCodeData = this._generateQRCode(finalQrData);
+                
+                await this.repository.update(ticket.ticketId, { qrCode: finalQrCodeData });
+                
+                // Update the ticket object for return
+                ticket.qrCode = finalQrCodeData;
+                
+                logger.debug('Updated QR code with final ticketId', {
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId
+                });
+            } catch (qrUpdateError) {
+                logger.warn('Failed to update QR code with ticketId, using temporary QR', {
+                    ticketId: ticket.ticketId,
+                    error: qrUpdateError.message
+                });
+            }
 
             // Increment promotion usage only after successful ticket creation
             await this._incrementPromotionUsage(
@@ -421,18 +500,22 @@ class TicketService extends ITicketService {
             // Calculate validity period based on pass type
             const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.passType);
 
-            // Generate QR code data for the new pass ticket
+            // Generate QR code data for the new pass ticket - COMPACT VERSION
             const qrData = this.communication.generateQRData({
+                ticketId: null, // Will be set after ticket creation
                 passengerId: ticketData.passengerId,
+                originStationId: null, // Passes work between any stations
+                destinationStationId: null, // Passes work between any stations
                 passType: ticketData.passType,
                 validFrom: validFrom,
                 validUntil: validUntil,
                 ticketType: ticketData.passType,
-                totalPrice: finalPrice
+                totalPrice: finalPrice,
+                totalPassengers: 1 // Passes are typically for 1 person
             });
 
-            // Generate QR code as base64
-            const qrCodeData = this._generateQRCode(qrData);
+            // Generate temporary QR code (will be updated after ticket creation)
+            const tempQrCodeData = this._generateQRCode(qrData);
 
             // Create ticket for long-term pass with QR code
             const ticket = await this.repository.create({
@@ -460,8 +543,30 @@ class TicketService extends ITicketService {
                     currency: transitPass.currency
                 },
                 paymentMethod: ticketData.paymentMethod || 'vnpay',
-                qrCode: qrCodeData
+                qrCode: tempQrCodeData
             });
+
+            // Update QR code with actual ticketId after ticket creation
+            try {
+                const finalQrData = { ...qrData, ticketId: ticket.ticketId };
+                const finalQrCodeData = this._generateQRCode(finalQrData);
+                
+                await this.repository.update(ticket.ticketId, { qrCode: finalQrCodeData });
+                
+                // Update the ticket object for return
+                ticket.qrCode = finalQrCodeData;
+                
+                logger.debug('Updated pass QR code with final ticketId', {
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId,
+                    passType: ticketData.passType
+                });
+            } catch (qrUpdateError) {
+                logger.warn('Failed to update pass QR code with ticketId, using temporary QR', {
+                    ticketId: ticket.ticketId,
+                    error: qrUpdateError.message
+                });
+            }
 
             // Increment promotion usage only after successful ticket creation
             await this._incrementPromotionUsage(

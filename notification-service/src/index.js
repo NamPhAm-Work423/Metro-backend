@@ -26,8 +26,10 @@ async function start() {
 	
 	// Initialize database
 	try {
-		await sequelize.sync({ alter: true }); // Use alter in development, force: false in production
-		logger.info('Database synchronized successfully');
+		const syncMode = (process.env.DB_SYNC_MODE || 'safe').toLowerCase();
+		const syncOptions = syncMode === 'alter' ? { alter: true } : { force: false };
+		await sequelize.sync(syncOptions);
+		logger.info('Database synchronized successfully', { syncMode });
 	} catch (error) {
 		logger.error('Database initialization failed', { error: error.message });
 		// Don't exit - service should work without database logging
