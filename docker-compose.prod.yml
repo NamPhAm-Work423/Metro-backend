@@ -80,7 +80,7 @@ services:
     env_file:
       - /opt/env/auth-service.env
     environment:
-      - NEED_EMAIL_VERIFICATION=true  # Easier for dev
+      - NEED_EMAIL_VERIFICATION=true  # Require email verification in production
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false
     expose:

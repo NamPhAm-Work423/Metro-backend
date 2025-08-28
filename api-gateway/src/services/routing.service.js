@@ -124,7 +124,22 @@ class RoutingService {
             const proxyMiddleware = httpProxy(path, {
                 proxyTimeout: 10000,
                 timeout: 10000,
-                                proxyReqPathResolver: function (req) {
+                preserveHostHdr: true,
+                skipTooBusy: true,
+                // Handle response errors and preserve status codes
+                userResDecorator: function(proxyRes, proxyResData, userReq, userRes) {
+                    userRes.status(proxyRes.statusCode);
+                    
+                    logger.debug('Forwarding response from downstream service', {
+                        service: endPoint,
+                        statusCode: proxyRes.statusCode,
+                        path: userReq.url,
+                        contentType: proxyRes.headers['content-type']
+                    });
+                    
+                    return proxyResData;
+                },
+                proxyReqPathResolver: function (req) {
                     const originalPath = req.url;
                     
                     const [pathPart, queryPart] = originalPath.split('?');
@@ -216,7 +231,14 @@ class RoutingService {
                         error: proxyError.message,
                         code: proxyError.code,
                     });
-                    reject(proxyError);
+                    
+                    // Create a more specific error with proper status code
+                    const statusCode = proxyError.statusCode || proxyError.status || 503;
+                    const customError = new CustomError(
+                        proxyError.message || `Service ${endPoint} unavailable`, 
+                        statusCode
+                    );
+                    reject(customError);
                 } else {
                     resolve();
                 }

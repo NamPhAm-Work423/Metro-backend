@@ -46,10 +46,19 @@ const routingController = {
                 stack: error.stack
             });
 
-            // Check if response has already been sent
+            // Check if response has already been sent or status set by proxy
             if (res.headersSent) {
                 logger.warn('Response already sent, skipping error response', {
                     endPoint,
+                    error: error.message
+                });
+                return;
+            }
+
+            if (res.statusCode !== 200) {
+                logger.info('Response status already set by proxy, preserving it', {
+                    endPoint,
+                    statusCode: res.statusCode,
                     error: error.message
                 });
                 return;

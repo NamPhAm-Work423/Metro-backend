@@ -72,7 +72,7 @@ class UserService {
             email,
             username,
             password: passwordHash,
-            isVerified: process.env.NEED_EMAIL_VERIFICATION === 'true' ? 'false' : 'true',
+            isVerified: process.env.NEED_EMAIL_VERIFICATION === 'true' ? false : true, 
             roles: roles || ['passenger'], // Default role is passenger
             loginAttempts: 0
         });
@@ -198,7 +198,7 @@ class UserService {
         }
 
         // Check if user is verified
-        if (process.env.NEED_EMAIL_VERIFICATION === 'true' && user.isVerified === 'false') {
+        if (process.env.NEED_EMAIL_VERIFICATION === 'true' && user.isVerified === false) { 
             throw new Error('Please verify your email address');
         }
 
