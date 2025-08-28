@@ -454,11 +454,13 @@ class TicketConsumer {
             const passengerData = await this.getPassengerFromCache(passengerId);
             
             if (!passengerData) {
-                logger.error('Passenger data not found in cache for cancellation', { 
-                    ticketId, 
-                    passengerId 
+                await this.handlePassengerCacheMiss({
+                    ticketId,
+                    passengerId,
+                    payload: { passengerId, reason },
+                    context: 'ticket.cancelled'
                 });
-                throw new Error(`Passenger data not found for ID: ${passengerId}`);
+                return;
             }
 
             const passengerEmail = passengerData.email;
@@ -614,6 +616,102 @@ class TicketConsumer {
                 error: error.message 
             });
             return null;
+        }
+    }
+
+    /**
+     * Handle passenger cache miss with comprehensive fallback mechanisms
+     * @param {Object} options - Cache miss handling options
+     * @param {string} options.ticketId - Ticket ID
+     * @param {string} options.passengerId - Passenger ID
+     * @param {Object} options.payload - Original event payload
+     * @param {string} options.context - Context where cache miss occurred
+     */
+    async handlePassengerCacheMiss({ ticketId, passengerId, payload, context }) {
+        logger.error('Passenger cache miss detected', {
+            ticketId,
+            passengerId,
+            context,
+            hasUserId: !!payload.userId,
+            payloadKeys: Object.keys(payload)
+        });
+
+        // Try to request passenger cache sync if userId is available
+        if (payload.userId) {
+            try {
+                await publishKafka('passenger-sync-request', payload.userId, {
+                    eventType: 'passenger-sync-request',
+                    userId: payload.userId,
+                    passengerId: passengerId,
+                    requestedBy: 'notification-service',
+                    source: context,
+                    ticketId: ticketId,
+                    timestamp: new Date().toISOString()
+                });
+                
+                logger.info('Requested passenger cache sync due to cache miss', {
+                    userId: payload.userId,
+                    passengerId,
+                    ticketId,
+                    context
+                });
+            } catch (pubErr) {
+                logger.error('Failed to publish passenger-sync-request', { 
+                    error: pubErr.message,
+                    passengerId,
+                    ticketId,
+                    userId: payload.userId
+                });
+            }
+        } else {
+            logger.warn('Cannot request passenger sync: missing userId in payload', { 
+                passengerId, 
+                ticketId,
+                context,
+                availableFields: Object.keys(payload)
+            });
+        }
+
+        // Store failed notification for potential retry
+        await this.logFailedNotification({
+            ticketId,
+            passengerId,
+            userId: payload.userId,
+            reason: 'passenger_cache_miss',
+            context,
+            payload: payload,
+            timestamp: new Date().toISOString()
+        });
+
+        logger.warn('Skipping notification due to passenger cache miss', {
+            ticketId,
+            passengerId,
+            context,
+            syncRequested: !!payload.userId
+        });
+    }
+
+    /**
+     * Log failed notification for debugging and potential retry
+     * @param {Object} failureData - Failure information
+     */
+    async logFailedNotification(failureData) {
+        try {
+            // Log to application logs for immediate visibility
+            logger.error('Notification failed and logged for review', {
+                ...failureData,
+                service: 'notification-service'
+            });
+
+            // TODO: Optionally store in database for admin review and retry
+            // This could be implemented to store in a failed_notifications table
+            // for admin dashboard and retry mechanisms
+            
+        } catch (logError) {
+            logger.error('Failed to log notification failure', {
+                error: logError.message,
+                originalFailure: failureData
+            });
         }
     }
 
