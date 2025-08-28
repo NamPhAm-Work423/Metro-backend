@@ -7,4 +7,5 @@ prophet==1.1.6
 pandas==2.2.2
 numpy==1.26.4
 joblib==1.4.2
+prometheus-client==0.19.0
 

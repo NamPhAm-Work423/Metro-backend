@@ -80,7 +80,7 @@ services:
     env_file:
       - /opt/env/auth-service.env
     environment:
-      - NEED_EMAIL_VERIFICATION=false  # Easier for dev
+      - NEED_EMAIL_VERIFICATION=true  # Easier for dev
       - NEED_API_KEY=false
       - SEND_ACCESS_TOKEN_TO_CLIENT=false
     expose:
@@ -471,14 +471,14 @@ services:
           memory: 512M
     <<: *default-restart
 
-  # MongoDB management interface for production
+  # MongoDB management interface - DEVELOPMENT/STAGING ONLY
   mongo-express:
     image: mongo-express:1.0.2
     container_name: mongo-express
     env_file:
       - /opt/env/init_db.env
-    ports:
-      - "8082:8081"  # External for admin access
+    expose:
+      - "8081"  # Internal only - access via nginx /mongo-express/
     depends_on:
       mongodb:
         condition: service_healthy
@@ -486,6 +486,8 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    profiles:
+      - admin-tools  # Only start with --profile admin-tools
 
   # Infra (internal-only)
   postgres:
@@ -511,13 +513,14 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+  # pgAdmin - DEVELOPMENT/STAGING ONLY - Remove in production
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
     env_file:
       - /opt/env/init_db.env
-    ports:
-      - "5050:5050"
+    expose:
+      - "5050"  # Internal only - access via nginx /pgadmin/
     depends_on:
       - postgres
     networks:
@@ -525,6 +528,8 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json:ro
+    profiles:
+      - admin-tools  # Only start with --profile admin-tools
 
 
 
@@ -796,6 +801,7 @@ services:
       - backend-network
     <<: *default-restart
 
+  # Redis management interface - DEVELOPMENT/STAGING ONLY  
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander
@@ -811,14 +817,16 @@ services:
         fi
         echo "Starting Redis Commander with authentication..."
         exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD"
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"  # Internal only - access via nginx /redis-commander/
     depends_on:
       - redis
     networks:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    profiles:
+      - admin-tools  # Only start with --profile admin-tools
 
 
   loki:
