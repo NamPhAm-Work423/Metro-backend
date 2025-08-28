@@ -6,7 +6,7 @@ const { getClient } = require('../config/redis');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
 const passengerProducer = require('./passenger.producer.event');
 
-const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
 
 class UserEventConsumer {
     constructor() {
@@ -213,7 +213,7 @@ class UserEventConsumer {
                 });
                 
                 const redisClient = getClient();
-                const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+                const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
                 
                 const adminPassengerData = {
                     passengerId: process.env.ADMIN_PASSENGER_ID, // Use userId as passengerId for admin
@@ -255,7 +255,7 @@ class UserEventConsumer {
             }
     
             const redisClient = getClient();
-            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
     
             const passengerData = {
                 passengerId: passenger.passengerId,

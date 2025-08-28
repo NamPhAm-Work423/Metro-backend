@@ -1,5 +1,5 @@
 class PassengerCacheService {
-    constructor(redisClient, logger, prefix = 'service:user:passenger:', ttl = 3600) {
+    constructor(redisClient, logger, prefix = 'metrohcm:user-service:user:passenger:', ttl = 3600) {
         this.redis = redisClient;
         this.logger = logger;
         this.keyPrefix = prefix;

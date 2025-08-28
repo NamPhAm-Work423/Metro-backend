@@ -8,6 +8,7 @@ const { publish } = require('../kafka/kafkaProducer');
 
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
 
 
 
@@ -36,7 +37,7 @@ class TicketController {
                 
                 // Check cache again
                 const redisClient = getClient();
-                const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+                const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
                 const passenger = await passengerCache.getPassengerByUserId(userId);
                 
                 if (passenger) {
@@ -70,7 +71,7 @@ class TicketController {
         if (passengerId) {
             // Direct lookup by passengerId
             const redisClient = getClient();
-            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
             passenger = await passengerCache.getPassenger(passengerId);
         } else {
             // Lookup by userId from JWT token
@@ -80,7 +81,7 @@ class TicketController {
                 throw new Error('User ID not found in request');
             }
             const redisClient = getClient();
-            const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+            const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
             passenger = await passengerCache.getPassengerByUserId(userId);
             if (passenger) {
                 passengerId = passenger.passengerId;

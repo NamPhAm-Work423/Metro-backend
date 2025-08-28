@@ -3,6 +3,7 @@ const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
 
 /**
  * Passenger cache consumer event for LEGACY CODE
@@ -27,7 +28,7 @@ class PassengerCacheConsumer {
             return;
         }
         const redisClient = getClient();
-        const passengerCache = new PassengerCacheService(redisClient, logger, `${SERVICE_PREFIX}user:passenger:`);
+        const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
         await passengerCache.setPassenger(passenger);
         
         logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {

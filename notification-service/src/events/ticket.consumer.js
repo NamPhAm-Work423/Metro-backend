@@ -12,11 +12,12 @@ class TicketConsumer {
         this.eventConsumer = null;
         
         // Initialize PassengerCacheService with proper prefix
-        const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+        // Based on actual Redis key: metrohcm:user-service:user:passenger:{passengerId}
+        const SERVICE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
         this.passengerCache = new PassengerCacheService(
             this.redisClient, 
             logger, 
-            `${SERVICE_PREFIX}user:passenger:`
+            `${SERVICE_PREFIX}user-service:user:passenger:`
         );
     }
 
