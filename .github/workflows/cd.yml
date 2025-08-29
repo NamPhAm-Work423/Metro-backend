@@ -107,7 +107,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
           VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
-          COMPOSE_PROFILES: nginx
+          COMPOSE_PROFILES: nginx,admin-tools
         shell: bash
         run: |
           set -euo pipefail
@@ -136,9 +136,10 @@ jobs:
             echo "No compose file found in $VPS_PATH" >&2; exit 1
           fi
           echo "Using tag: $IMAGE_TAG"
+          echo "Using profiles: $COMPOSE_PROFILES"
           $DOCKER_COMPOSE $COMPOSE_FILES pull || true
-          # Start core services first (without nginx profile), then bring up nginx
-          $DOCKER_COMPOSE $COMPOSE_FILES up -d --remove-orphans
+          # Start services with specified profiles (nginx + admin-tools)
+          $DOCKER_COMPOSE $COMPOSE_FILES --profile nginx --profile admin-tools up -d --remove-orphans
           docker image prune -f || true
           $DOCKER_COMPOSE $COMPOSE_FILES ps
 
