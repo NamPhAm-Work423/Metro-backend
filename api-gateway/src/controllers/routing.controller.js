@@ -55,7 +55,7 @@ const routingController = {
                 return;
             }
 
-            if (res.statusCode !== 200) {
+            if (typeof res.statusCode === 'number' && res.statusCode !== 200) {
                 logger.info('Response status already set by proxy, preserving it', {
                     endPoint,
                     statusCode: res.statusCode,

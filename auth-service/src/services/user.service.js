@@ -197,9 +197,15 @@ class UserService {
             throw new Error('Account is temporarily locked due to multiple failed login attempts');
         }
 
-        // Check if user is verified
-        if (process.env.NEED_EMAIL_VERIFICATION === 'true' && user.isVerified === false) { 
-            throw new Error('Please verify your email address');
+        // Check if user is verified (normalize possible string/number booleans from DB/mocks)
+        if (process.env.NEED_EMAIL_VERIFICATION === 'true') {
+            const isVerifiedNormalized = (user.isVerified === true)
+                || (user.isVerified === 'true')
+                || (user.isVerified === 1)
+                || (user.isVerified === '1');
+            if (!isVerifiedNormalized) {
+                throw new Error('Please verify your email address');
+            }
         }
 
         // Check password (only critical operation that must block)
@@ -210,13 +216,20 @@ class UserService {
         const isPasswordValid = await bcrypt.compare(sanitizedPassword, user.password);
         if (!isPasswordValid) {
             setImmediate(() => {
-                user.incLoginAttempts().catch(err => {
-                    logger.error('Failed to increment login attempts in background', {
-                        error: err.message,
+                if (typeof user.incLoginAttempts === 'function') {
+                    user.incLoginAttempts().catch(err => {
+                        logger.error('Failed to increment login attempts in background', {
+                            error: err.message,
+                            userId: user.id,
+                            email
+                        });
+                    });
+                } else {
+                    logger.warn('incLoginAttempts is not a function on user - skipping increment', {
                         userId: user.id,
                         email
                     });
-                });
+                }
             });
             throw new Error('Invalid email or password');
         }
