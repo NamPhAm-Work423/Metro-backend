@@ -217,6 +217,52 @@ describe('UserService', () => {
     const res = await userService.unlockUserAccount('u1', 'admin');
     expect(res.success).toBe(true);
   });
+
+  test('resendVerification success', async () => {
+    const mockUser = { id: 'u1', email: 'test@example.com', isVerified: false };
+    userRepository.findOne.mockResolvedValue(mockUser);
+    emailService.sendVerificationEmail = jest.fn().mockResolvedValue();
+    
+    const result = await userService.resendVerification('test@example.com');
+    
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Verification email sent successfully');
+    expect(userRepository.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+    
+    // Wait for setImmediate to complete
+    await new Promise(resolve => setImmediate(resolve));
+    expect(emailService.sendVerificationEmail).toHaveBeenCalledWith('test@example.com', expect.any(String));
+  });
+
+  test('resendVerification user not found', async () => {
+    userRepository.findOne.mockResolvedValue(null);
+    
+    await expect(userService.resendVerification('nonexistent@example.com'))
+      .rejects.toThrow('User not found');
+  });
+
+  test('resendVerification user already verified', async () => {
+    const mockUser = { id: 'u1', email: 'verified@example.com', isVerified: true };
+    userRepository.findOne.mockResolvedValue(mockUser);
+    
+    await expect(userService.resendVerification('verified@example.com'))
+      .rejects.toThrow('User is already verified');
+  });
+
+  test('resendVerification handles email service error gracefully', async () => {
+    const mockUser = { id: 'u1', email: 'test@example.com', isVerified: false };
+    userRepository.findOne.mockResolvedValue(mockUser);
+    emailService.sendVerificationEmail = jest.fn().mockRejectedValue(new Error('SMTP error'));
+    
+    const result = await userService.resendVerification('test@example.com');
+    
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Verification email sent successfully');
+    
+    // Wait for setImmediate to complete
+    await new Promise(resolve => setImmediate(resolve));
+    expect(emailService.sendVerificationEmail).toHaveBeenCalled();
+  });
 });
 
 

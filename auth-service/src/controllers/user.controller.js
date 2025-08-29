@@ -363,6 +363,65 @@ const userController = {
       next(error);
     }
   }),
+
+  resendVerification: asyncErrorHandler(async (req, res, next) => {
+    try {
+      const { email } = req.body;
+
+      // Validate email
+      if (!email || typeof email !== 'string' || !email.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required',
+          error: 'EMAIL_REQUIRED'
+        });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format',
+          error: 'INVALID_EMAIL_FORMAT'
+        });
+      }
+
+      const result = await userService.resendVerification(email.trim());
+
+      return res.status(200).json({
+        success: true,
+        message: 'Verification email sent successfully'
+      });
+    } catch (error) {
+      logger.error('Error resending verification email', { error: error.message, email: req.body?.email });
+      
+      // Handle specific error cases
+      if (error.message === 'User not found') {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      if (error.message === 'User is already verified') {
+        return res.status(400).json({
+          success: false,
+          message: 'User is already verified',
+          error: 'USER_ALREADY_VERIFIED'
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error resending verification email',
+        error: 'INTERNAL_SERVER_ERROR'
+      });
+
+      next(error);
+    }
+  })
 };
 
 module.exports = userController;

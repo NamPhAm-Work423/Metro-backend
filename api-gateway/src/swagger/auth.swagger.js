@@ -253,17 +253,12 @@
  *           schema:
  *             type: object
  *             required:
- *               - email
  *               - token
  *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: user@example.com
  *               token:
  *                 type: string
- *                 example: "123456"
- *                 description: 6-digit verification code
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5MzYzMmMxMi1mNzQ0LTQ2ZmYtOGI3NC1mY2RjNmIxMDg0MWQiLCJpYXQiOjE3NTU3ODk0MTQsImV4cCI6MTc1NTg3NTgxNH0.EiEVgUeFA2n8Xeo6Q1ZCQq_JVbPXtaYfT3dpApuKPU4"
+ *                 description: jwt verification token
  *     responses:
  *       200:
  *         description: Email verified successfully

@@ -176,6 +176,51 @@ class UserService {
         return { user };
     }
 
+    resendVerification = async (email) => {
+        const user = await userRepository.findOne({ email });
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // Check if user is already verified
+        if (user.isVerified) {
+            throw new Error('User is already verified');
+        }
+
+        // Generate new verification token
+        const verificationToken = jwt.sign(
+            { userId: user.id },
+            ACCESS_TOKEN_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        // Send verification email in background
+        setImmediate(() => {
+            if (typeof emailService.sendVerificationEmail === 'function') {
+                Promise.resolve(emailService.sendVerificationEmail(email, verificationToken))
+                    .then(() => {
+                        logger.info('Verification email resent successfully', { 
+                            userId: user.id, 
+                            email: user.email 
+                        });
+                    })
+                    .catch(err => {
+                        logger.error('Failed to resend verification email', { 
+                            error: err.message,
+                            userId: user.id,
+                            email: user.email 
+                        });
+                    });
+            } else {
+                logger.warn('emailService.sendVerificationEmail is not a function - skipping', { 
+                    userId: user.id, 
+                    email: user.email 
+                });
+            }
+        });
+
+        return { success: true, message: 'Verification email sent successfully' };
+    }
     /**
      * @description: Login user
      * @param {string} email - User email

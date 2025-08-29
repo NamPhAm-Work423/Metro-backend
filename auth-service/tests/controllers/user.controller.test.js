@@ -4,6 +4,7 @@ jest.mock('../../src/services/user.service', () => ({
   refreshToken: jest.fn(),
   forgotPassword: jest.fn(),
   resetPassword: jest.fn(),
+  resendVerification: jest.fn(),
 }));
 jest.mock('../../src/events/user.producer.event', () => ({ publishUserLogin: jest.fn().mockResolvedValue() }));
 
@@ -71,6 +72,49 @@ describe('user.controller', () => {
     const app = appWith(app => app.post('/refresh', userController.refreshToken));
     const res = await request(app).post('/refresh');
     expect(res.status).toBe(401);
+  });
+
+  test('resendVerification success', async () => {
+    userService.resendVerification.mockResolvedValue({ success: true, message: 'Verification email sent successfully' });
+    const app = appWith(app => app.post('/resend-verification', userController.resendVerification));
+    const res = await request(app).post('/resend-verification').send({ email: 'test@example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toBe('Verification email sent successfully');
+  });
+
+  test('resendVerification missing email', async () => {
+    const app = appWith(app => app.post('/resend-verification', userController.resendVerification));
+    const res = await request(app).post('/resend-verification').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('EMAIL_REQUIRED');
+  });
+
+  test('resendVerification invalid email format', async () => {
+    const app = appWith(app => app.post('/resend-verification', userController.resendVerification));
+    const res = await request(app).post('/resend-verification').send({ email: 'invalid-email' });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('INVALID_EMAIL_FORMAT');
+  });
+
+  test('resendVerification user not found', async () => {
+    userService.resendVerification.mockRejectedValue(new Error('User not found'));
+    const app = appWith(app => app.post('/resend-verification', userController.resendVerification));
+    const res = await request(app).post('/resend-verification').send({ email: 'nonexistent@example.com' });
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('USER_NOT_FOUND');
+  });
+
+  test('resendVerification user already verified', async () => {
+    userService.resendVerification.mockRejectedValue(new Error('User is already verified'));
+    const app = appWith(app => app.post('/resend-verification', userController.resendVerification));
+    const res = await request(app).post('/resend-verification').send({ email: 'verified@example.com' });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('USER_ALREADY_VERIFIED');
   });
 });
 
