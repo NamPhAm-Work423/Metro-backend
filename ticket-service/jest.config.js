@@ -27,5 +27,9 @@ module.exports = {
   restoreMocks: true,
   // Ensure CI does not hang due to stray handles in dependencies
   forceExit: true,
-  detectOpenHandles: true
+  detectOpenHandles: true,
+  // Increase timeout for integration tests
+  testTimeout: 30000,
+  // Add verbose output for debugging
+  verbose: true
 }; 

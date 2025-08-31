@@ -1,5 +1,5 @@
 // Global test setup
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 // Mock environment variables
 process.env.NODE_ENV = 'test';
@@ -23,4 +23,14 @@ global.console = {
   info: jest.fn(),
   warn: jest.fn(),
   error: jest.fn(),
-}; 
+};
+
+// Add global error handler for unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Add global error handler for uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+}); 

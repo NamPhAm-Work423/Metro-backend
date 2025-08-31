@@ -24,6 +24,9 @@ router.post('/:id/cancel', ...authorizeRoles('passenger', 'staff', 'admin'), tic
 router.post('/:id/phoneTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getPhoneTicket);
 router.post('/:id/mailTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMailTicket);
 
+//Ticket Using Route:
+router.post('/:id/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicket);
+router.post('/:qr-code/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicketByQRCode);
 // Public/Transit system validation (accessible by all authenticated users)
 router.get('/:id/validate', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.validateTicket);
 

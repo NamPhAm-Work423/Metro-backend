@@ -919,6 +919,105 @@ class TicketService extends ITicketService {
             throw error;
         }
     }
+
+    /**
+     * Use ticket
+     * @param {string} ticketId - Ticket ID
+     * @param {string} passengerId - Passenger ID
+     * @returns {Promise<Object>} Used ticket
+     */
+    async useTicket(ticketId, passengerId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            // Validate ticket ownership
+            if (ticket.passengerId !== passengerId) {
+                throw new Error('Unauthorized: Ticket does not belong to this passenger');
+            }
+            
+            // Validate ticket status
+            if (ticket.status === 'used') {
+                throw new Error('Ticket has already been used');
+            }
+            
+            if (ticket.status !== 'active') {
+                throw new Error('Ticket is not active and cannot be used');
+            }
+            
+            // Update ticket with used status and timestamp
+            const usedTicket = await ticket.update({
+                status: 'used',
+                usedAt: new Date()
+            });
+            
+            logger.info('Ticket used successfully', { 
+                ticketId, 
+                passengerId,
+                usedAt: usedTicket.usedAt
+            });
+            
+            return usedTicket;
+        } catch (error) {
+            logger.error('Error using ticket', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+
+    /**
+     * Use ticket by QR code (for staff/admin use)
+     * @param {string} qrCode - QR code string
+     * @param {string} staffId - Staff/Admin ID who is using the ticket
+     * @returns {Promise<Object>} Used ticket
+     */
+    async useTicketByQRCode(qrCode, staffId) {
+        try {
+            // Find ticket by QR code
+            const ticket = await Ticket.findOne({
+                where: { qrCode: qrCode }
+            });
+            
+            if (!ticket) {
+                throw new Error('Ticket not found with provided QR code');
+            }
+            
+            // Validate ticket status
+            if (ticket.status === 'used') {
+                throw new Error('Ticket has already been used');
+            }
+            
+            if (ticket.status !== 'active') {
+                throw new Error('Ticket is not active and cannot be used');
+            }
+            
+            // Validate ticket validity period
+            const now = new Date();
+            if (now < ticket.validFrom || now > ticket.validUntil) {
+                throw new Error('Ticket is not valid at this time');
+            }
+            
+            // Update ticket with used status and timestamp
+            const usedTicket = await ticket.update({
+                status: 'used',
+                usedAt: new Date()
+            });
+            
+            logger.info('Ticket used by QR code successfully', { 
+                ticketId: ticket.ticketId, 
+                qrCode,
+                staffId,
+                passengerId: ticket.passengerId,
+                usedAt: usedTicket.usedAt
+            });
+            
+            return usedTicket;
+        } catch (error) {
+            logger.error('Error using ticket by QR code', { error: error.message, qrCode, staffId });
+            throw error;
+        }
+    }
 }
 
 module.exports = new TicketService();

@@ -98,6 +98,16 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
       success: true, 
       data: { totalTickets: 100, activeTickets: 50 } 
     })),
+    useTicket: jest.fn((req, res) => res.status(200).json({ 
+      success: true, 
+      message: 'Ticket used successfully',
+      data: { ticketId: req.params.id, status: 'used' } 
+    })),
+    useTicketByQRCode: jest.fn((req, res) => res.status(200).json({ 
+      success: true, 
+      message: 'Ticket used successfully via QR code',
+      data: { ticketId: 'ticket-123', qrCode: req.params['qr-code'], status: 'used' } 
+    })),
     activateLongTermTicket: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       message: 'Long-term ticket activated successfully',
