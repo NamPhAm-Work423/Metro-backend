@@ -67,6 +67,7 @@ class CacheService {
             logger.info('Caching fare data to Redis');
             
             const fareData = await this.fareService.fetchAllTicketData();
+            logger.info('Fetching transit passes for caching');
             const transitPasses = await this.transitPassService.fetchAllTransitPasses();
             
             // Cache complete fare data
@@ -79,6 +80,7 @@ class CacheService {
             logger.info('Fare data cached successfully', {
                 fareCount: fareData.fares?.length || 0,
                 transitPassCount: transitPasses?.length || 0,
+                transitPasses: transitPasses?.map(p => ({ id: p.transitPassId, type: p.transitPassType })) || [],
                 ttl: this.cacheTTL
             });
             

@@ -7,9 +7,9 @@ class SchedulerService {
         this.cacheService = new CacheService();
         this.cronJob = null;
         this.isRunning = false;
-        this.enabled = true;
-        this.interval = '0 * * * *'; // Every hour
-        this.initialDelayMs = 10000; // 10 seconds
+        this.enabled = process.env.SCHEDULER_ENABLED === 'true' || process.env.SCHEDULER_ENABLED === undefined;
+        this.interval = process.env.SCHEDULER_CRON || '0 * * * *'; // Every hour
+        this.initialDelayMs = parseInt(process.env.SCHEDULER_INITIAL_DELAY_MS) || 10000; // 10 seconds
         
         // Track scheduler statistics
         this.stats = {
@@ -32,7 +32,12 @@ class SchedulerService {
         logger.info('Initializing scheduler service', {
             enabled: this.enabled,
             interval: this.interval,
-            initialDelayMs: this.initialDelayMs
+            initialDelayMs: this.initialDelayMs,
+            env: {
+                SCHEDULER_ENABLED: process.env.SCHEDULER_ENABLED,
+                SCHEDULER_CRON: process.env.SCHEDULER_CRON,
+                SCHEDULER_INITIAL_DELAY_MS: process.env.SCHEDULER_INITIAL_DELAY_MS
+            }
         });
 
         if (!this.enabled) {

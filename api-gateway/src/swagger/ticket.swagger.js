@@ -2627,30 +2627,336 @@
  *                       type: number
  *                     discount:
  *                       $ref: '#/components/schemas/PassengerDiscount'
-  *     TransitPass:
-  *       type: object
-  *       description: Transit pass product for long-term access
-  *       properties:
-  *         transitPassId:
-  *           type: string
-  *           format: uuid
-  *         transitPassType:
-  *           type: string
-  *           enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
-  *         price:
-  *           type: number
-  *           format: decimal
-  *         currency:
-  *           type: string
-  *           enum: [VND, USD, CNY]
-  *           default: VND
-  *         isActive:
-  *           type: boolean
-  *         createdAt:
-  *           type: string
-  *           format: date-time
-  *         updatedAt:
-  *           type: string
-  *           format: date-time
+ *     TransitPass:
+ *       type: object
+ *       description: Transit pass product for long-term access
+ *       properties:
+ *         transitPassId:
+ *           type: string
+ *           format: uuid
+ *         transitPassType:
+ *           type: string
+ *           enum: [day_pass, weekly_pass, monthly_pass, yearly_pass, lifetime_pass]
+ *         price:
+ *           type: number
+ *           format: decimal
+ *         currency:
+ *           type: string
+ *           enum: [VND, USD, CNY]
+ *           default: VND
+ *         isActive:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
+ * /v1/route/ticket/tickets/activate-long-term/{id}:
+ *   post:
+ *     summary: Activate long-term ticket (passenger, staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Long-term ticket activated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Ticket'
+ *
+ * /v1/route/ticket/tickets/{id}/use:
+ *   post:
+ *     summary: Use ticket by ID (staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket used successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticket:
+ *                       $ref: '#/components/schemas/Ticket'
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *
+ * /v1/route/ticket/tickets/{qr-code}/use:
+ *   post:
+ *     summary: Use ticket by QR code (staff, admin)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: qr-code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket used successfully by QR code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticket:
+ *                       $ref: '#/components/schemas/Ticket'
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *
+ * /v1/route/ticket/passengerDiscounts/getAllPassengerDiscounts:
+ *   get:
+ *     summary: Get all passenger discounts (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     responses:
+ *       200:
+ *         description: List of all passenger discounts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PassengerDiscount'
+ *
+ * /v1/route/ticket/passengerDiscounts/getPassengerDiscountByType/{passengerType}:
+ *   get:
+ *     summary: Get passenger discount by type (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     parameters:
+ *       - in: path
+ *         name: passengerType
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [adult, child, senior, student, elder, teenager]
+ *     responses:
+ *       200:
+ *         description: Passenger discount details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PassengerDiscount'
+ *
+ * /v1/route/ticket/passengerDiscounts/createPassengerDiscount:
+ *   post:
+ *     summary: Create passenger discount (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - passengerType
+ *               - discountType
+ *               - discountValue
+ *             properties:
+ *               passengerType:
+ *                 type: string
+ *                 enum: [adult, child, senior, student, elder, teenager]
+ *               discountType:
+ *                 type: string
+ *                 enum: [percentage, fixed_amount, free]
+ *               discountValue:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *                 default: true
+ *               validFrom:
+ *                 type: string
+ *                 format: date-time
+ *               validUntil:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *     responses:
+ *       201:
+ *         description: Passenger discount created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PassengerDiscount'
+ *
+ * /v1/route/ticket/passengerDiscounts/updatePassengerDiscount/{discountId}:
+ *   put:
+ *     summary: Update passenger discount (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     parameters:
+ *       - in: path
+ *         name: discountId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               discountType:
+ *                 type: string
+ *                 enum: [percentage, fixed_amount, free]
+ *               discountValue:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *               validFrom:
+ *                 type: string
+ *                 format: date-time
+ *               validUntil:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Passenger discount updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PassengerDiscount'
+ *
+ * /v1/route/ticket/passengerDiscounts/deletePassengerDiscount/{discountId}:
+ *   delete:
+ *     summary: Delete passenger discount (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     parameters:
+ *       - in: path
+ *         name: discountId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Passenger discount deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *
+ * /v1/route/ticket/passengerDiscounts/calculateDiscount/{passengerType}:
+ *   get:
+ *     summary: Calculate discount for passenger type (no auth required)
+ *     tags: [PassengerDiscounts]
+ *     parameters:
+ *       - in: path
+ *         name: passengerType
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [adult, child, senior, student, elder, teenager]
+ *       - in: query
+ *         name: originalPrice
+ *         required: true
+ *         schema:
+ *           type: number
+ *     responses:
+ *       200:
+ *         description: Discount calculation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     passengerType:
+ *                       type: string
+ *                     originalPrice:
+ *                       type: number
+ *                     discountAmount:
+ *                       type: number
+ *                     finalPrice:
+ *                       type: number
+ *                     discount:
+ *                       $ref: '#/components/schemas/PassengerDiscount'
  */
 
