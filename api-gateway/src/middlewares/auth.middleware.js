@@ -26,7 +26,8 @@ class AuthMiddleware {
       if (!token) {
         return res.status(401).json({
           success: false,
-          message: 'Access token is required'
+          message: 'Access token is required',
+          error: 'ACCESS_TOKEN_REQUIRED'
         });
       }
       
@@ -43,14 +44,16 @@ class AuthMiddleware {
       if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({
           success: false,
-          message: 'Invalid token'
+          message: 'Invalid token',
+          error: 'INVALID_TOKEN'
         });
       }
       
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
           success: false,
-          message: 'Token expired'
+          message: 'Token expired',
+          error: 'TOKEN_EXPIRED'
         });
       }
 
@@ -63,7 +66,8 @@ class AuthMiddleware {
       
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error',
+        error: 'INTERNAL_SERVER_ERROR'
       });
     }
   }
@@ -75,7 +79,8 @@ class AuthMiddleware {
       if (!apiKey) {
         return res.status(401).json({
           success: false,
-          message: 'API key is required'
+          message: 'API key is required',
+          error: 'API_KEY_REQUIRED'
         });
       }
 
@@ -85,7 +90,8 @@ class AuthMiddleware {
       if (!keyData) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid API key'
+          message: 'Invalid API key',
+          error: 'INVALID_API_KEY'
         });
       }
 
@@ -107,7 +113,8 @@ class AuthMiddleware {
       
       return res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error',
+        error: 'INTERNAL_SERVER_ERROR'
       });
     }
   }
@@ -118,14 +125,16 @@ class AuthMiddleware {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: 'Authentication required',
+        error: 'AUTHENTICATION_REQUIRED'
       });
     }
 
     if (!req.user.isVerified) {
       return res.status(401).json({
         success: false,
-        message: 'Please verify your email address'
+        message: 'Please verify your email address',
+        error: 'EMAIL_NOT_VERIFIED'
       });
     }
 
@@ -156,7 +165,8 @@ class AuthMiddleware {
       if (parseInt(current) >= limit) {
         return res.status(429).json({
           success: false,
-          message: 'Too many requests. Please try again later.'
+          message: 'Too many requests. Please try again later.',
+          error: 'TOO_MANY_REQUESTS'
         });
       }
 
@@ -166,7 +176,8 @@ class AuthMiddleware {
       logger.error('Rate limit check error:', {
         error: error.message,
         stack: error.stack,
-        userId: req.user?.id || 'unknown'
+        userId: req.user?.id || 'unknown',
+        error: 'RATE_LIMIT_CHECK_ERROR'
       });
       // Continue on error to not block requests
       next();

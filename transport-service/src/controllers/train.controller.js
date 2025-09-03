@@ -4,16 +4,17 @@ class TrainController {
     async createTrain(req, res, next) {
         try {
             const train = await trainService.createTrain(req.body);
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'Train created successfully',
                 data: train
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_TRAIN'
             });
         }
     }
@@ -21,15 +22,16 @@ class TrainController {
     async getAllTrains(req, res, next) {
         try {
             const trains = await trainService.getAllTrains(req.query);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: trains
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_TRAINS'
             });
         }
     }
@@ -37,15 +39,16 @@ class TrainController {
     async getTrainById(req, res, next) {
         try {
             const train = await trainService.getTrainById(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: train
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(404).json({
+            return res.status(404).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRAIN_BY_ID'
             });
         }
     }
@@ -53,16 +56,17 @@ class TrainController {
     async updateTrain(req, res, next) {
         try {
             const train = await trainService.updateTrain(req.params.id, req.body);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Train updated successfully',
                 data: train
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_TRAIN'
             });
         }
     }
@@ -70,15 +74,16 @@ class TrainController {
     async deleteTrain(req, res, next) {
         try {
             await trainService.deleteTrain(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Train deactivated successfully'
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_TRAIN'
             });
         }
     }
@@ -86,15 +91,16 @@ class TrainController {
     async getActiveTrains(req, res, next) {
         try {
             const trains = await trainService.getActiveTrains();
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: trains
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ACTIVE_TRAINS'
             });
         }
     }
@@ -102,15 +108,16 @@ class TrainController {
     async getTrainsByType(req, res, next) {
         try {
             const trains = await trainService.getTrainsByType(req.params.type);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: trains
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRAINS_BY_TYPE'
             });
         }
     }
@@ -118,15 +125,16 @@ class TrainController {
     async getTrainsByStatus(req, res, next) {
         try {
             const trains = await trainService.getTrainsByStatus(req.params.status);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: trains
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRAINS_BY_STATUS'
             });
         }
     }
@@ -135,16 +143,17 @@ class TrainController {
         try {
             const { status } = req.body;
             const train = await trainService.updateTrainStatus(req.params.id, status);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Train status updated successfully',
                 data: train
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_TRAIN_STATUS'
             });
         }
     }
@@ -153,16 +162,17 @@ class TrainController {
         try {
             const { maintenanceDate } = req.body;
             const train = await trainService.scheduleMaintenanceForTrain(req.params.id, maintenanceDate);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Train maintenance scheduled successfully',
                 data: train
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_SCHEDULE_TRAIN_MAINTENANCE'
             });
         }
     }
@@ -171,15 +181,16 @@ class TrainController {
         try {
             const { daysThreshold } = req.query;
             const trains = await trainService.getTrainsNeedingMaintenance(daysThreshold);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: trains
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRAINS_NEEDING_MAINTENANCE'
             });
         }
     }
@@ -187,15 +198,16 @@ class TrainController {
     async getTrainUtilization(req, res, next) {
         try {
             const utilization = await trainService.getTrainUtilization(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: utilization
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRAIN_UTILIZATION'
             });
         }
     }

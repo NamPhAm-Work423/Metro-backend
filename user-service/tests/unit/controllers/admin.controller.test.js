@@ -125,6 +125,7 @@ describe('Admin Controller', () => {
       expect(adminService.getAdminByUserId).toHaveBeenCalledWith('test-admin-id');
       expect(res.json).toHaveBeenCalledWith({
         success: true,
+        message: 'Admin retrieved successfully',
         data: mockAdmin
       });
     });

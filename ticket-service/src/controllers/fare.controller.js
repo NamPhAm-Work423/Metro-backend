@@ -9,14 +9,17 @@ class FareController {
             const fareData = req.body;
             const fare = await fareService.createFare(fareData);
 
-            res.status(201).json({
+            return res.status(201).json({
             success: true,
                 message: 'Fare created successfully',
                 data: fare
             });
         } catch (error) {
-            logger.error('Error creating fare', { error: error.message });
-            next(error);
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_FARE'
+            });
         }
     });
 
@@ -26,15 +29,18 @@ class FareController {
             const filters = req.query;
             const fares = await fareService.getAllFares(filters);
         
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fares retrieved successfully',
                 data: fares,
                     count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting all fares', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_FARES'
+            });
         }
     });
 
@@ -42,15 +48,18 @@ class FareController {
     getAllActiveFares = asyncErrorHandler(async (req, res, next) => {
         try {
             const fares = await fareService.getAllActiveFares();
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Active fares retrieved successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting all active fares', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_ACTIVE_FARES'
+            });
         }
     });
 
@@ -67,14 +76,17 @@ class FareController {
                 });
             }
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fare retrieved successfully',
                     data: fare
             });
         } catch (error) {
-            logger.error('Error getting fare by id', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_FARE_BY_ID'
+            });
         }
     });
 
@@ -93,14 +105,17 @@ class FareController {
                 });
             }
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fare updated successfully',
                 data: fare
             });
         } catch (error) {
-            logger.error('Error updating fare', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_FARE'
+            });
         }
     });
 
@@ -110,13 +125,16 @@ class FareController {
             const { id } = req.params;
             const result = await fareService.deleteFare(id);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: result.message
             });
         } catch (error) {
-            logger.error('Error deleting fare', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_FARE'
+            });
         }
     });
 
@@ -127,15 +145,18 @@ class FareController {
             const filters = req.query;
             const fares = await fareService.getFaresByRoute(routeId, filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Route fares retrieved successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting fares by route', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_FARES_BY_ROUTE'
+            });
         }
     });
 
@@ -146,15 +167,18 @@ class FareController {
             const filters = req.query;
             const fares = await fareService.getFaresBetweenStations(originId, destinationId, filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Station-to-station fares retrieved successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting fares between stations', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_FARES_BETWEEN_STATIONS'
+            });
         }
     });
 
@@ -171,15 +195,17 @@ class FareController {
             
             const priceCalculation = await fareService.calculateFarePrice(id, options);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fare price calculated successfully',
                 data: priceCalculation
             });
         } catch (error) {
-            logger.error('Error calculating fare price', { error: error.message });
-            next(error);
-            throw error;
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CALCULATE_FARE_PRICE'
+            });
         }
     });
 
@@ -188,15 +214,18 @@ class FareController {
         try {
             const fares = await fareService.getActiveFares();
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Active fares retrieved successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting active fares', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ACTIVE_FARES'
+            });
         }
     });
 
@@ -207,15 +236,18 @@ class FareController {
             const filters = req.query;
             const fares = await fareService.getFaresByZone(parseInt(zones), filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Zone-based fares retrieved successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error getting fares by zone', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_FARES_BY_ZONE'
+            });
         }
     });
 
@@ -225,14 +257,17 @@ class FareController {
             const filters = req.query;
             const stats = await fareService.getFareStatistics(filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fare statistics retrieved successfully',
                 data: stats
             });
         } catch (error) {
-            logger.error('Error getting fare statistics', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_FARE_STATISTICS'
+            });
         }
     });
 
@@ -250,7 +285,7 @@ class FareController {
             
             const result = await fareService.bulkUpdateFares(filters, updateData);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: result.message,
                 data: {
@@ -259,8 +294,11 @@ class FareController {
                 }
             });
         } catch (error) {
-            logger.error('Error bulk updating fares', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_BULK_UPDATE_FARES'
+            });
         }
     });
 
@@ -317,21 +355,24 @@ class FareController {
                 });
             }
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Fares searched successfully',
                 data: fares,
                 count: fares.length
             });
         } catch (error) {
-            logger.error('Error searching fares', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_SEARCH_FARES'
+            });
         }
     });
 
     // GET /v1/fares/health
     healthCheck = asyncErrorHandler(async (req, res, next) => {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Fare service is healthy',
             timestamp: new Date(),

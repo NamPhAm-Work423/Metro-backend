@@ -79,7 +79,7 @@ const userController = {
       res.status(500).json({
           success: false,
           message: 'Internal server error',
-          error: 'INTERNAL_ERROR'
+          error: 'INTERNAL_ERROR_SIGNUP'
       });
     }
   }),
@@ -162,7 +162,7 @@ const userController = {
         return res.status(404).json({
           success: false,
           message: 'User not found',
-          error: 'USER_NOT_FOUND'
+          error: 'USER_NOT_FOUND_LOGIN'
         });
       }
 
@@ -170,7 +170,7 @@ const userController = {
         return res.status(423).json({
           success: false,
           message: 'Account is temporarily locked due to multiple failed login attempts',
-          error: 'ACCOUNT_LOCKED'
+          error: 'ACCOUNT_LOCKED_LOGIN'
         });
       }
 
@@ -178,7 +178,7 @@ const userController = {
         return res.status(403).json({
           success: false,
           message: 'Please verify your email address',
-          error: 'EMAIL_NOT_VERIFIED'
+          error: 'EMAIL_NOT_VERIFIED_LOGIN'
         });
       }
 
@@ -186,7 +186,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Password is required',
-          error: 'PASSWORD_REQUIRED'
+          error: 'PASSWORD_REQUIRED_LOGIN'
         });
       }
 
@@ -194,7 +194,7 @@ const userController = {
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password',
-          error: 'INVALID_CREDENTIALS'
+          error: 'INVALID_CREDENTIALS_LOGIN'
         });
       }
 
@@ -202,7 +202,7 @@ const userController = {
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
-        error: 'INTERNAL_ERROR'
+        error: 'INTERNAL_ERROR_LOGIN'
       });
     }
   }),
@@ -267,7 +267,7 @@ const userController = {
           return res.status(401).json({
             success: false,
             message: 'Refresh token is required',
-            error: 'REFRESH_TOKEN_REQUIRED'
+            error: 'REFRESH_TOKEN_REQUIRED_REFRESH_TOKEN'
           });
         }
 
@@ -310,7 +310,7 @@ const userController = {
         return res.status(401).json({
           success: false,
           message: 'Refresh token expired',
-          error: 'REFRESH_TOKEN_EXPIRED'
+          error: 'REFRESH_TOKEN_EXPIRED_REFRESH_TOKEN'
         });
       }
 
@@ -318,7 +318,7 @@ const userController = {
         return res.status(401).json({
           success: false,
           message: 'Invalid refresh token',
-          error: 'INVALID_REFRESH_TOKEN'
+          error: 'INVALID_REFRESH_TOKEN_REFRESH_TOKEN'
         });
       }
 
@@ -326,7 +326,7 @@ const userController = {
         return res.status(404).json({
           success: false,
           message: 'User not found',
-          error: 'USER_NOT_FOUND'
+          error: 'USER_NOT_FOUND_REFRESH_TOKEN'
         });
       }
 
@@ -334,7 +334,7 @@ const userController = {
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
-        error: 'INTERNAL_ERROR'
+        error: 'INTERNAL_ERROR_REFRESH_TOKEN'
       });
     }
   }),
@@ -353,7 +353,7 @@ const userController = {
           return res.status(400).json({
             success: false,
             message: 'Email is required',
-            error: 'EMAIL_REQUIRED'
+            error: 'EMAIL_REQUIRED_FORGOT_PASSWORD'
           });
         }
 
@@ -368,7 +368,7 @@ const userController = {
         return res.status(503).json({
           success: false,
           message: 'Service temporarily unavailable',
-          error: 'REDIS_UNAVAILABLE'
+          error: 'REDIS_UNAVAILABLE_FORGOT_PASSWORD'
         });
       }
 
@@ -376,7 +376,7 @@ const userController = {
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
-        error: 'INTERNAL_ERROR'
+        error: 'INTERNAL_ERROR_FORGOT_PASSWORD'
       });
     }
   }),
@@ -410,7 +410,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Password must be at least 6 characters',
-          error: 'WEAK_PASSWORD'
+          error: 'WEAK_PASSWORD_RESET_PASSWORD'
         });
       }
 
@@ -418,7 +418,7 @@ const userController = {
         return res.status(503).json({
           success: false,
           message: 'Service temporarily unavailable',
-          error: 'REDIS_UNAVAILABLE'
+          error: 'REDIS_UNAVAILABLE_RESET_PASSWORD'
         });
       }
 
@@ -426,7 +426,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired reset token',
-          error: 'INVALID_OR_EXPIRED_TOKEN'
+          error: 'INVALID_OR_EXPIRED_TOKEN_RESET_PASSWORD'
         });
       }
 
@@ -434,7 +434,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Invalid reset token',
-          error: 'INVALID_RESET_TOKEN'
+          error: 'INVALID_RESET_TOKEN_RESET_PASSWORD'
         });
       }
 
@@ -442,7 +442,7 @@ const userController = {
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
-        error: 'INTERNAL_ERROR'
+        error: 'INTERNAL_ERROR_RESET_PASSWORD'
       });
     }
   }),
@@ -461,7 +461,7 @@ const userController = {
           return res.status(400).json({
             success: false,
             message: 'Verification token is required',
-            error: 'TOKEN_REQUIRED'
+            error: 'TOKEN_REQUIRED_VERIFY_EMAIL_FROM_QUERY'
           });
         }
 
@@ -471,7 +471,7 @@ const userController = {
           return res.status(400).json({
             success: false,
             message: 'Verification failed',
-            error: 'VERIFICATION_FAILED'
+            error: 'VERIFICATION_FAILED_VERIFY_EMAIL_FROM_QUERY'
           });
         }
 
@@ -509,7 +509,7 @@ const userController = {
           return res.status(404).json({
             success: false,
             message: result.message,
-            error: 'USER_NOT_FOUND'
+            error: 'USER_NOT_FOUND_UNLOCK_ACCOUNT'
           });
         }
 
@@ -532,7 +532,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Email is required',
-          error: 'EMAIL_REQUIRED'
+          error: 'EMAIL_REQUIRED_RESEND_VERIFICATION'
         });
       }
 
@@ -560,7 +560,7 @@ const userController = {
         return res.status(404).json({
           success: false,
           message: 'User not found',
-          error: 'USER_NOT_FOUND'
+          error: 'USER_NOT_FOUND_RESEND_VERIFICATION'
         });
       }
 
@@ -568,14 +568,14 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'User is already verified',
-          error: 'USER_ALREADY_VERIFIED'
+          error: 'USER_ALREADY_VERIFIED_RESEND_VERIFICATION'
         });
       }
 
       return res.status(500).json({
         success: false,
         message: 'Error resending verification email',
-        error: 'INTERNAL_SERVER_ERROR'
+        error: 'INTERNAL_SERVER_ERROR_RESEND_VERIFICATION'
       });
 
       next(error);

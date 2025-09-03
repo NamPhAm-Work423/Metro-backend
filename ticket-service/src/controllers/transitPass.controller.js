@@ -10,10 +10,17 @@ class TransitPassController {
       const data = req.body;
       validator.validateCreate(data);
       const pass = await transitPassService.createTransitPass(data);
-      res.status(201).json({ success: true, message: 'Transit pass created successfully', data: pass });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass created successfully', 
+        data: pass 
+      });
     } catch (error) {
-      logger.error('Error creating transit pass', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_CREATE_TRANSIT_PASS'
+      });
     }
   });
 
@@ -21,10 +28,18 @@ class TransitPassController {
   getAllTransitPasses = asyncErrorHandler(async (req, res, next) => {
     try {
       const passes = await transitPassService.getAllTransitPasses();
-      res.status(200).json({ success: true, message: 'Transit passes retrieved successfully', data: passes, count: passes.length });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit passes retrieved successfully', 
+        data: passes, 
+        count: passes.length 
+      });
     } catch (error) {
-      logger.error('Error getting all transit passes', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_GET_ALL_TRANSIT_PASSES'
+      });
     }
   });
 
@@ -32,10 +47,18 @@ class TransitPassController {
   getActiveTransitPasses = asyncErrorHandler(async (req, res, next) => {
     try {
       const passes = await transitPassService.getActiveTransitPasses();
-      res.status(200).json({ success: true, message: 'Active transit passes retrieved successfully', data: passes, count: passes.length });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Active transit passes retrieved successfully', 
+        data: passes, 
+        count: passes.length 
+      });
     } catch (error) {
-      logger.error('Error getting active transit passes', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_GET_ACTIVE_TRANSIT_PASSES'
+      });
     }
   });
 
@@ -45,10 +68,17 @@ class TransitPassController {
       const { id } = req.params;
       const pass = await transitPassService.getTransitPassById(id);
       if (!pass) return res.status(404).json({ success: false, message: 'Transit pass not found' });
-      res.status(200).json({ success: true, message: 'Transit pass retrieved successfully', data: pass });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass retrieved successfully', 
+        data: pass 
+      });
     } catch (error) {
-      logger.error('Error getting transit pass by id', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_GET_TRANSIT_PASS_BY_ID'
+      });
     }
   });
 
@@ -58,10 +88,17 @@ class TransitPassController {
       const { transitPassType } = req.params;
       const pass = await transitPassService.getTransitPassByType(transitPassType);
       if (!pass) return res.status(404).json({ success: false, message: 'Transit pass type not found' });
-      res.status(200).json({ success: true, message: 'Transit pass retrieved successfully', data: pass });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass retrieved successfully', 
+        data: pass 
+      });
     } catch (error) {
-      logger.error('Error getting transit pass by type', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_GET_TRANSIT_PASS_BY_TYPE'
+      });
     }
   });
 
@@ -70,10 +107,18 @@ class TransitPassController {
     try {
       const { currency } = req.params;
       const passes = await transitPassService.getTransitPassesByCurrency(currency);
-      res.status(200).json({ success: true, message: 'Transit passes retrieved successfully', data: passes, count: passes.length });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit passes retrieved successfully', 
+        data: passes, 
+        count: passes.length 
+      });
     } catch (error) {
-      logger.error('Error getting transit passes by currency', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_GET_TRANSIT_PASSES_BY_CURRENCY'
+      });
     }
   });
 
@@ -84,10 +129,17 @@ class TransitPassController {
       const updateData = req.body;
       validator.validateUpdate(updateData);
       const pass = await transitPassService.updateTransitPass(id, updateData);
-      res.status(200).json({ success: true, message: 'Transit pass updated successfully', data: pass });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass updated successfully', 
+        data: pass 
+      });
     } catch (error) {
-      logger.error('Error updating transit pass', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_UPDATE_TRANSIT_PASS'
+      });
     }
   });
 
@@ -96,10 +148,16 @@ class TransitPassController {
     try {
       const { id } = req.params;
       await transitPassService.deleteTransitPass(id);
-      res.status(200).json({ success: true, message: 'Transit pass deleted successfully' });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass deleted successfully' 
+      });
     } catch (error) {
-      logger.error('Error deleting transit pass', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_DELETE_TRANSIT_PASS'
+      });
     }
   });
 
@@ -109,10 +167,17 @@ class TransitPassController {
       const { id } = req.params;
       const { isActive } = req.body;
       const pass = await transitPassService.setTransitPassActive(id, !!isActive);
-      res.status(200).json({ success: true, message: 'Transit pass status updated successfully', data: pass });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Transit pass status updated successfully', 
+        data: pass 
+      });
     } catch (error) {
-      logger.error('Error setting transit pass active', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_SET_TRANSIT_PASS_ACTIVE'
+      });
     }
   });
 
@@ -124,10 +189,17 @@ class TransitPassController {
         return res.status(400).json({ success: false, message: 'Both filters and updateData are required' });
       }
       const result = await transitPassService.bulkUpdateTransitPasses(filters, updateData);
-      res.status(200).json({ success: true, message: 'Bulk transit pass update completed', data: result });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Bulk transit pass update completed', 
+        data: result 
+      });
     } catch (error) {
-      logger.error('Error bulk updating transit passes', { error: error.message });
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error: 'INTERNAL_ERROR_BULK_UPDATE_TRANSIT_PASSES'
+      });
     }
   });
 }

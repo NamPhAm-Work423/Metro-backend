@@ -117,116 +117,133 @@ class TicketController {
 
     // POST /v1/tickets/create-short-term
     createShortTermTicket = asyncErrorHandler(async (req, res, next) => {
-        const ticketData = req.body;
-        
-        // Debug: Log ticket creation request
-        logger.info('Creating short-term ticket', {
-            hasFromStation: !!ticketData.fromStation,
-            hasToStation: !!ticketData.toStation,
-            tripType: ticketData.tripType,
-            totalPassengers: (ticketData.numAdults || 0) + (ticketData.numElder || 0) + (ticketData.numTeenager || 0) + (ticketData.numChild || 0)
-        });
-        
-        // Get passenger from cache to validate existence
-        const { passengerId, passenger } = await this._getPassengerFromCache(req);
+        try {
+            const ticketData = req.body;
+            
+            // Get passenger from cache to validate existence
+            const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
-        const result = await ticketService.createShortTermTicket({
-            ...ticketData,
-            passengerId,
-            passengerInfo: passenger // Include passenger info for validation
-        });
-
-        // Check if payment response was received
-        if (result.paymentResponse) {
-            res.status(201).json({
-                success: true,
-                message: 'Ticket created and payment URL generated successfully',
-                data: {
-                    ticket: result.ticket,
-                    payment: {
-                        paymentId: result.paymentId,
-                        paymentUrl: result.paymentResponse.paymentUrl,
-                        paymentMethod: result.paymentResponse.paymentMethod,
-                        paypalOrderId: result.paymentResponse.paypalOrderId,
-                        status: 'ready'
-                    }
-                }
+            const result = await ticketService.createShortTermTicket({
+                ...ticketData,
+                passengerId,
+                passengerInfo: passenger // Include passenger info for validation
             });
-        } else {
-            res.status(201).json({
-                success: true,
-                message: 'Ticket created successfully. Payment URL will be available shortly.',
-                data: {
-                    ticket: result.ticket,
-                    payment: {
-                        paymentId: result.paymentId,
-                        status: 'processing',
-                        message: 'Payment URL is being generated. Please check back in a few seconds.'
+
+            // Check if payment response was received
+            if (result.paymentResponse) {
+                return res.status(201).json({
+                    success: true,
+                    message: 'Ticket created and payment URL generated successfully',
+                    data: {
+                        ticket: result.ticket,
+                        payment: {
+                            paymentId: result.paymentId,
+                            paymentUrl: result.paymentResponse.paymentUrl,
+                            paymentMethod: result.paymentResponse.paymentMethod,
+                            paypalOrderId: result.paymentResponse.paypalOrderId,
+                            status: 'ready'
+                        }
                     }
-                }
+                });
+            } else {
+                return res.status(201).json({
+                    success: true,
+                    message: 'Ticket created successfully. Payment URL will be available shortly.',
+                    data: {
+                        ticket: result.ticket,
+                        payment: {
+                            paymentId: result.paymentId,
+                            status: 'processing',
+                            message: 'Payment URL is being generated. Please check back in a few seconds.'
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_SHORT_TERM_TICKET'
             });
         }
     });
 
     // POST /v1/tickets/create-long-term
     createLongTermTicket = asyncErrorHandler(async (req, res, next) => {
-        const ticketData = req.body;
-        
-        // Get passenger from cache to validate existence
-        const { passengerId, passenger } = await this._getPassengerFromCache(req);
+        try {
+            const ticketData = req.body;
+            
+            // Get passenger from cache to validate existence
+            const { passengerId, passenger } = await this._getPassengerFromCache(req);
 
-        const result = await ticketService.createLongTermTicket({
-            ...ticketData,
-            passengerId,
-            passengerInfo: passenger // Include passenger info for validation
-        });
-
-        // Check if payment response was received
-        if (result.paymentResponse) {
-            res.status(201).json({
-                success: true,
-                message: 'Ticket created and payment URL generated successfully',
-                data: {
-                    ticket: result.ticket,
-                    payment: {
-                        paymentId: result.paymentId,
-                        paymentUrl: result.paymentResponse.paymentUrl,
-                        paymentMethod: result.paymentResponse.paymentMethod,
-                        paypalOrderId: result.paymentResponse.paypalOrderId,
-                        status: 'ready'
-                    }
-                }
+            const result = await ticketService.createLongTermTicket({
+                ...ticketData,
+                passengerId,
+                passengerInfo: passenger // Include passenger info for validation
             });
-        } else {
-            res.status(201).json({
-                success: true,
-                message: 'Ticket created successfully. Payment URL will be available shortly.',
-                data: {
-                    ticket: result.ticket,
-                    payment: {
-                        paymentId: result.paymentId,
-                        status: 'processing',
-                        message: 'Payment URL is being generated. Please check back in a few seconds.'
+
+            // Check if payment response was received
+            if (result.paymentResponse) {
+                return res.status(201).json({
+                    success: true,
+                    message: 'Ticket created and payment URL generated successfully',
+                    data: {
+                        ticket: result.ticket,
+                        payment: {
+                            paymentId: result.paymentId,
+                            paymentUrl: result.paymentResponse.paymentUrl,
+                            paymentMethod: result.paymentResponse.paymentMethod,
+                            paypalOrderId: result.paymentResponse.paypalOrderId,
+                            status: 'ready'
+                        }
                     }
-                }
+                });
+            } else {
+                return res.status(201).json({
+                    success: true,
+                    message: 'Ticket created successfully. Payment URL will be available shortly.',
+                    data: {
+                        ticket: result.ticket,
+                        payment: {
+                            paymentId: result.paymentId,
+                            status: 'processing',
+                            message: 'Payment URL is being generated. Please check back in a few seconds.'
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_LONG_TERM_TICKET'
             });
         }
     });
     // GET /v1/tickets/getAllTickets
     getAllTickets = asyncErrorHandler(async (req, res, next) => {
-        const filters = req.query;
-        const tickets = await ticketService.getAllTickets(filters);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
+        try {
+            const filters = req.query;
+            const tickets = await ticketService.getAllTickets(filters);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Tickets retrieved successfully',
+                data: tickets,
+                count: tickets.length
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_TICKETS'
+            });
+        }
     });
 
     // GET /v1/tickets/:id
     getTicketById = asyncErrorHandler(async (req, res, next) => {
+        try {
         const { id } = req.params;
         const ticket = await ticketService.getTicketById(id);
         
@@ -236,113 +253,177 @@ class TicketController {
                 message: 'Ticket not found'
             });
         }
-        
-        res.status(200).json({
+                
+        return res.status(200).json({
             success: true,
             message: 'Ticket retrieved successfully',
             data: ticket
         });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKET_BY_ID'
+            });
+        }
+
     });
 
     // GET /v1/tickets/me
     getMyTickets = asyncErrorHandler(async (req, res, next) => {
+        try {
         const { passengerId } = await this._getPassengerFromCache(req);
 
         const filters = req.query;
         const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'My tickets retrieved successfully',
             data: tickets,
             count: tickets.length
-        });
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_MY_TICKETS'
+            });
+        }
     });
 
     // GET /v1/tickets/me/unused
     getMyActiveTickets = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = await this._getPassengerFromCache(req);
+        try {
+            const { passengerId } = await this._getPassengerFromCache(req);
 
-        const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'My active tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
+            const tickets = await ticketService.getActiveTicketsByPassenger(passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'My active tickets retrieved successfully',
+                data: tickets,
+                count: tickets.length
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_MY_ACTIVE_TICKETS'
+            });
+        }
     });
 
     // GET /v1/tickets/me/used
     getMyInactiveTickets = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = await this._getPassengerFromCache(req);
+        try {
+            const { passengerId } = await this._getPassengerFromCache(req);
 
-        const tickets = await ticketService.getInactiveTicketsByPassenger(passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'My used tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
+            const tickets = await ticketService.getInactiveTicketsByPassenger(passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'My used tickets retrieved successfully',
+                data: tickets,
+                count: tickets.length
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_MY_INACTIVE_TICKETS'
+            });
+        }
     });
 
     // GET /v1/tickets/me/cancelled
     getMyCancelledTickets = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = await this._getPassengerFromCache(req);
+        try {
+            const { passengerId } = await this._getPassengerFromCache(req);
 
-        const tickets = await ticketService.getCancelledTicketsByPassenger(passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'My cancelled tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
+            const tickets = await ticketService.getCancelledTicketsByPassenger(passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'My cancelled tickets retrieved successfully',
+                data: tickets,
+                count: tickets.length
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_MY_CANCELLED_TICKETS'
+            });
+        }
     });
 
     // GET /v1/tickets/me/expired
     getMyExpiredTickets = asyncErrorHandler(async (req, res, next) => {
-        const { passengerId } = await this._getPassengerFromCache(req);
+        try {
+            const { passengerId } = await this._getPassengerFromCache(req);
 
-        const tickets = await ticketService.getExpiredTicketsByPassenger(passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'My expired tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-        });
+            const tickets = await ticketService.getExpiredTicketsByPassenger(passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'My expired tickets retrieved successfully',
+                data: tickets,
+                count: tickets.length
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_MY_EXPIRED_TICKETS'
+            });
+        }
     });
 
 
     // GET /v1/tickets/:id/getTicket
     getTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const { passengerId } = await this._getPassengerFromCache(req);
-        
-        const ticketData = await ticketService.getTicketWithQR(id, passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket retrieved with QR code successfully',
-            data: ticketData
-        });
+        try {
+            const { id } = req.params;
+            const { passengerId } = await this._getPassengerFromCache(req);
+            
+            const ticketData = await ticketService.getTicketWithQR(id, passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Ticket retrieved with QR code successfully',
+                data: ticketData
+                });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKET'
+            });
+        }
     });
 
     // POST /v1/tickets/:id/cancel
     cancelTicket = asyncErrorHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const { reason } = req.body;
-        const { passengerId } = await this._getPassengerFromCache(req);
-        
-        const ticket = await ticketService.cancelTicket(id, reason, passengerId);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Ticket cancelled successfully',
-            data: ticket
-        });
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+            const { passengerId } = await this._getPassengerFromCache(req);
+            
+            const ticket = await ticketService.cancelTicket(id, reason, passengerId);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Ticket cancelled successfully',
+                data: ticket
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CANCEL_TICKET'
+            });
+        }
     });
 
     // POST /v1/tickets/:id/phoneTicket
@@ -354,14 +435,17 @@ class TicketController {
             
             const result = await ticketService.sendTicketToPhone(id, phoneNumber, passengerId);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket sent to phone successfully',
                 data: result
             });
         } catch (error) {
-            logger.error('Error sending ticket to phone', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_SEND_TICKET_TO_PHONE'
+            });
         }
     });
 
@@ -374,14 +458,17 @@ class TicketController {
             
             const result = await ticketService.sendTicketToEmail(id, email, passengerId);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket sent to email successfully',
                 data: result
             });
         } catch (error) {
-            logger.error('Error sending ticket to email', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_SEND_TICKET_TO_EMAIL'
+            });
         }
     });
 
@@ -391,14 +478,17 @@ class TicketController {
             const { id } = req.params;
             const validation = await ticketService.validateTicket(id);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket validation completed',
                 data: validation
             });
         } catch (error) {
-            logger.error('Error validating ticket', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_VALIDATE_TICKET'
+            });
         }
     });
 
@@ -415,14 +505,17 @@ class TicketController {
                 });
             }
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket details retrieved successfully',
                 data: ticket
             });
         } catch (error) {
-            logger.error('Error getting ticket detail', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKET_DETAIL'
+            });
         }
     });
 
@@ -434,14 +527,17 @@ class TicketController {
             
             const ticket = await ticketService.updateTicket(id, updateData);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket updated successfully',
                 data: ticket
             });
         } catch (error) {
-            logger.error('Error updating ticket', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_TICKET'
+            });
         }
     });
 
@@ -451,13 +547,16 @@ class TicketController {
             const { id } = req.params;
             await ticketService.deleteTicket(id);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket deleted successfully'
             });
         } catch (error) {
-            logger.error('Error deleting ticket', { error: error.message, ticketId: req.params.id });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_TICKET'
+            });
         }
     });
 
@@ -467,14 +566,17 @@ class TicketController {
             const filters = req.query;
             const stats = await ticketService.getTicketStatistics(filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket statistics retrieved successfully',
                 data: stats
             });
         } catch (error) {
-            logger.error('Error getting ticket statistics', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKET_STATISTICS'
+            });
         }
     });
 
@@ -483,7 +585,7 @@ class TicketController {
         try {
             const expiredCount = await ticketService.expireTickets();
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Expired tickets processed successfully',
                 data: {
@@ -492,14 +594,17 @@ class TicketController {
                 }
             });
         } catch (error) {
-            logger.error('Error expiring tickets', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_EXPIRE_TICKETS'
+            });
         }
     });
 
     // GET /v1/tickets/health
     healthCheck = asyncErrorHandler(async (req, res, next) => {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Ticket service is healthy',
             timestamp: new Date(),
@@ -535,7 +640,7 @@ class TicketController {
 
             const paymentData = await response.json();
 
-            res.json({
+            return res.status(200).json({
                 success: true,
                 data: {
                     ticket: {
@@ -551,14 +656,10 @@ class TicketController {
             });
 
         } catch (error) {
-            logger.error('Error getting ticket payment', { 
-                ticketId: id, 
-                error: error.message 
-            });
-            
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: 'Failed to get payment information'
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKET_PAYMENT'
             });
         }
     });
@@ -579,7 +680,7 @@ class TicketController {
 
         // Check if payment URL is available
         if (ticket.paymentUrl) {
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Payment URL is ready',
                 data: {
@@ -591,7 +692,7 @@ class TicketController {
                 }
             });
         } else {
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Payment URL is still being generated',
                 data: {
@@ -677,18 +778,13 @@ class TicketController {
                 requestId: req.headers['x-request-id'] || null,
             });
 
-            res.json(priceCalculation);
+            return res.status(200).json({
+                success: true,
+                message: 'Ticket price calculated successfully',
+                data: priceCalculation
+            });
 
         } catch (error) {
-            logger.error('Error calculating ticket price', {
-                error: error.message,
-                code: error.code,
-                body: req.body,
-                path: req.originalUrl,
-                method: req.method,
-                userId: req.user?.id || null,
-                requestId: req.headers['x-request-id'] || null,
-            });
 
             if (error.code === 'DUPLICATE_STATION') {
                 return res.status(400).json({
@@ -698,10 +794,10 @@ class TicketController {
                 });
             }
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 message: 'Failed to calculate ticket price',
-                error: error.message
+                error: 'INTERNAL_ERROR_CALCULATE_TICKET_PRICE'
             });
         }
     });
@@ -714,7 +810,7 @@ class TicketController {
             
             const ticket = await ticketService.activateTicket(id, passengerId);
             
-            res.status(200).json({ 
+            return res.status(200).json({ 
                 success: true, 
                 message: 'Long-term ticket activated successfully', 
                 data: {
@@ -728,12 +824,11 @@ class TicketController {
                 timestamp: new Date()
             });
         } catch (error) {
-            logger.error('Error activating long-term ticket', { 
-                error: error.message, 
-                ticketId: req.params.id,
-                userId: req.user?.id || null
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_ACTIVATE_LONG_TERM_TICKET'
             });
-            next(error);
         }
     });
 
@@ -745,7 +840,7 @@ class TicketController {
             
             const ticket = await ticketService.useTicket(id, passengerId);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket used successfully',
                 data: {
@@ -769,12 +864,11 @@ class TicketController {
                 timestamp: new Date()
             });
         } catch (error) {
-            logger.error('Error using ticket', { 
-                error: error.message, 
-                ticketId: req.params.id,
-                userId: req.user?.id || null
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_USE_TICKET'
             });
-            next(error);
         }
     });
 
@@ -786,7 +880,7 @@ class TicketController {
             
             const ticket = await ticketService.useTicketByQRCode(qrCode, staffId);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Ticket used successfully via QR code',
                 data: {
@@ -810,12 +904,11 @@ class TicketController {
                 timestamp: new Date()
             });
         } catch (error) {
-            logger.error('Error using ticket by QR code', { 
-                error: error.message, 
-                qrCode: req.params.qrCode,
-                userId: req.user?.id || null
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_USE_TICKET_BY_QR_CODE'
             });
-            next(error);
         }
     });
 }

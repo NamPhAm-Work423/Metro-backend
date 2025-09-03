@@ -6,7 +6,7 @@ const { logger } = require('../config/logger');
 const getAllAdmins = asyncErrorHandler(async (req, res, next) => {
     try {
         const admins = await adminService.getAllAdmins();
-        res.status(200).json({ 
+        return res.status(200).json({ 
         success: true,
         message: 'Admins retrieved successfully', 
         data: admins,
@@ -35,7 +35,7 @@ const getAdminById = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Admin retrieved successfully',
             data: admin
@@ -65,7 +65,7 @@ const updateAdmin = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Admin updated successfully',
             data: admin
@@ -82,7 +82,7 @@ const updateAdmin = asyncErrorHandler(async (req, res, next) => {
 
 
 // GET /v1/admins/me
-const getMe = async (req, res, next) => {
+const getMe = asyncErrorHandler(async (req, res, next) => {
     try {
         const admin = await adminService.getAdminByUserId(req.user.id);
         if (!admin) {
@@ -91,18 +91,20 @@ const getMe = async (req, res, next) => {
                 message: 'Admin profile not found' 
             });
         }
-        res.json({ 
-            success: true, 
+        return res.status(200).json({ 
+            success: true,
+            message: 'Admin retrieved successfully',
             data: admin 
         });
     } catch (err) {
+        logger.error('Error getting admin profile', { error: err.message });
         return res.status(500).json({
             success: false,
             message: 'Internal server error',
             error: 'INTERNAL_ERROR_GET_ME'
         });
     }
-};
+});
 
 
 

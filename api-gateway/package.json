@@ -8,6 +8,10 @@
     "dev": "nodemon src/index.js",
     "build": "babel src -d dist --presets=@babel/preset-env --copy-files && copyfiles -u 1 \"src/config/**/*\" dist/config",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

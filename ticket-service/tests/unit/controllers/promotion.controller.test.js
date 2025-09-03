@@ -343,10 +343,13 @@ describe('Promotion Controller', () => {
       await promotionController.applyPromotion(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        message: 'Promotion has expired'
-      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: 'Promotion has expired',
+          error: 'INTERNAL_ERROR_APPLY_PROMOTION'
+        })
+      );
     });
   });
 }); 

@@ -9,14 +9,17 @@ class PromotionController {
             const promotionData = req.body;
             const promotion = await promotionService.createPromotion(promotionData);
 
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'Promotion created successfully',
                 data: promotion
             });
         } catch (error) {
-            logger.error('Error creating promotion', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_PROMOTION'
+            });
         }
     });
 
@@ -26,15 +29,18 @@ class PromotionController {
             const filters = req.query;
             const promotions = await promotionService.getAllPromotions(filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotions retrieved successfully',
                 data: promotions,
                 count: promotions.length
             });
         } catch (error) {
-            logger.error('Error getting all promotions', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_PROMOTIONS'
+            });
         }
     });
 
@@ -51,14 +57,17 @@ class PromotionController {
                 });
             }
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion retrieved successfully',
                 data: promotion
             });
         } catch (error) {
-            logger.error('Error getting promotion by id', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_PROMOTION_BY_ID'
+            });
         }
     });
 
@@ -69,7 +78,7 @@ class PromotionController {
         try {
             const promotion = await promotionService.getPromotionByCode(code);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion retrieved successfully',
                 data: promotion
@@ -105,7 +114,11 @@ class PromotionController {
                     message: 'Promotion not found'
                 });
             }
-            throw error;
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_PROMOTION_BY_CODE'
+            });
         }
     });
 
@@ -117,7 +130,7 @@ class PromotionController {
         try {
             const promotion = await promotionService.updatePromotionByCode(code, updateData);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion updated successfully',
                 data: promotion
@@ -129,7 +142,11 @@ class PromotionController {
                     message: 'Promotion with code not found'
                 });
             }
-            throw error;
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_PROMOTION_BY_CODE'
+            });
         }
     });
 
@@ -139,13 +156,16 @@ class PromotionController {
             const { id } = req.params;
             const result = await promotionService.deletePromotion(id);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: result.message
             });
         } catch (error) {
-            logger.error('Error deleting promotion', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_PROMOTION'
+            });
         }
     });
 
@@ -165,8 +185,11 @@ class PromotionController {
                 data: validation
             });
         } catch (error) {
-            logger.error('Error validating promotion', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_VALIDATE_PROMOTION'
+            });
         }
     });
 
@@ -178,15 +201,16 @@ class PromotionController {
         try {
             const appliedPromotion = await promotionService.applyPromotion(code, applicationData);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion applied successfully',
                 data: appliedPromotion
             });
         } catch (error) {
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_APPLY_PROMOTION'
             });
         }
     });
@@ -197,15 +221,18 @@ class PromotionController {
             const filters = req.query;
             const promotions = await promotionService.getActivePromotions(filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Active promotions retrieved successfully',
                 data: promotions,
                 count: promotions.length
             });
         } catch (error) {
-            logger.error('Error getting active promotions', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ACTIVE_PROMOTIONS'
+            });
         }
     });
 
@@ -215,14 +242,17 @@ class PromotionController {
             const filters = req.query;
             const stats = await promotionService.getPromotionStatistics(filters);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion statistics retrieved successfully',
                 data: stats
             });
         } catch (error) {
-            logger.error('Error getting promotion statistics', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_PROMOTION_STATISTICS'
+            });
         }
     });
 
@@ -232,14 +262,17 @@ class PromotionController {
             const { id } = req.params;
             const report = await promotionService.getPromotionUsageReport(id);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotion usage report retrieved successfully',
                 data: report
             });
         } catch (error) {
-            logger.error('Error getting promotion usage report', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_PROMOTION_USAGE_REPORT'
+            });
         }
     });
 
@@ -248,7 +281,7 @@ class PromotionController {
         try {
             const expiredCount = await promotionService.expirePromotions();
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Expired promotions processed successfully',
                 data: {
@@ -257,8 +290,11 @@ class PromotionController {
                 }
             });
         } catch (error) {
-            logger.error('Error expiring promotions', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_EXPIRE_PROMOTIONS'
+            });
         }
     });
 
@@ -307,15 +343,18 @@ class PromotionController {
                 return true;
             });
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Promotions searched successfully',
                 data: filteredPromotions,
                 count: filteredPromotions.length
             });
         } catch (error) {
-            logger.error('Error searching promotions', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_SEARCH_PROMOTIONS'
+            });
         }
     });
 
@@ -352,7 +391,7 @@ class PromotionController {
             const validPromotions = validations.filter(v => v.valid);
             const invalidPromotions = validations.filter(v => !v.valid);
             
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Bulk promotion validation completed',
                 data: {
@@ -364,14 +403,17 @@ class PromotionController {
                 }
             });
         } catch (error) {
-            logger.error('Error validating promotions in bulk', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_VALIDATE_PROMOTIONS_BULK'
+            });
         }
     });
 
     // GET /v1/promotions/health
     healthCheck = asyncErrorHandler(async (req, res, next) => {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Promotion service is healthy',
             timestamp: new Date(),

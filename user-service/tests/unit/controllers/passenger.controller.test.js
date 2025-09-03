@@ -243,6 +243,7 @@ describe('Passenger Controller', () => {
       expect(passengerService.getPassengerByUserId).toHaveBeenCalledWith('test-user-id');
       expect(res.json).toHaveBeenCalledWith({
         success: true,
+        message: 'Passenger retrieved successfully',
         data: mockPassenger
       });
     });

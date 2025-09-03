@@ -4,16 +4,17 @@ class StationController {
     async createStation(req, res, next) {
         try {
             const station = await stationService.createStation(req.body);
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'Station created successfully',
                 data: station
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_STATION'
             });
         }
     }
@@ -21,15 +22,16 @@ class StationController {
     async getAllStations(req, res, next) {
         try {
             const stations = await stationService.getAllStations(req.query);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: stations
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_STATIONS'
             });
         }
     }
@@ -37,32 +39,34 @@ class StationController {
     async getStationById(req, res, next) {
         try {
             const station = await stationService.getStationById(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: station
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(404).json({
+            return res.status(404).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_STATION_BY_ID'
             });
-        }
+        }   
     }
 
     async updateStation(req, res, next) {
         try {
             const station = await stationService.updateStation(req.params.id, req.body);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Station updated successfully',
                 data: station
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_STATION'
             });
         }
     }
@@ -70,15 +74,16 @@ class StationController {
     async deleteStation(req, res, next) {
         try {
             await stationService.deleteStation(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Station deactivated successfully'
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_STATION'
             });
         }
     }
@@ -86,7 +91,7 @@ class StationController {
     async getActiveStations(req, res, next) {
         try {
             const stations = await stationService.getActiveStations();
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: stations
             });
@@ -94,7 +99,8 @@ class StationController {
             if (typeof next === 'function') { next(error); }
             res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ACTIVE_STATIONS'
             });
         }
     }
@@ -103,15 +109,16 @@ class StationController {
         try {
             const { currentTime } = req.query;
             const stations = await stationService.getStationsByOperatingHours(currentTime);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: stations
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_STATIONS_BY_OPERATING_HOURS'
             });
         }
     }
@@ -120,16 +127,17 @@ class StationController {
         try {
             const { facilities } = req.body;
             const station = await stationService.updateStationFacilities(req.params.id, facilities);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'Station facilities updated successfully',
                 data: station
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_STATION_FACILITIES'
             });
         }
     }

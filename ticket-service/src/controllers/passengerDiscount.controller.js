@@ -1,5 +1,4 @@
 const { PassengerDiscountService } = require('../services/passengerDiscount');
-const { logger } = require('../config/logger');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 
 class PassengerDiscountController {
@@ -7,15 +6,18 @@ class PassengerDiscountController {
     getAllPassengerDiscounts = asyncErrorHandler(async (req, res, next) => {
         try {
             const discounts = await PassengerDiscountService.getAllPassengerDiscounts();
-            res.json({
+            return res.status(200).json({
                 success: true,
                 message: 'Passenger discounts retrieved successfully',
                 data: discounts,
                 count: discounts.length
             });
         } catch (error) {
-            logger.error('Error retrieving passenger discounts', { error: error.message });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_PASSENGER_DISCOUNTS'
+            });
         }
     });
 
@@ -30,14 +32,17 @@ class PassengerDiscountController {
                     message: `No discount found for passenger type: ${passengerType}`
                 });
             }
-            res.json({
+            return res.status(200).json({
                 success: true,
                 message: 'Passenger discount retrieved successfully',
                 data: discount
             });
         } catch (error) {
-            logger.error('Error retrieving passenger discount', { error: error.message, passengerType: req.params.passengerType });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_PASSENGER_DISCOUNT_BY_TYPE'
+            });
         }
     });
 
@@ -46,20 +51,17 @@ class PassengerDiscountController {
         try {
             const discountData = req.body;
             const discount = await PassengerDiscountService.createPassengerDiscount(discountData);
-            logger.info('Passenger discount created', {
-                discountId: discount.discountId,
-                passengerType: discount.passengerType,
-                discountType: discount.discountType,
-                discountValue: discount.discountValue
-            });
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'Passenger discount created successfully',
                 data: discount
             });
         } catch (error) {
-            logger.error('Error creating passenger discount', { error: error.message, discountData: req.body });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_PASSENGER_DISCOUNT'
+            });
         }
     });
 
@@ -69,20 +71,19 @@ class PassengerDiscountController {
             const { discountId } = req.params;
             const updateData = req.body;
             const updatedDiscount = await PassengerDiscountService.updatePassengerDiscount(discountId, updateData);
-            logger.info('Passenger discount updated', {
-                discountId: updatedDiscount.discountId,
-                passengerType: updatedDiscount.passengerType,
-                discountValue: updatedDiscount.discountValue
-            });
-            res.json({
+            return res.status(200).json({
                 success: true,
                 message: 'Passenger discount updated successfully',
                 data: updatedDiscount
             });
         } catch (error) {
-            logger.error('Error updating passenger discount', { error: error.message, discountId: req.params.discountId });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_PASSENGER_DISCOUNT'
+            });
         }
+
     });
 
     // DELETE /v1/ticket/passengerDiscounts/:discountId
@@ -90,16 +91,17 @@ class PassengerDiscountController {
         try {
             const { discountId } = req.params;
             await PassengerDiscountService.deletePassengerDiscount(discountId);
-            logger.info('Passenger discount deleted', {
-                discountId
-            });
-            res.json({
+            return res.status(200).json({
+                discountId,
                 success: true,
                 message: 'Passenger discount deleted successfully'
             });
         } catch (error) {
-            logger.error('Error deleting passenger discount', { error: error.message, discountId: req.params.discountId });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_PASSENGER_DISCOUNT'
+            });
         }
     });
 
@@ -115,14 +117,17 @@ class PassengerDiscountController {
                 });
             }
             const result = await PassengerDiscountService.calculateDiscount(passengerType, originalPrice);
-            res.json({
+            return res.status(200).json({
                 success: true,
                 message: 'Discount calculation completed',
                 data: result
             });
         } catch (error) {
-            logger.error('Error calculating passenger discount', { error: error.message, passengerType: req.params.passengerType });
-            next(error);
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_CALCULATE_DISCOUNT'
+            });
         }
     });
 }

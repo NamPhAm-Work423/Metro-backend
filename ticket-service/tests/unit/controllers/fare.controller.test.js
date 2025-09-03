@@ -235,9 +235,15 @@ describe('Fare Controller', () => {
 
       fareService.calculateFarePrice.mockRejectedValue(new Error('Fare not found'));
 
-      await expect(fareController.calculateFarePrice(req, res, next))
-        .rejects
-        .toThrow('Fare not found');
+      await fareController.calculateFarePrice(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: 'Fare not found',
+          error: 'INTERNAL_ERROR_CALCULATE_FARE_PRICE'
+        })
+      );
     });
   });
 

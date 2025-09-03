@@ -6,7 +6,7 @@ const passengerProducer = require('../events/passenger.producer.event');
 const getAllPassengers = asyncErrorHandler(async (req, res, next) => {
     try {
         const passengers = await passengerService.getAllPassengers();
-        res.status(200).json({ 
+        return res.status(200).json({ 
             success: true,
             message: 'Passengers retrieved successfully', 
             data: passengers,
@@ -34,7 +34,7 @@ const getPassengerById = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Passenger retrieved successfully',
             data: passenger
@@ -63,7 +63,7 @@ const updatePassenger = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Passenger updated successfully',
             data: passenger
@@ -91,7 +91,7 @@ const deletePassenger = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Passenger deleted successfully'
         });
@@ -133,7 +133,7 @@ const createPassenger = asyncErrorHandler(async (req, res, next) => {
         
         const passenger = await passengerService.createPassenger(passengerData);
         
-        res.status(201).json({ 
+        return res.status(201).json({ 
             success: true, 
             message: 'Passenger profile created successfully',
             data: passenger 
@@ -155,7 +155,7 @@ const createPassenger = asyncErrorHandler(async (req, res, next) => {
 });
 
 // GET /v1/passengers/me
-const getMe = async (req, res, next) => {
+const getMe = asyncErrorHandler(async (req, res, next) => {
     try {
         const passenger = await passengerService.getPassengerByUserId(req.user.id);
         if (!passenger) {
@@ -164,8 +164,9 @@ const getMe = async (req, res, next) => {
                 message: 'Passenger profile not found' 
             });
         }
-        res.json({ 
-            success: true, 
+        return res.status(200).json({ 
+            success: true,
+            message: 'Passenger retrieved successfully',
             data: passenger 
         });
     } catch (err) {
@@ -175,10 +176,10 @@ const getMe = async (req, res, next) => {
             error: 'INTERNAL_ERROR_GET_ME'
         });
     }
-};
+});
 
 // PUT /v1/passengers/me
-const updateMe = async (req, res, next) => {
+const updateMe = asyncErrorHandler(async (req, res, next) => {
     try {
         const { firstName, lastName, phoneNumber, dateOfBirth, gender, address, emergencyContact } = req.body;
         const userId = req.user.id;
@@ -202,7 +203,7 @@ const updateMe = async (req, res, next) => {
             });
         }
         
-        res.json({ 
+        return res.status(200).json({ 
             success: true,
             message: 'Passenger profile updated successfully',
             data: passenger 
@@ -221,7 +222,7 @@ const updateMe = async (req, res, next) => {
             error: 'INTERNAL_ERROR_UPDATE_ME'
         });
     }
-};
+});
 
 // DELETE /v1/passengers/me
 const deleteMe = asyncErrorHandler(async (req, res, next) => {
@@ -237,7 +238,7 @@ const deleteMe = asyncErrorHandler(async (req, res, next) => {
 
         const result = await passengerService.deletePassengerByUserId(userId);
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: result.message,
             data: result
@@ -278,7 +279,7 @@ const syncPassenger = asyncErrorHandler(async (req, res, next) => {
         // Send passenger data to ticket-service cache via Kafka
         await passengerProducer.publishPassengerCacheSync(passenger);
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Passenger data synchronized successfully',
             data: {
@@ -301,7 +302,7 @@ const deletePassengerById = asyncErrorHandler(async (req, res, next) => {
     try {
         const { id } = req.params;
         const result = await passengerService.deletePassengerById(id);
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Passenger deleted successfully',
             data: result

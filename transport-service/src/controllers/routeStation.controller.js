@@ -4,16 +4,17 @@ class RouteStationController {
     async createRouteStation(req, res, next) {
         try {
             const routeStation = await routeStationService.createRouteStation(req.body);
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'RouteStation created successfully',
                 data: routeStation
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_CREATE_ROUTE_STATION'
             });
         }
     }
@@ -21,15 +22,17 @@ class RouteStationController {
     async getAllRouteStations(req, res, next) {
         try {
             const routeStations = await routeStationService.getAllRouteStations(req.query);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
+                message: 'RouteStations fetched successfully',
                 data: routeStations
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ALL_ROUTE_STATIONS'
             });
         }
     }
@@ -37,15 +40,17 @@ class RouteStationController {
     async getRouteStationById(req, res, next) {
         try {
             const routeStation = await routeStationService.getRouteStationById(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
+                message: 'RouteStation fetched successfully',
                 data: routeStation
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(404).json({
+            return res.status(404).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ROUTE_STATION_BY_ID'
             });
         }
     }
@@ -53,16 +58,17 @@ class RouteStationController {
     async updateRouteStation(req, res, next) {
         try {
             const routeStation = await routeStationService.updateRouteStation(req.params.id, req.body);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: 'RouteStation updated successfully',
                 data: routeStation
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_ROUTE_STATION'
             });
         }
     }
@@ -70,15 +76,17 @@ class RouteStationController {
     async deleteRouteStation(req, res, next) {
         try {
             await routeStationService.deleteRouteStation(req.params.id);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
-                message: 'RouteStation deleted successfully'
+                message: 'RouteStation deleted successfully',
+                error: 'INTERNAL_ERROR_DELETE_ROUTE_STATION'
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_DELETE_ROUTE_STATION'
             });
         }
     }
@@ -86,15 +94,17 @@ class RouteStationController {
     async getStationsByRoute(req, res, next) {
         try {
             const stations = await routeStationService.getStationsByRoute(req.params.routeId);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
+                message: 'Stations fetched by route successfully',
                 data: stations
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_STATIONS_BY_ROUTE'
             });
         }
     }
@@ -102,15 +112,17 @@ class RouteStationController {
     async getRoutesByStation(req, res, next) {
         try {
             const routes = await routeStationService.getRoutesByStation(req.params.stationId);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
+                message: 'Routes fetched by station successfully',
                 data: routes
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ROUTES_BY_STATION'
             });
         }
     }
@@ -120,16 +132,17 @@ class RouteStationController {
             const { routeId } = req.params;
             const { stationSequences } = req.body;
             const result = await routeStationService.setupCompleteRoute(routeId, stationSequences);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: result.message,
                 data: result.routeStations
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_SETUP_COMPLETE_ROUTE'
             });
         }
     }
@@ -137,15 +150,16 @@ class RouteStationController {
     async getRoutePathWithDetails(req, res, next) {
         try {
             const routePath = await routeStationService.getRoutePathWithDetails(req.params.routeId);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: routePath
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_ROUTE_PATH_WITH_DETAILS'
             });
         }
     }
@@ -154,15 +168,16 @@ class RouteStationController {
         try {
             const { originStationId, destinationStationId } = req.query;
             const routes = await routeStationService.findRoutesBetweenTwoStations(originStationId, destinationStationId);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: routes
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_FIND_ROUTES_BETWEEN_TWO_STATIONS'
             });
         }
     }
@@ -170,15 +185,16 @@ class RouteStationController {
     async validateRouteSequence(req, res, next) {
         try {
             const validation = await routeStationService.validateRouteSequence(req.params.routeId);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: validation
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_VALIDATE_ROUTE_SEQUENCE'
             });
         }
     }
@@ -188,16 +204,17 @@ class RouteStationController {
             const { routeId } = req.params;
             const { newSequences } = req.body;
             const result = await routeStationService.reorderRouteStations(routeId, newSequences);
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: result.message,
                 data: result.validation
             });
         } catch (error) {
             if (typeof next === 'function') { next(error); }
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
-                message: error.message
+                message: error.message,
+                error: 'INTERNAL_ERROR_REORDER_ROUTE_STATIONS'
             });
         }
     }

@@ -5,7 +5,7 @@ const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const getAllStaff = asyncErrorHandler(async (req, res, next) => {
     try {
         const staff = await staffService.getAllStaff();
-        res.status(200).json({ 
+        return res.status(200).json({ 
             success: true,
             message: 'Staff retrieved successfully', 
             data: staff,
@@ -33,7 +33,7 @@ const getStaffById = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Staff retrieved successfully',
             data: staff
@@ -61,8 +61,8 @@ const updateStaff = asyncErrorHandler(async (req, res, next) => {
                 message: 'Staff not found'
             });
         }
-        
-        res.status(200).json({
+
+        return res.status(200).json({
             success: true,
             message: 'Staff updated successfully',
             data: staff
@@ -90,7 +90,7 @@ const deleteStaff = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Staff deleted successfully'
         });
@@ -104,7 +104,7 @@ const deleteStaff = asyncErrorHandler(async (req, res, next) => {
 });
 
 // POST /v1/staff/createStaff
-const createStaff = async (req, res, next) => {
+const createStaff = asyncErrorHandler(async (req, res, next) => {
     try {
         const { firstName, lastName, username, phoneNumber, dateOfBirth } = req.body;
         const userId = req.headers['x-user-id'] || req.user?.id;
@@ -129,7 +129,7 @@ const createStaff = async (req, res, next) => {
         
         const staff = await staffService.createStaff(staffData);
         
-        res.status(201).json({ 
+        return res.status(201).json({ 
             success: true, 
             message: 'Staff profile created successfully',
             data: staff 
@@ -148,10 +148,10 @@ const createStaff = async (req, res, next) => {
             error: 'INTERNAL_ERROR_CREATE_STAFF'
         });
     }
-};
+});
 
 // GET /v1/staff/me
-const getMe = async (req, res, next) => {
+const getMe = asyncErrorHandler(async (req, res, next) => {
     try {
         const staff = await staffService.getStaffByUserId(req.user.id);
         if (!staff) {
@@ -160,7 +160,7 @@ const getMe = async (req, res, next) => {
                 message: 'Staff profile not found' 
             });
         }
-        res.json({ 
+        return res.status(200).json({ 
             success: true, 
             data: staff 
         });
@@ -171,10 +171,10 @@ const getMe = async (req, res, next) => {
             error: 'INTERNAL_ERROR_GET_ME'
         });
     }
-};
+});
 
 // PUT /v1/staff/me
-const updateMe = async (req, res, next) => {
+const updateMe = asyncErrorHandler(async (req, res, next) => {
     try {
         const { firstName, lastName, phoneNumber, dateOfBirth } = req.body;
         const userId = req.user.id;
@@ -195,7 +195,7 @@ const updateMe = async (req, res, next) => {
             });
         }
         
-        res.json({ 
+        return res.status(200).json({ 
             success: true,
             message: 'Staff profile updated successfully',
             data: staff 
@@ -214,7 +214,7 @@ const updateMe = async (req, res, next) => {
             error: 'INTERNAL_ERROR_UPDATE_ME'
         });
     }
-};
+});
 
 // DELETE /v1/staff/me
 const deleteMe = asyncErrorHandler(async (req, res, next) => {
@@ -230,7 +230,7 @@ const deleteMe = asyncErrorHandler(async (req, res, next) => {
 
         const result = await staffService.deleteStaffByUserId(userId);
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Staff profile deleted successfully'
         });
@@ -265,7 +265,7 @@ const updateStaffStatus = asyncErrorHandler(async (req, res, next) => {
             });
         }
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Staff status updated successfully',
             data: staff

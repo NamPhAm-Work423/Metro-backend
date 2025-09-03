@@ -270,7 +270,9 @@ describe('Ticket Controller', () => {
 
       await ticketController.getTicketPayment(req, res, next);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Failed to get payment information' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, message: 'network', error: 'INTERNAL_ERROR_GET_TICKET_PAYMENT' })
+      );
     });
 
     it('getPaymentStatus returns ready when paymentUrl present', async () => {
@@ -305,7 +307,13 @@ describe('Ticket Controller', () => {
 
       await ticketController.calculateTicketPrice(req, res, next);
       expect(TicketPriceCalculator.calculateTotalPriceForPassengers).toHaveBeenCalled();
-      expect(res.json).toHaveBeenCalledWith({ success: true, finalPrice: 100 });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          message: 'Ticket price calculated successfully',
+          data: expect.objectContaining({ finalPrice: 100 })
+        })
+      );
     });
 
     it('should return 400 if missing required params', async () => {
@@ -316,14 +324,34 @@ describe('Ticket Controller', () => {
   });
 
   describe('passenger cache failures', () => {
-    it('createShortTermTicket propagates error when passenger cache missing', async () => {
-      ticketController._getPassengerFromCache = jest.fn().mockRejectedValue(new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.'));
-      await expect(ticketController.createShortTermTicket(req, res, next)).rejects.toThrow('Passenger not found in cache');
+    it('createShortTermTicket returns 500 when passenger cache missing', async () => {
+      ticketController._getPassengerFromCache = jest
+        .fn()
+        .mockRejectedValue(new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.'));
+      await ticketController.createShortTermTicket(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: expect.stringContaining('Passenger not found in cache'),
+          error: 'INTERNAL_ERROR_CREATE_SHORT_TERM_TICKET'
+        })
+      );
     });
 
-    it('createLongTermTicket propagates error when passenger cache missing', async () => {
-      ticketController._getPassengerFromCache = jest.fn().mockRejectedValue(new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.'));
-      await expect(ticketController.createLongTermTicket(req, res, next)).rejects.toThrow('Passenger not found in cache');
+    it('createLongTermTicket returns 500 when passenger cache missing', async () => {
+      ticketController._getPassengerFromCache = jest
+        .fn()
+        .mockRejectedValue(new Error('Passenger not found in cache. Please sync your passenger profile or authenticate again.'));
+      await ticketController.createLongTermTicket(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: expect.stringContaining('Passenger not found in cache'),
+          error: 'INTERNAL_ERROR_CREATE_LONG_TERM_TICKET'
+        })
+      );
     });
   });
 });
