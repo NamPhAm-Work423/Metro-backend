@@ -532,7 +532,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'Email is required',
-          error: 'EMAIL_REQUIRED_RESEND_VERIFICATION'
+          error: 'EMAIL_REQUIRED'
         });
       }
 
@@ -560,7 +560,7 @@ const userController = {
         return res.status(404).json({
           success: false,
           message: 'User not found',
-          error: 'USER_NOT_FOUND_RESEND_VERIFICATION'
+          error: 'USER_NOT_FOUND'
         });
       }
 
@@ -568,7 +568,7 @@ const userController = {
         return res.status(400).json({
           success: false,
           message: 'User is already verified',
-          error: 'USER_ALREADY_VERIFIED_RESEND_VERIFICATION'
+          error: 'USER_ALREADY_VERIFIED'
         });
       }
 

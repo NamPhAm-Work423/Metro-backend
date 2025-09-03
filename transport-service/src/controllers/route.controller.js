@@ -24,7 +24,6 @@ class RouteController {
             const routes = await routeService.getAllRoutes(req.query);
             return res.status(200).json({
                 success: true,
-                message: 'Routes fetched successfully',
                 data: routes
             });
         } catch (error) {
@@ -42,7 +41,6 @@ class RouteController {
             const route = await routeService.getRouteById(req.params.id);
             return res.status(200).json({
                 success: true,
-                message: 'Route fetched successfully',
                 data: route
             });
         } catch (error) {
