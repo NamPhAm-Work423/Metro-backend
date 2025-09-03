@@ -236,7 +236,7 @@ jobs:
           build-args: |
             APP_VERSION=${{ steps.vars.outputs.release_tag }}
 
-      # ---------- (Optional) Trivy chỉ khi release tag ----------
+      # ---------- Trivy CLI (release only) ----------
       - name: Prepare Trivy cache dir
         if: steps.vars.outputs.is_release == 'true'
         run: |
@@ -255,38 +255,31 @@ jobs:
       - name: Pull image for scan (release only)
         if: steps.vars.outputs.is_release == 'true'
         run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
-      - name: Workaround GHCR public pull 403
-        if: steps.vars.outputs.is_release == 'true'
-        run: |
-          docker logout ghcr.io || true
-          docker pull ghcr.io/aquasecurity/trivy:0.53.0
 
-      - name: Trivy scan (release only)
+      - name: Install Trivy CLI (v0.53.0)
         if: steps.vars.outputs.is_release == 'true'
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
-          format: sarif
-          output: trivy-${{ matrix.name }}.sarif
-          vuln-type: 'os,library'
-          exit-code: '0'
-          github-pat: ${{ secrets.GITHUB_TOKEN }}
-          cache-dir: ${{ env.TRIVY_CACHE_DIR }}
-          timeout: 5m
-          hide-progress: true      
-      - name: Trivy scan (release only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIVY_VER="v0.53.0"
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin "${TRIVY_VER}"
+          trivy --version
+
+      - name: Trivy image scan (SARIF)
         if: steps.vars.outputs.is_release == 'true'
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
-          format: sarif
-          output: trivy-${{ matrix.name }}.sarif
-          vuln-type: 'os,library'
-          exit-code: '0'
-          github-pat: ${{ secrets.GITHUB_TOKEN }}
-          cache-dir: ${{ env.TRIVY_CACHE_DIR }}
-          timeout: 5m
-          hide-progress: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMG="${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
+          echo "Scanning $IMG"
+          trivy image \
+            --format sarif \
+            --output "trivy-${{ matrix.name }}.sarif" \
+            --vuln-type os,library \
+            --timeout 5m \
+            --cache-dir "${{ env.TRIVY_CACHE_DIR }}" \
+            "$IMG" || true
 
       - name: Save Trivy DB cache
         if: steps.vars.outputs.is_release == 'true'
@@ -312,7 +305,7 @@ jobs:
   verify-images:
     # Chỉ verify khi push (PR không push image)
     if: github.event_name == 'push'
-    runs-on: [self-hosted, linux, x64, ci]
+    runs-on: [self-hosted]
     needs: build-test-scan-push
     strategy:
       fail-fast: false
@@ -351,9 +344,9 @@ jobs:
           echo "OK: $REF"
 
   deploy:
-    # Tùy chọn: chỉ chạy khi push vào main (tránh deploy khi tag nếu bạn muốn tách riêng)
+    # Tùy chọn: chỉ chạy khi push vào main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: [self-hosted, linux, x64, ci]
+    runs-on: [self-hosted]
     needs: verify-images
     env:
       VPS_PATH: ${{ secrets.VPS_PATH || '/opt/metro' }}
@@ -385,7 +378,6 @@ jobs:
         run: |
           set -euo pipefail
           export TAG
-          # Giả định docker-compose.yml dùng biến ${TAG} cho từng service
           docker compose pull
           docker compose up -d
           docker compose ps
