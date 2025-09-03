@@ -23,10 +23,8 @@ env:
 
 jobs:
   build-test-scan-push:
-    # Ép chạy self-hosted
-    runs-on: [self-hosted, linux, x64, ci]
+    runs-on: [self-hosted]
 
-    # Xuất tag/ngữ cảnh cho jobs sau
     outputs:
       short_tag: ${{ steps.vars.outputs.short_sha }}
       is_release: ${{ steps.vars.outputs.is_release }}

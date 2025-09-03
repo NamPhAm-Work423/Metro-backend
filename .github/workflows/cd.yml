@@ -17,67 +17,61 @@ permissions:
 
 env:
   DEFAULT_VPS_PATH: /opt/metro
+  # Image prefix 
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  # Host cho docker login
+  GHCR_HOST: ghcr.io
 
 jobs:
   deploy-local:
     name: Local deploy on self-hosted runner
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, x64, ci]
     timeout-minutes: 30
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
+
     steps:
       - name: Clean workspace before checkout
         shell: bash
         run: |
-          # First try to clean workspace without sudo
-          chmod -R u+w $GITHUB_WORKSPACE 2>/dev/null || true
-          rm -rf $GITHUB_WORKSPACE/nginx/certs/ 2>/dev/null || true
-          rm -rf $GITHUB_WORKSPACE/.git/ 2>/dev/null || true
-          
-          # If files still exist, use sudo as fallback (certificates often need root)
-          if [ -d "$GITHUB_WORKSPACE/nginx/certs/" ]; then
-            sudo rm -rf $GITHUB_WORKSPACE/nginx/certs/ || true
-          fi
-          if [ -d "$GITHUB_WORKSPACE/.git/" ]; then
-            sudo rm -rf $GITHUB_WORKSPACE/.git/ || true
-          fi
-          
-          # Ensure workspace ownership for current user
-          sudo chown -R $(whoami):$(whoami) $GITHUB_WORKSPACE 2>/dev/null || true
-          
+          chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/nginx/certs/" 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/.git/" 2>/dev/null || true
+          if [ -d "$GITHUB_WORKSPACE/nginx/certs/" ]; then sudo rm -rf "$GITHUB_WORKSPACE/nginx/certs/"; fi
+          if [ -d "$GITHUB_WORKSPACE/.git/" ]; then sudo rm -rf "$GITHUB_WORKSPACE/.git/"; fi
+          sudo chown -R "$(whoami):$(whoami)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           clean: false
+
       - name: Resolve deploy tag
         id: tag
         shell: bash
         run: |
           set -euo pipefail
           if [[ -n "${{ inputs.tag || '' }}" ]]; then
-            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             SHA="${{ github.event.workflow_run.head_sha }}"
-            echo "value=${SHA:0:7}" >> $GITHUB_OUTPUT
+            echo "value=${SHA:0:7}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+            echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
+          echo "resolved_tag=$(cat $GITHUB_OUTPUT | sed -n 's/^value=//p')" || true
 
-      - name: Set REGISTRY env (lowercase owner)
-        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Docker login GHCR (if private)
+      - name: Docker login GHCR
         env:
-          REGISTRY: ${{ env.REGISTRY }}
+          GHCR_HOST: ${{ env.GHCR_HOST }}
           REGISTRY_USER: ${{ secrets.GHCR_USERNAME || github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          set +e
-          echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
-          true
+          set -e
+          echo "$REGISTRY_TOKEN" | docker login "$GHCR_HOST" -u "$REGISTRY_USER" --password-stdin
 
       - name: Verify images exist for tag
         env:
@@ -87,14 +81,15 @@ jobs:
         run: |
           set -euo pipefail
           services=(
-            api-gateway auth-service payment-service public-service ticket-service 
-            transport-service user-service report-service management-service control-service notification-service
-            webhook
+            api-gateway auth-service payment-service public-service ticket-service
+            transport-service user-service report-service management-service
+            control-service notification-service webhook
           )
           missing=()
           for s in "${services[@]}"; do
-            if ! docker manifest inspect "$REGISTRY/metro-$s:$IMAGE_TAG" >/dev/null 2>&1; then
-              missing+=("$REGISTRY/metro-$s:$IMAGE_TAG")
+            ref="$REGISTRY/metro-$s:$IMAGE_TAG"
+            if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
+              missing+=("$ref")
             fi
           done
           if (( ${#missing[@]} > 0 )); then
@@ -102,16 +97,18 @@ jobs:
             printf ' - %s\n' "${missing[@]}" >&2
             exit 1
           fi
+          echo "All images for '$IMAGE_TAG' are present."
 
       - name: Compose pull & up
         env:
+          # Xuất cả TAG & IMAGE_TAG cho compose expand
+          TAG: ${{ steps.tag.outputs.value }}
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
           VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
           COMPOSE_PROFILES: nginx,admin-tools
         shell: bash
         run: |
           set -euo pipefail
-          # Choose directory containing compose file: prefer repo checkout, fallback to VPS_PATH
           DEPLOY_DIR="$GITHUB_WORKSPACE"
           if [ ! -f "$DEPLOY_DIR/docker-compose.prod.yml" ] \
              && [ ! -f "$DEPLOY_DIR/compose.prod.yml" ] \
@@ -121,26 +118,23 @@ jobs:
           fi
           echo "Using deploy directory: $DEPLOY_DIR"
           cd "$DEPLOY_DIR"
-          DOCKER_COMPOSE="docker compose"
-          $DOCKER_COMPOSE version >/dev/null
-          COMPOSE_FILES=""
-          if [ -f docker-compose.prod.yml ]; then
-            COMPOSE_FILES="-f docker-compose.prod.yml"
-          elif [ -f compose.prod.yml ]; then
-            COMPOSE_FILES="-f compose.prod.yml"
-          elif [ -f docker-compose.yml ]; then
-            COMPOSE_FILES="-f docker-compose.yml"
-          elif [ -f compose.yml ]; then
-            COMPOSE_FILES="-f compose.yml"
-          else
-            echo "No compose file found in $VPS_PATH" >&2; exit 1
-          fi
-          echo "Using tag: $IMAGE_TAG"
+
+          docker compose version >/dev/null
+
+          if   [ -f docker-compose.prod.yml ]; then COMPOSE_FILES="-f docker-compose.prod.yml"
+          elif [ -f compose.prod.yml ];        then COMPOSE_FILES="-f compose.prod.yml"
+          elif [ -f docker-compose.yml ];      then COMPOSE_FILES="-f docker-compose.yml"
+          elif [ -f compose.yml ];             then COMPOSE_FILES="-f compose.yml"
+          else echo "No compose file found in $DEPLOY_DIR" >&2; exit 1; fi
+
+          echo "Using tag: $TAG"
           echo "Using profiles: $COMPOSE_PROFILES"
-          $DOCKER_COMPOSE $COMPOSE_FILES pull || true
-          # Start services with specified profiles (nginx + admin-tools)
-          $DOCKER_COMPOSE $COMPOSE_FILES --profile nginx --profile admin-tools up -d --remove-orphans
+
+          # Kéo image trước (không fail pipeline nếu có service optional)
+          docker compose $COMPOSE_FILES pull || true
+
+          # Up theo profiles (nginx + admin-tools), remove orphan để dọn service cũ
+          docker compose $COMPOSE_FILES --profile nginx --profile admin-tools up -d --remove-orphans
+
           docker image prune -f || true
-          $DOCKER_COMPOSE $COMPOSE_FILES ps
-
-
+          docker compose $COMPOSE_FILES ps
