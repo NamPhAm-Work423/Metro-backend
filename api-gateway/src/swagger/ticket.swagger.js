@@ -2716,7 +2716,7 @@
  *                       type: string
  *                       format: date-time
  *
- * /v1/route/ticket/tickets/{qr-code}/use:
+ * /v1/route/ticket/tickets/qr/{qr-code}/use:
  *   post:
  *     summary: Use ticket by QR code (staff, admin)
  *     tags: [Tickets]
@@ -2724,7 +2724,7 @@
  *       - cookieAuth: []
  *     parameters:
  *       - in: path
- *         name: qr-code
+ *         name: qrCode
  *         required: true
  *         schema:
  *           type: string

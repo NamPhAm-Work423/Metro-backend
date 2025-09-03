@@ -21,7 +21,7 @@ jest.mock('../../src/app', () => {
         mockUseTicket(req, res);
     });
     
-    app.post('/v1/tickets/:qr-code/use', (req, res) => {
+    app.post('/v1/tickets/qr/:qrCode/use', (req, res) => {
         mockUseTicketByQRCode(req, res);
     });
     

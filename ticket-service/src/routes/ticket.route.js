@@ -26,7 +26,7 @@ router.post('/:id/mailTicket', ...authorizeRoles('passenger', 'staff', 'admin'),
 
 //Ticket Using Route:
 router.post('/:id/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicket);
-router.post('/:qr-code/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicketByQRCode);
+router.post('/qr/:qrCode/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicketByQRCode);
 // Public/Transit system validation (accessible by all authenticated users)
 router.get('/:id/validate', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.validateTicket);
 

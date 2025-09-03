@@ -778,7 +778,7 @@ class TicketController {
         }
     });
 
-    // POST /v1/tickets/:qr-code/use
+    // POST /v1/tickets/qr/:qrCode/use
     useTicketByQRCode = asyncErrorHandler(async (req, res, next) => {
         try {
             const { qrCode } = req.params;
