@@ -148,15 +148,15 @@ describe('Passenger Controller', () => {
       });
     });
 
-    it('should pass non-validation errors to next', async () => {
+    it('should return 500 on non-validation errors', async () => {
       req.headers['x-user-id'] = 'user-123';
       passengerService.getPassengerByUserId.mockResolvedValue(null);
       const err = new Error('unexpected');
       passengerService.createPassenger.mockRejectedValue(err);
 
       await passengerController.createPassenger(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(err);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
     });
   });
 
@@ -223,11 +223,13 @@ describe('Passenger Controller', () => {
       });
     });
 
-    it('should reject when service throws (handled by async error wrapper in real code)', async () => {
+    it('should return 500 when service throws in deletePassenger', async () => {
       req.params.id = '1';
       const err = new Error('db');
       passengerService.deletePassengerById.mockRejectedValue(err);
-      await expect(passengerController.deletePassenger(req, res, next)).rejects.toThrow('db');
+      await passengerController.deletePassenger(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
     });
   });
 
@@ -257,11 +259,12 @@ describe('Passenger Controller', () => {
       });
     });
 
-    it('should pass errors to next', async () => {
+    it('should return 500 on service error', async () => {
       const err = new Error('db');
       passengerService.getPassengerByUserId.mockRejectedValue(err);
       await passengerController.getMe(req, res, next);
-      expect(next).toHaveBeenCalledWith(err);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
     });
   });
 

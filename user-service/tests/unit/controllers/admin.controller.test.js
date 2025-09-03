@@ -141,13 +141,14 @@ describe('Admin Controller', () => {
       });
     });
 
-    it('should handle errors with next function', async () => {
+    it('should handle errors with 500 response', async () => {
       const error = new Error('Database error');
       adminService.getAdminByUserId.mockRejectedValue(error);
 
       await adminController.getMe(req, res, next);
 
-      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
     });
   });
 }); 

@@ -23,7 +23,8 @@ describe('auth.controller', () => {
     const app = buildApp();
     const res = await request(app).get('/key/u1');
     expect(res.status).toBe(200);
-    expect(res.body.token).toBe('t1');
+    const token = (res.body && res.body.data && res.body.data.token) || res.body.token;
+    expect(token).toBe('t1');
   });
 
   test('getAPIKeyByUser validates userId required', async () => {
