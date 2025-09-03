@@ -6,61 +6,69 @@ const { logger } = require('../config/logger');
 const generateAPIToken = asyncErrorHandler(async (req, res, next) => {
     try {
         const userId = req.params.id;
-        
-        // Use service layer instead of direct model access
+
         const { token, keyId } = await keyService.generateAPIKeyForUser(userId);
-        
+
         logger.info('API key generated successfully', { 
             userId, 
             keyId 
         });
-        
-        res.status(200).json({ 
-            status: 'success', 
-            token: token,
-            message: 'API key generated successfully. Use this key in x-api-key header for routing endpoints.'
+
+        return res.status(200).json({ 
+            success: true,
+            message: 'API key generated successfully. Use this key in x-api-key header for routing endpoints.',
+            data: { token, keyId }
         });
-    } catch (err) {
+    } catch (error) {
         logger.error('Error generating API token:', {
-            error: err.message,
-            stack: err.stack,
+            error: error.message,
+            stack: error.stack,
             userId: req.params.id
         });
-        const error = new CustomError('Internal Error', 500);
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR'
+        });
     }
 });
 
 const getAPIKeyByUser = asyncErrorHandler(async (req, res, next) => {
     const userId = req.params.userId;
-    
+
     if (!userId) {
-        return res.status(400).json({ error: 'User ID is required' });
+        return res.status(400).json({
+            success: false,
+            message: 'User ID is required',
+            error: 'USER_ID_REQUIRED'
+        });
     }
-    
+
     try {
         logger.info('Getting API keys for user', { userId });
-        
-        // Use service layer instead of direct model access
+
         const keys = await keyService.getAPIKeysByUserId(userId);
-        
+
         logger.info('API keys retrieved successfully', { 
             userId, 
             keyCount: keys.length 
         });
-        
+
         return res.status(200).json({ 
-            status: 'success', 
-            data: keys 
+            success: true,
+            data: { keys }
         });
-    } catch (err) {
+    } catch (error) {
         logger.error('Error getting API keys for user:', {
-            error: err.message,
-            stack: err.stack,
+            error: error.message,
+            stack: error.stack,
             userId
         });
-        const error = new CustomError('Internal Error', 500);
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR'
+        });
     }
 });
 
@@ -69,29 +77,35 @@ const deleteKeyById = asyncErrorHandler(async (req, res, next) => {
 
     try {
         logger.info('Deleting API key', { keyId: id });
-        
-        // Use service layer instead of direct model access
+
         const deleted = await keyService.deleteAPIKeyById(id);
 
         if (!deleted) {
             logger.warn('API key not found for deletion', { keyId: id });
-            return res.status(404).json({ error: 'No API keys found' });
+            return res.status(404).json({
+                success: false,
+                message: 'API key not found',
+                error: 'API_KEY_NOT_FOUND'
+            });
         }
 
         logger.info('API key deleted successfully', { keyId: id });
-        
+
         return res.status(200).json({ 
-            status: 'success', 
+            success: true,
             message: 'API key deleted successfully'
         });
-    } catch (err) {
+    } catch (error) {
         logger.error('Error deleting API key:', {
-            error: err.message,
-            stack: err.stack,
+            error: error.message,
+            stack: error.stack,
             keyId: id
         });
-        const error = new CustomError(err.message || 'Internal Error', 500);
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR'
+        });
     }
 });
 

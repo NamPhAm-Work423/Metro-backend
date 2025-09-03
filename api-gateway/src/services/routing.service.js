@@ -128,13 +128,42 @@ class RoutingService {
                 skipTooBusy: true,
                 // Handle response errors and preserve status codes
                 userResDecorator: function(proxyRes, proxyResData, userReq, userRes) {
+                    // Set status code first
                     userRes.status(proxyRes.statusCode);
                     
-                    logger.debug('Forwarding response from downstream service', {
+                    // Check if response is JSON
+                    const contentType = proxyRes.headers['content-type'] || '';
+                    const isJSON = contentType.includes('application/json');
+                    
+                    if (isJSON) {
+                        try {
+                            // Parse response data
+                            const responseString = proxyResData.toString('utf8');
+                            const responseData = JSON.parse(responseString);
+                            
+                            logger.debug('Forwarding JSON response from downstream service', {
+                                service: endPoint,
+                                statusCode: proxyRes.statusCode,
+                                path: userReq.url,
+                                responseData: responseData
+                            });
+                            
+                            return JSON.stringify(responseData);
+                            
+                        } catch (parseError) {
+                            logger.error('Failed to parse JSON response', {
+                                service: endPoint,
+                                error: parseError.message,
+                                responseData: proxyResData.toString('utf8').substring(0, 500)
+                            });
+                        }
+                    }
+                    
+                    logger.debug('Forwarding non-JSON response from downstream service', {
                         service: endPoint,
                         statusCode: proxyRes.statusCode,
                         path: userReq.url,
-                        contentType: proxyRes.headers['content-type']
+                        contentType: contentType
                     });
                     
                     return proxyResData;

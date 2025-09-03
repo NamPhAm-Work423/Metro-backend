@@ -51,7 +51,36 @@ const userController = {
         }
       });
     } catch (error) {
-      next(error);
+      if (error.message === 'Email already exists') {
+        return res.status(409).json({
+            success: false,
+            message: 'Email already exists',
+            error: 'DUPLICATE_EMAIL'
+        });
+      }
+      
+      if (error.message === 'Username already exists') {
+          return res.status(409).json({
+              success: false,
+              message: 'Username already exists',
+              error: 'DUPLICATE_USERNAME'
+          });
+      }
+      
+      if (error.message === 'Admin role is not allowed to be created') {
+          return res.status(400).json({
+              success: false,
+              message: 'Admin role is not allowed to be created',
+              error: 'ADMIN_ROLE_NOT_ALLOWED'
+          });
+      }
+      
+      logger.error('Registration system error:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Internal server error',
+          error: 'INTERNAL_ERROR'
+      });
     }
   }),
 
@@ -127,7 +156,54 @@ const userController = {
       // Clear any existing cookies on login failure
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      next(error);
+
+      // Map known service errors to HTTP responses
+      if (error.message === 'User is not found') {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      if (error.message === 'Account is temporarily locked due to multiple failed login attempts') {
+        return res.status(423).json({
+          success: false,
+          message: 'Account is temporarily locked due to multiple failed login attempts',
+          error: 'ACCOUNT_LOCKED'
+        });
+      }
+
+      if (error.message === 'Please verify your email address') {
+        return res.status(403).json({
+          success: false,
+          message: 'Please verify your email address',
+          error: 'EMAIL_NOT_VERIFIED'
+        });
+      }
+
+      if (error.message === 'Password is required') {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is required',
+          error: 'PASSWORD_REQUIRED'
+        });
+      }
+
+      if (error.message === 'Invalid email or password') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          error: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      logger.error('Login system error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'INTERNAL_ERROR'
+      });
     }
   }),
 
@@ -226,7 +302,40 @@ const userController = {
           }
         });
     } catch (error) {
-      next(error);
+      // Clear potentially invalid tokens
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+
+      if (error && error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token expired',
+          error: 'REFRESH_TOKEN_EXPIRED'
+        });
+      }
+
+      if (error && (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError')) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid refresh token',
+          error: 'INVALID_REFRESH_TOKEN'
+        });
+      }
+
+      if (error && error.message === 'User not found') {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      logger.error('Refresh token system error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'INTERNAL_ERROR'
+      });
     }
   }),
 
@@ -255,7 +364,20 @@ const userController = {
           message: 'If an account exists with this email, you will receive a password reset link'
         });
     } catch (error) {
-      next(error);
+      if (error.message === 'Failed to generate password reset token - Redis unavailable') {
+        return res.status(503).json({
+          success: false,
+          message: 'Service temporarily unavailable',
+          error: 'REDIS_UNAVAILABLE'
+        });
+      }
+
+      logger.error('Forgot password system error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'INTERNAL_ERROR'
+      });
     }
   }),
 
@@ -284,7 +406,44 @@ const userController = {
           message: 'Password reset successful'
         });
     } catch (error) {
-      next(error);
+      if (error.message === 'Password must be at least 6 characters') {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters',
+          error: 'WEAK_PASSWORD'
+        });
+      }
+
+      if (error.message === 'Failed to verify reset token - Redis unavailable') {
+        return res.status(503).json({
+          success: false,
+          message: 'Service temporarily unavailable',
+          error: 'REDIS_UNAVAILABLE'
+        });
+      }
+
+      if (error.message === 'Invalid or expired reset token') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset token',
+          error: 'INVALID_OR_EXPIRED_TOKEN'
+        });
+      }
+
+      if (error.message === 'Invalid reset token') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid reset token',
+          error: 'INVALID_RESET_TOKEN'
+        });
+      }
+
+      logger.error('Reset password system error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'INTERNAL_ERROR'
+      });
     }
   }),
 

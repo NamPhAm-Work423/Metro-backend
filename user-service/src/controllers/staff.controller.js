@@ -12,7 +12,11 @@ const getAllStaff = asyncErrorHandler(async (req, res, next) => {
             count: staff.length
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ALL_STAFF    '
+        });
     }
 });
 
@@ -35,7 +39,11 @@ const getStaffById = asyncErrorHandler(async (req, res, next) => {
             data: staff
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_STAFF_BY_ID'
+        });
     }
 });
 
@@ -60,7 +68,11 @@ const updateStaff = asyncErrorHandler(async (req, res, next) => {
             data: staff
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_STAFF'
+        });
     }
 });
 
@@ -83,7 +95,11 @@ const deleteStaff = asyncErrorHandler(async (req, res, next) => {
             message: 'Staff deleted successfully'
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_DELETE_STAFF'
+        });
     }
 });
 
@@ -126,7 +142,11 @@ const createStaff = async (req, res, next) => {
                 errors: err.errors.map(e => ({ field: e.path, message: e.message }))
             });
         }
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_CREATE_STAFF'
+        });
     }
 };
 
@@ -145,7 +165,11 @@ const getMe = async (req, res, next) => {
             data: staff 
         });
     } catch (err) {
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ME'
+        });
     }
 };
 
@@ -184,7 +208,11 @@ const updateMe = async (req, res, next) => {
                 errors: err.errors.map(e => ({ field: e.path, message: e.message }))
             });
         }
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_ME'
+        });
     }
 };
 
@@ -207,7 +235,11 @@ const deleteMe = asyncErrorHandler(async (req, res, next) => {
             message: 'Staff profile deleted successfully'
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_DELETE_ME'
+        });
     }
 });
 
@@ -239,7 +271,11 @@ const updateStaffStatus = asyncErrorHandler(async (req, res, next) => {
             data: staff
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_STAFF_STATUS'
+        });
     }
 });
 

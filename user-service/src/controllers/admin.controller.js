@@ -14,7 +14,11 @@ const getAllAdmins = asyncErrorHandler(async (req, res, next) => {
         });
     } catch (error) {
         logger.error('Error getting all admins', { error: error.message });
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ALL_ADMINS'
+        });
     }
 });
 
@@ -38,7 +42,11 @@ const getAdminById = asyncErrorHandler(async (req, res, next) => {
         });
     } catch (error) {
         logger.error('Error getting admin by id', { error: error.message, adminId: req.params.id });
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ADMIN_BY_ID'
+        });
     }
 });
 
@@ -64,7 +72,11 @@ const updateAdmin = asyncErrorHandler(async (req, res, next) => {
         });
     } catch (error) {
         logger.error('Error updating admin', { error: error.message, adminId: req.params.id });
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_ADMIN'
+        });
     }
 });
 
@@ -84,7 +96,11 @@ const getMe = async (req, res, next) => {
             data: admin 
         });
     } catch (err) {
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ME'
+        });
     }
 };
 

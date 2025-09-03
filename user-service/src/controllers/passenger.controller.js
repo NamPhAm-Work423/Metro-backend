@@ -13,7 +13,11 @@ const getAllPassengers = asyncErrorHandler(async (req, res, next) => {
             count: passengers.length
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ALL_PASSENGERS'
+        });
     }
 });
 
@@ -36,7 +40,11 @@ const getPassengerById = asyncErrorHandler(async (req, res, next) => {
             data: passenger
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_PASSENGER_BY_ID'
+        });
     }
 });
 
@@ -61,7 +69,11 @@ const updatePassenger = asyncErrorHandler(async (req, res, next) => {
             data: passenger
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_PASSENGER'
+        });
     }
 });
 
@@ -84,8 +96,11 @@ const deletePassenger = asyncErrorHandler(async (req, res, next) => {
             message: 'Passenger deleted successfully'
         });
     } catch (error) {
-        next(error);
-        throw error;
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_DELETE_PASSENGER'
+        });
     }
 });
 
@@ -131,7 +146,11 @@ const createPassenger = asyncErrorHandler(async (req, res, next) => {
                 errors: err.errors.map(e => ({ field: e.path, message: e.message }))
             });
         }
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_CREATE_PASSENGER'
+        });
     }
 });
 
@@ -150,7 +169,11 @@ const getMe = async (req, res, next) => {
             data: passenger 
         });
     } catch (err) {
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_GET_ME'
+        });
     }
 };
 
@@ -192,7 +215,11 @@ const updateMe = async (req, res, next) => {
                 errors: err.errors.map(e => ({ field: e.path, message: e.message }))
             });
         }
-        next(err);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_UPDATE_ME'
+        });
     }
 };
 
@@ -216,7 +243,11 @@ const deleteMe = asyncErrorHandler(async (req, res, next) => {
             data: result
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_DELETE_ME'
+        });
     }
 });
 
@@ -256,7 +287,11 @@ const syncPassenger = asyncErrorHandler(async (req, res, next) => {
             }
         });
     } catch (error) {
-        next(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_SYNC_PASSENGER'
+        });
     }
 });
 
@@ -272,8 +307,11 @@ const deletePassengerById = asyncErrorHandler(async (req, res, next) => {
             data: result
         });
     } catch (error) {
-        next(error);
-        throw error;
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_DELETE_PASSENGER_BY_ID'
+        });
     }
 });
 
