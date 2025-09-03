@@ -35,6 +35,22 @@ services:
         condition: service_healthy
       webhook:
         condition: service_healthy
+      grafana:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      alertmanager:
+        condition: service_healthy
+      mongo-express:
+        condition: service_healthy
+      redis-commander:
+        condition: service_healthy
+      pgadmin:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      promtail:
+        condition: service_started
     networks:
       - backend-network
     logging: *default-logging
