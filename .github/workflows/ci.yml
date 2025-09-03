@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build-test-scan-push:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
 
     outputs:
       short_tag: ${{ steps.vars.outputs.short_sha }}
