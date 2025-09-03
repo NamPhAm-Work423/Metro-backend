@@ -5,6 +5,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       tag:
@@ -17,30 +18,37 @@ permissions:
 
 env:
   DEFAULT_VPS_PATH: /opt/metro
-  # Image prefix 
   REGISTRY: ghcr.io/${{ github.repository_owner }}
-  # Host cho docker login
   GHCR_HOST: ghcr.io
 
 jobs:
-  deploy-local:
+  deploy-vps:
     name: Local deploy on self-hosted runner
     runs-on: [self-hosted]
     timeout-minutes: 30
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push'
+        )
+      }}
     concurrency:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
 
     steps:
+      - name: Normalize REGISTRY (lowercase owner)
+        shell: bash
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Clean workspace before checkout
         shell: bash
         run: |
           chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
-          rm -rf "$GITHUB_WORKSPACE/nginx/certs/" 2>/dev/null || true
-          rm -rf "$GITHUB_WORKSPACE/.git/" 2>/dev/null || true
-          if [ -d "$GITHUB_WORKSPACE/nginx/certs/" ]; then sudo rm -rf "$GITHUB_WORKSPACE/nginx/certs/"; fi
-          if [ -d "$GITHUB_WORKSPACE/.git/" ]; then sudo rm -rf "$GITHUB_WORKSPACE/.git/"; fi
+          rm -rf "$GITHUB_WORKSPACE/nginx/certs/" "$GITHUB_WORKSPACE/.git/" 2>/dev/null || true
           sudo chown -R "$(whoami):$(whoami)" "$GITHUB_WORKSPACE" 2>/dev/null || true
 
       - name: Checkout
@@ -61,7 +69,7 @@ jobs:
           else
             echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
-          echo "resolved_tag=$(cat $GITHUB_OUTPUT | sed -n 's/^value=//p')" || true
+          echo "Resolved tag: $(sed -n 's/^value=//p' "$GITHUB_OUTPUT")"
 
       - name: Docker login GHCR
         env:
@@ -80,6 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          REGISTRY_LC="$(echo "$REGISTRY" | tr '[:upper:]' '[:lower:]')"
           services=(
             api-gateway auth-service payment-service public-service ticket-service
             transport-service user-service report-service management-service
@@ -87,7 +96,8 @@ jobs:
           )
           missing=()
           for s in "${services[@]}"; do
-            ref="$REGISTRY/metro-$s:$IMAGE_TAG"
+            ref="$REGISTRY_LC/metro-$s:$IMAGE_TAG"
+            echo "Checking $ref"
             if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
               missing+=("$ref")
             fi
@@ -101,7 +111,6 @@ jobs:
 
       - name: Compose pull & up
         env:
-          # Xuất cả TAG & IMAGE_TAG cho compose expand
           TAG: ${{ steps.tag.outputs.value }}
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
           VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
@@ -130,10 +139,7 @@ jobs:
           echo "Using tag: $TAG"
           echo "Using profiles: $COMPOSE_PROFILES"
 
-          # Kéo image trước (không fail pipeline nếu có service optional)
           docker compose $COMPOSE_FILES pull || true
-
-          # Up theo profiles (nginx + admin-tools), remove orphan để dọn service cũ
           docker compose $COMPOSE_FILES --profile nginx --profile admin-tools up -d --remove-orphans
 
           docker image prune -f || true

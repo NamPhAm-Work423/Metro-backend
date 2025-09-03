@@ -4,8 +4,7 @@ on:
   pull_request:
   push:
     branches: [ main ]
-    tags:
-      - 'v*.*.*'
+    tags: [ 'v*.*.*' ]
 
 permissions:
   contents: read
@@ -33,24 +32,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: api-gateway,        path: api-gateway,        dockerfile: Dockerfile, runtime: node }
-          - { name: auth-service,       path: auth-service,       dockerfile: Dockerfile, runtime: node }
-          - { name: payment-service,    path: payment-service,    dockerfile: Dockerfile, runtime: node }
-          - { name: public-service,     path: public-service,     dockerfile: Dockerfile, runtime: node }
-          - { name: ticket-service,     path: ticket-service,     dockerfile: Dockerfile, runtime: node }
-          - { name: transport-service,  path: transport-service,  dockerfile: Dockerfile, runtime: node }
-          - { name: control-service,    path: control-service,    dockerfile: Dockerfile, runtime: python }
-          - { name: user-service,       path: user-service,       dockerfile: Dockerfile, runtime: node }
-          - { name: report-service,     path: report-service,     dockerfile: Dockerfile, runtime: python }
-          - { name: notification-service,path: notification-service,dockerfile: Dockerfile, runtime: node }
-          - { name: management-service, path: management-service, dockerfile: Dockerfile, runtime: python }
-          - { name: webhook,            path: webhook,            dockerfile: Dockerfile, runtime: node }
+          - { name: api-gateway,         path: api-gateway,         dockerfile: Dockerfile, runtime: node }
+          - { name: auth-service,        path: auth-service,        dockerfile: Dockerfile, runtime: node }
+          - { name: payment-service,     path: payment-service,     dockerfile: Dockerfile, runtime: node }
+          - { name: public-service,      path: public-service,      dockerfile: Dockerfile, runtime: node }
+          - { name: ticket-service,      path: ticket-service,      dockerfile: Dockerfile, runtime: node }
+          - { name: transport-service,   path: transport-service,   dockerfile: Dockerfile, runtime: node }
+          - { name: control-service,     path: control-service,     dockerfile: Dockerfile, runtime: python }
+          - { name: user-service,        path: user-service,        dockerfile: Dockerfile, runtime: node }
+          - { name: report-service,      path: report-service,      dockerfile: Dockerfile, runtime: python }
+          - { name: notification-service,path: notification-service, dockerfile: Dockerfile, runtime: node }
+          - { name: management-service,  path: management-service,  dockerfile: Dockerfile, runtime: python }
+          - { name: webhook,             path: webhook,             dockerfile: Dockerfile, runtime: node }
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # REGISTRY phải lowercase để GHCR chấp nhận
+      # GHCR yêu cầu owner lowercase
       - name: Normalize REGISTRY (lowercase owner)
         run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
@@ -63,7 +62,7 @@ jobs:
 
       - name: Detect npm lockfile
         id: detect_lockfile
-        if: ${{ matrix.runtime == 'node' }}
+        if: matrix.runtime == 'node'
         run: |
           if [ -f "${{ matrix.path }}/package-lock.json" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -73,7 +72,7 @@ jobs:
 
       - name: Ensure npm cache directory
         id: ensure_npm_cache_dir
-        if: ${{ matrix.runtime == 'node' }}
+        if: matrix.runtime == 'node'
         shell: bash
         run: |
           NPM_CACHE_DIR=$(npm config get cache)
@@ -200,7 +199,7 @@ jobs:
           build-args: |
             APP_VERSION=${{ steps.vars.outputs.release_tag }}
 
-      # ---------- Trivy CLI (release only) ----------
+      # ---------- Trivy (release only) ----------
       - name: Prepare Trivy cache dir
         if: steps.vars.outputs.is_release == 'true'
         run: |
@@ -301,7 +300,8 @@ jobs:
         shell: bash
         run: |
           TAG="${{ needs.build-test-scan-push.outputs.short_tag }}"
-          REF="${{ env.REGISTRY }}/${{ matrix.image }}:${TAG}"
+          REGISTRY_LC="$(echo "${{ env.REGISTRY }}" | tr '[:upper:]' '[:lower:]')"
+          REF="${REGISTRY_LC}/${{ matrix.image }}:${TAG}"
           echo "Checking $REF"
           if ! docker manifest inspect "$REF" > /dev/null 2>&1; then
             echo "Missing image: $REF"
