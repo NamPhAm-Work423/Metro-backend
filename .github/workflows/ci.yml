@@ -17,15 +17,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# REGISTRY thống nhất toàn pipeline (lowercase owner)
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
 jobs:
   build-test-scan-push:
-    # runs-on: [self-hosted, linux, x64, ci]
-    # Fallback nếu runner chưa có label 'ci':
-    runs-on: ubuntu-latest
-    
+    # Ép chạy self-hosted
+    runs-on: [self-hosted, linux, x64, ci]
+
+    # Xuất tag/ngữ cảnh cho jobs sau
+    outputs:
+      short_tag: ${{ steps.vars.outputs.short_sha }}
+      is_release: ${{ steps.vars.outputs.is_release }}
+      release_tag: ${{ steps.vars.outputs.release_tag }}
+
     env:
-      REGISTRY: ghcr.io/metro-app
       ENABLE_SARIF_UPLOAD: 'false'
+
     strategy:
       fail-fast: false
       matrix:
@@ -79,11 +88,11 @@ jobs:
             dockerfile: Dockerfile
             runtime: node
 
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---------- Setup runtimes & caches ----------
       - name: Use Node.js
         if: matrix.runtime == 'node'
         uses: actions/setup-node@v4
@@ -118,21 +127,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Use Python
-        if: matrix.runtime == 'python'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Cache pip
-        if: matrix.runtime == 'python'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements.txt', matrix.path)) }}-${{ hashFiles(format('{0}/requirements-dev.txt', matrix.path)) }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install deps (Node)
         if: matrix.runtime == 'node'
         working-directory: ${{ matrix.path }}
@@ -161,9 +155,24 @@ jobs:
           if npm run | grep -q "test"; then
             npm test --if-present
           fi
-          if npm run | grep -q "test:coverage"; then
+          if npm run | grep -q "test:coverage" && [[ "$ENFORCE_COVERAGE" == "true" ]]; then
             npm run test:coverage
           fi
+
+      - name: Use Python
+        if: matrix.runtime == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        if: matrix.runtime == 'python'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements.txt', matrix.path)) }}-${{ hashFiles(format('{0}/requirements-dev.txt', matrix.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install deps (Python)
         if: matrix.runtime == 'python'
@@ -179,6 +188,7 @@ jobs:
         run: |
           if [ -d tests ]; then pytest -q || true; fi
 
+      # ---------- Build & Push ----------
       - name: Compute tags
         id: vars
         run: |
@@ -199,22 +209,6 @@ jobs:
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Set REGISTRY env (lowercase owner)
-        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Prepare Trivy cache dir
-        run: |
-          mkdir -p "$HOME/.cache/trivy"
-          echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
-
-      - name: Restore Trivy DB cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.TRIVY_CACHE_DIR }}
-          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
-          restore-keys: |
-            ${{ runner.os }}-trivy-db-
 
       - name: Build and push image (SHA tag)
         uses: docker/build-push-action@v6
@@ -244,6 +238,22 @@ jobs:
           build-args: |
             APP_VERSION=${{ steps.vars.outputs.release_tag }}
 
+      # ---------- (Optional) Trivy chỉ khi release tag ----------
+      - name: Prepare Trivy cache dir
+        if: steps.vars.outputs.is_release == 'true'
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
+
+      - name: Restore Trivy DB cache
+        if: steps.vars.outputs.is_release == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.TRIVY_CACHE_DIR }}
+          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
+          restore-keys: |
+            ${{ runner.os }}-trivy-db-
+
       - name: Pull image for scan (release only)
         if: steps.vars.outputs.is_release == 'true'
         run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
@@ -270,19 +280,12 @@ jobs:
           key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
 
       - name: Upload SARIF
-        if: steps.vars.outputs.is_release == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && env.ENABLE_SARIF_UPLOAD == 'true'
+        if: steps.vars.outputs.is_release == 'true' && env.ENABLE_SARIF_UPLOAD == 'true'
         uses: github/codeql-action/upload-sarif@v3
         continue-on-error: true
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
 
-      - name: Attach SARIF as artifact (always)
-        if: steps.vars.outputs.is_release == 'true' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-${{ matrix.name }}-sarif
-          path: trivy-${{ matrix.name }}.sarif
-      
       - name: Cleanup Docker & caches
         if: always()
         run: |
@@ -290,4 +293,83 @@ jobs:
           rm -rf ~/.cache/npm/_cacache || true
           rm -rf ~/.cache/pip || true
 
+  verify-images:
+    # Chỉ verify khi push (PR không push image)
+    if: github.event_name == 'push'
+    runs-on: [self-hosted, linux, x64, ci]
+    needs: build-test-scan-push
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - metro-api-gateway
+          - metro-auth-service
+          - metro-payment-service
+          - metro-public-service
+          - metro-ticket-service
+          - metro-transport-service
+          - metro-control-service
+          - metro-user-service
+          - metro-report-service
+          - metro-notification-service
+          - metro-management-service
+          - metro-webhook
+    steps:
+      - name: Login GHCR (read)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify image exists with short tag
+        shell: bash
+        run: |
+          TAG="${{ needs.build-test-scan-push.outputs.short_tag }}"
+          REF="${{ env.REGISTRY }}/${{ matrix.image }}:${TAG}"
+          echo "Checking $REF"
+          if ! docker manifest inspect "$REF" > /dev/null 2>&1; then
+            echo "Missing image: $REF"
+            exit 1
+          fi
+          echo "OK: $REF"
+
+  deploy:
+    # Tùy chọn: chỉ chạy khi push vào main (tránh deploy khi tag nếu bạn muốn tách riêng)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: [self-hosted, linux, x64, ci]
+    needs: verify-images
+    env:
+      VPS_PATH: ${{ secrets.VPS_PATH || '/opt/metro' }}
+    steps:
+      - name: Show context
+        run: |
+          echo "Using VPS_PATH=$VPS_PATH"
+          echo "REGISTRY=$REGISTRY"
+          echo "TAG=${{ needs.build-test-scan-push.outputs.short_tag }}"
+
+      - name: Pull newest images
+        run: |
+          TAG="${{ needs.build-test-scan-push.outputs.short_tag }}"
+          SERVICES=(
+            api-gateway auth-service payment-service public-service ticket-service
+            transport-service control-service user-service report-service
+            notification-service management-service webhook
+          )
+          for s in "${SERVICES[@]}"; do
+            img="${REGISTRY}/metro-${s}:${TAG}"
+            echo "Pulling $img"
+            docker pull "$img"
+          done
+
+      - name: Compose pull & up
+        working-directory: ${{ env.VPS_PATH }}
+        env:
+          TAG: ${{ needs.build-test-scan-push.outputs.short_tag }}
+        run: |
+          set -euo pipefail
+          export TAG
+          # Giả định docker-compose.yml dùng biến ${TAG} cho từng service
+          docker compose pull
+          docker compose up -d
+          docker compose ps
