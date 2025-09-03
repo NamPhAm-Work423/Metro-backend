@@ -268,7 +268,7 @@ jobs:
 
   verify-images:
     if: github.event_name == 'push'
-    runs-on: [self-hosted]
+    runs-on: unbuntu-latest
     needs: build-test-scan-push
     strategy:
       fail-fast: false
