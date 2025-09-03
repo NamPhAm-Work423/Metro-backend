@@ -41,12 +41,6 @@ services:
         condition: service_healthy
       alertmanager:
         condition: service_healthy
-      mongo-express:
-        condition: service_healthy
-      redis-commander:
-        condition: service_healthy
-      pgadmin:
-        condition: service_healthy
       loki:
         condition: service_healthy
       promtail:
@@ -502,6 +496,12 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 
@@ -544,6 +544,12 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 
@@ -746,6 +752,12 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -777,8 +789,15 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:latest
@@ -794,9 +813,17 @@ services:
       - ./dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./dashboard/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
@@ -845,6 +872,12 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 
@@ -863,6 +896,12 @@ services:
     networks:
       - backend-network
     logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     <<:
       - *default-restart
       - *default-deploy

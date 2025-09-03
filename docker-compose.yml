@@ -1,3 +1,5 @@
+
+
 x-logging: &default-logging
   driver: json-file
   options:
@@ -513,6 +515,12 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -545,9 +553,15 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       prometheus:
-        condition: service_started
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:latest
@@ -559,9 +573,17 @@ services:
       - ./dashboard/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./dashboard/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./dashboard/grafana/dashboards:/var/lib/grafana/dashboards
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     networks:
       - backend-network
     restart: unless-stopped
@@ -576,6 +598,12 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   promtail:
     image: grafana/promtail:2.9.4
@@ -746,12 +774,19 @@ services:
     ports:
       - "5050:80"  # External cho dev
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - backend-network
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # Kafka - Internal only 
   zookeeper:
