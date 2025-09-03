@@ -17,10 +17,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# REGISTRY thống nhất toàn pipeline (lowercase owner)
-env:
-  REGISTRY: ghcr.io/${{ github.repository_owner }}
-
 jobs:
   build-test-scan-push:
     runs-on: [self-hosted]
@@ -37,58 +33,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: api-gateway
-            path: api-gateway
-            dockerfile: Dockerfile
-            runtime: node
-          - name: auth-service
-            path: auth-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: payment-service
-            path: payment-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: public-service
-            path: public-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: ticket-service
-            path: ticket-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: transport-service
-            path: transport-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: control-service
-            path: control-service
-            dockerfile: Dockerfile
-            runtime: python
-          - name: user-service
-            path: user-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: report-service
-            path: report-service
-            dockerfile: Dockerfile
-            runtime: python
-          - name: notification-service
-            path: notification-service
-            dockerfile: Dockerfile
-            runtime: node
-          - name: management-service
-            path: management-service
-            dockerfile: Dockerfile
-            runtime: python
-          - name: webhook
-            path: webhook
-            dockerfile: Dockerfile
-            runtime: node
+          - { name: api-gateway,        path: api-gateway,        dockerfile: Dockerfile, runtime: node }
+          - { name: auth-service,       path: auth-service,       dockerfile: Dockerfile, runtime: node }
+          - { name: payment-service,    path: payment-service,    dockerfile: Dockerfile, runtime: node }
+          - { name: public-service,     path: public-service,     dockerfile: Dockerfile, runtime: node }
+          - { name: ticket-service,     path: ticket-service,     dockerfile: Dockerfile, runtime: node }
+          - { name: transport-service,  path: transport-service,  dockerfile: Dockerfile, runtime: node }
+          - { name: control-service,    path: control-service,    dockerfile: Dockerfile, runtime: python }
+          - { name: user-service,       path: user-service,       dockerfile: Dockerfile, runtime: node }
+          - { name: report-service,     path: report-service,     dockerfile: Dockerfile, runtime: python }
+          - { name: notification-service,path: notification-service,dockerfile: Dockerfile, runtime: node }
+          - { name: management-service, path: management-service, dockerfile: Dockerfile, runtime: python }
+          - { name: webhook,            path: webhook,            dockerfile: Dockerfile, runtime: node }
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # REGISTRY phải lowercase để GHCR chấp nhận
+      - name: Normalize REGISTRY (lowercase owner)
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
       # ---------- Setup runtimes & caches ----------
       - name: Use Node.js
@@ -303,7 +267,6 @@ jobs:
           rm -rf ~/.cache/pip || true
 
   verify-images:
-    # Chỉ verify khi push (PR không push image)
     if: github.event_name == 'push'
     runs-on: [self-hosted]
     needs: build-test-scan-push
@@ -342,42 +305,3 @@ jobs:
             exit 1
           fi
           echo "OK: $REF"
-
-  deploy:
-    # Tùy chọn: chỉ chạy khi push vào main
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: [self-hosted]
-    needs: verify-images
-    env:
-      VPS_PATH: ${{ secrets.VPS_PATH || '/opt/metro' }}
-    steps:
-      - name: Show context
-        run: |
-          echo "Using VPS_PATH=$VPS_PATH"
-          echo "REGISTRY=$REGISTRY"
-          echo "TAG=${{ needs.build-test-scan-push.outputs.short_tag }}"
-
-      - name: Pull newest images
-        run: |
-          TAG="${{ needs.build-test-scan-push.outputs.short_tag }}"
-          SERVICES=(
-            api-gateway auth-service payment-service public-service ticket-service
-            transport-service control-service user-service report-service
-            notification-service management-service webhook
-          )
-          for s in "${SERVICES[@]}"; do
-            img="${REGISTRY}/metro-${s}:${TAG}"
-            echo "Pulling $img"
-            docker pull "$img"
-          done
-
-      - name: Compose pull & up
-        working-directory: ${{ env.VPS_PATH }}
-        env:
-          TAG: ${{ needs.build-test-scan-push.outputs.short_tag }}
-        run: |
-          set -euo pipefail
-          export TAG
-          docker compose pull
-          docker compose up -d
-          docker compose ps
