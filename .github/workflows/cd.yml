@@ -25,7 +25,7 @@ env:
 jobs:
   deploy-local:
     name: Local deploy on self-hosted runner
-    runs-on: [self-hosted, linux, x64, ci]
+    runs-on: [self-hosted]
     timeout-minutes: 30
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     concurrency:
