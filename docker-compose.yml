@@ -18,23 +18,23 @@ x-deploy: &default-deploy
         memory: 256M
 
 services:
-  # NGINX - Optional
-  # nginx-proxy:
-  #   image: nginx
-  #   container_name: nginx-proxy
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-  #     - ./nginx/certs:/etc/nginx/certs
-  #   depends_on:
-  #     - api-gateway
-  #   networks:
-  #     - backend-network
-  #   restart: unless-stopped
-  #   profiles:
-  #     - nginx  # Optional: docker-compose --profile nginx up
+  # NGINX - Local Development (HTTP only) - Included by default
+  nginx-proxy:
+    image: nginx
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      # - "443:443"  # Disabled for local development
+    volumes:
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf  # Use local config without SSL
+      # - ./nginx/certs:/etc/nginx/certs  # SSL certs not needed for local dev
+    depends_on:
+      - api-gateway
+    networks:
+      - backend-network
+    restart: unless-stopped
+    # profiles:
+    #   - nginx  # Commented out - nginx runs by default now
 
   # API Gateway - internal only (use nginx-proxy profile to expose 80/443)
   api-gateway:
