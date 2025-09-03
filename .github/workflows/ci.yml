@@ -255,7 +255,25 @@ jobs:
       - name: Pull image for scan (release only)
         if: steps.vars.outputs.is_release == 'true'
         run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
+      - name: Workaround GHCR public pull 403
+        if: steps.vars.outputs.is_release == 'true'
+        run: |
+          docker logout ghcr.io || true
+          docker pull ghcr.io/aquasecurity/trivy:0.53.0
 
+      - name: Trivy scan (release only)
+        if: steps.vars.outputs.is_release == 'true'
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          vuln-type: 'os,library'
+          exit-code: '0'
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
+          cache-dir: ${{ env.TRIVY_CACHE_DIR }}
+          timeout: 5m
+          hide-progress: true      
       - name: Trivy scan (release only)
         if: steps.vars.outputs.is_release == 'true'
         uses: aquasecurity/trivy-action@0.24.0
