@@ -138,6 +138,60 @@ class TicketService extends ITicketService {
     }
 
     /**
+     * Build payment redirect URLs with ENV fallback
+     * @param {Object} ticketData
+     * @returns {{success: string, fail: string}}
+     */
+    _getRedirectUrls(ticketData) {
+        const base = process.env.PUBLIC_FRONTEND_URL || 'http://localhost:5173';
+        const normalizedBase = String(base).replace(/\/$/, '');
+        const success = ticketData?.paymentSuccessUrl || `${normalizedBase}/payment/success`;
+        const fail = ticketData?.paymentFailUrl || `${normalizedBase}/payment/fail`;
+        return { success, fail };
+    }
+
+    /**
+     * Build a concise, enriched ticket usage payload for clients
+     * @param {Object} ticket - Sequelize ticket instance
+     * @returns {Object}
+     */
+    _buildTicketUsageInfo(ticket) {
+        const info = {
+            ticketId: ticket.ticketId,
+            status: ticket.status,
+            passengerId: ticket.passengerId,
+            ticketType: ticket.ticketType,
+            originStationId: ticket.originStationId,
+            destinationStationId: ticket.destinationStationId,
+            validFrom: ticket.validFrom,
+            validUntil: ticket.validUntil,
+            usedAt: ticket.usedAt,
+            stationCount: ticket.stationCount,
+            fareId: ticket.fareId,
+            promotionId: ticket.promotionId,
+            paymentMethod: ticket.paymentMethod,
+            originalPrice: ticket.originalPrice,
+            discountAmount: ticket.discountAmount,
+            finalPrice: ticket.finalPrice,
+            totalPrice: ticket.totalPrice,
+            qrCode: ticket.qrCode
+        };
+
+        // Attach breakdowns conditionally to support both short-term and long-term
+        const fb = ticket.fareBreakdown;
+        if (fb && typeof fb === 'object') {
+            if (fb.passengerBreakdown) {
+                info.passengerBreakdown = fb.passengerBreakdown;
+            }
+            if (fb.segmentFares) {
+                info.segmentFares = fb.segmentFares;
+            }
+        }
+
+        return info;
+    }
+
+    /**
      * Private helper method to process payment
      * @param {Object} ticket - Ticket object
      * @param {string} ticketType - Type of ticket
@@ -147,16 +201,15 @@ class TicketService extends ITicketService {
      * @returns {Promise<Object>} Payment result
      */
     async _processPayment(ticket, ticketType, paymentOptions, waitForPayment = true, timeout = 60000) {
-        const paymentAmount = Number(paymentOptions.amount || 0).toFixed(2);
-        
-        // Validate payment amount before calling payment service
-        if (Number(paymentAmount) <= 0) {
-            logger.error('Cannot process payment: payment amount is zero or negative', { 
-                paymentAmount, 
+        const amountNum = Number(paymentOptions.amount ?? 0);
+        if (!Number.isFinite(amountNum) || amountNum <= 0) {
+            logger.error('Cannot process payment: payment amount is not valid (<= 0)', { 
+                amountNum, 
                 ticketId: ticket.ticketId 
             });
             throw new Error('Payment amount is not valid (<= 0). Please check the ticket information or promotion.');
         }
+        
         
         const paymentResult = await this.payment.processTicketPayment(ticket, ticketType, paymentOptions);
 
@@ -168,7 +221,15 @@ class TicketService extends ITicketService {
 
         return { paymentResult, paymentResponse };
     }
-
+    /**
+     * Private helper method to normalize promotion input
+     * @param {Object} input - Promotion input
+     * @returns {string} Normalized promotion code
+     */
+    _normalizePromotion(input) {
+        const code = input?.promotionCode ?? input?.promotion?.code ?? input?.promotionData?.promotionCode ?? null;
+        return code ? String(code).trim() : null;
+    }
     /**
      * Private helper method to increment promotion usage
      * @param {string} promotionId - Promotion ID
@@ -263,11 +324,21 @@ class TicketService extends ITicketService {
             
             // Validate finalPrice is not zero or negative
             if (!finalPrice || finalPrice <= 0) {
-                logger.error('Invalid final price calculated', { 
-                    finalPrice, 
-                    priceCalculation: priceCalculation.data
+                const ticket = await this.repository.create({ ...ticketData, status: 'completed', paymentMethod: 'free', totalPrice: 0, finalPrice: 0 });
+                logger.info('Short-term ticket created successfully with free payment', { 
+                    ticketId: ticket.ticketId, 
+                    paymentId: null, 
+                    passengerId: ticket.passengerId, 
+                    tripType: ticketData.tripType,
+                    stationCount: journeyDetails.totalStations,
+                    totalPrice: 0,
+                    totalPassengers: journeyDetails.totalPassengers || totalPassengers,
+                    passengerBreakdown: passengerBreakdown,
+                    originStationId: journeyDetails.routeSegments[0].originStationId,
+                    destinationStationId: journeyDetails.routeSegments[journeyDetails.routeSegments.length - 1].destinationStationId,
+                    paymentResponse: null
                 });
-                throw new Error('Payment amount is not valid (<= 0). Please check the ticket information or promotion.');
+                return { ticket, paymentId: null, paymentResponse: null };
             }
 
             // Get fare record for association (using the first segment's routeId)
@@ -282,7 +353,7 @@ class TicketService extends ITicketService {
             if (!fare) {
                 throw new Error(`No active fare found for route ${firstSegment.routeId}`);
             }
-            
+            ticketData.promotionCode = this._normalizePromotion(ticketData);
             // Handle promotion logic
             const { promotionId } = await this._handlePromotion(ticketData, appliedPromotion);
             ticketData.promotionId = promotionId;
@@ -370,12 +441,13 @@ class TicketService extends ITicketService {
             );
 
             // Process payment
+            const { success, fail } = this._getRedirectUrls(ticketData);
             const { paymentResult, paymentResponse } = await this._processPayment(
                 ticket, 
                 'short-term', 
                 {
-                    paymentSuccessUrl: ticketData.paymentSuccessUrl,
-                    paymentFailUrl: ticketData.paymentFailUrl,
+                    paymentSuccessUrl: success,
+                    paymentFailUrl: fail,
                     currency: ticketData.currency || 'VND',
                     amount: finalPrice
                 },
@@ -437,10 +509,14 @@ class TicketService extends ITicketService {
                 throw new Error(`No active pricing found for pass type: ${ticketData.passType}`);
             }
 
-            // Determine passenger type based on age
+            // Determine passenger type based on age (validate DOB not in future)
             let passengerType = 'adult';
             if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
-                let age = new Date(Date.now() - new Date(ticketData.passengerInfo.dateOfBirth));
+                const dob = new Date(ticketData.passengerInfo.dateOfBirth);
+                if (isNaN(dob.getTime()) || dob > new Date()) {
+                    throw new Error('Invalid date of birth');
+                }
+                let age = new Date(Date.now() - dob);
                 age = age.getUTCFullYear() - 1970;
                 
                 if (age < 12) {
@@ -480,7 +556,7 @@ class TicketService extends ITicketService {
 
             let discountAmount = originalPrice - discountedPrice;
             let finalPrice = discountedPrice;
-
+            ticketData.promotionCode = this._normalizePromotion(ticketData);
             // Apply promotion if provided
             if (ticketData.promotionCode) {
                 const promotion = await Promotion.findOne({ 
@@ -538,11 +614,11 @@ class TicketService extends ITicketService {
                     passType: ticketData.passType,
                     originalPassPrice: parseFloat(transitPass.price),
                     passengerType: passengerType,
-                    passengerDiscount: originalPrice !== parseFloat(transitPass.price) ? parseFloat(transitPass.price) - originalPrice : 0,
+                    discountAmount: discountAmount,
                     finalPrice: finalPrice,
                     currency: transitPass.currency
                 },
-                paymentMethod: ticketData.paymentMethod || 'vnpay',
+                paymentMethod: ticketData.paymentMethod || process.env.DEFAULT_PAYMENT_METHOD || 'paypal',
                 qrCode: tempQrCodeData
             });
 
@@ -577,12 +653,13 @@ class TicketService extends ITicketService {
             );
 
             // Process payment
+            const { success: passSuccess, fail: passFail } = this._getRedirectUrls(ticketData);
             const { paymentResult, paymentResponse } = await this._processPayment(
                 ticket, 
                 'long-term', 
                 {
-                    paymentSuccessUrl: ticketData.paymentSuccessUrl,
-                    paymentFailUrl: ticketData.paymentFailUrl,
+                    paymentSuccessUrl: passSuccess,
+                    paymentFailUrl: passFail,
                     currency: ticketData.currency || 'VND',
                     amount: finalPrice
                 },
@@ -886,20 +963,28 @@ class TicketService extends ITicketService {
             let hasMore = true;
             
             while (hasMore) {
-                const expiredTickets = await Ticket.update(
+                const expiredIds = await Ticket.findAll({
+                    where: {
+                        status: 'active',
+                        validUntil: { [Op.lt]: new Date() },
+                        isActive: true
+                    },
+                    attributes: ['ticketId'],
+                    limit: batchSize,
+                    raw: true
+                });
+
+                if (expiredIds.length === 0) {
+                    hasMore = false;
+                    break;
+                }
+
+                await Ticket.update(
                     { status: 'expired' },
-                    {
-                        where: {
-                            status: 'active',
-                            validUntil: { [Op.lt]: new Date() },
-                            isActive: true
-                        },
-                        limit: batchSize,
-                        returning: true
-                    }
+                    { where: { ticketId: { [Op.in]: expiredIds.map(x => x.ticketId) } } }
                 );
-                
-                const updatedCount = expiredTickets[0];
+
+                const updatedCount = expiredIds.length;
                 totalUpdated += updatedCount;
                 
                 // Check if we processed all records
@@ -953,13 +1038,10 @@ class TicketService extends ITicketService {
                 usedAt: new Date()
             });
             
-            logger.info('Ticket used successfully', { 
-                ticketId, 
-                passengerId,
-                usedAt: usedTicket.usedAt
-            });
+            const usageInfo = this._buildTicketUsageInfo(usedTicket);
+            logger.info('Ticket used successfully', { ...usageInfo });
             
-            return usedTicket;
+            return { ticket: usedTicket, info: usageInfo };
         } catch (error) {
             logger.error('Error using ticket', { error: error.message, ticketId });
             throw error;
@@ -1004,15 +1086,13 @@ class TicketService extends ITicketService {
                 usedAt: new Date()
             });
             
+            const usageInfo = this._buildTicketUsageInfo(usedTicket);
             logger.info('Ticket used by QR code successfully', { 
-                ticketId: ticket.ticketId, 
-                qrCode,
-                staffId,
-                passengerId: ticket.passengerId,
-                usedAt: usedTicket.usedAt
+                ...usageInfo,
+                staffId
             });
             
-            return usedTicket;
+            return { ticket: usedTicket, info: usageInfo };
         } catch (error) {
             logger.error('Error using ticket by QR code', { error: error.message, qrCode, staffId });
             throw error;
