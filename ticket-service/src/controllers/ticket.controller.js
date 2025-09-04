@@ -838,29 +838,12 @@ class TicketController {
             const { id } = req.params;
             const { passengerId } = await this._getPassengerFromCache(req);
             
-            const ticket = await ticketService.useTicket(id, passengerId);
+            const result = await ticketService.useTicket(id, passengerId);
             
             return res.status(200).json({
                 success: true,
                 message: 'Ticket used successfully',
-                data: {
-                    ticketId: ticket.ticketId,
-                    totalPrice: ticket.totalPrice,
-                    totalPassengers: ticket.totalPassengers,
-                    passengerId: ticket.passengerId,
-                    promotionId: ticket.promotionId,
-                    originStationId: ticket.originStationId,
-                    destinationStationId: ticket.destinationStationId,
-                    purchaseDate: ticket.purchaseDate,
-                    validFrom: ticket.validFrom,
-                    validUntil: ticket.validUntil,
-                    ticketType: ticket.ticketType,
-                    status: ticket.status,
-                    usedAt: ticket.usedAt,
-                    activatedAt: ticket.activatedAt,
-                    finalPrice: ticket.finalPrice,
-                    qrCode: ticket.qrCode
-                },
+                data: result?.info || {},
                 timestamp: new Date()
             });
         } catch (error) {
@@ -878,29 +861,12 @@ class TicketController {
             const { qrCode } = req.params;
             const staffId = req.user?.id || null; // Get staff/admin ID from authenticated user
             
-            const ticket = await ticketService.useTicketByQRCode(qrCode, staffId);
+            const result = await ticketService.useTicketByQRCode(qrCode, staffId);
             
             return res.status(200).json({
                 success: true,
                 message: 'Ticket used successfully via QR code',
-                data: {
-                    ticketId: ticket.ticketId,
-                    totalPrice: ticket.totalPrice,
-                    totalPassengers: ticket.totalPassengers,
-                    passengerId: ticket.passengerId,
-                    promotionId: ticket.promotionId,
-                    originStationId: ticket.originStationId,
-                    destinationStationId: ticket.destinationStationId,
-                    purchaseDate: ticket.purchaseDate,
-                    validFrom: ticket.validFrom,
-                    validUntil: ticket.validUntil,
-                    ticketType: ticket.ticketType,
-                    status: ticket.status,
-                    usedAt: ticket.usedAt,
-                    activatedAt: ticket.activatedAt,
-                    finalPrice: ticket.finalPrice,
-                    qrCode: ticket.qrCode,
-                },
+                data: result?.info || {},
                 timestamp: new Date()
             });
         } catch (error) {
