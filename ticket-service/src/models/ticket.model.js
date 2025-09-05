@@ -49,7 +49,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     transitPassId: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: true, //If null, it is a long term ticket
         validate: {
             isUUID: 4
         }
@@ -84,11 +84,11 @@ const Ticket = sequelize.define('Ticket', {
     },
     validFrom: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true, //If null, it is a long term ticket waiting for activation
     },
     validUntil: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true, //If null, it is a long term ticket waiting for activation
     },
     ticketType: {
         type: DataTypes.ENUM('oneway', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'),
@@ -96,8 +96,8 @@ const Ticket = sequelize.define('Ticket', {
         defaultValue: 'oneway',
         comment: 'Supported ticket types based on booking data'
     },
-    usedAt: {
-        type: DataTypes.DATE,
+    usedList: {
+        type: DataTypes.ARRAY(DataTypes.DATE),
         allowNull: true,
     },
     activatedAt: {
@@ -128,7 +128,7 @@ const Ticket = sequelize.define('Ticket', {
         }
     },
     paymentMethod: {
-        type: DataTypes.ENUM('paypal', 'vnpay', 'card', 'metro_card'),
+        type: DataTypes.ENUM('paypal', 'vnpay', 'card', 'metro_card', 'free'),
         allowNull: false,
         defaultValue: 'card',
     },
@@ -163,16 +163,6 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
-    },
-    notes: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-        comment: 'Additional notes for the ticket'
-    },
-    specialRequests: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-        comment: 'Special requests for the ticket'
     }
 }, {
     tableName: 'tickets',
@@ -214,6 +204,26 @@ Ticket.prototype.isExpired = function() {
 
 Ticket.prototype.calculateFinalPrice = function() {
     return this.originalPrice - this.discountAmount;
+};
+
+/**
+ * Ensure totalPrice and finalPrice are consistent
+ * This method should be called after any price calculations
+ */
+Ticket.prototype.syncPrices = function() {
+    this.finalPrice = this.calculateFinalPrice();
+    this.totalPrice = this.finalPrice;
+    return this;
+};
+
+/**
+ * Static helper method to calculate final price from original price and discount
+ * @param {number} originalPrice 
+ * @param {number} discountAmount 
+ * @returns {number} Final price after discount
+ */
+Ticket.calculateFinalPrice = function(originalPrice, discountAmount) {
+    return originalPrice - discountAmount;
 };
 
 /**
@@ -355,7 +365,8 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
             discountAmount = promotion.calculateDiscount(originalPrice);
         }
 
-        const finalPrice = originalPrice - discountAmount;
+        // Use the centralized price calculation method
+        const finalPrice = Ticket.calculateFinalPrice(originalPrice, discountAmount);
         const { validFrom, validUntil } = Ticket.calculateValidityPeriod(bookingData.tripType);
 
         for (let i = 0; i < category.count; i++) {
@@ -382,20 +393,20 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
     // Bulk create tickets
     return await Ticket.bulkCreate(ticketsToCreate);
 };
-// //If ticket turn status to inactive, mark the date of inactive, after 30 days, turn to active
-// Ticket.prototype.turnToInactive = async function() {
-//     const now = new Date();
-//     this.status = 'inactive';
-//     this.inactiveAt = now;
-//     await this.save();  
-//     //After 30 days, turn to active
-//     setTimeout(async () => {
-//         if (this.status === 'inactive') {
-//             this.status = 'active';
-//             this.inactiveAt = null;
-//             await this.save();
-//         }
-//     }, 30 * 24 * 60 * 60 * 1000);
-// };
+//If ticket turn status to inactive, mark the date of inactive, after 30 days, turn to active
+Ticket.prototype.turnToInactive = async function() {
+    const now = new Date();
+    this.status = 'inactive';
+    this.inactiveAt = now;
+    await this.save();  
+    //After 30 days, turn to active
+    setTimeout(async () => {
+        if (this.status === 'inactive') {
+            this.status = 'active';
+            this.inactiveAt = null;
+            await this.save();
+        }
+    }, 30 * 24 * 60 * 60 * 1000);
+};
 
 module.exports = Ticket;

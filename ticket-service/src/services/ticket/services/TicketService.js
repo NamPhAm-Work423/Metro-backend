@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const { logger } = require('../../../config/logger');
 const FareService = require('../../fare.service');
 const ITicketService = require('../interfaces/ITicketService');
+const PassengerTypeHelper = require('../../../helpers/passengerType.helper');
 
 // Import other services
 const TicketRepository = require('../repositories/TicketRepository');
@@ -165,7 +166,7 @@ class TicketService extends ITicketService {
             destinationStationId: ticket.destinationStationId,
             validFrom: ticket.validFrom,
             validUntil: ticket.validUntil,
-            usedAt: ticket.usedAt,
+            usedList: ticket.usedList,
             stationCount: ticket.stationCount,
             fareId: ticket.fareId,
             promotionId: ticket.promotionId,
@@ -323,16 +324,7 @@ class TicketService extends ITicketService {
      */
     async createShortTermTicket(ticketData) {
         try {
-            // Validate required fields
-            if (!ticketData.fromStation || !ticketData.toStation) {
-                throw new Error('Origin station (fromStation) and destination station (toStation) are required');
-            }
-
-            if (!ticketData.tripType || !['Oneway', 'Return'].includes(ticketData.tripType)) {
-                throw new Error('Trip type must be either "Oneway" or "Return"');
-            }
-
-            // Validate passenger counts
+            // Validate passenger counts (additional validation)
             const totalPassengers = this._validatePassengerCounts(ticketData);
 
             // Use TicketPriceCalculator to get comprehensive price calculation
@@ -364,7 +356,7 @@ class TicketService extends ITicketService {
             
             // Validate finalPrice is not zero or negative
             if (!finalPrice || finalPrice <= 0) {
-                const ticket = await this.repository.create({ ...ticketData, status: 'completed', paymentMethod: 'free', totalPrice: 0, finalPrice: 0 });
+                const ticket = await this.repository.create({ ...ticketData, status: 'active', paymentMethod: 'free', totalPrice: 0, finalPrice: 0 });
                 logger.info('Short-term ticket created successfully with free payment', { 
                     ticketId: ticket.ticketId, 
                     paymentId: null, 
@@ -391,7 +383,7 @@ class TicketService extends ITicketService {
             });
 
             if (!fare) {
-                throw new Error(`No active fare found for route ${firstSegment.routeId}`);
+                logger.error(`No active fare found for route ${firstSegment.routeId}`);
             }
             ticketData.promotionCode = this._normalizePromotion(ticketData);
             // Handle promotion logic
@@ -424,7 +416,7 @@ class TicketService extends ITicketService {
             // Generate temporary QR code (will be updated after ticket creation)
             const tempQrCodeData = this._generateQRCode(qrData);
 
-            // Create ticket with temporary QR code
+            // Create ticket with temporary QR code (status: inactive by default)
             const ticket = await this.repository.create({
                 passengerId: ticketData.passengerId,
                 tripId: ticketData.tripId || null,
@@ -527,14 +519,9 @@ class TicketService extends ITicketService {
      */
     async createLongTermTicket(ticketData) {
         try {
-            // Validate required fields
-            if (!ticketData.passType) {
-                throw new Error('Pass type is required for long-term tickets');
-            }
-
             const validPassTypes = TransitPass.transitPassType;
             if (!validPassTypes.includes(ticketData.passType.toLowerCase())) {
-                throw new Error(`Invalid pass type. Must be one of: ${validPassTypes.join(', ')}`);
+                logger.error(`Invalid pass type. Must be one of: ${validPassTypes.join(', ')}`);
             }
 
             // Get transit pass pricing from TransitPass model
@@ -546,28 +533,43 @@ class TicketService extends ITicketService {
             });
 
             if (!transitPass) {
-                throw new Error(`No active pricing found for pass type: ${ticketData.passType}`);
+                logger.error(`No active pricing found for pass type: ${ticketData.passType}`);
             }
 
             // Determine passenger type based on age (validate DOB not in future)
             let passengerType = 'adult';
-            if (ticketData.passengerInfo && ticketData.passengerInfo.dateOfBirth) {
-                const dob = new Date(ticketData.passengerInfo.dateOfBirth);
-                if (isNaN(dob.getTime()) || dob > new Date()) {
-                    throw new Error('Invalid date of birth');
-                }
-                let age = new Date(Date.now() - dob);
-                age = age.getUTCFullYear() - 1970;
-                
-                if (age < 12) {
-                    passengerType = 'child';
-                } else if (age < 18) {
-                    passengerType = 'teen';
-                } else if (age > 60) {
-                    passengerType = 'senior';
+            let dateOfBirth = null;
+            
+            // Get dateOfBirth from passengerInfo or ticketData
+            if (ticketData.passengerInfo?.dateOfBirth) {
+                dateOfBirth = new Date(ticketData.passengerInfo.dateOfBirth);
+            } else if (ticketData.dateOfBirth) {
+                dateOfBirth = new Date(ticketData.dateOfBirth);
+            }
+            
+            if (dateOfBirth && !isNaN(dateOfBirth.getTime())) {
+                // Validate DOB is not in the future
+                if (dateOfBirth > new Date()) {
+                    logger.warn('Invalid date of birth: cannot be in the future', {
+                        passengerId: ticketData.passengerId,
+                        dateOfBirth: dateOfBirth.toISOString()
+                    });
                 } else {
-                    passengerType = 'adult';
+                    let age = new Date(Date.now() - dateOfBirth);
+                    age = age.getUTCFullYear() - 1970;
+                    passengerType = PassengerTypeHelper.determineTypeByAge(age);
+                    
+                    logger.debug('Passenger type determined from date of birth', {
+                        passengerId: ticketData.passengerId,
+                        dateOfBirth: dateOfBirth.toISOString(),
+                        age: age,
+                        passengerType: passengerType
+                    });
                 }
+            } else {
+                logger.debug('No valid date of birth provided, using default adult passenger type', {
+                    passengerId: ticketData.passengerId
+                });
             }
 
             // Apply passenger type discount using PassengerDiscount model
@@ -613,9 +615,6 @@ class TicketService extends ITicketService {
                 }
             }
 
-            // Calculate validity period based on pass type
-            const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticketData.passType);
-
             // Generate QR code data for the new pass ticket - COMPACT VERSION
             const qrData = this.communication.generateQRData({
                 ticketId: null, // Will be set after ticket creation
@@ -623,8 +622,8 @@ class TicketService extends ITicketService {
                 originStationId: null, // Passes work between any stations
                 destinationStationId: null, // Passes work between any stations
                 passType: ticketData.passType,
-                validFrom: validFrom,
-                validUntil: validUntil,
+                validFrom: null,
+                validUntil: null,
                 ticketType: ticketData.passType,
                 totalPrice: finalPrice,
                 totalPassengers: 1 // Passes are typically for 1 person
@@ -645,8 +644,8 @@ class TicketService extends ITicketService {
                 discountAmount: discountAmount,
                 finalPrice: finalPrice,
                 totalPrice: finalPrice,
-                validFrom: validFrom,
-                validUntil: validUntil,
+                validFrom: null,
+                validUntil: null,
                 ticketType: ticketData.passType,
                 status: 'pending_payment', // Changed from 'active' to 'pending_payment'
                 stationCount: null, // Not applicable for passes
@@ -714,8 +713,8 @@ class TicketService extends ITicketService {
                 passType: ticketData.passType,
                 totalPrice: finalPrice,
                 passengerType: passengerType,
-                validFrom: validFrom,
-                validUntil: validUntil,
+                validFrom: null,
+                validUntil: null,
                 paymentResponse: paymentResponse ? 'received' : 'timeout'
             });
 
@@ -729,50 +728,6 @@ class TicketService extends ITicketService {
             throw error;
         }
     }
-
-    /**
-     * Create ticket for guest user (no account required)
-     * @param {Object} ticketData - Ticket data
-     * @param {string} contactInfo - Email or phone number
-     * @returns {Promise<Object>} Created guest ticket
-     */
-    async createGuestTicket(ticketData, contactInfo) {
-        try {
-            // Validate contact info format
-            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactInfo);
-            const isPhone = /^\+?[\d\s-]{10,}$/.test(contactInfo);
-            
-            if (!isEmail && !isPhone) {
-                throw new Error('Invalid contact information. Please provide a valid email or phone number.');
-            }
-
-            // Create ticket without passenger ID
-            const ticket = await this.createShortTermTicket({
-                ...ticketData,
-                guestContact: contactInfo,
-                warningMessage: 'System is not responsible for lost or inaccessible e-tickets after issuance.'
-            });
-
-            // Send ticket to guest
-            if (isEmail) {
-                await this.communication.sendTicketToEmail(ticket.ticket.ticketId, contactInfo);
-            } else {
-                await this.communication.sendTicketToPhone(ticket.ticket.ticketId, contactInfo);
-            }
-
-            return {
-                ticket,
-                contactMethod: isEmail ? 'email' : 'phone',
-                contactInfo: isEmail ? 
-                    this.communication.maskEmail(contactInfo) : 
-                    this.communication.maskPhoneNumber(contactInfo)
-            };
-        } catch (error) {
-            logger.error('Error creating guest ticket', { error: error.message, contactInfo });
-            throw error;
-        }
-    }
-
     /**
      * Get all tickets with optional filters
      * @param {Object} filters - Filter criteria
@@ -880,7 +835,6 @@ class TicketService extends ITicketService {
             return updatedTicket;
         } catch (error) {
             logger.error('Error cancelling ticket', { error: error.message, ticketId });
-            throw error;
         }
     }
 
@@ -961,19 +915,25 @@ class TicketService extends ITicketService {
      * @returns {Promise<Object>} Activated ticket
      */
     async activateTicket(ticketId, passengerId = null) {
+        let ticket = null;
         try {
-            const ticket = await Ticket.findByPk(ticketId);
+            ticket = await Ticket.findByPk(ticketId);
             
             if (!ticket) {
+                logger.error('Ticket not found', { ticketId });
                 throw new Error('Ticket not found');
             }
-            
+
             // If passengerId is provided, validate ownership
             if (passengerId && ticket.passengerId !== passengerId) {
+                logger.error('Unauthorized: Ticket does not belong to this passenger', {
+                    ticketId,
+                    providedPassengerId: passengerId,
+                    ticketPassengerId: ticket.passengerId
+                });
                 throw new Error('Unauthorized: Ticket does not belong to this passenger');
             }
-            
-            // Use the model's startCountDown method
+
             const activatedTicket = await Ticket.startCountDown(ticketId);
             
             logger.info('Ticket activated successfully', { 
@@ -981,12 +941,18 @@ class TicketService extends ITicketService {
                 passengerId: ticket.passengerId,
                 ticketType: ticket.ticketType,
                 validFrom: activatedTicket.validFrom,
-                validUntil: activatedTicket.validUntil
+                validUntil: activatedTicket.validUntil,
             });
             
             return activatedTicket;
         } catch (error) {
-            logger.error('Error activating ticket', { error: error.message, ticketId });
+            logger.error('Error activating ticket', { 
+                error: error.message, 
+                ticketId,
+                passengerId,
+                ticketStatus: ticket?.status,
+                ticketType: ticket?.ticketType
+            });
             throw error;
         }
     }
@@ -1044,7 +1010,125 @@ class TicketService extends ITicketService {
             throw error;
         }
     }
-
+    async handleUseLongTermTicket(ticketId, passengerId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            
+            if (!ticket.validFrom) {
+                logger.error('Long-term ticket has not been activated yet', {
+                    ticketId,
+                    passengerId,
+                    ticketType: ticket.ticketType,
+                    status: ticket.status
+                });
+                throw new Error('Long-term ticket has not been activated yet');
+            }
+            
+            // Check if ticket is still valid (not expired)
+            if (ticket.validUntil && ticket.validUntil < new Date()) {
+                logger.error('Long-term ticket has expired', {
+                    ticketId,
+                    passengerId,
+                    validUntil: ticket.validUntil,
+                    currentTime: new Date()
+                });
+                throw new Error('Long-term ticket has expired');
+            }
+            
+            const usedTicket = await ticket.update({
+                usedList: [...(ticket.usedList || []), new Date()]
+            });
+            
+            const usageInfo = this._buildTicketUsageInfo(usedTicket);
+            logger.info('Long-term ticket used successfully', { 
+                ...usageInfo,
+                usageTime: new Date(),
+                passengerId,
+                ticketType: ticket.ticketType,
+                usageCount: usedTicket.usedList?.length || 0
+            });
+            return { ticket: usedTicket, info: usageInfo };
+        }
+        catch (error) {
+            logger.error('Error using long-term ticket', { 
+                error: error.message, 
+                ticketId, 
+                passengerId,
+                ticketType: ticket?.ticketType 
+            });
+            throw error;
+        }
+    }
+    async handleUseShortTermTicket(ticketId, passengerId) {
+        try {
+            const ticket = await Ticket.findByPk(ticketId);
+            let usedTicket = null;
+            
+            // If ticket is oneway
+            if (ticket.ticketType.toLowerCase() === 'oneway') {
+                usedTicket = await ticket.update({
+                    status: 'used',
+                    usedList: [...(ticket.usedList || []), new Date()],
+                });
+            }
+            else if (ticket.ticketType.toLowerCase() === 'return') {
+                const currentUsedList = ticket.usedList || [];
+                if (currentUsedList.length === 0) {
+                    // First use of return ticket
+                    usedTicket = await ticket.update({
+                        usedList: [...currentUsedList, new Date()]
+                    });
+                } else if (currentUsedList.length === 1) {
+                    // Second use of return ticket - mark as fully used
+                    usedTicket = await ticket.update({
+                        status: 'used',
+                        usedList: [...currentUsedList, new Date()]
+                    });
+                } else {
+                    logger.error('Return ticket has already been used twice', {
+                        ticketId,
+                        passengerId,
+                        usageCount: currentUsedList.length
+                    });
+                    throw new Error('Return ticket has already been used twice');
+                }
+            } else {
+                logger.error(`Unsupported ticket type: ${ticket.ticketType}`, {
+                    ticketId,
+                    passengerId,
+                    ticketType: ticket.ticketType
+                });
+                throw new Error(`Unsupported ticket type: ${ticket.ticketType}`);
+            }
+            
+            if (!usedTicket) {
+                logger.error('Failed to update ticket usage', {
+                    ticketId,
+                    passengerId
+                });
+                throw new Error('Failed to update ticket usage');
+            }
+            
+            const usageInfo = this._buildTicketUsageInfo(usedTicket);
+            logger.info('Short-term ticket used successfully', { 
+                ...usageInfo,
+                usageTime: new Date(),
+                passengerId,
+                ticketType: ticket.ticketType,
+                usageCount: usedTicket.usedList?.length || 0
+            });
+            return { ticket: usedTicket, info: usageInfo };
+        }
+        catch (error) {
+            logger.error('Error using short-term ticket', { 
+                error: error.message, 
+                ticketId, 
+                passengerId,
+                ticketType: ticket?.ticketType 
+            });
+            throw error;
+        }
+    }
     /**
      * Use ticket
      * @param {string} ticketId - Ticket ID
@@ -1055,35 +1139,35 @@ class TicketService extends ITicketService {
         try {
             const ticket = await Ticket.findByPk(ticketId);
             if (!ticket) {
+                logger.error('Ticket not found', { ticketId });
                 throw new Error('Ticket not found');
             }
-            
-            // Validate ticket ownership
-            if (ticket.passengerId !== passengerId) {
-                throw new Error('Unauthorized: Ticket does not belong to this passenger');
-            }
-            
-            // Validate ticket status
             if (ticket.status === 'used') {
-                throw new Error('Ticket has already been used');
+                logger.error('Ticket is already used', { ticketId, passengerId, status: ticket.status });
+                throw new Error('Ticket is already used');
             }
-            
-            if (ticket.status !== 'active') {
-                throw new Error('Ticket is not active and cannot be used');
+            else if (ticket.status === 'cancelled') {
+                logger.error('Ticket is already cancelled', { ticketId, passengerId, status: ticket.status });
+                throw new Error('Ticket is already cancelled');
             }
-            
-            // Update ticket with used status and timestamp
-            const usedTicket = await ticket.update({
-                status: 'used',
-                usedAt: new Date()
-            });
-            
-            const usageInfo = this._buildTicketUsageInfo(usedTicket);
-            logger.info('Ticket used successfully', { ...usageInfo });
-            
-            return { ticket: usedTicket, info: usageInfo };
+            else if (ticket.status === 'expired') {
+                logger.error('Ticket is already expired', { ticketId, passengerId, status: ticket.status });
+                throw new Error('Ticket is already expired');
+            }
+
+            if (ticket.ticketType.toLowerCase() === 'oneway' || ticket.ticketType.toLowerCase() === 'return') {
+                return await this.handleUseShortTermTicket(ticketId, passengerId);
+            } else {
+                return await this.handleUseLongTermTicket(ticketId, passengerId);
+            }
         } catch (error) {
-            logger.error('Error using ticket', { error: error.message, ticketId });
+            logger.error('Error using ticket', { 
+                error: error.message, 
+                ticketId,
+                passengerId,
+                ticketStatus: ticket?.status,
+                ticketType: ticket?.ticketType
+            });
             throw error;
         }
     }
@@ -1102,39 +1186,51 @@ class TicketService extends ITicketService {
             });
             
             if (!ticket) {
+                logger.error('Ticket not found with provided QR code', {
+                    qrCode: qrCode ? qrCode.substring(0, 20) + '...' : 'null',
+                    staffId
+                });
                 throw new Error('Ticket not found with provided QR code');
             }
-            
-            // Validate ticket status
             if (ticket.status === 'used') {
-                throw new Error('Ticket has already been used');
+                logger.error('Ticket is already used', { 
+                    ticketId: ticket.ticketId, 
+                    staffId, 
+                    status: ticket.status 
+                });
+                throw new Error('Ticket is already used');
             }
-            
-            if (ticket.status !== 'active') {
-                throw new Error('Ticket is not active and cannot be used');
+            else if (ticket.status === 'cancelled') {
+                logger.error('Ticket is already cancelled', { 
+                    ticketId: ticket.ticketId, 
+                    staffId, 
+                    status: ticket.status 
+                });
+                throw new Error('Ticket is already cancelled');
             }
-            
-            // Validate ticket validity period
-            const now = new Date();
-            if (now < ticket.validFrom || now > ticket.validUntil) {
-                throw new Error('Ticket is not valid at this time');
+            else if (ticket.status === 'expired') {
+                logger.error('Ticket is already expired', { 
+                    ticketId: ticket.ticketId, 
+                    staffId, 
+                    status: ticket.status 
+                });
+                throw new Error('Ticket is already expired');
             }
-            
-            // Update ticket with used status and timestamp
-            const usedTicket = await ticket.update({
-                status: 'used',
-                usedAt: new Date()
-            });
-            
-            const usageInfo = this._buildTicketUsageInfo(usedTicket);
-            logger.info('Ticket used by QR code successfully', { 
-                ...usageInfo,
-                staffId
-            });
-            
-            return { ticket: usedTicket, info: usageInfo };
+
+            if (ticket.ticketType.toLowerCase() === 'oneway' || ticket.ticketType.toLowerCase() === 'return') {
+                return await this.handleUseShortTermTicket(ticket.ticketId, ticket.passengerId);
+            } else {
+                return await this.handleUseLongTermTicket(ticket.ticketId, ticket.passengerId);
+            }
         } catch (error) {
-            logger.error('Error using ticket by QR code', { error: error.message, qrCode, staffId });
+            logger.error('Error using ticket by QR code', { 
+                error: error.message, 
+                qrCode: qrCode ? qrCode.substring(0, 20) + '...' : 'null', // Log partial QR for security
+                staffId,
+                ticketId: ticket?.ticketId,
+                ticketStatus: ticket?.status,
+                ticketType: ticket?.ticketType
+            });
             throw error;
         }
     }

@@ -14,12 +14,25 @@ jest.mock('../../../src/middlewares/authorization', () => ({
 const router = require('../../../src/routes/transitPass.route');
 
 describe('TransitPass Controller', () => {
-  const app = express();
-  app.use(express.json());
-  app.use('/api/v1/ticket/transitPasses', router);
-  // Attach minimal error handler to return JSON like the real app
-  app.use((err, req, res, next) => {
-    res.status(500).json({ success: false, message: err.message });
+  let app;
+  let server;
+
+  beforeAll(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/v1/ticket/transitPasses', router);
+    // Attach minimal error handler to return JSON like the real app
+    app.use((err, req, res, next) => {
+      res.status(500).json({ success: false, message: err.message });
+    });
+  });
+
+  afterAll(async () => {
+    if (server) {
+      await new Promise((resolve) => {
+        server.close(resolve);
+      });
+    }
   });
 
   it('should validate create payload', async () => {

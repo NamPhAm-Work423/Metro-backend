@@ -21,15 +21,6 @@ class ITicketService {
         throw new Error('Method not implemented');
     }
 
-    /**
-     * Create ticket for guest user (no account required)
-     * @param {Object} ticketData - Ticket data
-     * @param {string} contactInfo - Email or phone number
-     * @returns {Promise<Object>} Created guest ticket
-     */
-    async createGuestTicket(ticketData, contactInfo) {
-        throw new Error('Method not implemented');
-    }
 
     /**
      * Get all tickets with optional filters

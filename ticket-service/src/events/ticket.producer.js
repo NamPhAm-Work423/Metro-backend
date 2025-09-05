@@ -371,10 +371,10 @@ async function publishTicketUsed(ticket, usageData) {
             status: 'used',
             usageData: {
                 stationId: usageData.stationId,
-                usedAt: usageData.usedAt,
+                usedList: usageData.usedList,
                 direction: usageData.direction // 'entry' or 'exit'
             },
-            usedAt: new Date().toISOString()
+            usedList: new Date().toISOString()
         };
 
         await publish('ticket.used', ticket.ticketId, eventData);
