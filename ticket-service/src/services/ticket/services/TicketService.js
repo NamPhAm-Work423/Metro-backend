@@ -202,12 +202,52 @@ class TicketService extends ITicketService {
      */
     async _processPayment(ticket, ticketType, paymentOptions, waitForPayment = true, timeout = 60000) {
         const amountNum = Number(paymentOptions.amount ?? 0);
-        if (!Number.isFinite(amountNum) || amountNum <= 0) {
-            logger.error('Cannot process payment: payment amount is not valid (<= 0)', { 
+        if (!Number.isFinite(amountNum)) {
+            logger.error('Cannot process payment: payment amount is not a finite number', { 
                 amountNum, 
                 ticketId: ticket.ticketId 
             });
-            throw new Error('Payment amount is not valid (<= 0). Please check the ticket information or promotion.');
+            throw new Error('Payment amount is invalid.');
+        }
+
+        // Handle zero-amount (free) tickets
+        if (amountNum <= 0) {
+            const longTermTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
+            const isLongTerm = longTermTypes.includes(ticket.ticketType);
+
+            // Only bypass external payment for long-term passes
+            if (!isLongTerm) {
+                logger.error('Cannot process payment: zero-amount is not allowed for short-term tickets', {
+                    ticketId: ticket.ticketId,
+                    ticketType: ticket.ticketType,
+                    amountNum
+                });
+                throw new Error('Payment amount is not valid (<= 0).');
+            }
+
+            try {
+                const updates = {
+                    status: 'inactive',
+                    paymentMethod: 'free',
+                    paymentId: null,
+                    updatedAt: new Date()
+                };
+
+                await this.repository.update(ticket.ticketId, updates);
+                logger.info('Zero-amount long-term ticket processed without external payment', {
+                    ticketId: ticket.ticketId,
+                    ticketType,
+                    mappedStatus: 'inactive'
+                });
+
+                return { paymentResult: { paymentId: null }, paymentResponse: null };
+            } catch (updateError) {
+                logger.error('Failed to finalize zero-amount long-term ticket', {
+                    ticketId: ticket.ticketId,
+                    error: updateError.message
+                });
+                throw updateError;
+            }
         }
         
         

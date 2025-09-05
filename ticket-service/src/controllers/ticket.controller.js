@@ -806,7 +806,13 @@ class TicketController {
     activateLongTermTicket = asyncErrorHandler(async (req, res, next) => {
         try {
             const { id } = req.params;
-            const passengerId = req.user?.id || null; // Get passenger ID from authenticated user
+            // Only enforce ownership when requester is a passenger.
+            // Resolve real passengerId from cache (user.id is not passengerId).
+            let passengerId = null;
+            if (req.user?.role === 'passenger') {
+                const passengerFromCache = await this._getPassengerFromCache(req);
+                passengerId = passengerFromCache?.passengerId || null;
+            }
             
             const ticket = await ticketService.activateTicket(id, passengerId);
             
