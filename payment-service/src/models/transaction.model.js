@@ -6,7 +6,7 @@ const { DataTypes } = require('sequelize');
  * @typedef {object} Transaction
  * @property {number} transactionId - Primary key, auto-incremented
  * @property {number} paymentId - Associated payment ID (foreign key from Payment)
- * @property {number} transactionAmount - Transaction amount (VND)
+ * @property {number} transactionAmount - Transaction amount (VND, USD)
  * @property {string} transactionStatus - Status (PENDING, COMPLETED, FAILED)
  */
 const Transaction = sequelize.define('Transaction', {
@@ -22,7 +22,7 @@ const Transaction = sequelize.define('Transaction', {
         type: DataTypes.STRING,
         allowNull: false
     },
-    /** Transaction amount (VND) */
+    /** Transaction amount (VND, USD) */
     transactionAmount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false

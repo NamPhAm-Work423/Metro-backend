@@ -1,5 +1,6 @@
 const express = require('express');
 const paypalRoutes = require('./paypal.routes');
+const sepayRoutes = require('./sepay.route');
 const { logger } = require('../config/logger');
 
 const router = express.Router();
@@ -12,6 +13,9 @@ const router = express.Router();
 // PayPal webhook routes
 router.use('/webhook', paypalRoutes);
 
+// Sepay webhook routes
+router.use('/webhook', sepayRoutes);
+
 // Generic webhook health check
 router.get('/health', (req, res) => {
     res.status(200).json({
@@ -20,7 +24,8 @@ router.get('/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         providers: {
-            paypal: 'active'
+            paypal: 'active',
+            sepay: 'active'
             // Future providers: stripe, square, vnpay, etc.
         },
         version: process.env.npm_package_version || '1.0.0'
@@ -42,7 +47,8 @@ router.get('/statistics', async (req, res) => {
                 endDate: end.toISOString()
             },
             providers: {
-                paypal: 'Use /paypal/statistics for detailed PayPal stats'
+                paypal: 'Use /webhook/paypal/statistics for detailed PayPal stats',
+                sepay: 'Use /webhook/sepay/statistics for detailed Sepay stats'
                 // Future providers stats will be added here
             },
             total: {

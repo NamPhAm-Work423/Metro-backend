@@ -103,7 +103,7 @@ const Ticket = sequelize.define('Ticket', {
     activatedAt: {
         type: DataTypes.DATE,
         allowNull: true,
-        comment: 'When long-term ticket was activated (countdown started)'
+        comment: 'When long-term ticket was created (countdown started for 30 days)'
     },
     originalPrice: {
         type: DataTypes.DECIMAL(10, 2),
@@ -295,7 +295,6 @@ Ticket.startCountDown = async function(ticketId) {
             status: 'active',
             validFrom: validFrom,
             validUntil: validUntil,
-            activatedAt: new Date()
         });
 
         logger.info('Long-term ticket activated successfully', {
@@ -393,20 +392,18 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
     // Bulk create tickets
     return await Ticket.bulkCreate(ticketsToCreate);
 };
-//If ticket turn status to inactive, mark the date of inactive, after 30 days, turn to active
+//When Date() is equal to activatedAt, turn to active
 Ticket.prototype.turnToInactive = async function() {
+    if (this.activatedAt === null) {
+        return;
+    }
+    
     const now = new Date();
-    this.status = 'inactive';
-    this.inactiveAt = now;
-    await this.save();  
-    //After 30 days, turn to active
-    setTimeout(async () => {
-        if (this.status === 'inactive') {
-            this.status = 'active';
-            this.inactiveAt = null;
-            await this.save();
-        }
-    }, 30 * 24 * 60 * 60 * 1000);
+    // When current date equals activatedAt, turn from inactive to active
+    if (now >= this.activatedAt && this.status === 'inactive') {
+        this.status = 'active';
+        await this.save();
+    }
 };
 
 module.exports = Ticket;

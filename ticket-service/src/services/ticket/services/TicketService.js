@@ -646,6 +646,7 @@ class TicketService extends ITicketService {
                 totalPrice: finalPrice,
                 validFrom: null,
                 validUntil: null,
+                activatedAt: (new Date() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
                 ticketType: ticketData.passType,
                 status: 'pending_payment', // Changed from 'active' to 'pending_payment'
                 stationCount: null, // Not applicable for passes
