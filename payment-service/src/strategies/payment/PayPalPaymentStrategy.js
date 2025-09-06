@@ -192,8 +192,8 @@ class PayPalPaymentStrategy extends IPaymentStrategy {
      */
     isPayPalTimeoutError(error) {
         return error.message && (
-            error.message.includes('timeout') || 
-            error.message.includes('network') ||
+            error.message.toLowerCase().includes('timeout') || 
+            error.message.toLowerCase().includes('network') ||
             error.message.includes('Client Authentication failed')
         );
     }
