@@ -2,7 +2,13 @@ jest.mock('../../src/events/passenger.producer.event', () => ({
   publishPassengerDeleted: jest.fn().mockResolvedValue(),
 }));
 
+jest.mock('../../src/services/cache/PassengerCacheService', () => ({
+  setPassenger: jest.fn().mockResolvedValue(),
+  removePassenger: jest.fn().mockResolvedValue(),
+}));
+
 const passengerEventProducer = require('../../src/events/passenger.producer.event');
+const PassengerCacheService = require('../../src/services/cache/PassengerCacheService');
 const models = require('../../src/models/index.model');
 const { Passenger } = models;
 const passengerService = require('../../src/services/passenger.service');
@@ -57,8 +63,9 @@ describe('passenger.service', () => {
     const instance = { update: jest.fn().mockResolvedValue(), id: '1' };
     Passenger.findOne.mockResolvedValue(instance);
     const result = await passengerService.updatePassenger('u1', { fullName: 'Y' });
-    expect(Passenger.findOne).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(Passenger.findOne).toHaveBeenCalledWith({ where: { userId: 'u1', isActive: true } });
     expect(instance.update).toHaveBeenCalledWith({ fullName: 'Y' });
+    expect(PassengerCacheService.setPassenger).toHaveBeenCalledWith(instance);
     expect(result).toBe(instance);
   });
 
@@ -68,6 +75,7 @@ describe('passenger.service', () => {
     const result = await passengerService.updatePassengerById('p1', { v: 1 });
     expect(Passenger.findOne).toHaveBeenCalledWith({ where: { passengerId: 'p1', isActive: true } });
     expect(instance.update).toHaveBeenCalledWith({ v: 1 });
+    expect(PassengerCacheService.setPassenger).toHaveBeenCalledWith(instance);
     expect(result).toBe(instance);
   });
 
@@ -77,11 +85,18 @@ describe('passenger.service', () => {
   });
 
   test('deletePassengerByUserId publishes event and deletes', async () => {
-    const instance = { destroy: jest.fn().mockResolvedValue(), userId: 'u1' };
+    const instance = { 
+      destroy: jest.fn().mockResolvedValue(), 
+      userId: 'u1', 
+      passengerId: 'p1', 
+      email: 'test@example.com' 
+    };
     Passenger.findOne.mockResolvedValue(instance);
     const result = await passengerService.deletePassengerByUserId('u1');
+    expect(Passenger.findOne).toHaveBeenCalledWith({ where: { userId: 'u1', isActive: true } });
     expect(passengerEventProducer.publishPassengerDeleted).toHaveBeenCalledWith(instance);
     expect(instance.destroy).toHaveBeenCalled();
+    expect(PassengerCacheService.removePassenger).toHaveBeenCalledWith('p1', 'u1', 'test@example.com');
     expect(result).toEqual({ success: true, message: 'Passenger profile deleted successfully' });
   });
 
@@ -124,10 +139,17 @@ describe('passenger.service', () => {
   });
 
   test('deletePassengerById returns true when deleted', async () => {
-    const instance = { destroy: jest.fn().mockResolvedValue(1) };
+    const instance = { 
+      destroy: jest.fn().mockResolvedValue(1), 
+      passengerId: 'p1', 
+      userId: 'u1', 
+      email: 'test@example.com' 
+    };
     Passenger.findOne.mockResolvedValue(instance);
     const result = await passengerService.deletePassengerById('p1');
+    expect(passengerEventProducer.publishPassengerDeleted).toHaveBeenCalledWith(instance);
     expect(instance.destroy).toHaveBeenCalled();
+    expect(PassengerCacheService.removePassenger).toHaveBeenCalledWith('p1', 'u1', 'test@example.com');
     expect(result).toBe(true);
   });
 });

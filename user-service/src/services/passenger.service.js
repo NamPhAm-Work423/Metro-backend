@@ -1,7 +1,7 @@
 const { Passenger } = require('../models/index.model');
-const { Op } = require('sequelize');
 const passengerEventProducer = require('../events/passenger.producer.event');
 const { logger } = require('../config/logger');
+const PassengerCacheService = require('../services/cache/PassengerCacheService');
 
 // TODO: Implement full passenger service methods
 // For now, creating basic placeholder methods to make the app start
@@ -54,11 +54,13 @@ async function createPassenger(passengerData) {
 
 async function updatePassenger(userId, updateData) {
     try {
-        const passenger = await Passenger.findOne({ where: { userId } });
+        const passenger = await Passenger.findOne({ 
+            where: { userId, isActive: true } 
+        });
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        
+        await PassengerCacheService.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile', { error: err.message, userId });
@@ -74,7 +76,7 @@ async function updatePassengerById(id, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        
+        await PassengerCacheService.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile by ID', { error: err.message, id });
@@ -93,6 +95,9 @@ async function deletePassengerById(id) {
         
         await passenger.destroy();
         
+        // Clear cache after deletion
+        await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        
         return true;
     } catch (err) {
         logger.error('Error deleting passenger profile by ID', { error: err.message, id });
@@ -102,13 +107,18 @@ async function deletePassengerById(id) {
 
 async function deletePassengerByUserId(userId) {
     try {
-        const passenger = await Passenger.findOne({ where: { userId } });
+        const passenger = await Passenger.findOne({ 
+            where: { userId, isActive: true } 
+        });
         if (!passenger) return { success: false, message: 'Passenger not found' };
         
-        // Publish event trước khi xóa
+        // Publish event before deletion
         await passengerEventProducer.publishPassengerDeleted(passenger);
         
         await passenger.destroy();
+        
+        // Clear cache after deletion
+        await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
         
         return { success: true, message: 'Passenger profile deleted successfully' };
     } catch (err) {
