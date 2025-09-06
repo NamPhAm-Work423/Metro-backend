@@ -197,7 +197,7 @@ describe('Webhook Integration Tests', () => {
             endDate
           },
           providers: {
-            paypal: 'Use /paypal/statistics for detailed PayPal stats'
+            paypal: 'Use /webhook/paypal/statistics for detailed PayPal stats'
           },
           total: {
             webhooksReceived: expect.any(Number),

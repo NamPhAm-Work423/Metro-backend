@@ -56,7 +56,7 @@ describe('Webhook Service App', () => {
             endDate: expect.any(String)
           },
           providers: {
-            paypal: 'Use /paypal/statistics for detailed PayPal stats'
+            paypal: 'Use /webhook/paypal/statistics for detailed PayPal stats'
           },
           total: {
             webhooksReceived: 0,
