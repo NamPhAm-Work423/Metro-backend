@@ -254,8 +254,9 @@ class TicketRepository extends ITicketRepository {
             }
             
             if (ticket.status === 'used') {
-                logger.error('Cannot delete a used ticket', { ticketId });
-                return false;
+                logger.info('Delete a used ticket', { ticketId });
+                await ticket.destroy();
+                return true;
             }   
             
             await ticket.destroy();
