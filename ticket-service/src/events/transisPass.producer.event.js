@@ -26,7 +26,7 @@ async function publishTransitPassUpdated(transitPass) {
       price: transitPass.price,
       currency: transitPass.currency,
       isActive: transitPass.isActive,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
     await publish('transitPass.updated', transitPass.transitPassId, eventData);
     logger.info('TransitPass updated event published', { transitPassId: transitPass.transitPassId });

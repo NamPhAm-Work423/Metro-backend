@@ -72,6 +72,23 @@ class PaymentConsumer {
                 paymentData
             });
 
+            // Ensure purchaseDate is recorded on successful payment
+            try {
+                const purchaseDate = new Date();
+                await ticket.update({ purchaseDate, updatedAt: purchaseDate });
+                logger.info('Ticket purchaseDate set after payment completion', {
+                    ticketId,
+                    paymentId,
+                    purchaseDate
+                });
+            } catch (pdError) {
+                logger.error('Failed to set purchaseDate after payment completion', {
+                    ticketId,
+                    paymentId,
+                    error: pdError.message
+                });
+            }
+
         } catch (error) {
             logger.error('Error processing payment completed event', {
                 error: error.message,

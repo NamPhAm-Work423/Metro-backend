@@ -250,7 +250,7 @@ async function publishTicketActivated(ticket, paymentData) {
             paymentMethod: paymentData.paymentMethod,
             paymentStatus: paymentData.status,
             gatewayResponse: paymentData.gatewayResponse,
-            activatedAt: new Date().toISOString(),
+            activatedAt: ticket.activatedAt,
             status: 'active',
             paymentData: {
                 paymentMethod: paymentData.paymentMethod,

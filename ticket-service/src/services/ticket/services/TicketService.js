@@ -181,11 +181,15 @@ class TicketService extends ITicketService {
         // Attach breakdowns conditionally to support both short-term and long-term
         const fb = ticket.fareBreakdown;
         if (fb && typeof fb === 'object') {
+            info.fareBreakdown = fb;
             if (fb.passengerBreakdown) {
                 info.passengerBreakdown = fb.passengerBreakdown;
             }
             if (fb.segmentFares) {
                 info.segmentFares = fb.segmentFares;
+            }
+            if (fb.passengerType) {
+                info.passengerType = fb.passengerType;
             }
         }
 
@@ -646,7 +650,7 @@ class TicketService extends ITicketService {
                 totalPrice: finalPrice,
                 validFrom: null,
                 validUntil: null,
-                activatedAt: (new Date() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+                activatedAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
                 ticketType: ticketData.passType,
                 status: 'pending_payment', // Changed from 'active' to 'pending_payment'
                 stationCount: null, // Not applicable for passes

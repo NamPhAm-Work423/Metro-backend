@@ -91,7 +91,7 @@ class TicketPaymentService {
                     const ticket = await this.getCachedOrFetch(cacheKey, async () => {
                         return await Ticket.findOne({
                             where: { paymentId: paymentId },
-                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
+                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod']
                         });
                     }, 5); // Very short cache for payment checks
 
@@ -99,7 +99,7 @@ class TicketPaymentService {
                     let ticketById = null;
                     if (!ticket && ticketIdFromPaymentId) {
                         ticketById = await Ticket.findByPk(ticketIdFromPaymentId, {
-                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod', 'updatedAt']
+                            attributes: ['ticketId', 'paymentId', 'status', 'paymentMethod']
                         });
                     }
 

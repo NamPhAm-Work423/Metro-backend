@@ -79,8 +79,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     purchaseDate: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
+        allowNull: true,
     },
     validFrom: {
         type: DataTypes.DATE,
@@ -99,6 +98,11 @@ const Ticket = sequelize.define('Ticket', {
     usedList: {
         type: DataTypes.ARRAY(DataTypes.DATE),
         allowNull: true,
+    },
+    updatedAt: {
+        type: DataTypes.ARRAY(DataTypes.DATE),
+        allowNull: true,
+        defaultValue: [],
     },
     activatedAt: {
         type: DataTypes.DATE,

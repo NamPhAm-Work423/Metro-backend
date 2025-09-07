@@ -36,7 +36,7 @@ const seedFares = async () => {
 
         // Create route-based fares
         await Fare.bulkCreate(routeFares, {
-            updateOnDuplicate: ['basePrice', 'isActive', 'updatedAt']
+            updateOnDuplicate: ['basePrice', 'isActive']
         });
 
         // System-wide transit passes (separate model)
