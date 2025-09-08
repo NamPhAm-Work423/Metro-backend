@@ -358,6 +358,38 @@ async function publishTicketExpired(ticket) {
 }
 
 /**
+ * Publish ticket expiring soon event (7 days or less)
+ * @param {Object} ticket - Ticket object
+ */
+async function publishTicketExpiringSoon(ticket) {
+    try {
+        const daysLeft = Math.ceil((new Date(ticket.validUntil) - new Date()) / (24 * 60 * 60 * 1000));
+
+        const eventData = {
+            ticketId: ticket.ticketId,
+            paymentId: ticket.paymentId,
+            passengerId: ticket.passengerId,
+            status: ticket.status,
+            validUntil: ticket.validUntil,
+            daysLeft
+        };
+
+        await publish('ticket.expiring_soon', ticket.ticketId, eventData);
+        
+        logger.info('Ticket expiring soon event published', {
+            ticketId: ticket.ticketId,
+            daysLeft
+        });
+    } catch (error) {
+        logger.error('Failed to publish ticket expiring soon event', {
+            ticketId: ticket.ticketId,
+            error: error.message
+        });
+        throw error;
+    }
+}
+
+/**
  * Publish ticket used event (when ticket is scanned/used)
  * @param {Object} ticket - Ticket object
  * @param {Object} usageData - Usage data
@@ -410,6 +442,7 @@ module.exports = {
     publishTicketActivated,
     publishTicketCancelled,
     publishTicketExpired,
+    publishTicketExpiringSoon,
     publishTicketUsed,
     getPaymentData
 };

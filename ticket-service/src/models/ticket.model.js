@@ -1,7 +1,8 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 const { logger } = require('../config/logger');
-const { publishTicketActivated } = require('../events/ticket.producer');
+const { TicketValidityService } = require('../services/ticket/domain/TicketValidityService');
+const { TicketActivationService } = require('../services/ticket/domain/TicketActivationService');
 
 const Ticket = sequelize.define('Ticket', {
     ticketId: {
@@ -231,31 +232,7 @@ Ticket.calculateFinalPrice = function(originalPrice, discountAmount) {
  * @returns {{validFrom: Date, validUntil: Date}}
  */
 Ticket.calculateValidityPeriod = function(ticketType) {
-    const now = new Date();
-    const validFrom = now;
-    let validUntil = new Date(now);
-
-    switch(ticketType) {
-        case 'day_pass':
-            validUntil.setDate(validUntil.getDate() + 1);
-            break;
-        case 'weekly_pass':
-            validUntil.setDate(validUntil.getDate() + 7);
-            break;
-        case 'monthly_pass':
-            validUntil.setDate(validUntil.getDate() + 30);
-            break;
-        case 'yearly_pass':
-            validUntil.setDate(validUntil.getDate() + 365);
-            break;
-        case 'lifetime_pass':
-            validUntil.setFullYear(validUntil.getFullYear() + 100); // Effectively lifetime
-            break;
-        default: // oneway/return
-            validUntil.setDate(validUntil.getDate() + 30); // 30 days validity for regular tickets
-    }
-
-    return { validFrom, validUntil };
+    return TicketValidityService.calculateValidityPeriod(ticketType);
 };
 /**
  * When long-term ticket is activated, start count down for long-term ticket
@@ -265,75 +242,14 @@ Ticket.calculateValidityPeriod = function(ticketType) {
 Ticket.startCountDown = async function(ticketId) {
     try {
         const ticket = await Ticket.findByPk(ticketId);
-        
         if (!ticket) {
             throw new Error('Ticket not found');
         }
-
-        // Only allow activation for long-term tickets (passes)
-        const longTermTypes = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
-        if (!longTermTypes.includes(ticket.ticketType)) {
-            throw new Error('Only long-term tickets can be activated');
-        }
-
-        // Check if ticket is already active
-        if (ticket.status === 'active') {
-            throw new Error('Ticket is already active');
-        }
-
-        // Check if ticket is paid (can be 'payment_confirmed' or 'inactive' status)
-        if (!['payment_confirmed', 'inactive'].includes(ticket.status)) {
-            throw new Error('Ticket must be paid before activation');
-        }
-
-        // Calculate new validity period from activation time
-        const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticket.ticketType);
-        const activatedAt = new Date();
-        // Update ticket with new validity period and status
-        const updatedTicket = await ticket.update({
-            status: 'active',
-            validFrom: validFrom,
-            validUntil: validUntil,
-            activatedAt: activatedAt,
-        });
-
-        logger.info('Long-term ticket activated successfully', {
-            ticketId: ticket.ticketId,
-            ticketType: ticket.ticketType,
-            validFrom: validFrom,
-            validUntil: validUntil,
-            activatedAt: activatedAt,
-            passengerId: ticket.passengerId
-        });
-
-        // Publish ticket activated event for notifications and other services
-        try {
-            const paymentData = {
-                paymentMethod: ticket.paymentMethod,
-                status: ticket.status,
-                gatewayResponse: null
-            };
-            
-            await publishTicketActivated(updatedTicket, paymentData);
-            logger.info('Ticket activated event published for long-term ticket', {
-                ticketId: ticket.ticketId,
-                ticketType: ticket.ticketType,
-                activatedAt: activatedAt
-            });
-        } catch (publishError) {
-            logger.error('Failed to publish ticket activated event for long-term ticket', {
-                ticketId: ticket.ticketId,
-                error: publishError.message
-            });
-            // Don't fail the activation if event publishing fails
-        }
-
-        return updatedTicket;
+        return await TicketActivationService.activateLongTermTicket(ticket);
     } catch (error) {
         logger.error('Error activating long-term ticket', {
             error: error.message,
-            ticketId: ticketId,
-            activatedAt: activatedAt
+            ticketId: ticketId
         });
         throw error;
     }
@@ -395,18 +311,6 @@ Ticket.generateTicketsFromBooking = async function(bookingData, fare, promotion 
     // Bulk create tickets
     return await Ticket.bulkCreate(ticketsToCreate);
 };
-//When Date() is equal to activatedAt, turn to active
-Ticket.prototype.turnToInactive = async function() {
-    if (this.activatedAt === null) {
-        return;
-    }
-    
-    const now = new Date();
-    // When current date equals activatedAt, turn from inactive to active
-    if (now >= this.activatedAt && this.status === 'inactive') {
-        this.status = 'active';
-        await this.save();
-    }
-};
+// Auto-activation is handled by cron job in src/cron/activateTickets.job.js
 
 module.exports = Ticket;

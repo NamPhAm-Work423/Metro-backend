@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vé sắp hết hạn</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; color: #222; }
+      .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+      .title { font-size: 20px; font-weight: bold; margin-bottom: 12px; }
+      .box { background: #f7f7f7; padding: 12px 14px; border-radius: 6px; }
+      .muted { color: #666; font-size: 13px; }
+      .cta { display: inline-block; margin-top: 12px; padding: 10px 16px; background: #0a7; color: #fff; border-radius: 4px; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="title">Thông báo: Vé sắp hết hạn</div>
+      <p>Xin chào {{passengerName}},</p>
+      <p>Vé của bạn (Mã vé: <strong>{{ticketId}}</strong>) sẽ hết hạn trong <strong>{{daysLeft}}</strong> ngày.</p>
+      <div class="box">
+        <p><strong>Ngày hết hạn:</strong> {{validUntil}}</p>
+        <p class="muted">Vui lòng sử dụng vé trước thời điểm hết hạn để tránh gián đoạn chuyến đi.</p>
+      </div>
+      <p>Nếu bạn cần hỗ trợ, vui lòng liên hệ tổng đài hỗ trợ khách hàng.</p>
+      <p>Trân trọng,<br/>Metro HCM</p>
+    </div>
+  </body>
+  </html>
+
+

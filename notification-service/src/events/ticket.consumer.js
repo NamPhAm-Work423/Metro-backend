@@ -71,6 +71,9 @@ class TicketConsumer {
                 case 'ticket.used':
                     await this.handleTicketUsed(payload);
                     break;
+                case 'ticket.expiring_soon':
+                    await this.handleTicketExpiringSoon(payload);
+                    break;
                 default:
                     logger.warn(`Unknown ticket event topic: ${topic}`);
             }
@@ -531,6 +534,62 @@ class TicketConsumer {
 
         // You can send usage confirmation if needed
         logger.info('Ticket used - no notification sent', { ticketId });
+    }
+
+    /**
+     * Handle ticket expiring soon event - notify passenger
+     * @param {Object} payload - Expiring soon data
+     */
+    async handleTicketExpiringSoon(payload) {
+        const { ticketId, passengerId, validUntil, daysLeft } = payload;
+
+        logger.info('Processing ticket expiring soon event', {
+            ticketId,
+            passengerId,
+            validUntil,
+            daysLeft
+        });
+
+        try {
+            const passengerData = await this.getPassengerFromCache(passengerId);
+            if (!passengerData) {
+                await this.handlePassengerCacheMiss({
+                    ticketId,
+                    passengerId,
+                    payload,
+                    context: 'ticket.expiring_soon'
+                });
+                return;
+            }
+
+            const passengerEmail = passengerData.email;
+            const passengerName = passengerData.fullName || passengerData.name || 'Quý khách';
+            if (!passengerEmail) {
+                throw new Error('Passenger email missing for expiring soon');
+            }
+
+            await this.notificationService.sendEmail({
+                to: passengerEmail,
+                subject: 'Vé sắp hết hạn',
+                template: 'ticket_template/ticketExpiringSoon',
+                variables: {
+                    ticketId,
+                    passengerName,
+                    validUntil: this.formatDate(validUntil),
+                    daysLeft: daysLeft ?? 7
+                },
+                userId: passengerId,
+                category: 'ticket_expiring_soon'
+            });
+
+            logger.info('Ticket expiring soon notification sent', { ticketId, passengerId });
+        } catch (error) {
+            logger.error('Failed to send ticket expiring soon notification', {
+                error: error.message,
+                ticketId,
+                passengerId
+            });
+        }
     }
 
     /**
