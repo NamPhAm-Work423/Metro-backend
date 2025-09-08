@@ -1,11 +1,11 @@
-const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
-const { logger } = require('../config/logger');
-const { Payment } = require('../models/index.model');
+const { KafkaEventConsumer } = require('../../kafka/kafkaConsumer');
+const { logger } = require('../../config/logger');
+const { Payment } = require('../../models/index.model');
 const { 
     publishPaymentCompleted,
     publishPaymentFailed,
     publishPaymentCancelled
-} = require('./payment.producer');
+} = require('../payment.producer');
 
 /**
  * PayPal Hook Consumer for processing PayPal webhook events
@@ -319,15 +319,7 @@ class PayPalHookConsumer {
         let webhookData;
         try {
             webhookData = JSON.parse(message.value.toString());
-            logger.info(`Received PayPal webhook event: ${topic}`, {
-                topic,
-                partition,
-                offset: message.offset,
-                key: message.key?.toString(),
-                eventType: webhookData.event_type,
-                resourceId: webhookData.resource?.id,
-                customId: webhookData.resource?.custom_id
-            });
+            logger.info(`Received PayPal webhook event: ${topic}`);
         } catch (e) {
             logger.error('JSON parse error for webhook message', { 
                 error: e.message,
@@ -346,13 +338,8 @@ class PayPalHookConsumer {
             case 'PAYMENT.CAPTURE.DENIED':
                 await this.handleOrderCancelledOrFailed(payload);
                 break;
-                            
             default:
-                logger.info(`Unhandled PayPal webhook event type: ${payload.event_type}`, {
-                    eventType: payload.event_type,
-                    resourceId: payload.resource?.id,
-                    customId: payload.resource?.custom_id
-                });
+                logger.info(`Unhandled PayPal webhook event type: ${payload.event_type}`);
         }
     }
 
@@ -405,3 +392,5 @@ class PayPalHookConsumer {
 }
 
 module.exports = PayPalHookConsumer;
+
+

@@ -43,7 +43,7 @@ const Payment = sequelize.define('Payment', {
     },
     paymentDate: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true
     },
     paymentGatewayResponse: {
         type: DataTypes.JSON,

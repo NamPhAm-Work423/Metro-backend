@@ -3,9 +3,9 @@ const { createPaypalPayment, createPayment } = require('../../services/payment.s
 const { Payment } = require('../../models/index.model');
 const { logger } = require('../../config/logger');
 const {
-    publishTicketPaymentReady,
-    publishTicketPaymentReadyFallback
-} = require('../../events/payment.producer');
+    publishTicketPaymentReadyPaypal,
+    publishTicketPaymentReadyPaypalFallback
+} = require('../../events/producers/paypal.producer');
 
 /**
  * PayPal Payment Strategy Implementation
@@ -215,7 +215,7 @@ class PayPalPaymentStrategy extends IPaymentStrategy {
             const approvalLink = this.generateApprovalLink(paypalOrder);
 
             // Publish payment ready event
-            await publishTicketPaymentReady(
+            await publishTicketPaymentReadyPaypal(
                 ticketId, 
                 paymentId, 
                 passengerId, 
@@ -244,7 +244,7 @@ class PayPalPaymentStrategy extends IPaymentStrategy {
                 await this.handlePayPalFallback(paymentData, error);
                 
                 // Publish fallback event
-                await publishTicketPaymentReadyFallback(
+                await publishTicketPaymentReadyPaypalFallback(
                     ticketId, 
                     paymentId, 
                     passengerId, 

@@ -2,10 +2,30 @@ jest.mock('../../src/events/passenger.producer.event', () => ({
   publishPassengerDeleted: jest.fn().mockResolvedValue(),
 }));
 
-jest.mock('../../src/services/cache/PassengerCacheService', () => ({
-  setPassenger: jest.fn().mockResolvedValue(),
-  removePassenger: jest.fn().mockResolvedValue(),
+// Mock Redis client provider
+jest.mock('../../src/config/redis', () => ({
+  getClient: jest.fn(() => ({
+    multi: () => ({ set: jest.fn(), expire: jest.fn(), exec: jest.fn().mockResolvedValue([[null, 'OK']]) }),
+    set: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+    exists: jest.fn(),
+    expire: jest.fn()
+  }))
 }));
+
+// Mock cache service as a constructor that returns a shared spy object,
+// and also expose the spies on the module for easy assertions
+const cacheSpies = {
+  setPassenger: jest.fn().mockResolvedValue(),
+  removePassenger: jest.fn().mockResolvedValue()
+};
+jest.mock('../../src/services/cache/PassengerCacheService', () => {
+  const MockClass = jest.fn().mockImplementation(() => cacheSpies);
+  MockClass.setPassenger = cacheSpies.setPassenger;
+  MockClass.removePassenger = cacheSpies.removePassenger;
+  return MockClass;
+});
 
 const passengerEventProducer = require('../../src/events/passenger.producer.event');
 const PassengerCacheService = require('../../src/services/cache/PassengerCacheService');

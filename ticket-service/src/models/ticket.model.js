@@ -128,7 +128,7 @@ const Ticket = sequelize.define('Ticket', {
         }
     },
     paymentMethod: {
-        type: DataTypes.ENUM('paypal', 'vnpay', 'card', 'metro_card', 'free'),
+        type: DataTypes.ENUM('paypal', 'vnpay', 'card', 'sepay', 'free'),
         allowNull: false,
         defaultValue: 'card',
     },

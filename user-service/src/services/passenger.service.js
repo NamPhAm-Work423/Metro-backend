@@ -2,6 +2,11 @@ const { Passenger } = require('../models/index.model');
 const passengerEventProducer = require('../events/passenger.producer.event');
 const { logger } = require('../config/logger');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
+const { getClient } = require('../config/redis');
+
+// Singleton cache instance for passengers
+const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
+const passengerCache = new PassengerCacheService(getClient(), logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
 
 // TODO: Implement full passenger service methods
 // For now, creating basic placeholder methods to make the app start
@@ -45,6 +50,8 @@ async function createPassenger(passengerData) {
     try {
         const passenger = await Passenger.create(passengerData);
         logger.info('Passenger profile created successfully', { userId: passengerData.userId });
+        // warm cache
+        await passengerCache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error creating passenger profile', { error: err.message });
@@ -60,7 +67,7 @@ async function updatePassenger(userId, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await PassengerCacheService.setPassenger(passenger);
+        await passengerCache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile', { error: err.message, userId });
@@ -76,7 +83,7 @@ async function updatePassengerById(id, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await PassengerCacheService.setPassenger(passenger);
+        await passengerCache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile by ID', { error: err.message, id });
@@ -96,7 +103,7 @@ async function deletePassengerById(id) {
         await passenger.destroy();
         
         // Clear cache after deletion
-        await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        await passengerCache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
         
         return true;
     } catch (err) {
@@ -118,12 +125,46 @@ async function deletePassengerByUserId(userId) {
         await passenger.destroy();
         
         // Clear cache after deletion
-        await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        await passengerCache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
         
         return { success: true, message: 'Passenger profile deleted successfully' };
     } catch (err) {
         logger.error('Error deleting passenger profile by user ID', { error: err.message, userId });
         throw err;
+    }
+}
+
+// Utility used by event handlers and controllers
+async function syncPassengerCacheForUser(userId, email) {
+    try {
+        const passenger = await getPassengerByUserId(userId);
+        if (!passenger) return false;
+        const payload = {
+            passengerId: passenger.passengerId,
+            userId: passenger.userId,
+            firstName: passenger.firstName,
+            lastName: passenger.lastName,
+            phoneNumber: passenger.phoneNumber,
+            email: email || passenger.email || null,
+            dateOfBirth: passenger.dateOfBirth,
+            gender: passenger.gender,
+            updatedAt: new Date().toISOString()
+        };
+        await passengerCache.setPassenger(payload);
+        return true;
+    } catch (err) {
+        logger.error('Error syncing passenger cache for user', { error: err.message, userId });
+        return false;
+    }
+}
+
+async function setPassengerCache(passengerData) {
+    try {
+        await passengerCache.setPassenger(passengerData);
+        return true;
+    } catch (err) {
+        logger.error('Error setting passenger cache directly', { error: err.message });
+        return false;
     }
 }
 
@@ -137,5 +178,7 @@ module.exports = {
     updatePassengerById,
     deletePassengerById,
     deletePassengerByUserId,
+    syncPassengerCacheForUser,
+    setPassengerCache,
 
 }; 

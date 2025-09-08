@@ -2,11 +2,7 @@ const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { Passenger, Staff } = require('../models/index.model');
 const passengerService = require('../services/passenger.service');
-const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../services/cache/PassengerCacheService');
 const passengerProducer = require('./passenger.producer.event');
-
-const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
 
 class UserEventConsumer {
     constructor() {
@@ -212,9 +208,6 @@ class UserEventConsumer {
                     userId: userData.userId
                 });
                 
-                const redisClient = getClient();
-                const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
-                
                 const adminPassengerData = {
                     passengerId: process.env.ADMIN_PASSENGER_ID, // Use userId as passengerId for admin
                     userId: userData.userId,
@@ -228,7 +221,7 @@ class UserEventConsumer {
                     updatedAt: new Date().toISOString()
                 };
                 
-                await passengerCache.setPassenger(adminPassengerData);
+                await passengerService.setPassengerCache(adminPassengerData);
                 logger.info('Admin passenger cache successfully synced on login', {
                     passengerId: adminPassengerData.passengerId,
                     userId: adminPassengerData.userId,
@@ -246,30 +239,15 @@ class UserEventConsumer {
             }
     
             const passenger = await passengerService.getPassengerByUserId(userData.userId);
-    
+
             if (!passenger) {
                 logger.error('Passenger profile not found during login event', {
                     userId: userData.userId
                 });
                 return;
             }
-    
-            const redisClient = getClient();
-            const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
-    
-            const passengerData = {
-                passengerId: passenger.passengerId,
-                userId: passenger.userId,
-                firstName: passenger.firstName,
-                lastName: passenger.lastName,
-                phoneNumber: passenger.phoneNumber,
-                email: userData.email,
-                dateOfBirth: passenger.dateOfBirth,
-                gender: passenger.gender,
-                updatedAt: new Date().toISOString()
-            };
-    
-            await passengerCache.setPassenger(passengerData);
+
+            await passengerService.syncPassengerCacheForUser(userData.userId, userData.email);
             logger.info('Passenger cache successfully synced on login', {
                 passengerId: passenger.passengerId,
                 userId: passenger.userId,

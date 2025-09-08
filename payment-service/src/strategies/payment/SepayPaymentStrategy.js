@@ -1,8 +1,8 @@
 const IPaymentStrategy = require('./IPaymentStrategy');
 const SepayService = require('../../services/sepay.service');
-const { createPayment } = require('../../services/payment.service');
+const { Payment } = require('../../models/index.model');
 const { logger } = require('../../config/logger');
-const { publishTicketPaymentReadyNonPaypal } = require('../../events/payment.producer');
+const { publishTicketPaymentReadySepay } = require('../../events/producers/sepay.producer');
 
 /**
  * Sepay Payment Strategy Implementation
@@ -72,7 +72,7 @@ class SepayPaymentStrategy extends IPaymentStrategy {
         } = paymentData;
 
         try {
-            // Create Sepay QR payment
+            // Create Sepay QR payment (this already creates a Payment + PaymentLog PENDING)
             const sepayResult = await SepayService.createQr({
                 paymentId,
                 ticketId,
@@ -81,12 +81,8 @@ class SepayPaymentStrategy extends IPaymentStrategy {
                 orderDescription: orderDescription || `Payment for ticket ${ticketId}`
             });
 
-            // Create payment record in database
-            const payment = await createPayment({
-                paymentId,
-                ticketId,
-                passengerId,
-                amount,
+            // Update existing payment with gateway response/metadata
+            await Payment.update({
                 paymentMethod: 'sepay',
                 paymentStatus: 'PENDING',
                 paymentGatewayResponse: {
@@ -95,7 +91,9 @@ class SepayPaymentStrategy extends IPaymentStrategy {
                     ticketType,
                     qrImageUrl: sepayResult.qrImage
                 }
-            });
+            }, { where: { paymentId } });
+
+            const payment = await Payment.findByPk(paymentId);
 
             logger.info('Sepay payment initiated successfully', {
                 paymentId,
@@ -104,6 +102,17 @@ class SepayPaymentStrategy extends IPaymentStrategy {
                 amount,
                 qrImageUrl: sepayResult.qrImage
             });
+
+            // Proactively publish ticket.payment_ready with QR URL so ticket-service can surface it
+            try {
+                await publishTicketPaymentReadySepay(ticketId, paymentId, sepayResult.qrImage);
+            } catch (pubErr) {
+                logger.warn('Failed to publish ticket.payment_ready for Sepay', {
+                    paymentId,
+                    ticketId,
+                    error: pubErr.message
+                });
+            }
 
             return {
                 success: true,
