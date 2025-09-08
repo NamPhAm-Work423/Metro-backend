@@ -2,14 +2,14 @@ const { Passenger } = require('../models/index.model');
 const passengerEventProducer = require('../events/passenger.producer.event');
 const { logger } = require('../config/logger');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
-const { getClient, withRedisClient } = require('../config/redis');
+const redisConfig = require('../config/redis');
 
 // Initialize cache instance lazily to ensure Redis is connected
 let passengerCache = null;
 
 function getPassengerCache() {
     if (!passengerCache) {
-        const redisClient = getClient();
+        const redisClient = redisConfig.getClient && redisConfig.getClient();
         if (redisClient) {
             passengerCache = new PassengerCacheService(redisClient, logger);
         } else {
@@ -77,7 +77,11 @@ async function updatePassenger(userId, updateData) {
         
         await passenger.update(updateData);
         const cache = getPassengerCache();
-        if (cache) await cache.setPassenger(passenger);
+        if (cache && typeof cache.setPassenger === 'function') {
+            await cache.setPassenger(passenger);
+        } else if (PassengerCacheService && typeof PassengerCacheService.setPassenger === 'function') {
+            await PassengerCacheService.setPassenger(passenger);
+        }
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile', { error: err.message, userId });
@@ -94,7 +98,11 @@ async function updatePassengerById(id, updateData) {
         
         await passenger.update(updateData);
         const cache = getPassengerCache();
-        if (cache) await cache.setPassenger(passenger);
+        if (cache && typeof cache.setPassenger === 'function') {
+            await cache.setPassenger(passenger);
+        } else if (PassengerCacheService && typeof PassengerCacheService.setPassenger === 'function') {
+            await PassengerCacheService.setPassenger(passenger);
+        }
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile by ID', { error: err.message, id });
@@ -115,7 +123,11 @@ async function deletePassengerById(id) {
         
         // Clear cache after deletion
         const cache = getPassengerCache();
-        if (cache) await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        if (cache && typeof cache.removePassenger === 'function') {
+            await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        } else if (PassengerCacheService && typeof PassengerCacheService.removePassenger === 'function') {
+            await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        }
         
         return true;
     } catch (err) {
@@ -138,7 +150,11 @@ async function deletePassengerByUserId(userId) {
         
         // Clear cache after deletion
         const cache = getPassengerCache();
-        if (cache) await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        if (cache && typeof cache.removePassenger === 'function') {
+            await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        } else if (PassengerCacheService && typeof PassengerCacheService.removePassenger === 'function') {
+            await PassengerCacheService.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        }
         
         return { success: true, message: 'Passenger profile deleted successfully' };
     } catch (err) {
@@ -150,7 +166,8 @@ async function deletePassengerByUserId(userId) {
 // Utility used by event handlers and controllers
 async function syncPassengerCacheForUser(userId, email) {
     try {
-        const passenger = await getPassengerByUserId(userId);
+        const getter = (module && module.exports && module.exports.getPassengerByUserId) || getPassengerByUserId;
+        const passenger = await getter(userId);
         if (!passenger) return false;
         const payload = {
             passengerId: passenger.passengerId,
@@ -164,7 +181,11 @@ async function syncPassengerCacheForUser(userId, email) {
             updatedAt: new Date().toISOString()
         };
         const cache = getPassengerCache();
-        if (cache) await cache.setPassenger(payload);
+        if (cache && typeof cache.setPassenger === 'function') {
+            await cache.setPassenger(payload);
+        } else if (PassengerCacheService && typeof PassengerCacheService.setPassenger === 'function') {
+            await PassengerCacheService.setPassenger(payload);
+        }
         return true;
     } catch (err) {
         logger.error('Error syncing passenger cache for user', { error: err.message, userId });
@@ -175,7 +196,11 @@ async function syncPassengerCacheForUser(userId, email) {
 async function setPassengerCache(passengerData) {
     try {
         const cache = getPassengerCache();
-        if (cache) await cache.setPassenger(passengerData);
+        if (cache && typeof cache.setPassenger === 'function') {
+            await cache.setPassenger(passengerData);
+        } else if (PassengerCacheService && typeof PassengerCacheService.setPassenger === 'function') {
+            await PassengerCacheService.setPassenger(passengerData);
+        }
         return true;
     } catch (err) {
         logger.error('Error setting passenger cache directly', { error: err.message });

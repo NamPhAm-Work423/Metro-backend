@@ -16,14 +16,14 @@ jest.mock('../../src/config/redis', () => ({
 
 // Mock cache service as a constructor that returns a shared spy object,
 // and also expose the spies on the module for easy assertions
-const cacheSpies = {
+const mockCacheSpies = {
   setPassenger: jest.fn().mockResolvedValue(),
   removePassenger: jest.fn().mockResolvedValue()
 };
 jest.mock('../../src/services/cache/PassengerCacheService', () => {
-  const MockClass = jest.fn().mockImplementation(() => cacheSpies);
-  MockClass.setPassenger = cacheSpies.setPassenger;
-  MockClass.removePassenger = cacheSpies.removePassenger;
+  const MockClass = jest.fn().mockImplementation(() => mockCacheSpies);
+  MockClass.setPassenger = mockCacheSpies.setPassenger;
+  MockClass.removePassenger = mockCacheSpies.removePassenger;
   return MockClass;
 });
 
@@ -171,6 +171,38 @@ describe('passenger.service', () => {
     expect(instance.destroy).toHaveBeenCalled();
     expect(PassengerCacheService.removePassenger).toHaveBeenCalledWith('p1', 'u1', 'test@example.com');
     expect(result).toBe(true);
+  });
+
+  test('syncPassengerCacheForUser returns false when passenger not found', async () => {
+    jest.spyOn(passengerService, 'getPassengerByUserId').mockResolvedValue(null);
+    const ok = await passengerService.syncPassengerCacheForUser('u1');
+    expect(ok).toBe(false);
+  });
+
+  test('syncPassengerCacheForUser sets cache and returns true', async () => {
+    const found = {
+      passengerId: 'p1',
+      userId: 'u1',
+      firstName: 'A',
+      lastName: 'B',
+      phoneNumber: '123',
+      email: 'e@example.com',
+      dateOfBirth: '2000-01-01',
+      gender: 'M'
+    };
+    jest.spyOn(passengerService, 'getPassengerByUserId').mockResolvedValue(found);
+
+    const ok = await passengerService.syncPassengerCacheForUser('u1');
+
+    expect(PassengerCacheService.setPassenger).toHaveBeenCalled();
+    expect(ok).toBe(true);
+  });
+
+  test('setPassengerCache returns true and calls cache.setPassenger', async () => {
+    const payload = { passengerId: 'p9', userId: 'u9' };
+    const ok = await passengerService.setPassengerCache(payload);
+    expect(PassengerCacheService.setPassenger).toHaveBeenCalledWith(payload);
+    expect(ok).toBe(true);
   });
 });
 

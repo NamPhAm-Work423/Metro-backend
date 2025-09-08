@@ -61,13 +61,7 @@ class PassengerCacheService {
                 results: results?.length || 0
             });
         } catch (err) {
-            this.logger.error('Failed to set passenger cache', { 
-                err: err.message || err,
-                stack: err.stack,
-                passengerId,
-                userId,
-                keys: { key, indexKey, emailIndexKey }
-            });
+            this.logger.error('Failed to set passenger cache', { err });
         }
     }
 
