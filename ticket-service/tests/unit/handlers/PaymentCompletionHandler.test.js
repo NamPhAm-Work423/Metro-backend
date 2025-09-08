@@ -36,7 +36,7 @@ describe('PaymentCompletionHandler', () => {
             const result = PaymentCompletionHandler.determineTicketStatusAfterPayment(ticket);
 
             expect(result.status).toBe('inactive');
-            expect(result.activatedAt).toBeNull();
+            expect(result.activatedAt).toBeInstanceOf(Date);
             expect(result.updatedAt).toBeInstanceOf(Date);
         });
 
@@ -121,7 +121,7 @@ describe('PaymentCompletionHandler', () => {
             expect(result.ticketType).toBe('long-term');
             expect(mockTicket.update).toHaveBeenCalledWith(expect.objectContaining({
                 status: 'inactive',
-                activatedAt: null
+                activatedAt: expect.any(Date)
             }));
         });
 

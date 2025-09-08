@@ -67,7 +67,6 @@ class PaymentConsumer {
                 paymentId,
                 status: 'COMPLETED',
                 ticketType: result.ticketType,
-                finalTicketStatus: result.updateData.status,
                 activatedAt: result.updateData.activatedAt,
                 paymentData
             });
@@ -119,9 +118,9 @@ class PaymentConsumer {
                 return;
             }
 
-            // Update ticket to failed status
+            // Update ticket to a valid status; keep as pending to allow retry
             await ticket.update({
-                status: 'payment_failed',
+                status: 'pending_payment',
                 updatedAt: new Date()
             });
 

@@ -40,7 +40,7 @@ class PaymentCompletionHandler {
 
         return {
             status: 'inactive',
-            activatedAt: null,
+            activatedAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             updatedAt: new Date()
         };
     }
