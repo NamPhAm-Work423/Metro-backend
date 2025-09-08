@@ -59,24 +59,50 @@ class SepayWebhookService {
             // Extract Sepay headers
             const sepayHeaders = this.extractSepayHeaders(headers);
 
-            // Create webhook log
-            const hookData = {
-                webhookId: eventData.id,
-                eventType: eventData.event_type,
-                resourceType: eventData.resource_type,
-                resourceId: eventData.resource?.id,
-                rawPayload: eventData,
-                headers: sepayHeaders,
-                idempotencyKey,
-                sourceIp,
-                userAgent,
-                signatureVerified: true, // Simplified for now
-                verificationMethod: 'webhook_signature'
-            };
+            // Create webhook log with format-specific data
+            let hookData;
+            
+            if (this.isSepayBankWebhook(eventData)) {
+                // SePay bank webhook format
+                hookData = {
+                    webhookId: eventData.id.toString(),
+                    eventType: 'SEPAY_BANK_TRANSFER',
+                    resourceType: 'bank_transfer',
+                    resourceId: eventData.referenceCode || eventData.id.toString(),
+                    rawPayload: eventData,
+                    headers: sepayHeaders,
+                    idempotencyKey,
+                    sourceIp,
+                    userAgent,
+                    signatureVerified: true, // Simplified for now
+                    verificationMethod: 'webhook_signature'
+                };
+            } else {
+                // Legacy PayPal-style format
+                hookData = {
+                    webhookId: eventData.id,
+                    eventType: eventData.event_type,
+                    resourceType: eventData.resource_type,
+                    resourceId: eventData.resource?.id,
+                    rawPayload: eventData,
+                    headers: sepayHeaders,
+                    idempotencyKey,
+                    sourceIp,
+                    userAgent,
+                    signatureVerified: true, // Simplified for now
+                    verificationMethod: 'webhook_signature'
+                };
+            }
 
             // Save to MongoDB
             const sepayHook = new SepayHook(hookData);
-            await sepayHook.extractSepayBusinessData(eventData);
+            
+            if (this.isSepayBankWebhook(eventData)) {
+                await sepayHook.extractSepayBankBusinessData(eventData);
+            } else {
+                await sepayHook.extractSepayBusinessData(eventData);
+            }
+            
             await sepayHook.markAsProcessing();
 
             // Mark as processing in Redis
@@ -90,7 +116,8 @@ class SepayWebhookService {
             const businessData = this.extractBusinessData(eventData);
 
             // Determine target services
-            const targetServices = this.determineTargetServices(eventData.event_type, businessData);
+            const eventType = eventData.event_type || null; // SePay bank webhooks don't have event_type
+            const targetServices = this.determineTargetServices(eventType, businessData);
 
             // Publish webhook event to payment service
             const webhookPublishResult = await this.publishWebhookEvent(webhookData, sepayHook);
@@ -164,7 +191,12 @@ class SepayWebhookService {
      */
     validateEventStructure(eventData) {
         try {
-            // Required fields validation
+            // Check if this is actual SePay bank webhook format
+            if (this.isSepayBankWebhook(eventData)) {
+                return this.validateSepayBankStructure(eventData);
+            }
+            
+            // Legacy PayPal-style format validation
             const requiredFields = ['id', 'event_type', 'resource_type', 'resource'];
             
             for (const field of requiredFields) {
@@ -195,11 +227,53 @@ class SepayWebhookService {
     }
 
     /**
+     * Check if this is SePay bank webhook format
+     * @param {Object} eventData - Webhook event data
+     * @returns {boolean} - True if SePay bank format
+     */
+    isSepayBankWebhook(eventData) {
+        return eventData.hasOwnProperty('gateway') && 
+               eventData.hasOwnProperty('transferType') && 
+               eventData.hasOwnProperty('content') &&
+               eventData.hasOwnProperty('transferAmount');
+    }
+
+    /**
+     * Validate SePay bank webhook structure
+     * @param {Object} eventData - SePay bank webhook data
+     * @returns {boolean} - Validation result
+     */
+    validateSepayBankStructure(eventData) {
+        const requiredFields = ['id', 'gateway', 'transferType', 'content', 'transferAmount'];
+        
+        for (const field of requiredFields) {
+            if (!eventData[field]) {
+                logger.warn('Missing required SePay bank webhook field', { field });
+                return false;
+            }
+        }
+
+        // Only process incoming transfers
+        if (eventData.transferType !== 'in') {
+            logger.info('Ignoring non-incoming transfer', { transferType: eventData.transferType });
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Extract business data from Sepay webhook
      * @param {Object} eventData - Webhook event data
      * @returns {Object} - Extracted business data
      */
     extractBusinessData(eventData) {
+        // Handle SePay bank webhook format
+        if (this.isSepayBankWebhook(eventData)) {
+            return this.extractSepayBankBusinessData(eventData);
+        }
+        
+        // Legacy PayPal-style format
         const resource = eventData.resource || {};
         
         return {
@@ -225,12 +299,67 @@ class SepayWebhookService {
     }
 
     /**
+     * Extract business data from SePay bank webhook
+     * @param {Object} eventData - SePay bank webhook data
+     * @returns {Object} - Extracted business data
+     */
+    extractSepayBankBusinessData(eventData) {
+        // Extract ticket ID from content
+        const content = (eventData.content || '').trim();
+        // Try UUID format with dashes first: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        let ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+        
+        // If no match, try 32-character hex format without dashes: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        if (!ticketIdMatch) {
+            ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{32})/i);
+        }
+        
+        const ticketId = ticketIdMatch ? ticketIdMatch[1] : null;
+
+        return {
+            transactionId: eventData.referenceCode || eventData.id,
+            bankTransactionId: eventData.id,
+            orderId: ticketId, // Use ticket ID as order ID
+            ticketId: ticketId,
+            amount: {
+                value: eventData.transferAmount,
+                currency: 'VND'
+            },
+            paymentStatus: eventData.transferType === 'in' ? 'COMPLETED' : 'PENDING',
+            gateway: eventData.gateway,
+            accountNumber: eventData.accountNumber,
+            content: eventData.content,
+            description: eventData.description,
+            transactionDate: eventData.transactionDate,
+            referenceCode: eventData.referenceCode,
+            accumulated: eventData.accumulated,
+            sepayBankId: eventData.id
+        };
+    }
+
+    /**
      * Generate idempotency key for Sepay webhook
      * @param {Object} eventData - Webhook event data
      * @param {Object} headers - Request headers
      * @returns {string} - Idempotency key
      */
     generateIdempotencyKey(eventData, headers) {
+        // Handle SePay bank webhook format
+        if (this.isSepayBankWebhook(eventData)) {
+            const webhookId = eventData.id;
+            const transferAmount = eventData.transferAmount;
+            const referenceCode = eventData.referenceCode;
+            const timestamp = eventData.transactionDate || Date.now();
+
+            const keyData = `sepay-bank:${webhookId}:${transferAmount}:${referenceCode}:${timestamp}`;
+            
+            return crypto
+                .createHash('sha256')
+                .update(keyData)
+                .digest('hex');
+        }
+
+        // Legacy PayPal-style format
         const webhookId = eventData.id;
         const eventType = eventData.event_type;
         const resourceId = eventData.resource?.id;
@@ -260,12 +389,17 @@ class SepayWebhookService {
 
     /**
      * Determine target services for event publishing
-     * @param {string} eventType - Sepay event type
+     * @param {string} eventType - Sepay event type or SePay bank event type
      * @param {Object} businessData - Extracted business data
      * @returns {Array} - Array of {service, topic, eventData}
      */
     determineTargetServices(eventType, businessData) {
         const services = [];
+
+        // Handle SePay bank webhook (no eventType, determine from businessData)
+        if (!eventType && businessData.paymentStatus === 'COMPLETED' && businessData.ticketId) {
+            return this.determineSepayBankTargetServices(businessData);
+        }
 
         switch (eventType) {
             case 'PAYMENT.CAPTURE.COMPLETED':
@@ -404,6 +538,70 @@ class SepayWebhookService {
                 }
             });
         }
+
+        return services;
+    }
+
+    /**
+     * Determine target services for SePay bank webhook events
+     * @param {Object} businessData - Extracted business data from SePay bank
+     * @returns {Array} - Array of {service, topic, eventData}
+     */
+    determineSepayBankTargetServices(businessData) {
+        const services = [];
+
+        // Payment completed event to payment service
+        services.push({
+            service: 'payment-service',
+            topic: 'payment.completed',
+            eventData: {
+                type: 'PAYMENT_COMPLETED',
+                paymentId: businessData.orderId, // ticket ID used as payment lookup
+                transactionId: businessData.transactionId,
+                bankTransactionId: businessData.bankTransactionId,
+                ticketId: businessData.ticketId,
+                amount: businessData.amount,
+                gateway: businessData.gateway,
+                accountNumber: businessData.accountNumber,
+                referenceCode: businessData.referenceCode,
+                provider: 'sepay',
+                timestamp: new Date().toISOString()
+            }
+        });
+
+        // Ticket payment completed event to ticket service
+        services.push({
+            service: 'ticket-service',
+            topic: 'ticket.payment.completed',
+            eventData: {
+                type: 'TICKET_PAYMENT_COMPLETED',
+                ticketId: businessData.ticketId,
+                paymentId: businessData.orderId,
+                transactionId: businessData.transactionId,
+                bankTransactionId: businessData.bankTransactionId,
+                amount: businessData.amount,
+                gateway: businessData.gateway,
+                provider: 'sepay',
+                timestamp: new Date().toISOString()
+            }
+        });
+
+        // Notification event to notification service
+        services.push({
+            service: 'notification-service',
+            topic: 'notification.payment',
+            eventData: {
+                type: 'PAYMENT_NOTIFICATION',
+                ticketId: businessData.ticketId,
+                paymentId: businessData.orderId,
+                transactionId: businessData.transactionId,
+                status: 'completed',
+                amount: businessData.amount,
+                gateway: businessData.gateway,
+                provider: 'sepay',
+                timestamp: new Date().toISOString()
+            }
+        });
 
         return services;
     }

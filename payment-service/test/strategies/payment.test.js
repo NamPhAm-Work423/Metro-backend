@@ -154,9 +154,9 @@ describe('Payment Strategy Tests', () => {
                 createPaypalPayment: mockCreatePaypalPayment
             }));
 
-            // Mock the events module
-            jest.doMock('../../src/events/payment.producer', () => ({
-                publishTicketPaymentReady: mockPublishEvent
+            // Mock the PayPal events producer (actual module used by strategy)
+            jest.doMock('../../src/events/producers/paypal.producer', () => ({
+                publishTicketPaymentReadyPaypal: mockPublishEvent
             }));
 
             // Clear module cache and re-require
@@ -217,9 +217,9 @@ describe('Payment Strategy Tests', () => {
                 createPayment: mockCreatePayment
             }));
 
-            jest.doMock('../../src/events/payment.producer', () => ({
-                publishTicketPaymentReady: jest.fn(),
-                publishTicketPaymentReadyFallback: mockPublishEvent
+            jest.doMock('../../src/events/producers/paypal.producer', () => ({
+                publishTicketPaymentReadyPaypal: jest.fn(),
+                publishTicketPaymentReadyPaypalFallback: mockPublishEvent
             }));
 
             jest.resetModules();

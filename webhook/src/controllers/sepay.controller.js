@@ -31,19 +31,24 @@ class SepayController {
                 webhookId: req.body?.id
             });
 
-            // Validate request body
-            if (!req.body || !req.body.id || !req.body.event_type) {
+            // Validate request body - support both PayPal-style and SePay bank format
+            const isSepayBankWebhook = req.body?.gateway && req.body?.transferType && req.body?.content;
+            const isPaypalStyleWebhook = req.body?.id && req.body?.event_type;
+            
+            if (!req.body || (!isSepayBankWebhook && !isPaypalStyleWebhook)) {
                 logger.warn('Invalid Sepay webhook request body', {
                     requestId,
                     hasBody: !!req.body,
                     hasId: !!req.body?.id,
-                    hasEventType: !!req.body?.event_type
+                    hasEventType: !!req.body?.event_type,
+                    hasGateway: !!req.body?.gateway,
+                    hasTransferType: !!req.body?.transferType
                 });
 
                 return res.status(400).json({
                     success: false,
                     error: 'INVALID_WEBHOOK_PAYLOAD',
-                    message: 'Invalid webhook payload structure',
+                    message: 'Invalid webhook payload structure - must be either PayPal-style or SePay bank format',
                     requestId
                 });
             }
@@ -78,15 +83,26 @@ class SepayController {
 
             const processingTime = Date.now() - startTime;
 
-            logger.info('Sepay webhook processing completed', {
+            // Log completion with appropriate format
+            const logData = {
                 requestId,
-                webhookId: req.body.id,
-                eventType: req.body.event_type,
                 status: result.status,
                 success: result.success,
                 processingTime,
                 eventsPublished: result.eventsPublished || 0
-            });
+            };
+
+            if (isSepayBankWebhook) {
+                logData.bankTransactionId = req.body.id;
+                logData.gateway = req.body.gateway;
+                logData.transferType = req.body.transferType;
+                logData.transferAmount = req.body.transferAmount;
+            } else {
+                logData.webhookId = req.body.id;
+                logData.eventType = req.body.event_type;
+            }
+
+            logger.info('Sepay webhook processing completed', logData);
 
             // Return appropriate response based on result
             if (result.success) {

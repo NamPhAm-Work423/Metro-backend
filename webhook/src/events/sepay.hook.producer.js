@@ -26,6 +26,13 @@ class SepayHookProducer {
     async publishWebhookEvent(webhookData) {
         try {
             const { eventData } = webhookData;
+            
+            // Handle SePay bank webhook format
+            if (this.isSepayBankWebhook(eventData)) {
+                return await this.publishSepayBankWebhookEvent(webhookData);
+            }
+            
+            // Legacy PayPal-style format
             const sepayTransactionId = eventData.resource?.id || eventData.transaction_id;
             
             // Use sepayTransactionId as message key for partitioning
@@ -58,6 +65,49 @@ class SepayHookProducer {
             });
             throw error;
         }
+    }
+
+    /**
+     * Check if this is SePay bank webhook format
+     * @param {Object} eventData - Webhook event data
+     * @returns {boolean} - True if SePay bank format
+     */
+    isSepayBankWebhook(eventData) {
+        return eventData.hasOwnProperty('gateway') && 
+               eventData.hasOwnProperty('transferType') && 
+               eventData.hasOwnProperty('content') &&
+               eventData.hasOwnProperty('transferAmount');
+    }
+
+    /**
+     * Publish SePay bank webhook event to payment service
+     * @param {Object} webhookData - SePay bank webhook data
+     * @returns {Promise<Object>} - Publish result
+     */
+    async publishSepayBankWebhookEvent(webhookData) {
+        const { eventData } = webhookData;
+        
+        // Use bank transaction ID as message key for partitioning
+        const messageKey = eventData.referenceCode || eventData.id;
+        
+        await publish(this.webhookEventTopic, messageKey, eventData);
+
+        logger.info('SePay bank webhook event published', {
+            topic: this.webhookEventTopic,
+            gateway: eventData.gateway,
+            transferType: eventData.transferType,
+            transferAmount: eventData.transferAmount,
+            bankTransactionId: eventData.id,
+            messageKey
+        });
+
+        return {
+            success: true,
+            topic: this.webhookEventTopic,
+            eventType: 'SEPAY_BANK_TRANSFER',
+            webhookId: eventData.id,
+            messageKey
+        };
     }
 
     /**

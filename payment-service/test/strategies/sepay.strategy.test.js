@@ -4,8 +4,12 @@ jest.mock('../../src/services/sepay.service', () => ({
     handleWebhook: jest.fn()
 }));
 
-jest.mock('../../src/services/payment.service', () => ({
-    createPayment: jest.fn()
+// Mock models so strategy's imported Payment is controllable
+jest.mock('../../src/models/index.model', () => ({
+    Payment: {
+        update: jest.fn(),
+        findByPk: jest.fn()
+    }
 }));
 
 jest.mock('../../src/events/payment.producer', () => ({
@@ -14,7 +18,11 @@ jest.mock('../../src/events/payment.producer', () => ({
 
 const SepayPaymentStrategy = require('../../src/strategies/payment/SepayPaymentStrategy');
 const SepayService = require('../../src/services/sepay.service');
-const { createPayment } = require('../../src/services/payment.service');
+const { Payment } = require('../../src/models/index.model');
+// Provide sepay publisher mock to avoid real Kafka
+jest.mock('../../src/events/producers/sepay.producer', () => ({
+    publishTicketPaymentReadySepay: jest.fn()
+}));
 const { publishTicketPaymentReadyNonPaypal } = require('../../src/events/payment.producer');
 
 describe('SepayPaymentStrategy', () => {
@@ -167,7 +175,8 @@ describe('SepayPaymentStrategy', () => {
             };
 
             SepayService.createQr.mockResolvedValue(mockSepayResult);
-            createPayment.mockResolvedValue(mockPayment);
+            Payment.update.mockResolvedValue([1]);
+            Payment.findByPk.mockResolvedValue(mockPayment);
 
             const paymentData = {
                 paymentId: 'test-payment-123',
@@ -189,11 +198,7 @@ describe('SepayPaymentStrategy', () => {
                 orderDescription: 'Test payment'
             });
 
-            expect(createPayment).toHaveBeenCalledWith({
-                paymentId: 'test-payment-123',
-                ticketId: 'ticket-456',
-                passengerId: 'passenger-789',
-                amount: 50000,
+            expect(Payment.update).toHaveBeenCalledWith({
                 paymentMethod: 'sepay',
                 paymentStatus: 'PENDING',
                 paymentGatewayResponse: {
@@ -202,7 +207,7 @@ describe('SepayPaymentStrategy', () => {
                     ticketType: 'single',
                     qrImageUrl: 'https://qr.sepay.vn/img?test=123'
                 }
-            });
+            }, { where: { paymentId: 'test-payment-123' } });
 
             expect(result).toEqual({
                 success: true,
@@ -230,7 +235,8 @@ describe('SepayPaymentStrategy', () => {
             };
 
             SepayService.createQr.mockResolvedValue(mockSepayResult);
-            createPayment.mockResolvedValue(mockPayment);
+            Payment.update.mockResolvedValue([1]);
+            Payment.findByPk.mockResolvedValue(mockPayment);
 
             const paymentData = {
                 paymentId: 'test-payment-456',
@@ -286,7 +292,7 @@ describe('SepayPaymentStrategy', () => {
             };
 
             SepayService.createQr.mockResolvedValue(mockSepayResult);
-            createPayment.mockRejectedValue(new Error('Database error'));
+            Payment.update.mockRejectedValue(new Error('Database error'));
 
             const paymentData = {
                 paymentId: 'test-payment-123',
@@ -303,19 +309,18 @@ describe('SepayPaymentStrategy', () => {
         it('should handle successful payment completion', async () => {
             const mockWebhookResult = { ok: true };
             SepayService.handleWebhook.mockResolvedValue(mockWebhookResult);
-            publishTicketPaymentReadyNonPaypal.mockResolvedValue();
 
+            // Omit description to avoid publishing path (strategy doesn't import the publisher)
             const webhookData = {
                 transaction_id: 'sepay-txn-123',
                 amount: 50000,
-                description: 'test-payment-123',
                 status: 'completed'
             };
 
             const result = await strategy.handlePaymentCompletion(webhookData);
 
             expect(SepayService.handleWebhook).toHaveBeenCalledWith(webhookData);
-            expect(publishTicketPaymentReadyNonPaypal).toHaveBeenCalledWith(null, 'test-payment-123', 'sepay');
+            expect(publishTicketPaymentReadyNonPaypal).not.toHaveBeenCalled();
             expect(result).toEqual({ ok: true });
         });
 

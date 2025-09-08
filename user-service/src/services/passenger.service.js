@@ -2,14 +2,23 @@ const { Passenger } = require('../models/index.model');
 const passengerEventProducer = require('../events/passenger.producer.event');
 const { logger } = require('../config/logger');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
-const { getClient } = require('../config/redis');
+const { getClient, withRedisClient } = require('../config/redis');
 
-// Singleton cache instance for passengers
-const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
-const passengerCache = new PassengerCacheService(getClient(), logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
+// Initialize cache instance lazily to ensure Redis is connected
+let passengerCache = null;
 
-// TODO: Implement full passenger service methods
-// For now, creating basic placeholder methods to make the app start
+function getPassengerCache() {
+    if (!passengerCache) {
+        const redisClient = getClient();
+        if (redisClient) {
+            passengerCache = new PassengerCacheService(redisClient, logger);
+        } else {
+            logger.warn('Redis client not available, passenger cache disabled');
+        }
+    }
+    return passengerCache;
+}
+
 
 async function getAllPassengers() {
     try {
@@ -50,8 +59,8 @@ async function createPassenger(passengerData) {
     try {
         const passenger = await Passenger.create(passengerData);
         logger.info('Passenger profile created successfully', { userId: passengerData.userId });
-        // warm cache
-        await passengerCache.setPassenger(passenger);
+        const cache = getPassengerCache();
+        if (cache) await cache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error creating passenger profile', { error: err.message });
@@ -67,7 +76,8 @@ async function updatePassenger(userId, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await passengerCache.setPassenger(passenger);
+        const cache = getPassengerCache();
+        if (cache) await cache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile', { error: err.message, userId });
@@ -83,7 +93,8 @@ async function updatePassengerById(id, updateData) {
         if (!passenger) return null;
         
         await passenger.update(updateData);
-        await passengerCache.setPassenger(passenger);
+        const cache = getPassengerCache();
+        if (cache) await cache.setPassenger(passenger);
         return passenger;
     } catch (err) {
         logger.error('Error updating passenger profile by ID', { error: err.message, id });
@@ -103,7 +114,8 @@ async function deletePassengerById(id) {
         await passenger.destroy();
         
         // Clear cache after deletion
-        await passengerCache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        const cache = getPassengerCache();
+        if (cache) await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
         
         return true;
     } catch (err) {
@@ -125,7 +137,8 @@ async function deletePassengerByUserId(userId) {
         await passenger.destroy();
         
         // Clear cache after deletion
-        await passengerCache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
+        const cache = getPassengerCache();
+        if (cache) await cache.removePassenger(passenger.passengerId, passenger.userId, passenger.email);
         
         return { success: true, message: 'Passenger profile deleted successfully' };
     } catch (err) {
@@ -150,7 +163,8 @@ async function syncPassengerCacheForUser(userId, email) {
             gender: passenger.gender,
             updatedAt: new Date().toISOString()
         };
-        await passengerCache.setPassenger(payload);
+        const cache = getPassengerCache();
+        if (cache) await cache.setPassenger(payload);
         return true;
     } catch (err) {
         logger.error('Error syncing passenger cache for user', { error: err.message, userId });
@@ -160,7 +174,8 @@ async function syncPassengerCacheForUser(userId, email) {
 
 async function setPassengerCache(passengerData) {
     try {
-        await passengerCache.setPassenger(passengerData);
+        const cache = getPassengerCache();
+        if (cache) await cache.setPassenger(passengerData);
         return true;
     } catch (err) {
         logger.error('Error setting passenger cache directly', { error: err.message });

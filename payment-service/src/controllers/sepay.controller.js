@@ -244,20 +244,51 @@ async function handleSepayWebhook(req, res) {
         
         logger.info('Received Sepay webhook:', payload);
         
-        // Process webhook
+        // Process webhook using updated service
         const result = await SepayService.handleWebhook(payload);
 
         if (result.ok) {
-            // Publish event to Kafka if payment was completed
-            if (payload.status === 'completed' && payload.description) {
-                await publish('payment.completed', payload.description, {
-                    paymentId: payload.description,
+            // Extract ticket ID from content for Kafka event
+            const content = payload.content || '';
+            // Try UUID format with dashes first: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+            let ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+            
+            // If no match, try 32-character hex format without dashes: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+            if (!ticketIdMatch) {
+                ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{32})/i);
+            }
+            
+            if (payload.transferType === 'in' && ticketIdMatch) {
+                const ticketId = ticketIdMatch[1];
+                
+                // Find payment by ticket ID to get the actual payment ID
+                const payment = await Payment.findOne({
+                    where: { ticketId: ticketId }
+                });
+                
+                if (!payment) {
+                    logger.warn('Payment not found for ticket in webhook processing', { ticketId });
+                    return res.status(200).json({ 
+                        success: true, 
+                        message: 'Webhook processed successfully' 
+                    });
+                }
+                
+                const paymentId = payment.paymentId;
+                
+                await publish('payment.completed', paymentId, {
+                    paymentId,
                     status: 'COMPLETED',
                     message: 'Payment completed via Sepay',
+                    amount: payload.transferAmount,
+                    bankTransactionId: payload.id,
                     gatewayResponse: payload
                 });
                 
-                logger.info(`Payment completed via Sepay webhook: ${payload.description}`);
+                logger.info(`Payment completed via Sepay webhook: ${paymentId}`, {
+                    amount: payload.transferAmount,
+                    bankTransactionId: payload.id
+                });
             }
 
             res.status(200).json({ 

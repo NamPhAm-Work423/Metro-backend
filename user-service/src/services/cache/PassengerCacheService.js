@@ -27,6 +27,15 @@ class PassengerCacheService {
             return;
         }
 
+        // Check Redis connection
+        if (!this.redis) {
+            this.logger.error('Redis client is null - cannot set passenger cache', {
+                passengerId,
+                userId
+            });
+            return;
+        }
+
         const key = this._getCacheKey(passengerId);
         const indexKey = this._getIndexKey(userId);
         const emailIndexKey = email ? this._getEmailIndexKey(email) : null;
@@ -42,9 +51,23 @@ class PassengerCacheService {
             if (emailIndexKey) {
                 pipeline.set(emailIndexKey, passengerId, 'EX', this.defaultTTL);
             }
-            await pipeline.exec();
+            const results = await pipeline.exec();
+            
+            // Log successful cache set
+            this.logger.debug('Passenger cache set successfully', {
+                passengerId,
+                userId,
+                keys: { key, indexKey, emailIndexKey },
+                results: results?.length || 0
+            });
         } catch (err) {
-            this.logger.error('Failed to set passenger cache', { err });
+            this.logger.error('Failed to set passenger cache', { 
+                err: err.message || err,
+                stack: err.stack,
+                passengerId,
+                userId,
+                keys: { key, indexKey, emailIndexKey }
+            });
         }
     }
 

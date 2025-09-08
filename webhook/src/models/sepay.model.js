@@ -22,7 +22,8 @@ const sepaySchema = new mongoose.Schema({
             'PAYMENT.CAPTURE.DENIED', 
             'PAYMENT.CAPTURE.PENDING',
             'CHECKOUT.ORDER.COMPLETED',
-            'PAYMENT.CAPTURE.REFUNDED'
+            'PAYMENT.CAPTURE.REFUNDED',
+            'SEPAY_BANK_TRANSFER'
         ],
         index: true
     },
@@ -30,7 +31,7 @@ const sepaySchema = new mongoose.Schema({
     resourceType: {
         type: String,
         required: true,
-        enum: ['capture', 'order', 'payment', 'refund']
+        enum: ['capture', 'order', 'payment', 'refund', 'bank_transfer']
     },
     
     resourceId: {
@@ -121,7 +122,13 @@ const sepaySchema = new mongoose.Schema({
         // Sepay specific fields
         sepayTransactionHash: String,
         sepayBlockNumber: String,
-        sepayNetwork: String
+        sepayNetwork: String,
+        
+        // SePay Bank specific fields
+        gateway: String,
+        accountNumber: String,
+        referenceCode: String,
+        bankTransactionId: String
     },
     
     // Events published to Kafka
@@ -272,6 +279,51 @@ sepaySchema.methods.extractSepayBusinessData = function(rawPayload) {
         sepayTransactionHash: resource.transaction_hash || rawPayload.transaction_hash,
         sepayBlockNumber: resource.block_number || rawPayload.block_number,
         sepayNetwork: resource.network || rawPayload.network || 'mainnet'
+    };
+    
+    return this.save();
+};
+
+sepaySchema.methods.extractSepayBankBusinessData = function(rawPayload) {
+    // Extract ticket ID from content
+    const content = (rawPayload.content || '').trim();
+    // Try UUID format with dashes first: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    let ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    
+    // If no match, try 32-character hex format without dashes: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    if (!ticketIdMatch) {
+        ticketIdMatch = content.match(/Payment for ticket ([a-f0-9]{32})/i);
+    }
+    
+    const ticketId = ticketIdMatch ? ticketIdMatch[1] : null;
+    
+    this.sepayData = {
+        // Transaction information
+        transactionId: rawPayload.referenceCode || rawPayload.id.toString(),
+        orderId: ticketId,
+        
+        // Amount information
+        amount: {
+            value: rawPayload.transferAmount?.toString() || '0',
+            currency: 'VND'
+        },
+        
+        // Payment status
+        paymentStatus: rawPayload.transferType === 'in' ? 'COMPLETED' : 'PENDING',
+        
+        // Additional SePay bank specific fields
+        customId: ticketId,
+        description: rawPayload.description || rawPayload.content,
+        
+        // Bank specific information
+        gateway: rawPayload.gateway,
+        accountNumber: rawPayload.accountNumber,
+        referenceCode: rawPayload.referenceCode,
+        bankTransactionId: rawPayload.id?.toString(),
+        
+        // Timestamps
+        createTime: rawPayload.transactionDate ? new Date(rawPayload.transactionDate) : new Date(),
+        updateTime: new Date()
     };
     
     return this.save();

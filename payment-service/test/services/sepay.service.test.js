@@ -3,7 +3,13 @@ jest.mock('../../src/models/index.model', () => ({
     Payment: {
         create: jest.fn(),
         findByPk: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        sequelize: {
+            transaction: jest.fn().mockResolvedValue({
+                commit: jest.fn(),
+                rollback: jest.fn()
+            })
+        }
     },
     Transaction: {
         create: jest.fn()
@@ -20,12 +26,12 @@ describe('sepay.service', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         // Set up environment variables
-        process.env.SEPAY_BANK_BIN = '970436';
+        process.env.SEPAY_BANK = '970436';
         process.env.SEPAY_ACCOUNT_NO = '1234567890';
     });
 
     afterEach(() => {
-        delete process.env.SEPAY_BANK_BIN;
+        delete process.env.SEPAY_BANK;
         delete process.env.SEPAY_ACCOUNT_NO;
     });
 
@@ -52,18 +58,18 @@ describe('sepay.service', () => {
                 paymentAmount: 50000,
                 paymentMethod: 'sepay',
                 paymentStatus: 'PENDING',
-                paymentDate: null,
+                paymentDate: expect.any(Date),
                 currency: 'VND',
-                description: 'test-payment-123',
+                description: 'Test payment',
                 paymentGatewayResponse: null
-            });
+            }, expect.objectContaining({ transaction: expect.any(Object) }));
 
             expect(PaymentLog.create).toHaveBeenCalledWith({
                 paymentId: 'test-payment-123',
                 paymentLogType: 'PAYMENT',
                 paymentLogStatus: 'PENDING',
                 paymentLogDate: expect.any(Date)
-            });
+            }, expect.objectContaining({ transaction: expect.any(Object) }));
 
             expect(result).toEqual({
                 paymentId: 'test-payment-123',
@@ -116,7 +122,8 @@ describe('sepay.service', () => {
         it('should handle successful payment webhook', async () => {
             const mockPayment = {
                 paymentId: 'test-payment-123',
-                paymentStatus: 'PENDING'
+                paymentStatus: 'PENDING',
+                paymentAmount: 50000
             };
             Payment.findByPk.mockResolvedValue(mockPayment);
             Payment.update.mockResolvedValue([1]);
@@ -137,22 +144,21 @@ describe('sepay.service', () => {
                 {
                     paymentStatus: 'COMPLETED',
                     paymentDate: expect.any(Date),
-                    providerRef: 'sepay-txn-123',
                     paymentGatewayResponse: payload
                 },
-                { where: { paymentId: 'test-payment-123' } }
+                expect.objectContaining({ where: { paymentId: 'test-payment-123' } })
             );
             expect(Transaction.create).toHaveBeenCalledWith({
                 paymentId: 'test-payment-123',
                 transactionAmount: 50000,
                 transactionStatus: 'COMPLETED'
-            });
+            }, expect.objectContaining({ transaction: expect.any(Object) }));
             expect(PaymentLog.create).toHaveBeenCalledWith({
                 paymentId: 'test-payment-123',
                 paymentLogType: 'WEBHOOK',
                 paymentLogStatus: 'COMPLETED',
                 paymentLogDate: expect.any(Date)
-            });
+            }, expect.objectContaining({ transaction: expect.any(Object) }));
 
             expect(result).toEqual({ ok: true });
         });
@@ -240,7 +246,8 @@ describe('sepay.service', () => {
         it('should handle database errors during webhook processing', async () => {
             const mockPayment = {
                 paymentId: 'test-payment-error',
-                paymentStatus: 'PENDING'
+                paymentStatus: 'PENDING',
+                paymentAmount: 80000
             };
             Payment.findByPk.mockResolvedValue(mockPayment);
             Payment.update.mockRejectedValue(new Error('Database update failed'));
