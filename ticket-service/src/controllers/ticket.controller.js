@@ -876,6 +876,41 @@ class TicketController {
                 timestamp: new Date()
             });
         } catch (error) {
+            if (error.message === 'Ticket not found with provided QR code') {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_NOT_FOUND_WITH_PROVIDED_QR_CODE'
+                });
+            }
+            else if (error.message === 'Ticket is already used') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_ALREADY_USED'
+                });
+            }
+            else if (error.message === 'Ticket is already cancelled') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_ALREADY_CANCELLED'
+                });
+            }
+            else if (error.message === 'Ticket is already expired') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_ALREADY_EXPIRED'
+                });
+            }
+            else if (error.message === 'Ticket is not active and cannot be used') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_NOT_ACTIVE_AND_CANNOT_BE_USED'
+                });
+            }
             return res.status(500).json({
                 success: false,
                 message: error.message,

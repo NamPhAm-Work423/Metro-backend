@@ -99,11 +99,6 @@ const Ticket = sequelize.define('Ticket', {
         type: DataTypes.ARRAY(DataTypes.DATE),
         allowNull: true,
     },
-    updatedAt: {
-        type: DataTypes.ARRAY(DataTypes.DATE),
-        allowNull: true,
-        defaultValue: [],
-    },
     activatedAt: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -293,12 +288,13 @@ Ticket.startCountDown = async function(ticketId) {
 
         // Calculate new validity period from activation time
         const { validFrom, validUntil } = Ticket.calculateValidityPeriod(ticket.ticketType);
-
+        const activatedAt = new Date();
         // Update ticket with new validity period and status
         const updatedTicket = await ticket.update({
             status: 'active',
             validFrom: validFrom,
             validUntil: validUntil,
+            activatedAt: activatedAt,
         });
 
         logger.info('Long-term ticket activated successfully', {
@@ -306,6 +302,7 @@ Ticket.startCountDown = async function(ticketId) {
             ticketType: ticket.ticketType,
             validFrom: validFrom,
             validUntil: validUntil,
+            activatedAt: activatedAt,
             passengerId: ticket.passengerId
         });
 
@@ -320,7 +317,8 @@ Ticket.startCountDown = async function(ticketId) {
             await publishTicketActivated(updatedTicket, paymentData);
             logger.info('Ticket activated event published for long-term ticket', {
                 ticketId: ticket.ticketId,
-                ticketType: ticket.ticketType
+                ticketType: ticket.ticketType,
+                activatedAt: activatedAt
             });
         } catch (publishError) {
             logger.error('Failed to publish ticket activated event for long-term ticket', {
@@ -334,7 +332,8 @@ Ticket.startCountDown = async function(ticketId) {
     } catch (error) {
         logger.error('Error activating long-term ticket', {
             error: error.message,
-            ticketId: ticketId
+            ticketId: ticketId,
+            activatedAt: activatedAt
         });
         throw error;
     }
