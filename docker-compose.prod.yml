@@ -263,6 +263,32 @@ services:
       retries: 3
       start_period: 40s
 
+  scheduler-service:
+    image: ${REGISTRY}/metro-scheduler-service:${IMAGE_TAG}
+    container_name: scheduler-service
+    env_file:
+      - /opt/env/scheduler-service.env
+    expose:
+      - "50060"   # gRPC
+      - "8010"    # HTTP health
+    depends_on:
+      ticket-service:
+        condition: service_healthy
+      promtail:
+        condition: service_started
+    networks:
+      - backend-network
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   payment-service:
     image: ${REGISTRY}/metro-payment-service:${IMAGE_TAG}
     container_name: payment-service

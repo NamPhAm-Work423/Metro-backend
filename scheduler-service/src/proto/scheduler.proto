@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package scheduler;
+
+service SchedulerService {
+  rpc GetStatus (GetStatusRequest) returns (GetStatusResponse) {}
+  rpc Start (StartRequest) returns (StartResponse) {}
+  rpc Stop (StopRequest) returns (StopResponse) {}
+  rpc TriggerJob (TriggerJobRequest) returns (TriggerJobResponse) {}
+  rpc UpdateJob (UpdateJobRequest) returns (UpdateJobResponse) {}
+  rpc ListJobs (ListJobsRequest) returns (ListJobsResponse) {}
+}
+
+message GetStatusRequest {}
+message GetStatusResponse {
+  bool enabled = 1;
+  string timezone = 2;
+  repeated JobStatus jobs = 3;
+  string timestamp = 4;
+}
+
+message StartRequest {}
+message StartResponse { bool success = 1; string message = 2; }
+
+message StopRequest {}
+message StopResponse { bool success = 1; string message = 2; }
+
+message TriggerJobRequest { string jobId = 1; bool force = 2; }
+message TriggerJobResponse { bool success = 1; string message = 2; string jobId = 3; string durationMs = 4; }
+
+message UpdateJobRequest { string jobId = 1; string cron = 2; bool enabled = 3; }
+message UpdateJobResponse { bool success = 1; string message = 2; }
+
+message ListJobsRequest {}
+message ListJobsResponse { repeated JobStatus jobs = 1; }
+
+message JobStatus {
+  string jobId = 1;
+  string cron = 2;
+  bool enabled = 3;
+  bool running = 4;
+  string lastRun = 5;
+  string lastSuccess = 6;
+  string lastError = 7;
+  string averageDurationMs = 8;
+  string nextRun = 9;
+  string description = 10;
+  string successRate = 11;
+}
+
+

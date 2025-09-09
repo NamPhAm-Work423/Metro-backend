@@ -92,7 +92,7 @@ jobs:
           services=(
             api-gateway auth-service payment-service public-service ticket-service
             transport-service user-service report-service management-service
-            control-service notification-service webhook
+            control-service notification-service webhook scheduler-service
           )
           missing=()
           for s in "${services[@]}"; do

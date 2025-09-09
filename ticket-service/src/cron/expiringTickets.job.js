@@ -16,7 +16,7 @@ async function publishExpiringSoonTickets(limit = 1000) {
     });
 
     if (!tickets.length) {
-        logger.debug('No tickets expiring within 7 days');
+        logger.info('No tickets expiring within 7 days');
         return 0;
     }
 

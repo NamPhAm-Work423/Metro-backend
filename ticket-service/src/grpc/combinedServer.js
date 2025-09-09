@@ -209,17 +209,49 @@ async function startCombinedGrpcServer() {
         const farePkg = loadProto('../proto/fare.proto').fare;
         const discountPkg = loadProto('../proto/passengerDiscount.proto').passengerdiscount;
         const transitPassPkg = loadProto('../proto/transitPass.proto').transitpass;
+        const ticketCronPkg = loadProto('../proto/ticketCron.proto').ticketcron;
 
         // Build services
         const fareService = await buildFareService();
         const passengerDiscountService = await buildPassengerDiscountService();
         const transitPassService = await buildTransitPassService();
+        const ticketCronService = await (async () => {
+            const { activateDueTickets } = require('../cron/activateTickets.job');
+            const { publishExpiringSoonTickets } = require('../cron/expiringTickets.job');
+            return {
+                async ActivateDueTickets(call, callback) {
+                    try {
+                        const limit = call.request.limit || 500;
+                        logger.info('gRPC ActivateDueTickets called', { limit });
+                        const activated = await activateDueTickets(limit);
+                        logger.info('gRPC ActivateDueTickets completed', { activated });
+                        callback(null, { activated, message: 'activated' });
+                    } catch (error) {
+                        logger.error('ActivateDueTickets error:', error);
+                        callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+                    }
+                },
+                async PublishExpiringSoon(call, callback) {
+                    try {
+                        const limit = call.request.limit || 1000;
+                        logger.info('gRPC PublishExpiringSoon called', { limit });
+                        const published = await publishExpiringSoonTickets(limit);
+                        logger.info('gRPC PublishExpiringSoon completed', { published });
+                        callback(null, { published, message: 'published' });
+                    } catch (error) {
+                        logger.error('PublishExpiringSoon error:', error);
+                        callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+                    }
+                }
+            };
+        })();
 
         // Create and bind server once
         const server = new grpc.Server();
         server.addService(farePkg.FareService.service, fareService);
         server.addService(discountPkg.PassengerDiscountService.service, passengerDiscountService);
         server.addService(transitPassPkg.TransitPassService.service, transitPassService);
+        server.addService(ticketCronPkg.TicketCronService.service, ticketCronService);
 
         const port = process.env.TICKET_GRPC_PORT;
         const serverAddress = `0.0.0.0:${port}`;

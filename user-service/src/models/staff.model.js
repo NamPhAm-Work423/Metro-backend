@@ -14,6 +14,18 @@ module.exports = (sequelize, DataTypes) => {
                 isUUID: 4
             }
         },
+        email: {
+            type: DataTypes.STRING(50),
+            allowNull: false,
+            unique: true,
+            validate: {
+                notEmpty: true,
+                len: [2, 50]
+            },
+            validate: {
+                isEmail: true
+            }
+        },
         username: {
             type: DataTypes.STRING(50),
             allowNull: false,

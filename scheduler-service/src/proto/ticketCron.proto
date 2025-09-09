@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ticketcron;
+
+service TicketCronService {
+  rpc ActivateDueTickets (ActivateDueTicketsRequest) returns (ActivateDueTicketsResponse) {}
+  rpc PublishExpiringSoon (PublishExpiringSoonRequest) returns (PublishExpiringSoonResponse) {}
+}
+
+message ActivateDueTicketsRequest { int32 limit = 1; }
+message ActivateDueTicketsResponse { int32 activated = 1; string message = 2; }
+
+message PublishExpiringSoonRequest { int32 limit = 1; }
+message PublishExpiringSoonResponse { int32 published = 1; string message = 2; }
+
+

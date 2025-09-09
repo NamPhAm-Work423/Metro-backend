@@ -19,6 +19,7 @@ class UserEventConsumer {
             const {
                 userId,
                 username,
+                email,
                 firstName,
                 lastName,
                 phoneNumber,
@@ -39,6 +40,7 @@ class UserEventConsumer {
             const passenger = await Passenger.create({
                 userId,
                 username,
+                email,
                 firstName,
                 lastName,
                 phoneNumber: phoneNumber || null,
@@ -75,11 +77,11 @@ class UserEventConsumer {
             const {
                 userId,
                 username,
+                email,
                 firstName,
                 lastName,
                 phoneNumber,
                 dateOfBirth,
-                roles
             } = userData;
 
             // Check if staff profile already exists
@@ -93,6 +95,7 @@ class UserEventConsumer {
             const staff = await Staff.create({
                 userId,
                 username,
+                email,
                 firstName,
                 lastName,
                 phoneNumber: phoneNumber || '000000000', // Default phone with 9 digits (minimum)

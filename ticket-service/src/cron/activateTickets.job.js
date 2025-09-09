@@ -18,7 +18,7 @@ async function activateDueTickets(limit = 500) {
     });
 
     if (!tickets.length) {
-        logger.debug('No tickets due for activation');
+        logger.info('No tickets due for activation');
         return 0;
     }
 
