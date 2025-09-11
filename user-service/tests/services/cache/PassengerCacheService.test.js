@@ -32,7 +32,7 @@ describe('PassengerCacheService', () => {
     test('initializes with default values', () => {
       const service = new PassengerCacheService(mockRedis, mockLogger);
       expect(service.keyPrefix).toBe('metrohcm:user-service:user:passenger:');
-      expect(service.defaultTTL).toBe(3600);
+      expect(service.defaultTTL).toBe(900);
     });
 
     test('initializes with custom values', () => {
@@ -335,8 +335,8 @@ describe('PassengerCacheService', () => {
 
       const result = await cacheService.refreshPassengerTTL('p123', 'u123');
 
-      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:p123', 3600);
-      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:index:u123', 3600);
+      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:p123', 900);
+      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:index:u123', 900);
       expect(result).toBe(true);
     });
 
@@ -355,7 +355,7 @@ describe('PassengerCacheService', () => {
 
       const result = await cacheService.refreshPassengerTTL('p123');
 
-      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:p123', 3600);
+      expect(mockRedis.expire).toHaveBeenCalledWith('metrohcm:user-service:user:passenger:p123', 900);
       expect(mockRedis.expire).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
     });

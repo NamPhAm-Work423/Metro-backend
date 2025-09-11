@@ -30,6 +30,14 @@ const redis = require('../../src/config/redis');
 describe('UserService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    const userProducer = require('../../src/events/user.producer.event');
+    userProducer.publishUserCreated.mockResolvedValue();
+    userProducer.publishUserLogin.mockResolvedValue();
+
+    const userConsumer = require('../../src/events/user.consumer.event');
+    if (typeof userConsumer.start === 'function') {
+      userConsumer.start.mockResolvedValue();
+    }
   });
 
   test('signup creates user and triggers background tasks', async () => {
