@@ -63,6 +63,7 @@ async function publishTicketCreated(ticket, ticketType, options = {}) {
             paymentFailUrl: options.paymentFailUrl
         });
 
+        logger.info('ticket.created event payload', eventData);
         await publish('ticket.created', ticket.ticketId, eventData);
         
         logger.info('Ticket created event published', {
@@ -260,6 +261,8 @@ async function publishTicketActivated(ticket, paymentData) {
             gatewayResponse: paymentData.gatewayResponse,
             activatedAt: ticket.activatedAt,
             status: 'active',
+            templateName: enrichedTicketData.templateName,
+            isMultiUse: enrichedTicketData.isMultiUse,
             paymentData: {
                 paymentMethod: paymentData.paymentMethod,
                 paymentStatus: paymentData.status,
@@ -290,6 +293,7 @@ async function publishTicketActivated(ticket, paymentData) {
             }
         });
 
+        logger.info('ticket.activated event payload', eventData);
         await publish('ticket.activated', ticket.ticketId, eventData);
         
         logger.info('Ticket activated event published successfully', {

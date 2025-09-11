@@ -223,11 +223,6 @@ Promotion.prototype.calculateDiscount = function(originalPrice) {
         discount = parseFloat(this.maxDiscountAmount);
     }
 
-    // Long-term passes get reduced discount
-    if (this.applicableTicketTypes.some(t => ['yearly_pass', 'lifetime_pass'].includes(t))) {
-        discount = discount * 0.5; // 50% of normal discount for long-term passes
-    }
-
     // Ensure discount doesn't exceed original price
     return Math.min(discount, price);
 };

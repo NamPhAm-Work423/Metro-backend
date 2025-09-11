@@ -5,6 +5,7 @@ const { logger } = require('../../../config/logger');
 const FareService = require('../../fare.service');
 const ITicketService = require('../interfaces/ITicketService');
 const PassengerTypeHelper = require('../../../helpers/passengerType.helper');
+const PaymentCompletionHandler = require('../handlers/PaymentCompletionHandler');
 
 // Import other services
 const TicketRepository = require('../repositories/TicketRepository');
@@ -330,9 +331,62 @@ class TicketService extends ITicketService {
                 passengerBreakdown
             } = priceCalculation.data;
             
-            // Validate finalPrice is not zero or negative
             if (!finalPrice || finalPrice <= 0) {
-                const ticket = await this.repository.create({ ...ticketData, status: 'active', paymentMethod: 'free', totalPrice: 0, finalPrice: 0 });
+                // Resolve fareId for short-term classification
+                let resolvedFareId = null;
+                try {
+                    const firstZeroPriceSegment = segmentFares[0];
+                    if (firstZeroPriceSegment && firstZeroPriceSegment.routeId) {
+                        const zeroFare = await Fare.findOne({
+                            where: { routeId: firstZeroPriceSegment.routeId, isActive: true }
+                        });
+                        resolvedFareId = zeroFare?.fareId || null;
+                    }
+                } catch (resolveErr) {
+                    logger.warn('Failed to resolve fareId for zero-price short-term ticket', {
+                        error: resolveErr.message
+                    });
+                }
+
+                const ticket = await this.repository.create({
+                    passengerId: ticketData.passengerId,
+                    tripId: ticketData.tripId || null,
+                    fareId: resolvedFareId,
+                    promotionId: ticketData.promotionId || null,
+                    originStationId: journeyDetails.routeSegments[0]?.originStationId || null,
+                    destinationStationId: journeyDetails.routeSegments[journeyDetails.routeSegments.length - 1]?.destinationStationId || null,
+                    originalPrice: originalPrice,
+                    discountAmount: discountAmount,
+                    finalPrice: 0,
+                    totalPrice: 0,
+                    validFrom: new Date(),
+                    validUntil: new Date(new Date().setDate(new Date().getDate() + 30)),
+                    ticketType: ticketData.tripType.toLowerCase(),
+                    status: 'pending_payment',
+                    stationCount: journeyDetails.totalStations,
+                    fareBreakdown: {
+                        journeyDetails: journeyDetails,
+                        segmentFares: segmentFares,
+                        passengerBreakdown: passengerBreakdown,
+                        totalPassengers: journeyDetails.totalPassengers || totalPassengers
+                    },
+                    paymentMethod: 'free',
+                    qrCode: null
+                });
+                try {
+                    const syntheticPaymentId = `FREE_${ticket.ticketId}`;
+                    await PaymentCompletionHandler.processPaymentCompletion(ticket, syntheticPaymentId, {
+                        paymentMethod: 'free',
+                        status: 'active',
+                        webhookProcessed: true
+                    });
+                } catch (pcErr) {
+                    logger.error('PaymentCompletionHandler failed for free short-term ticket', {
+                        ticketId: ticket.ticketId,
+                        error: pcErr.message
+                    });
+                }
+
                 logger.info('Short-term ticket created successfully with free payment', { 
                     ticketId: ticket.ticketId, 
                     paymentId: null, 
@@ -342,8 +396,8 @@ class TicketService extends ITicketService {
                     totalPrice: 0,
                     totalPassengers: journeyDetails.totalPassengers || totalPassengers,
                     passengerBreakdown: passengerBreakdown,
-                    originStationId: journeyDetails.routeSegments[0].originStationId,
-                    destinationStationId: journeyDetails.routeSegments[journeyDetails.routeSegments.length - 1].destinationStationId,
+                    originStationId: journeyDetails.routeSegments[0]?.originStationId || null,
+                    destinationStationId: journeyDetails.routeSegments[journeyDetails.routeSegments.length - 1]?.destinationStationId || null,
                     paymentResponse: null
                 });
                 return { ticket, paymentId: null, paymentResponse: null };
@@ -585,7 +639,7 @@ class TicketService extends ITicketService {
                 validUntil: null,
                 activatedAt: null, // 30 days from now
                 ticketType: ticketData.passType,
-                status: 'pending_payment', // Changed from 'active' to 'pending_payment'
+                status: (finalPrice && finalPrice > 0) ? 'pending_payment' : 'inactive',
                 stationCount: null, // Not applicable for passes
                 fareBreakdown: {
                     passType: ticketData.passType,
@@ -594,8 +648,7 @@ class TicketService extends ITicketService {
                     discountAmount: discountAmount,
                     finalPrice: finalPrice,
                     currency: transitPass.currency
-                },
-                paymentMethod: ticketData.paymentMethod || process.env.DEFAULT_PAYMENT_METHOD || 'paypal',
+                },                paymentMethod: (finalPrice && finalPrice > 0) ? ticketData.paymentMethod : 'free',
                 qrCode: null
             });
 
@@ -627,6 +680,22 @@ class TicketService extends ITicketService {
                 ticket.ticketId, 
                 'long-term ticket creation'
             );
+
+            // If price is zero or less, skip external payment
+            if (!finalPrice || finalPrice <= 0) {
+                logger.info('Long-term ticket created with zero amount, skipping payment', {
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId,
+                    passType: ticketData.passType,
+                    totalPrice: finalPrice,
+                    paymentId: null
+                });
+                return {
+                    ticket,
+                    paymentId: null,
+                    paymentResponse: null
+                };
+            }
 
             // Process payment
             const { success: passSuccess, fail: passFail } = this._getRedirectUrls(ticketData);

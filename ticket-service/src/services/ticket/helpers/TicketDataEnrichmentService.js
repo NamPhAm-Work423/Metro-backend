@@ -275,7 +275,6 @@ class TicketDataEnrichmentService {
             const stationNames = await this.getStationNamesBatch(stationIds);
             
             const enrichedData = {
-                // Original raw data (for backward compatibility and system use)
                 ticketId: ticket.ticketId,
                 passengerId: ticket.passengerId,
                 qrCode: ticket.qrCode,
@@ -333,6 +332,18 @@ class TicketDataEnrichmentService {
                     origin: enrichedData.displayData.fromStationName,
                     destination: enrichedData.displayData.toStationName
                 }
+            });
+
+            // Info log with key fields that will be sent when activating ticket
+            logger.info('Activation payload preview (enriched)', {
+                ticketId: ticket.ticketId,
+                passengerId: ticket.passengerId,
+                ticketType: ticket.ticketType,
+                status: ticket.status,
+                totalPrice: ticket.totalPrice,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                displayData: enrichedData.displayData
             });
 
             return enrichedData;
