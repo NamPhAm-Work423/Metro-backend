@@ -130,27 +130,25 @@ class PaymentCompletionHandler {
             };
         }
 
-        // Validate ticket state
-        if (!this.validateTicketForCompletion(ticket, paymentId)) {
+        // If ticket is already processed to a terminal or non-pending state, treat as invalid for completion
+        if (['active', 'used', 'expired'].includes(ticket.status)) {
+            logger.warn('Ticket is already processed and not eligible for payment completion', {
+                ticketId: ticket.ticketId,
+                paymentId,
+                currentStatus: ticket.status
+            });
+
             return {
                 success: false,
                 reason: 'Invalid ticket state for payment completion'
             };
         }
 
-        // Handle duplicate events for already processed tickets
-        if (['active'].includes(ticket.status)) {
-            logger.info('Duplicate payment event for already processed ticket - ignoring', {
-                ticketId: ticket.ticketId,
-                paymentId,
-                currentStatus: ticket.status
-            });
-            
+        // Validate ticket state for new payments
+        if (!this.validateTicketForCompletion(ticket, paymentId)) {
             return {
-                success: true,
-                updateData: { status: ticket.status },
-                ticketType: this.getTicketTypeDescription(ticket),
-                duplicate: true
+                success: false,
+                reason: 'Invalid ticket state for payment completion'
             };
         }
 

@@ -1,5 +1,5 @@
 class PassengerCacheService {
-    constructor(redisClient, logger, prefix = 'metrohcm:user-service:user:passenger:', ttl = 3600) {
+    constructor(redisClient, logger, prefix = 'metrohcm:user-service:user:passenger:', ttl = 900) {
         this.redis = redisClient;
         this.logger = logger;
         this.keyPrefix = prefix;
@@ -20,7 +20,7 @@ class PassengerCacheService {
         return `${this.emailIndexPrefix}${email}`;
     }
 
-    async setPassenger(passengerObj) {
+    async setPassenger(passengerObj, forceRefresh = false) {
         const { passengerId, userId, email } = passengerObj;
         if (!passengerId || !userId) {
             this.logger.warn('Missing passengerId or userId when setting passenger to cache.');
@@ -34,6 +34,18 @@ class PassengerCacheService {
                 userId
             });
             return;
+        }
+
+        // Check if passenger already exists in cache
+        if (!forceRefresh) {
+            const exists = await this.hasPassenger(passengerId);
+            if (exists) {
+                this.logger.debug('Passenger already exists in cache, skipping set', { 
+                    passengerId, 
+                    userId 
+                });
+                return;
+            }
         }
 
         const key = this._getCacheKey(passengerId);
@@ -57,8 +69,10 @@ class PassengerCacheService {
             this.logger.debug('Passenger cache set successfully', {
                 passengerId,
                 userId,
+                forceRefresh,
                 keys: { key, indexKey, emailIndexKey },
-                results: results?.length || 0
+                results: results?.length || 0,
+                ttl: this.defaultTTL
             });
         } catch (err) {
             this.logger.error('Failed to set passenger cache', { err });

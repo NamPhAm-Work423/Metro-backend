@@ -403,40 +403,24 @@ class SepayWebhookService {
 
         switch (eventType) {
             case 'PAYMENT.CAPTURE.COMPLETED':
-                services.push(
-                    {
-                        service: 'payment-service',
-                        topic: 'payment.completed',
-                        eventData: {
-                            type: 'PAYMENT_COMPLETED',
-                            paymentId: businessData.captureId,
-                            transactionId: businessData.transactionId,
-                            orderId: businessData.orderId,
-                            amount: businessData.amount,
-                            customerId: businessData.customerId,
-                            provider: 'sepay',
-                            sepayTransactionHash: businessData.sepayTransactionHash,
-                            sepayBlockNumber: businessData.sepayBlockNumber,
-                            sepayNetwork: businessData.sepayNetwork,
-                            timestamp: new Date().toISOString()
-                        }
-                    },
-                    {
-                        service: 'ticket-service',
-                        topic: 'ticket.payment.completed',
-                        eventData: {
-                            type: 'TICKET_PAYMENT_COMPLETED',
-                            paymentId: businessData.captureId,
-                            transactionId: businessData.transactionId,
-                            orderId: businessData.orderId,
-                            amount: businessData.amount,
-                            customId: businessData.customId,
-                            provider: 'sepay',
-                            sepayTransactionHash: businessData.sepayTransactionHash,
-                            timestamp: new Date().toISOString()
-                        }
+                // Only publish to payment-service - let it handle the chain
+                services.push({
+                    service: 'payment-service',
+                    topic: 'payment.completed',
+                    eventData: {
+                        type: 'PAYMENT_COMPLETED',
+                        paymentId: businessData.captureId,
+                        transactionId: businessData.transactionId,
+                        orderId: businessData.orderId,
+                        amount: businessData.amount,
+                        customerId: businessData.customerId,
+                        provider: 'sepay',
+                        sepayTransactionHash: businessData.sepayTransactionHash,
+                        sepayBlockNumber: businessData.sepayBlockNumber,
+                        sepayNetwork: businessData.sepayNetwork,
+                        timestamp: new Date().toISOString()
                     }
-                );
+                });
                 break;
 
             case 'PAYMENT.CAPTURE.DENIED':
@@ -518,26 +502,6 @@ class SepayWebhookService {
                 break;
         }
 
-        // Always notify notification service for important events
-        if (['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.REFUNDED'].includes(eventType)) {
-            services.push({
-                service: 'notification-service',
-                topic: 'notification.payment',
-                eventData: {
-                    type: 'PAYMENT_NOTIFICATION',
-                    paymentId: businessData.captureId,
-                    transactionId: businessData.transactionId,
-                    orderId: businessData.orderId,
-                    status: eventType.includes('COMPLETED') ? 'completed' : 
-                           eventType.includes('DENIED') ? 'failed' : 'refunded',
-                    amount: businessData.amount,
-                    customerEmail: businessData.customerEmail,
-                    provider: 'sepay',
-                    sepayTransactionHash: businessData.sepayTransactionHash,
-                    timestamp: new Date().toISOString()
-                }
-            });
-        }
 
         return services;
     }
@@ -550,7 +514,6 @@ class SepayWebhookService {
     determineSepayBankTargetServices(businessData) {
         const services = [];
 
-        // Payment completed event to payment service
         services.push({
             service: 'payment-service',
             topic: 'payment.completed',
@@ -564,40 +527,6 @@ class SepayWebhookService {
                 gateway: businessData.gateway,
                 accountNumber: businessData.accountNumber,
                 referenceCode: businessData.referenceCode,
-                provider: 'sepay',
-                timestamp: new Date().toISOString()
-            }
-        });
-
-        // Ticket payment completed event to ticket service
-        services.push({
-            service: 'ticket-service',
-            topic: 'ticket.payment.completed',
-            eventData: {
-                type: 'TICKET_PAYMENT_COMPLETED',
-                ticketId: businessData.ticketId,
-                paymentId: businessData.orderId,
-                transactionId: businessData.transactionId,
-                bankTransactionId: businessData.bankTransactionId,
-                amount: businessData.amount,
-                gateway: businessData.gateway,
-                provider: 'sepay',
-                timestamp: new Date().toISOString()
-            }
-        });
-
-        // Notification event to notification service
-        services.push({
-            service: 'notification-service',
-            topic: 'notification.payment',
-            eventData: {
-                type: 'PAYMENT_NOTIFICATION',
-                ticketId: businessData.ticketId,
-                paymentId: businessData.orderId,
-                transactionId: businessData.transactionId,
-                status: 'completed',
-                amount: businessData.amount,
-                gateway: businessData.gateway,
                 provider: 'sepay',
                 timestamp: new Date().toISOString()
             }

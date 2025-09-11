@@ -75,7 +75,25 @@ class VonageSmsProvider extends BaseProvider {
 		// Remove any non-digit characters and ensure it starts with country code
 		const cleaned = phone.replace(/\D/g, '');
 		
-		// If it doesn't start with a country code, assume it's missing
+		// Auto-detect and format Vietnam phone numbers
+		if (cleaned.length === 10 && cleaned.startsWith('0')) {
+			// Vietnam mobile numbers: 09x, 08x, 07x, 03x, 05x, 06x
+			const vietnamMobilePrefixes = ['09', '08', '07', '03', '05', '06'];
+			const prefix = cleaned.substring(0, 2);
+			
+			if (vietnamMobilePrefixes.includes(prefix)) {
+				// Convert 0981434704 → 84981434704
+				const formattedNumber = '84' + cleaned.substring(1);
+				logger.info('Auto-formatted Vietnam phone number', {
+					original: phone,
+					cleaned: cleaned,
+					formatted: formattedNumber
+				});
+				return formattedNumber;
+			}
+		}
+		
+		// If it doesn't start with a country code, warn but return as-is
 		if (cleaned.length === 10) {
 			logger.warn('Phone number appears to be missing country code', { 
 				original: phone, 

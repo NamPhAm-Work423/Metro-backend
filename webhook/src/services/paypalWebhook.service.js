@@ -263,34 +263,20 @@ class PayPalWebhookService {
 
         switch (eventType) {
             case 'PAYMENT.CAPTURE.COMPLETED':
-                services.push(
-                    {
-                        service: 'payment-service',
-                        topic: 'payment.completed',
-                        eventData: {
-                            type: 'PAYMENT_COMPLETED',
-                            paymentId: businessData.captureId,
-                            orderId: businessData.orderId,
-                            amount: businessData.amount,
-                            payerId: businessData.payerId,
-                            provider: 'paypal',
-                            timestamp: new Date().toISOString()
-                        }
-                    },
-                    {
-                        service: 'ticket-service',
-                        topic: 'ticket.payment.completed',
-                        eventData: {
-                            type: 'TICKET_PAYMENT_COMPLETED',
-                            paymentId: businessData.captureId,
-                            orderId: businessData.orderId,
-                            amount: businessData.amount,
-                            customId: businessData.customId,
-                            provider: 'paypal',
-                            timestamp: new Date().toISOString()
-                        }
+                // Only publish to payment-service - let it handle the chain
+                services.push({
+                    service: 'payment-service',
+                    topic: 'payment.completed',
+                    eventData: {
+                        type: 'PAYMENT_COMPLETED',
+                        paymentId: businessData.captureId,
+                        orderId: businessData.orderId,
+                        amount: businessData.amount,
+                        payerId: businessData.payerId,
+                        provider: 'paypal',
+                        timestamp: new Date().toISOString()
                     }
-                );
+                });
                 break;
 
             case 'PAYMENT.CAPTURE.DENIED':
@@ -329,23 +315,8 @@ class PayPalWebhookService {
                 break;
         }
 
-        // Always notify notification service for important events
-        if (['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.DENIED'].includes(eventType)) {
-            services.push({
-                service: 'notification-service',
-                topic: 'notification.payment',
-                eventData: {
-                    type: 'PAYMENT_NOTIFICATION',
-                    paymentId: businessData.captureId,
-                    orderId: businessData.orderId,
-                    status: eventType.includes('COMPLETED') ? 'completed' : 'failed',
-                    amount: businessData.amount,
-                    payerEmail: businessData.payerEmail,
-                    provider: 'paypal',
-                    timestamp: new Date().toISOString()
-                }
-            });
-        }
+        // Let payment-service handle the event chain - no direct notification service publishing
+        // Event flow: webhook → payment-service → ticket-service → notification-service
 
         return services;
     }

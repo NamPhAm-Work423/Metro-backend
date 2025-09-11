@@ -2,6 +2,7 @@ const { publish } = require('../kafka/kafkaProducer');
 const { logger } = require('../config/logger');
 const { Ticket } = require('../models/index.model');
 const { paymentCache } = require('../cache/paymentCache');
+const TicketDataEnrichmentService = require('../services/ticket/helpers/TicketDataEnrichmentService');
 
 /**
  * Generate payment ID for ticket
@@ -237,7 +238,14 @@ async function publishTicketActivated(ticket, paymentData) {
         // Default to 1 if still not calculated
         totalPassengers = totalPassengers || 1;
 
+        // Update ticket with calculated totalPassengers for enrichment
+        ticket.totalPassengers = totalPassengers;
+
+        // Enrich ticket data with human-readable information
+        const enrichedTicketData = await TicketDataEnrichmentService.enrichTicketForEvent(ticket);
+        
         const eventData = {
+            // Raw system data (for backward compatibility and system processing)
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
@@ -256,12 +264,14 @@ async function publishTicketActivated(ticket, paymentData) {
                 paymentMethod: paymentData.paymentMethod,
                 paymentStatus: paymentData.status,
                 gatewayResponse: paymentData.gatewayResponse
-            }
-            // REMOVED duplicate activatedAt field
+            },
+            
+            // Enriched display data (for notification templates)
+            displayData: enrichedTicketData.displayData
         };
 
-        // Enhanced logging for debugging
-        logger.debug('Publishing ticket activated event with full data', {
+        // Enhanced logging for debugging with enriched data
+        logger.debug('Publishing ticket activated event with enriched data', {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
@@ -273,7 +283,13 @@ async function publishTicketActivated(ticket, paymentData) {
             qrCodeLength: ticket.qrCode?.length || 0,
             hasQrCode: !!ticket.qrCode,
             paymentMethod: paymentData.paymentMethod,
-            paymentStatus: paymentData.status
+            paymentStatus: paymentData.status,
+            enrichedDisplayData: {
+                fromStation: enrichedTicketData.displayData?.fromStationName,
+                toStation: enrichedTicketData.displayData?.toStationName,
+                ticketTypeName: enrichedTicketData.displayData?.ticketTypeName,
+                formattedPrice: enrichedTicketData.displayData?.formattedPrice
+            }
         });
 
         await publish('ticket.activated', ticket.ticketId, eventData);

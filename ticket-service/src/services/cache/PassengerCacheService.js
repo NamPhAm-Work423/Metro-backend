@@ -1,10 +1,11 @@
 class PassengerCacheService {
-    constructor(redisClient, logger, prefix = 'metrohcm:user-service:user:passenger:', ttl = 3600) {
+    constructor(redisClient, logger, prefix = 'metrohcm:user-service:user:passenger:', ttl = 900) {
         this.redis = redisClient;
         this.logger = logger;
         this.keyPrefix = prefix;
         this.defaultTTL = ttl;
         this.indexPrefix = `${prefix}index:`; // userId -> passengerId
+        this.emailIndexPrefix = `${prefix}emailIndex:`;
     }
 
     _getCacheKey(passengerId) {
@@ -15,15 +16,32 @@ class PassengerCacheService {
         return `${this.indexPrefix}${userId}`;
     }
 
-    async setPassenger(passengerObj) {
+    _getEmailIndexKey(email) {
+        return `${this.emailIndexPrefix}${email}`;
+    }
+
+    async setPassenger(passengerObj, forceRefresh = false) {
         const { passengerId, userId } = passengerObj;
         if (!passengerId || !userId) {
             this.logger.warn('Missing passengerId or userId when setting passenger to cache.');
             return;
         }
 
+        // Check if passenger already exists in cache
+        if (!forceRefresh) {
+            const exists = await this.hasPassenger(passengerId);
+            if (exists) {
+                this.logger.debug('Passenger already exists in cache, skipping set', { 
+                    passengerId, 
+                    userId 
+                });
+                return;
+            }
+        }
+
         const key = this._getCacheKey(passengerId);
         const indexKey = this._getIndexKey(userId);
+        const emailIndexKey = passengerObj.email ? this._getEmailIndexKey(passengerObj.email) : null;
         const payload = JSON.stringify({
             data: passengerObj,
             cachedAt: new Date().toISOString()
@@ -33,7 +51,17 @@ class PassengerCacheService {
             const pipeline = this.redis.multi();
             pipeline.set(key, payload, 'EX', this.defaultTTL);
             pipeline.set(indexKey, passengerId, 'EX', this.defaultTTL);
+            if (emailIndexKey) {
+                pipeline.set(emailIndexKey, passengerId, 'EX', this.defaultTTL);
+            }
             await pipeline.exec();
+            
+            this.logger.debug('Passenger cached successfully', { 
+                passengerId, 
+                userId,
+                forceRefresh,
+                ttl: this.defaultTTL
+            });
         } catch (err) {
             this.logger.error('Failed to set passenger cache', { err });
         }
@@ -97,6 +125,44 @@ class PassengerCacheService {
             return results.some(v => v === 1);
         } catch (err) {
             this.logger.error('Error refreshing TTL', { passengerId, userId, error: err.message });
+            return false;
+        }
+    }
+
+    /**
+     * Refresh passenger cache TTL when user is active
+     * This prevents cache expiration during active user sessions
+     */
+    async refreshPassengerCacheOnActivity(passengerId, userId = null) {
+        try {
+            // Check if passenger exists in cache
+            const exists = await this.hasPassenger(passengerId);
+            if (!exists) {
+                this.logger.debug('Passenger not in cache, skipping TTL refresh', { passengerId });
+                return false;
+            }
+
+            // Refresh TTL for both passenger and index keys
+            const results = await Promise.all([
+                this.redis.expire(this._getCacheKey(passengerId), this.defaultTTL),
+                userId ? this.redis.expire(this._getIndexKey(userId), this.defaultTTL) : Promise.resolve(0)
+            ]);
+
+            const refreshed = results.some(v => v === 1);
+            if (refreshed) {
+                this.logger.debug('Passenger cache TTL refreshed on activity', { 
+                    passengerId, 
+                    userId,
+                    ttl: this.defaultTTL 
+                });
+            }
+            return refreshed;
+        } catch (err) {
+            this.logger.error('Error refreshing passenger cache TTL on activity', { 
+                passengerId, 
+                userId, 
+                error: err.message 
+            });
             return false;
         }
     }

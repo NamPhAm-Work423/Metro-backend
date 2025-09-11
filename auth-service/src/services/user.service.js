@@ -351,6 +351,29 @@ class UserService {
         }
 
         const { accessToken } = await tokensService.refreshAccessToken(refreshToken, user);
+        
+        // Publish user.login event to trigger passenger cache sync
+        // This ensures passenger cache is refreshed when access token is renewed
+        setImmediate(() => {
+            userEventProducer.publishUserLogin({
+                userId: user.id,
+                email: user.email,
+                username: user.username,
+                roles: user.roles,
+                source: 'token-refresh' // Mark this as coming from token refresh
+            }).then(() => {
+                logger.debug('User.login event published after token refresh', { 
+                    userId: user.id, 
+                    email: user.email 
+                });
+            }).catch(err => {
+                logger.error('Failed to publish user.login event after token refresh', {
+                    error: err.message,
+                    userId: user.id
+                });
+            });
+        });
+        
         return { accessToken, user };
     }
 

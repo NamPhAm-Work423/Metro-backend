@@ -11,13 +11,10 @@ class TicketConsumer {
         this.redisClient = getClient();
         this.eventConsumer = null;
         
-        // Initialize PassengerCacheService with proper prefix
-        // Using standardized service prefix pattern: service:user:passenger:{passengerId}
-        const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
+        // Use standardized passenger cache prefix across all services
         this.passengerCache = new PassengerCacheService(
             this.redisClient, 
-            logger, 
-            `${SERVICE_PREFIX}user:passenger:`
+            logger
         );
     }
 
@@ -152,21 +149,31 @@ class TicketConsumer {
                 departureInfo.time = this.formatTime(fallbackDate);
             }
 
-            // Format ticket data for template
+            // Use enriched display data from ticket service if available, otherwise fallback to local formatting
+            const displayData = payload.displayData || {};
+            
+            logger.info('Processing ticket activation with display data', {
+                ticketId,
+                hasDisplayData: !!payload.displayData,
+                displayDataFields: payload.displayData ? Object.keys(payload.displayData) : [],
+                fallbackUsed: !payload.displayData
+            });
+            
             const ticketData = {
                 ticketId: ticketId,
                 qrCode: qrCode,
-                price: this.formatCurrency(Number(totalPrice)),
-                ticketType: ticketType ? this.getTicketTypeName(ticketType, actualTotalPassengers) : this.getTicketType(actualTotalPassengers),
-                departureDate: departureInfo.date,
-                departureTime: departureInfo.time,
-                fromStation: this.getStationName(payload.originStationId || 'Unknown'),
-                toStation: this.getStationName(payload.destinationStationId || 'Unknown'),
+                // Use enriched data from ticket service with fallbacks
+                price: displayData.formattedPrice || this.formatCurrency(Number(totalPrice)),
+                ticketType: displayData.ticketTypeName || (ticketType ? this.getTicketTypeName(ticketType, actualTotalPassengers) : this.getTicketType(actualTotalPassengers)),
+                departureDate: displayData.departureDate || departureInfo.date,
+                departureTime: displayData.departureTime || departureInfo.time,
+                fromStation: displayData.fromStationName  || 'Unknown',
+                toStation: displayData.toStationName || 'Unknown',
                 isActive: (status ? status === 'active' : false),
                 paymentMethod: paymentMethod || paymentData?.paymentMethod,
                 totalPassengers: actualTotalPassengers
             };
-
+            
             // Get passenger information from shared cache
             const passengerData = await this.getPassengerFromCache(passengerId);
             
@@ -181,8 +188,10 @@ class TicketConsumer {
             }
 
             const passengerEmail = passengerData.email;
-            const passengerPhone = passengerData.phone;
-            const passengerName = passengerData.fullName || passengerData.name;
+            const passengerName = passengerData.fullName || 
+                                 `${passengerData.firstName || ''} ${passengerData.lastName || ''}`.trim() || 
+                                 passengerData.username || 
+                                 'Customer';
 
             // Validate essential passenger data
             if (!passengerEmail) {
@@ -301,7 +310,7 @@ class TicketConsumer {
 
             const finalVariables = {
                 ticketId: templateVariables.ticketId || ticketId,
-                passengerName: templateVariables.passengerName || 'Valued Customer',
+                passengerName: templateVariables.passengerName || 'Customer',
                 fromStation: templateVariables.fromStation || this.getStationName(payload.originStationId),
                 toStation: templateVariables.toStation || this.getStationName(payload.destinationStationId),
                 departureDate: templateVariables.departureDate || new Date().toLocaleDateString('vi-VN'),
@@ -380,38 +389,12 @@ class TicketConsumer {
                 category: 'ticket_activation'
             });
 
-            if (passengerPhone) {
-                const smsData = {
-                    ticketId: finalVariables.ticketId,
-                    fromStation: finalVariables.fromStation,
-                    toStation: finalVariables.toStation,
-                    departureDate: finalVariables.departureDate,
-                    departureTime: finalVariables.departureTime,
-                    price: finalVariables.price,
-                    qrCode: finalVariables.qrCode
-                };
+            // SMS notification removed - only email notifications for tickets
 
-                try {
-                    await this.notificationService.sendSms({
-                        to: passengerPhone,
-                        template: 'ticket_template/trainTicketSms',
-                        variables: smsData,
-                        userId: passengerId,
-                        category: 'ticket_activation'
-                    });
-                } catch (smsError) {
-                    logger.warn('Failed to send SMS notification, but email was successful', {
-                        ticketId,
-                        passengerId,
-                        error: smsError.message
-                    });
-                }
-            }
-
-            logger.info('Ticket activation notifications sent successfully', { ticketId, passengerId });
+            logger.info('Ticket activation email notification sent successfully', { ticketId, passengerId });
 
         } catch (error) {
-            logger.error('Failed to send ticket activation notifications', {
+            logger.error('Failed to send ticket activation email notification', {
                 error: error.message,
                 ticketId,
                 passengerId,
@@ -435,8 +418,6 @@ class TicketConsumer {
             ticketType
         });
 
-        // You can send a confirmation email here if needed
-        // For now, we'll just log it
         logger.info('Ticket created - no notification sent', { ticketId });
     }
 
@@ -468,7 +449,10 @@ class TicketConsumer {
             }
 
             const passengerEmail = passengerData.email;
-            const passengerName = passengerData.fullName || passengerData.name;
+            const passengerName = passengerData.fullName || 
+                                 `${passengerData.firstName || ''} ${passengerData.lastName || ''}`.trim() || 
+                                 passengerData.username || 
+                                 'Customer';
 
             // Validate essential passenger data
             if (!passengerEmail) {
@@ -563,7 +547,10 @@ class TicketConsumer {
             }
 
             const passengerEmail = passengerData.email;
-            const passengerName = passengerData.fullName || passengerData.name || 'Quý khách';
+            const passengerName = passengerData.fullName || 
+                                 `${passengerData.firstName || ''} ${passengerData.lastName || ''}`.trim() || 
+                                 passengerData.username || 
+                                 'Quý khách';
             if (!passengerEmail) {
                 throw new Error('Passenger email missing for expiring soon');
             }
