@@ -87,6 +87,39 @@
       "SSLMode": "prefer",
       "Password": "1",
       "SavePassword": true
+    },
+    "9": {
+      "Name": "Control DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "control_db",
+      "Username": "control_service",
+      "SSLMode": "prefer",
+      "Password": "1",
+      "SavePassword": true
+    },
+    "10": {
+      "Name": "Management DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "management_db",
+      "Username": "management_service",
+      "SSLMode": "prefer",
+      "Password": "1",
+      "SavePassword": true
+    },
+    "11": {
+      "Name": "Notification DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "notification_db",
+      "Username": "notification_service",
+      "SSLMode": "prefer",
+      "Password": "1",
+      "SavePassword": true
     }
   }
 } 

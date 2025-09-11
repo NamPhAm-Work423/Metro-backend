@@ -390,15 +390,47 @@ const transportService = {
             if (!Array.isArray(trips) || trips.length === 0) {
                 return callback(null, { trips: [] });
             }
-            const created = await Trip.bulkCreate(trips.map(t => ({
-                routeId: t.routeId,
-                trainId: t.trainId,
-                departureTime: t.departureTime,
-                arrivalTime: t.arrivalTime,
-                dayOfWeek: t.dayOfWeek,
-                isActive: t.isActive,
-                serviceDate: t.serviceDate || null
-            })), { returning: true });
+            // Idempotency per routeId+serviceDate: if any trips already exist for that pair, skip creating for that pair
+            // Build unique (routeId, serviceDate) pairs from incoming payload
+            const pairKey = (rid, d) => `${rid}||${d || ''}`;
+            const uniquePairs = new Map();
+            for (const t of trips) {
+                const key = pairKey(t.routeId, t.serviceDate);
+                if (!uniquePairs.has(key)) {
+                    uniquePairs.set(key, { routeId: t.routeId, serviceDate: t.serviceDate || null });
+                }
+            }
+
+            // For each unique pair, check existence
+            const existingPairs = new Set();
+            await Promise.all(Array.from(uniquePairs.values()).map(async ({ routeId, serviceDate }) => {
+                const where = { routeId };
+                if (serviceDate) {
+                    where.serviceDate = serviceDate; // exact day (DATE column)
+                } else {
+                    where.serviceDate = null;
+                }
+                const count = await Trip.count({ where });
+                if (count > 0) {
+                    existingPairs.add(pairKey(routeId, serviceDate));
+                }
+            }));
+
+            // Filter out trips whose (routeId, serviceDate) already exists
+            const toCreate = trips.filter(t => !existingPairs.has(pairKey(t.routeId, t.serviceDate)));
+
+            let created = [];
+            if (toCreate.length > 0) {
+                created = await Trip.bulkCreate(toCreate.map(t => ({
+                    routeId: t.routeId,
+                    trainId: t.trainId,
+                    departureTime: t.departureTime,
+                    arrivalTime: t.arrivalTime,
+                    dayOfWeek: t.dayOfWeek,
+                    isActive: t.isActive,
+                    serviceDate: t.serviceDate || null
+                })), { returning: true });
+            }
 
             const response = {
                 trips: created.map(trip => ({

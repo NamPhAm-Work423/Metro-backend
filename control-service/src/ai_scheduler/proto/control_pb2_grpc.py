@@ -44,6 +44,11 @@ class ControlServiceStub(object):
                 request_serializer=control__pb2.GenerateScheduleRequest.SerializeToString,
                 response_deserializer=control__pb2.GenerateScheduleResponse.FromString,
                 _registered_method=True)
+        self.GenerateDailySchedules = channel.unary_unary(
+                '/control.ControlService/GenerateDailySchedules',
+                request_serializer=control__pb2.GenerateDailyRequest.SerializeToString,
+                response_deserializer=control__pb2.GenerateScheduleResponse.FromString,
+                _registered_method=True)
         self.Reschedule = channel.unary_unary(
                 '/control.ControlService/Reschedule',
                 request_serializer=control__pb2.RescheduleRequest.SerializeToString,
@@ -54,17 +59,21 @@ class ControlServiceStub(object):
                 request_serializer=control__pb2.GetPlanRequest.SerializeToString,
                 response_deserializer=control__pb2.GetPlanResponse.FromString,
                 _registered_method=True)
-        self.GenerateDailySchedules = channel.unary_unary(
-                '/control.ControlService/GenerateDailySchedules',
-                request_serializer=control__pb2.GenerateDailyRequest.SerializeToString,
-                response_deserializer=control__pb2.GenerateScheduleResponse.FromString,
-                _registered_method=True)
 
 
 class ControlServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def GenerateSchedule(self, request, context):
+        """===============================
+        AI SCHEDULER CORE FUNCTIONS
+        ===============================
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GenerateDailySchedules(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -82,18 +91,17 @@ class ControlServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GenerateDailySchedules(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_ControlServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'GenerateSchedule': grpc.unary_unary_rpc_method_handler(
                     servicer.GenerateSchedule,
                     request_deserializer=control__pb2.GenerateScheduleRequest.FromString,
+                    response_serializer=control__pb2.GenerateScheduleResponse.SerializeToString,
+            ),
+            'GenerateDailySchedules': grpc.unary_unary_rpc_method_handler(
+                    servicer.GenerateDailySchedules,
+                    request_deserializer=control__pb2.GenerateDailyRequest.FromString,
                     response_serializer=control__pb2.GenerateScheduleResponse.SerializeToString,
             ),
             'Reschedule': grpc.unary_unary_rpc_method_handler(
@@ -105,11 +113,6 @@ def add_ControlServiceServicer_to_server(servicer, server):
                     servicer.GetPlan,
                     request_deserializer=control__pb2.GetPlanRequest.FromString,
                     response_serializer=control__pb2.GetPlanResponse.SerializeToString,
-            ),
-            'GenerateDailySchedules': grpc.unary_unary_rpc_method_handler(
-                    servicer.GenerateDailySchedules,
-                    request_deserializer=control__pb2.GenerateDailyRequest.FromString,
-                    response_serializer=control__pb2.GenerateScheduleResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -138,6 +141,33 @@ class ControlService(object):
             target,
             '/control.ControlService/GenerateSchedule',
             control__pb2.GenerateScheduleRequest.SerializeToString,
+            control__pb2.GenerateScheduleResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GenerateDailySchedules(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/control.ControlService/GenerateDailySchedules',
+            control__pb2.GenerateDailyRequest.SerializeToString,
             control__pb2.GenerateScheduleResponse.FromString,
             options,
             channel_credentials,
@@ -193,33 +223,6 @@ class ControlService(object):
             '/control.ControlService/GetPlan',
             control__pb2.GetPlanRequest.SerializeToString,
             control__pb2.GetPlanResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GenerateDailySchedules(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/control.ControlService/GenerateDailySchedules',
-            control__pb2.GenerateDailyRequest.SerializeToString,
-            control__pb2.GenerateScheduleResponse.FromString,
             options,
             channel_credentials,
             insecure,

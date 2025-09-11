@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0ftransport.proto\x12\ttransport\"\"\n\x0fGetRouteRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\"&\n\x11GetStationRequest\x12\x11\n\tstationId\x18\x01 \x01(\t\" \n\x0eGetTripRequest\x12\x0e\n\x06tripId\x18\x01 \x01(\t\"S\n\x1aGetRoutesByStationsRequest\x12\x17\n\x0foriginStationId\x18\x01 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x02 \x01(\t\"*\n\x17GetRouteStationsRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\"f\n\x1c\x43\x61lculateStationCountRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x17\n\x0foriginStationId\x18\x02 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x03 \x01(\t\"\xda\x01\n\rRouteResponse\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08originId\x18\x03 \x01(\t\x12\x15\n\rdestinationId\x18\x04 \x01(\t\x12\x10\n\x08\x64istance\x18\x05 \x01(\x01\x12\x10\n\x08\x64uration\x18\x06 \x01(\x01\x12\x10\n\x08isActive\x18\x07 \x01(\x08\x12\"\n\x06origin\x18\x08 \x01(\x0b\x32\x12.transport.Station\x12\'\n\x0b\x64\x65stination\x18\t \x01(\x0b\x32\x12.transport.Station\":\n\x0eRoutesResponse\x12(\n\x06routes\x18\x01 \x03(\x0b\x32\x18.transport.RouteResponse\"G\n\x15RouteStationsResponse\x12.\n\rrouteStations\x18\x01 \x03(\x0b\x32\x17.transport.RouteStation\"t\n\x14StationCountResponse\x12\x14\n\x0cstationCount\x18\x01 \x01(\x05\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x17\n\x0foriginStationId\x18\x03 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x04 \x01(\t\"{\n\x0fStationResponse\x12\x11\n\tstationId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\x12\x10\n\x08latitude\x18\x04 \x01(\x01\x12\x11\n\tlongitude\x18\x05 \x01(\x01\x12\x10\n\x08isActive\x18\x06 \x01(\x08\"\xba\x01\n\x0cTripResponse\x12\x0e\n\x06tripId\x18\x01 \x01(\t\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x0f\n\x07trainId\x18\x03 \x01(\t\x12\x15\n\rdepartureTime\x18\x04 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x05 \x01(\t\x12\x11\n\tdayOfWeek\x18\x06 \x01(\t\x12\x10\n\x08isActive\x18\x07 \x01(\x08\x12\'\n\x05route\x18\x08 \x01(\x0b\x32\x18.transport.RouteResponse\"s\n\x07Station\x12\x11\n\tstationId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\x12\x10\n\x08latitude\x18\x04 \x01(\x01\x12\x11\n\tlongitude\x18\x05 \x01(\x01\x12\x10\n\x08isActive\x18\x06 \x01(\x08\"\x81\x01\n\x0cRouteStation\x12\x16\n\x0erouteStationId\x18\x01 \x01(\t\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x11\n\tstationId\x18\x03 \x01(\t\x12\x10\n\x08sequence\x18\x04 \x01(\x05\x12#\n\x07station\x18\x05 \x01(\x0b\x32\x12.transport.Station\"\x13\n\x11ListRoutesRequest\"\x13\n\x11ListTrainsRequest\"\x88\x01\n\x0cTrainMessage\x12\x0f\n\x07trainId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\t\x12\x10\n\x08\x63\x61pacity\x18\x04 \x01(\x05\x12\x0e\n\x06status\x18\x05 \x01(\t\x12\x10\n\x08isActive\x18\x06 \x01(\x08\x12\x17\n\x0flastMaintenance\x18\x07 \x01(\t\"9\n\x0eTrainsResponse\x12\'\n\x06trains\x18\x01 \x03(\x0b\x32\x17.transport.TrainMessage\"~\n\tTripInput\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x0f\n\x07trainId\x18\x02 \x01(\t\x12\x15\n\rdepartureTime\x18\x03 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x04 \x01(\t\x12\x11\n\tdayOfWeek\x18\x05 \x01(\t\x12\x10\n\x08isActive\x18\x06 \x01(\x08\"=\n\x16\x42ulkUpsertTripsRequest\x12#\n\x05trips\x18\x01 \x03(\x0b\x32\x14.transport.TripInput\"A\n\x17\x42ulkUpsertTripsResponse\x12&\n\x05trips\x18\x01 \x03(\x0b\x32\x17.transport.TripResponse\"l\n\tStopInput\x12\x0e\n\x06tripId\x18\x01 \x01(\t\x12\x11\n\tstationId\x18\x02 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x03 \x01(\t\x12\x15\n\rdepartureTime\x18\x04 \x01(\t\x12\x10\n\x08sequence\x18\x05 \x01(\x05\"=\n\x16\x42ulkUpsertStopsRequest\x12#\n\x05stops\x18\x01 \x03(\x0b\x32\x14.transport.StopInput\"*\n\x17\x42ulkUpsertStopsResponse\x12\x0f\n\x07\x63reated\x18\x01 \x01(\x05\x32\xb3\x06\n\x10TransportService\x12@\n\x08GetRoute\x12\x1a.transport.GetRouteRequest\x1a\x18.transport.RouteResponse\x12\x46\n\nGetStation\x12\x1c.transport.GetStationRequest\x1a\x1a.transport.StationResponse\x12=\n\x07GetTrip\x12\x19.transport.GetTripRequest\x1a\x17.transport.TripResponse\x12W\n\x13GetRoutesByStations\x12%.transport.GetRoutesByStationsRequest\x1a\x19.transport.RoutesResponse\x12X\n\x10GetRouteStations\x12\".transport.GetRouteStationsRequest\x1a .transport.RouteStationsResponse\x12\x61\n\x15\x43\x61lculateStationCount\x12\'.transport.CalculateStationCountRequest\x1a\x1f.transport.StationCountResponse\x12\x45\n\nListRoutes\x12\x1c.transport.ListRoutesRequest\x1a\x19.transport.RoutesResponse\x12\x45\n\nListTrains\x12\x1c.transport.ListTrainsRequest\x1a\x19.transport.TrainsResponse\x12X\n\x0f\x42ulkUpsertTrips\x12!.transport.BulkUpsertTripsRequest\x1a\".transport.BulkUpsertTripsResponse\x12X\n\x0f\x42ulkUpsertStops\x12!.transport.BulkUpsertStopsRequest\x1a\".transport.BulkUpsertStopsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0ftransport.proto\x12\ttransport\"\"\n\x0fGetRouteRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\"&\n\x11GetStationRequest\x12\x11\n\tstationId\x18\x01 \x01(\t\" \n\x0eGetTripRequest\x12\x0e\n\x06tripId\x18\x01 \x01(\t\"S\n\x1aGetRoutesByStationsRequest\x12\x17\n\x0foriginStationId\x18\x01 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x02 \x01(\t\"*\n\x17GetRouteStationsRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\"f\n\x1c\x43\x61lculateStationCountRequest\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x17\n\x0foriginStationId\x18\x02 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x03 \x01(\t\"\xda\x01\n\rRouteResponse\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08originId\x18\x03 \x01(\t\x12\x15\n\rdestinationId\x18\x04 \x01(\t\x12\x10\n\x08\x64istance\x18\x05 \x01(\x01\x12\x10\n\x08\x64uration\x18\x06 \x01(\x01\x12\x10\n\x08isActive\x18\x07 \x01(\x08\x12\"\n\x06origin\x18\x08 \x01(\x0b\x32\x12.transport.Station\x12\'\n\x0b\x64\x65stination\x18\t \x01(\x0b\x32\x12.transport.Station\":\n\x0eRoutesResponse\x12(\n\x06routes\x18\x01 \x03(\x0b\x32\x18.transport.RouteResponse\"G\n\x15RouteStationsResponse\x12.\n\rrouteStations\x18\x01 \x03(\x0b\x32\x17.transport.RouteStation\"t\n\x14StationCountResponse\x12\x14\n\x0cstationCount\x18\x01 \x01(\x05\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x17\n\x0foriginStationId\x18\x03 \x01(\t\x12\x1c\n\x14\x64\x65stinationStationId\x18\x04 \x01(\t\"{\n\x0fStationResponse\x12\x11\n\tstationId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\x12\x10\n\x08latitude\x18\x04 \x01(\x01\x12\x11\n\tlongitude\x18\x05 \x01(\x01\x12\x10\n\x08isActive\x18\x06 \x01(\x08\"\xcf\x01\n\x0cTripResponse\x12\x0e\n\x06tripId\x18\x01 \x01(\t\x12\x13\n\x0bserviceDate\x18\t \x01(\t\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x0f\n\x07trainId\x18\x03 \x01(\t\x12\x15\n\rdepartureTime\x18\x04 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x05 \x01(\t\x12\x11\n\tdayOfWeek\x18\x06 \x01(\t\x12\x10\n\x08isActive\x18\x07 \x01(\x08\x12\'\n\x05route\x18\x08 \x01(\x0b\x32\x18.transport.RouteResponse\"s\n\x07Station\x12\x11\n\tstationId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\x12\x10\n\x08latitude\x18\x04 \x01(\x01\x12\x11\n\tlongitude\x18\x05 \x01(\x01\x12\x10\n\x08isActive\x18\x06 \x01(\x08\"\x81\x01\n\x0cRouteStation\x12\x16\n\x0erouteStationId\x18\x01 \x01(\t\x12\x0f\n\x07routeId\x18\x02 \x01(\t\x12\x11\n\tstationId\x18\x03 \x01(\t\x12\x10\n\x08sequence\x18\x04 \x01(\x05\x12#\n\x07station\x18\x05 \x01(\x0b\x32\x12.transport.Station\"\x13\n\x11ListRoutesRequest\"\x13\n\x11ListTrainsRequest\"\x88\x01\n\x0cTrainMessage\x12\x0f\n\x07trainId\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\t\x12\x10\n\x08\x63\x61pacity\x18\x04 \x01(\x05\x12\x0e\n\x06status\x18\x05 \x01(\t\x12\x10\n\x08isActive\x18\x06 \x01(\x08\x12\x17\n\x0flastMaintenance\x18\x07 \x01(\t\"9\n\x0eTrainsResponse\x12\'\n\x06trains\x18\x01 \x03(\x0b\x32\x17.transport.TrainMessage\"\x93\x01\n\tTripInput\x12\x0f\n\x07routeId\x18\x01 \x01(\t\x12\x0f\n\x07trainId\x18\x02 \x01(\t\x12\x15\n\rdepartureTime\x18\x03 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x04 \x01(\t\x12\x11\n\tdayOfWeek\x18\x05 \x01(\t\x12\x10\n\x08isActive\x18\x06 \x01(\x08\x12\x13\n\x0bserviceDate\x18\x07 \x01(\t\"=\n\x16\x42ulkUpsertTripsRequest\x12#\n\x05trips\x18\x01 \x03(\x0b\x32\x14.transport.TripInput\"A\n\x17\x42ulkUpsertTripsResponse\x12&\n\x05trips\x18\x01 \x03(\x0b\x32\x17.transport.TripResponse\"l\n\tStopInput\x12\x0e\n\x06tripId\x18\x01 \x01(\t\x12\x11\n\tstationId\x18\x02 \x01(\t\x12\x13\n\x0b\x61rrivalTime\x18\x03 \x01(\t\x12\x15\n\rdepartureTime\x18\x04 \x01(\t\x12\x10\n\x08sequence\x18\x05 \x01(\x05\"=\n\x16\x42ulkUpsertStopsRequest\x12#\n\x05stops\x18\x01 \x03(\x0b\x32\x14.transport.StopInput\"*\n\x17\x42ulkUpsertStopsResponse\x12\x0f\n\x07\x63reated\x18\x01 \x01(\x05\x32\xb3\x06\n\x10TransportService\x12@\n\x08GetRoute\x12\x1a.transport.GetRouteRequest\x1a\x18.transport.RouteResponse\x12\x46\n\nGetStation\x12\x1c.transport.GetStationRequest\x1a\x1a.transport.StationResponse\x12=\n\x07GetTrip\x12\x19.transport.GetTripRequest\x1a\x17.transport.TripResponse\x12W\n\x13GetRoutesByStations\x12%.transport.GetRoutesByStationsRequest\x1a\x19.transport.RoutesResponse\x12X\n\x10GetRouteStations\x12\".transport.GetRouteStationsRequest\x1a .transport.RouteStationsResponse\x12\x61\n\x15\x43\x61lculateStationCount\x12\'.transport.CalculateStationCountRequest\x1a\x1f.transport.StationCountResponse\x12\x45\n\nListRoutes\x12\x1c.transport.ListRoutesRequest\x1a\x19.transport.RoutesResponse\x12\x45\n\nListTrains\x12\x1c.transport.ListTrainsRequest\x1a\x19.transport.TrainsResponse\x12X\n\x0f\x42ulkUpsertTrips\x12!.transport.BulkUpsertTripsRequest\x1a\".transport.BulkUpsertTripsResponse\x12X\n\x0f\x42ulkUpsertStops\x12!.transport.BulkUpsertStopsRequest\x1a\".transport.BulkUpsertStopsResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,31 +44,31 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_STATIONRESPONSE']._serialized_start=845
   _globals['_STATIONRESPONSE']._serialized_end=968
   _globals['_TRIPRESPONSE']._serialized_start=971
-  _globals['_TRIPRESPONSE']._serialized_end=1157
-  _globals['_STATION']._serialized_start=1159
-  _globals['_STATION']._serialized_end=1274
-  _globals['_ROUTESTATION']._serialized_start=1277
-  _globals['_ROUTESTATION']._serialized_end=1406
-  _globals['_LISTROUTESREQUEST']._serialized_start=1408
-  _globals['_LISTROUTESREQUEST']._serialized_end=1427
-  _globals['_LISTTRAINSREQUEST']._serialized_start=1429
-  _globals['_LISTTRAINSREQUEST']._serialized_end=1448
-  _globals['_TRAINMESSAGE']._serialized_start=1451
-  _globals['_TRAINMESSAGE']._serialized_end=1587
-  _globals['_TRAINSRESPONSE']._serialized_start=1589
-  _globals['_TRAINSRESPONSE']._serialized_end=1646
-  _globals['_TRIPINPUT']._serialized_start=1648
-  _globals['_TRIPINPUT']._serialized_end=1774
-  _globals['_BULKUPSERTTRIPSREQUEST']._serialized_start=1776
-  _globals['_BULKUPSERTTRIPSREQUEST']._serialized_end=1837
-  _globals['_BULKUPSERTTRIPSRESPONSE']._serialized_start=1839
-  _globals['_BULKUPSERTTRIPSRESPONSE']._serialized_end=1904
-  _globals['_STOPINPUT']._serialized_start=1906
-  _globals['_STOPINPUT']._serialized_end=2014
-  _globals['_BULKUPSERTSTOPSREQUEST']._serialized_start=2016
-  _globals['_BULKUPSERTSTOPSREQUEST']._serialized_end=2077
-  _globals['_BULKUPSERTSTOPSRESPONSE']._serialized_start=2079
-  _globals['_BULKUPSERTSTOPSRESPONSE']._serialized_end=2121
-  _globals['_TRANSPORTSERVICE']._serialized_start=2124
-  _globals['_TRANSPORTSERVICE']._serialized_end=2943
+  _globals['_TRIPRESPONSE']._serialized_end=1178
+  _globals['_STATION']._serialized_start=1180
+  _globals['_STATION']._serialized_end=1295
+  _globals['_ROUTESTATION']._serialized_start=1298
+  _globals['_ROUTESTATION']._serialized_end=1427
+  _globals['_LISTROUTESREQUEST']._serialized_start=1429
+  _globals['_LISTROUTESREQUEST']._serialized_end=1448
+  _globals['_LISTTRAINSREQUEST']._serialized_start=1450
+  _globals['_LISTTRAINSREQUEST']._serialized_end=1469
+  _globals['_TRAINMESSAGE']._serialized_start=1472
+  _globals['_TRAINMESSAGE']._serialized_end=1608
+  _globals['_TRAINSRESPONSE']._serialized_start=1610
+  _globals['_TRAINSRESPONSE']._serialized_end=1667
+  _globals['_TRIPINPUT']._serialized_start=1670
+  _globals['_TRIPINPUT']._serialized_end=1817
+  _globals['_BULKUPSERTTRIPSREQUEST']._serialized_start=1819
+  _globals['_BULKUPSERTTRIPSREQUEST']._serialized_end=1880
+  _globals['_BULKUPSERTTRIPSRESPONSE']._serialized_start=1882
+  _globals['_BULKUPSERTTRIPSRESPONSE']._serialized_end=1947
+  _globals['_STOPINPUT']._serialized_start=1949
+  _globals['_STOPINPUT']._serialized_end=2057
+  _globals['_BULKUPSERTSTOPSREQUEST']._serialized_start=2059
+  _globals['_BULKUPSERTSTOPSREQUEST']._serialized_end=2120
+  _globals['_BULKUPSERTSTOPSRESPONSE']._serialized_start=2122
+  _globals['_BULKUPSERTSTOPSRESPONSE']._serialized_end=2164
+  _globals['_TRANSPORTSERVICE']._serialized_start=2167
+  _globals['_TRANSPORTSERVICE']._serialized_end=2986
 # @@protoc_insertion_point(module_scope)

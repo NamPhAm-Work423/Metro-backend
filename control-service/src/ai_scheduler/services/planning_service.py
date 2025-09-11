@@ -23,6 +23,7 @@ class PlanningService:
 
     def list_active_trains(self) -> List[str]:
         res = self.transport.ListTrains(transport_pb2.ListTrainsRequest())
+        # TrainMessage does not include routeId in current proto; use all active trains
         return [t.trainId for t in res.trains if t.status == 'active']
 
     def generate_for_route(self, route_id: str, date: str, day_of_week: str, service_start: str, service_end: str) -> int:
@@ -43,6 +44,7 @@ class PlanningService:
         departures: List[str] = []
         for tb in timebands:
             departures.extend(self.scheduler.plan_departures(tb.start, tb.end, headway_sec=tb.headway_sec))
+        print(f"Planning: route={route_id} date={date} bands={len(timebands)} departures={len(departures)} activeTrains={len(trains)}")
 
         trip_inputs: List[transport_pb2.TripInput] = []
         trip_departures: List[str] = []
@@ -58,7 +60,8 @@ class PlanningService:
                 departureTime=dep,
                 arrivalTime=arr_last,
                 dayOfWeek=day_of_week,
-                isActive=True
+                isActive=True,
+                serviceDate=date,
             ))
             trip_departures.append(dep)
 
@@ -66,6 +69,7 @@ class PlanningService:
             return 0
 
         created_trips = self.transport.BulkUpsertTrips(transport_pb2.BulkUpsertTripsRequest(trips=trip_inputs))
+        print(f"Planning: created trips for route={route_id}: {len(created_trips.trips)}")
 
         # For each trip, build concrete StopInput times across stations
         stop_inputs: List[transport_pb2.StopInput] = []
@@ -108,7 +112,12 @@ class PlanningService:
                         current_time = depart
 
         if stop_inputs:
-            self.transport.BulkUpsertStops(transport_pb2.BulkUpsertStopsRequest(stops=stop_inputs))
+            res = self.transport.BulkUpsertStops(transport_pb2.BulkUpsertStopsRequest(stops=stop_inputs))
+            try:
+                created = getattr(res, 'created', 0)
+            except Exception:
+                created = 0
+            print(f"Planning: created stops for route={route_id}: {created} across {len(created_trips.trips)} trips and {len(route_stations)} stations")
 
         return len(created_trips.trips)
 

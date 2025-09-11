@@ -23,6 +23,9 @@ class Settings:
     model_dir: str = os.getenv('MODEL_DIR', 'models')
     pretrain_routes_csv: str = os.getenv('PRETRAIN_ROUTES', '')
 
+    init_seed_on_start: bool = os.getenv('INIT_SEED_ON_START', 'true').lower() in ('1','true','yes')
+    init_seed_days: int = int(os.getenv('INIT_SEED_DAYS', '1'))
+
 
 settings = Settings()
 
