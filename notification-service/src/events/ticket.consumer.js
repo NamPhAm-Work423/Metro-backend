@@ -130,10 +130,26 @@ class TicketConsumer {
             // Use enriched display data from ticket service if available, otherwise fallback to local formatting
             const displayData = payload.displayData || {};
             
+            // Get template name from enriched data or determine from ticket type
+            const templateName = payload.templateName || this.getEmailTemplateName(ticketType);
+            
+            // Debug template selection
+            logger.info('Template selection debug', {
+                ticketId,
+                ticketType,
+                payloadTemplateName: payload.templateName,
+                calculatedTemplate: this.getEmailTemplateName(ticketType),
+                finalTemplate: templateName,
+                isMultiUseFromPayload: payload.isMultiUse
+            });
+            
             logger.info('Processing ticket activation with display data', {
                 ticketId,
                 hasDisplayData: !!payload.displayData,
                 displayDataFields: payload.displayData ? Object.keys(payload.displayData) : [],
+                templateName: templateName,
+                ticketType: ticketType,
+                isMultiUse: payload.isMultiUse,
                 fallbackUsed: !payload.displayData
             });
             
@@ -243,6 +259,36 @@ class TicketConsumer {
                 qrCodeImage
             };
 
+            // Add multi-use specific variables if needed
+            const isMultiUseTemplate = templateName.includes('multiUse');
+            if (payload.isMultiUse && displayData) {
+                templateVariables.validFromDate = displayData.validFromDate;
+                templateVariables.validFromTime = displayData.validFromTime;
+                templateVariables.validUntilDate = displayData.validUntilDate;
+                templateVariables.validUntilTime = displayData.validUntilTime;
+                templateVariables.validUntilDateTime = displayData.validUntilDateTime;
+                templateVariables.activationDate = displayData.activationDate;
+                templateVariables.usageStats = displayData.usageStats;
+            } else if (isMultiUseTemplate) {
+                // Protection: If using multi-use template but missing data, provide fallbacks
+                const now = new Date();
+                const nextDay = new Date(now.getTime() + 24*60*60*1000);
+                templateVariables.validFromDate = this.formatDate(now);
+                templateVariables.validFromTime = this.formatTime(now);
+                templateVariables.validUntilDate = this.formatDate(nextDay);
+                templateVariables.validUntilTime = this.formatTime(nextDay);
+                templateVariables.validUntilDateTime = `${templateVariables.validUntilDate} lúc ${this.formatTime(nextDay)}`;
+                templateVariables.activationDate = this.formatDate(now);
+                templateVariables.usageStats = { totalTrips: 0, daysRemaining: 1, lastUsed: 'Chưa sử dụng' };
+                
+                logger.warn('Using multi-use template with fallback data for single-use ticket', {
+                    ticketId,
+                    ticketType,
+                    templateName,
+                    reason: 'template_mismatch'
+                });
+            }
+
             const finalVariables = {
                 ticketId: templateVariables.ticketId || ticketId,
                 passengerName: templateVariables.passengerName || 'Customer',
@@ -256,7 +302,15 @@ class TicketConsumer {
                 paymentMethod: templateVariables.paymentMethod || paymentMethod,
                 totalPassengers: templateVariables.totalPassengers || actualTotalPassengers || 1,
                 qrCode: templateVariables.qrCode,
-                qrCodeImage: templateVariables.qrCodeImage
+                qrCodeImage: templateVariables.qrCodeImage,
+                // Multi-use specific variables
+                validFromDate: templateVariables.validFromDate,
+                validFromTime: templateVariables.validFromTime,
+                validUntilDate: templateVariables.validUntilDate,
+                validUntilTime: templateVariables.validUntilTime,
+                validUntilDateTime: templateVariables.validUntilDateTime,
+                activationDate: templateVariables.activationDate,
+                usageStats: templateVariables.usageStats
             };
 
             // QR code is now hosted as URL, no attachments needed
@@ -271,11 +325,14 @@ class TicketConsumer {
                 logger.warn('No QR code image available', { ticketId });
             }
 
-            // Send email notification with QR attachment
+            const emailSubject = isMultiUseTemplate
+                ? 'Metro Pass Activation Success - Thẻ Thông Hành'
+                : 'Metro Ticket Activation Success - Vé Tàu';
+                
             await this.notificationService.sendEmail({
                 to: passengerEmail,
-                subject: 'Metro Ticket Activation Success',
-                template: 'ticket_template/trainTicketEmail',
+                subject: emailSubject,
+                template: `ticket_template/${templateName}`,
                 variables: finalVariables,
                 attachments: attachments.length > 0 ? attachments : undefined,
                 userId: passengerId,
@@ -736,16 +793,46 @@ class TicketConsumer {
     getTicketTypeName(ticketType, totalPassengers) {
         const type = String(ticketType || '').toLowerCase();
         switch (type) {
-            case 'one_way':
-            case 'single':
             case 'oneway':
                 return 'Vé một chiều';
             case 'return':
-            case 'round_trip':
                 return 'Vé khứ hồi';
+            case 'day_pass':
+                return 'Vé ngày';
+            case 'weekly_pass':
+                return 'Vé tuần';
+            case 'monthly_pass':
+                return 'Vé tháng';
+            case 'yearly_pass':
+                return 'Vé năm';
+            case 'lifetime_pass':
+                return 'Vé trọn đời';
             default:
                 return this.getTicketType(totalPassengers);
         }
+    }
+
+    /**
+     * Get email template name based on ticket type (fallback method)
+     * @param {string} ticketType - Ticket type enum
+     * @returns {string} Template filename without extension
+     */
+    getEmailTemplateName(ticketType) {
+        const SINGLE_USE_TICKET_TYPES = ['oneway', 'return'];
+        const type = String(ticketType || 'oneway').toLowerCase();
+        
+        const isSingleUse = SINGLE_USE_TICKET_TYPES.includes(type);
+        const result = isSingleUse ? 'singleUseTicketEmail' : 'multiUseTicketEmail';
+        
+        // Debug logging
+        logger.info('Template name calculation', {
+            inputTicketType: ticketType,
+            normalizedType: type,
+            isSingleUse,
+            resultTemplate: result
+        });
+        
+        return result;
     }
 
     

@@ -1,0 +1,33 @@
+METRO HCM - VÉ TÀU MỘT LẦN SỬ DỤNG
+=====================================
+
+Xin chào {{passengerName}},
+
+Vé tàu của bạn đã được kích hoạt thành công!
+
+THÔNG TIN VÉ:
+- Mã vé: {{ticketId}}
+- Loại vé: {{ticketType}}
+- Từ: {{fromStation}}
+- Đến: {{toStation}}
+- Ngày đi: {{departureDate}}
+- Giờ đi: {{departureTime}}
+- Giá vé: {{price}}
+- Trạng thái: {{#if isActive}}Có hiệu lực{{else}}Hết hạn{{/if}}
+
+⚠️  LƯU Ý QUAN TRỌNG:
+- Vé này chỉ có thể sử dụng MỘT LẦN duy nhất
+- Sau khi quét QR hoặc sử dụng vé, vé sẽ hết hiệu lực ngay lập tức
+- Vui lòng đến ga trước giờ khởi hành ít nhất 15 phút
+- Mang theo giấy tờ tùy thân khi sử dụng vé
+
+MÃ QR VÉ:
+{{#if qrCode}}{{qrCode}}{{else}}{{ticketId}}{{/if}}
+
+Sử dụng mã QR này tại cổng soát vé để vào ga.
+
+Liên hệ hỗ trợ:
+Hotline: 1900-xxxx
+Email: metrohcm@metrohcm.io.vn
+
+© 2024 Metro HCM. Tất cả quyền được bảo lưu.

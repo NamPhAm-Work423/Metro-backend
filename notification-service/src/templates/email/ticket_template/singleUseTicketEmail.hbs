@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vé Tàu Metro HCM - Một Lượt</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .ticket-info {
+            padding: 30px 20px;
+        }
+        .ticket-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        .single-use-badge {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .route-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px dashed #dee2e6;
+        }
+        .station {
+            text-align: center;
+            flex: 1;
+        }
+        .station h3 {
+            margin: 0 0 5px 0;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .station p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .arrow {
+            font-size: 24px;
+            color: #007bff;
+            margin: 0 20px;
+        }
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .important-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .important-notice h4 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 16px;
+        }
+        .important-notice ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #856404;
+        }
+        .important-notice li {
+            margin-bottom: 5px;
+        }
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #17a2b8;
+            text-decoration: none;
+        }
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-expired {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .single-trip-warning {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border: 2px solid #fdcb6e;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .single-trip-warning strong {
+            color: #8b4513;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚇 Metro HCM</h1>
+            <p>Vé Tàu Điện Ngầm Thành Phố Hồ Chí Minh</p>
+        </div>
+
+        <div class="ticket-info">
+            <div class="single-use-badge">
+                🎫 VÉ MỘT LẦN SỬ DỤNG
+            </div>
+            
+            <h2 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">Vé Tàu Của Bạn</h2>
+            {{#if passengerName}}
+            <p style="text-align: center; color: #6c757d; margin-bottom: 20px;">
+                Xin chào <strong>{{passengerName}}</strong>,
+            </p>
+            {{/if}}
+            
+            <div class="ticket-card">
+                <!-- Route Info - Table layout -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed #dee2e6;">
+                    <tr>
+                        <td align="center" width="40%" style="vertical-align: top;">
+                            <h3 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 18px; font-weight: 600;">{{fromStation}}</h3>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px;">Ga đi</p>
+                        </td>
+                        <td align="center" width="20%" style="vertical-align: middle;">
+                            <span style="font-size: 24px; color: #007bff;">→</span>
+                        </td>
+                        <td align="center" width="40%" style="vertical-align: top;">
+                            <h3 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 18px; font-weight: 600;">{{toStation}}</h3>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px;">Ga đến</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Ticket Details - Table layout -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 15px; margin: 20px 0; border: 1px solid #dee2e6;">
+                    <tr>
+                        <td style="padding: 25px;">
+                            <!-- Ticket ID -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🎫 Mã vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #495057; font-weight: 600; font-family: 'Courier New', monospace; background: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">{{ticketId}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Ticket Type -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🎟️ Loại vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #495057; font-weight: 600; background: #e3f2fd; padding: 4px 10px; border-radius: 12px; font-size: 13px;">{{ticketType}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Travel Date -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">📅 Ngày đi:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureDate}}</td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Travel Time -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🕐 Giờ đi:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureTime}}</td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Price -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">💰 Giá vé:</td>
+                                    <td align="right" style="padding: 12px 0;">
+                                        <span style="color: #28a745; font-weight: 700; font-size: 16px; background: #d4edda; padding: 6px 12px; border-radius: 8px;">{{price}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Status -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td style="padding: 12px 0 0 0; color: #6c757d; font-weight: 500; font-size: 14px;">📋 Trạng thái:</td>
+                                    <td align="right" style="padding: 12px 0 0 0;">
+                                        {{#if isActive}}
+                                            <span style="color: #155724; background: #d4edda; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; border: 1px solid #c3e6cb;">✅ Có hiệu lực</span>
+                                        {{else}}
+                                            <span style="color: #721c24; background: #f8d7da; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; border: 1px solid #f5c6cb;">❌ Hết hạn</span>
+                                        {{/if}}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Single Trip Warning -->
+                <div class="single-trip-warning">
+                    <strong>⚠️ LƯU Ý: VÉ CHỈ SỬ DỤNG MỘT LẦN</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #8b4513;">
+                        Vé này chỉ có thể sử dụng một lần duy nhất cho chuyến đi từ <strong>{{fromStation}}</strong> đến <strong>{{toStation}}</strong>
+                    </p>
+                </div>
+
+                <!-- QR Code Section -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; background: #f8f9fa; border-radius: 12px;">
+                    <tr>
+                        <td align="center" style="padding: 20px;">
+                            <h4 style="margin: 0 0 20px 0; color: #495057; font-size: 18px; font-weight: 600;">🎫 Mã QR Vé</h4>
+                            
+                            {{#if qrCodeImage}}
+                                <!-- QR Code Image Container -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: white; border-radius: 10px; margin: 0 auto;">
+                                    <tr>
+                                        <td align="center" style="padding: 15px;">
+                                            <img src="{{qrCodeImage}}" alt="QR Code cho vé {{ticketId}}" 
+                                                 width="180" height="180" 
+                                                 style="display: block; border-radius: 8px; max-width: 100%;" />
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Success Message -->
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                    <tr>
+                                        <td align="center" style="padding-top: 15px;">
+                                            <p style="margin: 0; color: #28a745; font-weight: 600; font-size: 14px;">
+                                                ✅ Mã QR đã sẵn sàng sử dụng
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                            {{else}}
+                                <!-- Fallback Text QR Code -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: white; border-radius: 10px; margin: 0 auto; max-width: 400px;">
+                                    <tr>
+                                        <td align="center" style="padding: 20px;">
+                                            <div style="font-family: 'Courier New', monospace; font-size: 11px; word-break: break-all; color: #495057; line-height: 1.4; border: 2px dashed #ddd; padding: 15px; border-radius: 8px;">
+                                                {{#if qrCode}}{{qrCode}}{{else}}{{ticketId}}{{/if}}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Warning Message -->
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                    <tr>
+                                        <td align="center" style="padding-top: 10px;">
+                                            <p style="margin: 0; color: #ffc107; font-weight: 600; font-size: 14px;">
+                                                ⚠️ Hiển thị mã này tại ga
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            {{/if}}
+                            
+                            <!-- Instructions -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding-top: 10px;">
+                                        <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.4;">
+                                            📱 Quét mã QR này tại cổng soát vé để vào ga<br>
+                                            <em>Hoặc hiển thị mã trên điện thoại cho nhân viên</em>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Backup Ticket ID -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 15px;">
+                                <tr>
+                                    <td align="center">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff; max-width: 400px;">
+                                            <tr>
+                                                <td style="padding: 10px;">
+                                                    <p style="margin: 0; color: #0056b3; font-size: 12px; font-weight: 500; text-align: center;">
+                                                        💡 <strong>Mã vé:</strong> {{ticketId}}
+                                                    </p>
+                                                    <p style="margin: 5px 0 0 0; color: #0056b3; font-size: 11px; text-align: center;">
+                                                        Sử dụng mã này nếu QR code không hoạt động
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="important-notice">
+                <h4>⚠️ Lưu Ý Quan Trọng - Vé Một Lần Sử Dụng</h4>
+                <ul>
+                    <li><strong>Vé chỉ có thể sử dụng MỘT LẦN duy nhất</strong> cho chuyến đi đã chọn</li>
+                    <li>Sau khi quét QR hoặc sử dụng vé, vé sẽ hết hiệu lực ngay lập tức</li>
+                    <li>Vui lòng đến ga trước giờ khởi hành ít nhất 15 phút</li>
+                    <li>Mang theo giấy tờ tùy thân khi sử dụng vé</li>
+                    <li>Vé không được hoàn lại hoặc chuyển nhượng</li>
+                    <li>Không thể tái sử dụng vé cho chuyến đi khác</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #6c757d; margin-bottom: 15px;">
+                    Nếu có thắc mắc, vui lòng liên hệ:
+                </p>
+                <p style="margin: 0;">
+                    <strong>Hotline:</strong> 1900-xxxx | 
+                    <strong>Email:</strong> metrohcm@metrohcm.io.vn
+                </p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Metro HCM. Tất cả quyền được bảo lưu.</p>
+            <p>
+                <a href="https://metrohcm.io.vn">Trang chủ</a> | 
+                <a href="https://metrohcm.io.vn/terms">Điều khoản sử dụng</a> | 
+                <a href="https://metrohcm.io.vn/privacy">Chính sách bảo mật</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

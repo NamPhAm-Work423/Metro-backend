@@ -1,0 +1,37 @@
+METRO HCM - THẺ THÔNG HÀNH SỬ DỤNG NHIỀU LẦN
+===========================================
+
+Xin chào {{passengerName}},
+
+Thẻ thông hành của bạn đã được kích hoạt thành công!
+
+THÔNG TIN THẺ:
+- Mã thẻ: {{ticketId}}
+- Loại thẻ: {{ticketType}}
+- Giá thẻ: {{price}}
+- Ngày kích hoạt: {{activationDate}}
+- Hiệu lực từ: {{validFromDate}} lúc {{validFromTime}}
+- Hiệu lực đến: {{validUntilDate}} lúc {{validUntilTime}}
+- Hết hạn: {{validUntilDateTime}}
+- Trạng thái: {{#if isActive}}Có hiệu lực{{else}}Hết hạn{{/if}}
+
+🌟 DI CHUYỂN KHÔNG GIỚI HạN:
+Thẻ này cho phép bạn di chuyển không giới hạn trên toàn bộ hệ thống Metro HCM trong thời hạn có hiệu lực.
+
+⚠️  LƯU Ý QUAN TRỌNG:
+- Thẻ có thể sử dụng NHIỀU LẦN trong thời hạn có hiệu lực
+- Quét QR code mỗi lần vào và ra ga
+- Thẻ có hiệu lực từ {{validFromDate}} lúc {{validFromTime}} đến {{validUntilDate}} lúc {{validUntilTime}}
+- Sau thời hạn, thẻ sẽ tự động hết hiệu lực
+- Có thể sử dụng trên toàn bộ hệ thống Metro HCM
+
+MÃ QR THẺ THÔNG HÀNH:
+{{#if qrCode}}{{qrCode}}{{else}}{{ticketId}}{{/if}}
+
+Quét mã QR này mỗi lần vào/ra ga. Thẻ có thể sử dụng nhiều lần trong thời hạn có hiệu lực.
+
+Liên hệ hỗ trợ:
+Hotline: 1900-xxxx
+Email: metrohcm@metrohcm.io.vn
+
+© 2024 Metro HCM. Tất cả quyền được bảo lưu.

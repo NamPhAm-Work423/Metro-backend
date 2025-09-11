@@ -46,6 +46,16 @@ class TicketDataEnrichmentService {
     };
 
     /**
+     * Single-use ticket types (one-time use)
+     */
+    static SINGLE_USE_TICKET_TYPES = ['oneway', 'return'];
+
+    /**
+     * Multi-use ticket types (can be used multiple times)
+     */
+    static MULTI_USE_TICKET_TYPES = ['day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass'];
+
+    /**
      * Get human-readable station name from transport service
      * @param {string} stationId - Station identifier
      * @returns {Promise<string>} Localized station name
@@ -143,6 +153,38 @@ class TicketDataEnrichmentService {
     }
 
     /**
+     * Determine if ticket type is single-use or multi-use
+     * @param {string} ticketType - Ticket type enum
+     * @returns {boolean} True if single-use, false if multi-use
+     */
+    static isSingleUseTicket(ticketType) {
+        const type = String(ticketType || 'oneway').toLowerCase();
+        return this.SINGLE_USE_TICKET_TYPES.includes(type);
+    }
+
+    /**
+     * Determine if ticket type is multi-use
+     * @param {string} ticketType - Ticket type enum
+     * @returns {boolean} True if multi-use, false if single-use
+     */
+    static isMultiUseTicket(ticketType) {
+        const type = String(ticketType || 'oneway').toLowerCase();
+        return this.MULTI_USE_TICKET_TYPES.includes(type);
+    }
+
+    /**
+     * Get email template name based on ticket type
+     * @param {string} ticketType - Ticket type enum
+     * @returns {string} Template filename without extension
+     */
+    static getEmailTemplateName(ticketType) {
+        if (this.isSingleUseTicket(ticketType)) {
+            return 'singleUseTicketEmail';
+        }
+        return 'multiUseTicketEmail';
+    }
+
+    /**
      * Get localized ticket type name  
      * @param {string} ticketType - Ticket type enum
      * @param {number} totalPassengers - Number of passengers (for context)
@@ -174,29 +216,31 @@ class TicketDataEnrichmentService {
     }
 
     /**
-     * Format date for Vietnamese locale
+     * Format date for Vietnamese locale with UTC+7 timezone
      * @param {string|Date} date - Date to format
      * @returns {string} Formatted date string
      */
     static formatDate(date) {
-        if (!date) return new Date().toLocaleDateString('vi-VN');
+        if (!date) return new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         return new Date(date).toLocaleDateString('vi-VN', {
             year: 'numeric',
             month: '2-digit', 
-            day: '2-digit'
+            day: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh'
         });
     }
 
     /**
-     * Format time for Vietnamese locale
+     * Format time for Vietnamese locale with UTC+7 timezone
      * @param {string|Date} date - Date to format time from
      * @returns {string} Formatted time string
      */
     static formatTime(date) {
-        if (!date) return new Date().toLocaleTimeString('vi-VN');
+        if (!date) return new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         return new Date(date).toLocaleTimeString('vi-VN', {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh'
         });
     }
 
@@ -208,6 +252,8 @@ class TicketDataEnrichmentService {
      */
     static async enrichTicketForEvent(ticket, options = {}) {
         try {
+            const isMultiUse = this.isMultiUseTicket(ticket.ticketType);
+            
             // Extract departure info from QR code if available
             let departureInfo = this.extractDepartureInfoFromQR(ticket.qrCode);
             
@@ -240,8 +286,16 @@ class TicketDataEnrichmentService {
                 ticketType: ticket.ticketType,
                 status: ticket.status,
                 activatedAt: ticket.activatedAt,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                usedList: ticket.usedList,
                 
-                // Enriched display data (for notification templates)
+                // Template selection
+                templateName: this.getEmailTemplateName(ticket.ticketType),
+                isMultiUse,
+                isSingleUse: !isMultiUse,
+                
+                // Base display data (common for both template types)
                 displayData: {
                     fromStationName: stationNames.get(ticket.originStationId) || this._getFallbackStationName(ticket.originStationId),
                     toStationName: stationNames.get(ticket.destinationStationId) || this._getFallbackStationName(ticket.destinationStationId), 
@@ -254,8 +308,23 @@ class TicketDataEnrichmentService {
                 }
             };
 
+            // Add multi-use specific data
+            if (isMultiUse) {
+                const usageStats = this.calculateUsageStats(ticket);
+                enrichedData.displayData.validFromDate = this.formatValidityDate(ticket.validFrom);
+                enrichedData.displayData.validFromTime = this.formatValidityTime(ticket.validFrom);
+                enrichedData.displayData.validUntilDate = this.formatValidityDate(ticket.validUntil);
+                enrichedData.displayData.validUntilTime = this.formatValidityTime(ticket.validUntil);
+                enrichedData.displayData.validUntilDateTime = this.formatValidityDateTime(ticket.validUntil);
+                enrichedData.displayData.activationDate = this.formatDate(ticket.activatedAt || ticket.createdAt);
+                enrichedData.displayData.usageStats = usageStats;
+            }
+
             logger.debug('Enriched ticket data for event', {
                 ticketId: ticket.ticketId,
+                ticketType: ticket.ticketType,
+                templateName: enrichedData.templateName,
+                isMultiUse: enrichedData.isMultiUse,
                 originalStations: {
                     origin: ticket.originStationId,
                     destination: ticket.destinationStationId
@@ -263,10 +332,6 @@ class TicketDataEnrichmentService {
                 enrichedStations: {
                     origin: enrichedData.displayData.fromStationName,
                     destination: enrichedData.displayData.toStationName
-                },
-                ticketType: {
-                    original: ticket.ticketType,
-                    enriched: enrichedData.displayData.ticketTypeName
                 }
             });
 
@@ -280,6 +345,7 @@ class TicketDataEnrichmentService {
             });
 
             // Return minimal enriched data on error
+            const isMultiUse = this.isMultiUseTicket(ticket.ticketType);
             return {
                 ticketId: ticket.ticketId,
                 passengerId: ticket.passengerId,
@@ -291,6 +357,12 @@ class TicketDataEnrichmentService {
                 ticketType: ticket.ticketType,
                 status: ticket.status,
                 activatedAt: ticket.activatedAt,
+                validFrom: ticket.validFrom,
+                validUntil: ticket.validUntil,
+                usedList: ticket.usedList,
+                templateName: this.getEmailTemplateName(ticket.ticketType),
+                isMultiUse,
+                isSingleUse: !isMultiUse,
                 displayData: {
                     fromStationName: this._getFallbackStationName(ticket.originStationId) || 'Không xác định',
                     toStationName: this._getFallbackStationName(ticket.destinationStationId) || 'Không xác định',
@@ -299,7 +371,15 @@ class TicketDataEnrichmentService {
                     departureDate: this.formatDate(new Date()),
                     departureTime: this.formatTime(new Date()),
                     statusText: ticket.status || 'active',
-                    totalPassengersText: this.getTotalPassengersText(ticket.totalPassengers || 1)
+                    totalPassengersText: this.getTotalPassengersText(ticket.totalPassengers || 1),
+                    // Multi-use fallback data
+                    validFromDate: isMultiUse ? this.formatValidityDate(ticket.validFrom || new Date()) : null,
+                    validFromTime: isMultiUse ? this.formatValidityTime(ticket.validFrom || new Date()) : null,
+                    validUntilDate: isMultiUse ? this.formatValidityDate(ticket.validUntil || new Date()) : null,
+                    validUntilTime: isMultiUse ? this.formatValidityTime(ticket.validUntil || new Date()) : null,
+                    validUntilDateTime: isMultiUse ? this.formatValidityDateTime(ticket.validUntil || new Date()) : null,
+                    activationDate: isMultiUse ? this.formatDate(ticket.activatedAt || ticket.createdAt || new Date()) : null,
+                    usageStats: isMultiUse ? this.calculateUsageStats(ticket) : null
                 }
             };
         }
@@ -421,6 +501,75 @@ class TicketDataEnrichmentService {
         const num = Number(count) || 1;
         if (num === 1) return '1 hành khách';
         return `${num} hành khách`;
+    }
+
+    /**
+     * Calculate usage statistics for multi-use tickets
+     * @param {Object} ticket - Ticket model instance
+     * @returns {Object} Usage statistics
+     */
+    static calculateUsageStats(ticket) {
+        const now = new Date();
+        const validUntil = ticket.validUntil ? new Date(ticket.validUntil) : now;
+        const usedList = ticket.usedList || [];
+
+        // Calculate days remaining
+        const daysRemaining = Math.max(0, Math.ceil((validUntil - now) / (1000 * 60 * 60 * 24)));
+
+        // Get last used date
+        let lastUsed = 'Chưa sử dụng';
+        if (usedList.length > 0) {
+            const lastUsedDate = new Date(Math.max(...usedList.map(date => new Date(date))));
+            lastUsed = this.formatDate(lastUsedDate);
+        }
+
+        return {
+            totalTrips: usedList.length,
+            daysRemaining,
+            lastUsed
+        };
+    }
+
+    /**
+     * Format date for multi-use ticket validity display with UTC+7 timezone
+     * @param {string|Date} date - Date to format
+     * @returns {string} Formatted date string for validity display
+     */
+    static formatValidityDate(date) {
+        if (!date) return 'Không xác định';
+        return new Date(date).toLocaleDateString('vi-VN', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'Asia/Ho_Chi_Minh'
+        });
+    }
+
+    /**
+     * Format time for multi-use ticket validity display with UTC+7 timezone
+     * @param {string|Date} date - Date to format
+     * @returns {string} Formatted time string for validity display
+     */
+    static formatValidityTime(date) {
+        if (!date) return 'Không xác định';
+        return new Date(date).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh'
+        });
+    }
+
+    /**
+     * Format date and time for multi-use ticket validity display with UTC+7 timezone
+     * @param {string|Date} date - Date to format
+     * @returns {string} Formatted date and time string
+     */
+    static formatValidityDateTime(date) {
+        if (!date) return 'Không xác định';
+        const dateObj = new Date(date);
+        return `${this.formatValidityDate(dateObj)} lúc ${this.formatTime(dateObj)}`;
     }
 }
 

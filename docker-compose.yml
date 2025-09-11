@@ -133,6 +133,7 @@ services:
       - DB_NAME=notification_db
       - DB_USER=notification_service
       - DB_PASSWORD=1
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./notification-service:/app
       - /app/node_modules
