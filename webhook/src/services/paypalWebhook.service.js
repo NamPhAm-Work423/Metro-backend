@@ -90,7 +90,7 @@ class PayPalWebhookService {
             // Determine target services
             const targetServices = this.determineTargetServices(eventData.event_type, businessData);
 
-            // Publish webhook event to payment service
+            // Publish webhook event to payment service only
             const publishResult = await this.publishWebhookEvent(webhookData, paypalHook);
 
             // Mark as processed
@@ -266,7 +266,7 @@ class PayPalWebhookService {
                 // Only publish to payment-service - let it handle the chain
                 services.push({
                     service: 'payment-service',
-                    topic: 'payment.completed',
+                    topic: 'paypal.payment.completed',
                     eventData: {
                         type: 'PAYMENT_COMPLETED',
                         paymentId: businessData.captureId,
@@ -283,7 +283,7 @@ class PayPalWebhookService {
                 services.push(
                     {
                         service: 'payment-service',
-                        topic: 'payment.failed',
+                        topic: 'paypal.payment.failed',
                         eventData: {
                             type: 'PAYMENT_FAILED',
                             paymentId: businessData.captureId,
@@ -301,7 +301,7 @@ class PayPalWebhookService {
                 services.push(
                     {
                         service: 'payment-service',
-                        topic: 'order.approved',
+                        topic: 'paypal.order.approved',
                         eventData: {
                             type: 'ORDER_APPROVED',
                             orderId: businessData.orderId,

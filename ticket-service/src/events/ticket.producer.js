@@ -33,6 +33,7 @@ async function publishTicketCreated(ticket, ticketType, options = {}) {
             ticketId: ticket.ticketId,
             paymentId: paymentId,
             passengerId: ticket.passengerId,
+            qrCode: ticket.qrCode,
             amount: ticket.totalPrice,
             ticketType: ticketType,
             ticketData: {
@@ -54,6 +55,8 @@ async function publishTicketCreated(ticket, ticketType, options = {}) {
         logger.info('Publishing ticket created event with URLs', {
             ticketId: ticket.ticketId,
             paymentId: paymentId,
+            hasQrCode: !!ticket.qrCode,
+            qrCodeLength: ticket.qrCode?.length || 0,
             hasPaymentSuccessUrl: !!options.paymentSuccessUrl,
             hasPaymentFailUrl: !!options.paymentFailUrl,
             paymentSuccessUrl: options.paymentSuccessUrl,
@@ -235,17 +238,14 @@ async function publishTicketActivated(ticket, paymentData) {
                 totalPassengers = Object.values(breakdown).reduce((total, count) => total + (typeof count === 'number' ? count : 0), 0);
             }
         }
-        // Default to 1 if still not calculated
         totalPassengers = totalPassengers || 1;
 
-        // Update ticket with calculated totalPassengers for enrichment
         ticket.totalPassengers = totalPassengers;
 
         // Enrich ticket data with human-readable information
         const enrichedTicketData = await TicketDataEnrichmentService.enrichTicketForEvent(ticket);
         
         const eventData = {
-            // Raw system data (for backward compatibility and system processing)
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
@@ -266,11 +266,9 @@ async function publishTicketActivated(ticket, paymentData) {
                 gatewayResponse: paymentData.gatewayResponse
             },
             
-            // Enriched display data (for notification templates)
             displayData: enrichedTicketData.displayData
         };
 
-        // Enhanced logging for debugging with enriched data
         logger.debug('Publishing ticket activated event with enriched data', {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,

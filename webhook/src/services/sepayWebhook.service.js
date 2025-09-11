@@ -112,18 +112,11 @@ class SepayWebhookService {
                 3600 // 1 hour TTL
             );
 
-            // Extract business data
             const businessData = this.extractBusinessData(eventData);
 
-            // Determine target services
-            const eventType = eventData.event_type || null; // SePay bank webhooks don't have event_type
-            const targetServices = this.determineTargetServices(eventType, businessData);
-
-            // Publish webhook event to payment service
             const webhookPublishResult = await this.publishWebhookEvent(webhookData, sepayHook);
 
-            // Publish additional events to Kafka
-            const publishResults = await this.publishEvents(targetServices, sepayHook);
+            const publishResults = [];
 
             // Mark as processed
             await sepayHook.markAsProcessed();
@@ -406,7 +399,7 @@ class SepayWebhookService {
                 // Only publish to payment-service - let it handle the chain
                 services.push({
                     service: 'payment-service',
-                    topic: 'payment.completed',
+                    topic: 'sepay.payment.completed',
                     eventData: {
                         type: 'PAYMENT_COMPLETED',
                         paymentId: businessData.captureId,
@@ -516,7 +509,7 @@ class SepayWebhookService {
 
         services.push({
             service: 'payment-service',
-            topic: 'payment.completed',
+            topic: 'sepay.payment.completed',
             eventData: {
                 type: 'PAYMENT_COMPLETED',
                 paymentId: businessData.orderId, // ticket ID used as payment lookup

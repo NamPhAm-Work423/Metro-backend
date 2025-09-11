@@ -100,7 +100,6 @@ class PaymentCompletionHandler {
             previousStatus: ticket.status,
             newStatus: updateData.status,
             isActive: updateData.status === 'active',
-            isPaymentConfirmed: updateData.status === 'payment_confirmed',
             paymentMethod: paymentData.paymentMethod,
             webhookProcessed: paymentData.webhookProcessed || false,
             activatedAt: updateData.activatedAt

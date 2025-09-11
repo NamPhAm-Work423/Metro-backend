@@ -1,5 +1,6 @@
 const { Ticket, Fare, Promotion } = require('../../../models/index.model');
 const { logger } = require('../../../config/logger');
+const crypto = require('crypto');
 
 class TicketCommunicationService {
     constructor() {
@@ -152,28 +153,25 @@ class TicketCommunicationService {
                 throw new Error('Unauthorized: Ticket does not belong to this passenger');
             }
             
-            const qrData = {
-                ticketId: ticket.ticketId,
-                passengerId: ticket.passengerId,
-                validFrom: ticket.validFrom,
-                validUntil: ticket.validUntil,
-                status: ticket.status,
-                totalPrice: ticket.totalPrice,
-                generatedAt: new Date().toISOString()
-            };
-            
-            // Generate QR code (in real implementation, you would use a QR code library)
-            const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString('base64');
+            // Generate compact QR: only ticketId + signature
+            const secret = process.env.TICKET_QR_SECRET;
+            if (!secret) {
+                throw new Error('TICKET_QR_SECRET is not configured');
+            }
+
+            const signature = crypto
+                .createHmac('sha256', secret)
+                .update(String(ticket.ticketId))
+                .digest('hex');
+
+            const payload = { ticketId: ticket.ticketId, signature };
+            const qrCodeData = Buffer.from(JSON.stringify(payload)).toString('base64');
             
             logger.info('Ticket with QR code retrieved', { ticketId, passengerId });
             
             return {
                 ticket,
-                qrCode: {
-                    data: qrCodeData,
-                    format: 'base64',
-                    metadata: qrData
-                }
+                qrCode: { data: qrCodeData, format: 'base64', metadata: payload }
             };
         } catch (error) {
             logger.error('Error getting ticket with QR', { error: error.message, ticketId });

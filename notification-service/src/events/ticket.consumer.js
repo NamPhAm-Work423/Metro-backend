@@ -119,36 +119,13 @@ class TicketConsumer {
         });
 
         try {
-            // Simple QR code parsing for departure info
-            let departureInfo = { date: null, time: null };
-            let actualTotalPassengers = totalPassengers || 1;
-            
-            if (qrCode) {
-                try {
-                    const qrData = JSON.parse(Buffer.from(qrCode, 'base64').toString());
-                    
-                    // Extract departure time from validFrom
-                    if (qrData.validFrom) {
-                        const validFromDate = new Date(qrData.validFrom);
-                        departureInfo.date = this.formatDate(validFromDate);
-                        departureInfo.time = this.formatTime(validFromDate);
-                    }
-                    
-                    // Get total passengers from QR data
-                    if (qrData.totalPassengers) {
-                        actualTotalPassengers = qrData.totalPassengers;
-                    }
-                } catch (qrParseError) {
-                    logger.warn('Failed to parse QR code, using fallback', { ticketId, error: qrParseError.message });
-                }
-            }
-            
-            // Fallback to activatedAt if QR parsing failed
-            if (!departureInfo.date) {
-                const fallbackDate = activatedAt ? new Date(activatedAt) : new Date();
-                departureInfo.date = this.formatDate(fallbackDate);
-                departureInfo.time = this.formatTime(fallbackDate);
-            }
+            // Departure info now derived from activation time, since QR contains only ticketId/signature
+            const fallbackDate = activatedAt ? new Date(activatedAt) : new Date();
+            const departureInfo = {
+                date: this.formatDate(fallbackDate),
+                time: this.formatTime(fallbackDate)
+            };
+            const actualTotalPassengers = totalPassengers || 1;
 
             // Use enriched display data from ticket service if available, otherwise fallback to local formatting
             const displayData = payload.displayData || {};
@@ -163,7 +140,6 @@ class TicketConsumer {
             const ticketData = {
                 ticketId: ticketId,
                 qrCode: qrCode,
-                // Use enriched data from ticket service with fallbacks
                 price: displayData.formattedPrice || this.formatCurrency(Number(totalPrice)),
                 ticketType: displayData.ticketTypeName || (ticketType ? this.getTicketTypeName(ticketType, actualTotalPassengers) : this.getTicketType(actualTotalPassengers)),
                 departureDate: displayData.departureDate || departureInfo.date,
@@ -206,67 +182,12 @@ class TicketConsumer {
 
             // Enhanced QR image generation and publishing to public-service
             let qrCodeImage = null;
-            let parsedQrData = null;
             
             try {
                 if (qrCode) {
-                    // First, try to parse the base64 encoded JSON data from ticket service
-                    try {
-                        const decodedJsonString = Buffer.from(qrCode, 'base64').toString('utf8');
-                        parsedQrData = JSON.parse(decodedJsonString);
-                        
-                        logger.info('Successfully parsed QR data from ticket service', {
-                            ticketId,
-                            qrDataFields: Object.keys(parsedQrData),
-                            hasTicketId: !!parsedQrData.ticketId,
-                            hasPassengerId: !!parsedQrData.passengerId,
-                            originalDataSize: qrCode.length,
-                            decodedSize: decodedJsonString.length
-                        });
-                    } catch (parseError) {
-                        logger.warn('Failed to parse base64 QR data as JSON, treating as plain text', {
-                            ticketId,
-                            parseError: parseError.message,
-                            qrCodeLength: qrCode.length
-                        });
-                        // If parsing fails, use qrCode as is
-                        parsedQrData = null;
-                    }
-                    
-                    // Create simplified QR content for actual QR code generation
-                    let qrContent;
-                    if (parsedQrData) {
-                        // Use simplified data for QR code to ensure scannability
-                        qrContent = JSON.stringify({
-                            id: parsedQrData.ticketId || ticketId,
-                            passenger: parsedQrData.passengerId,
-                            from: parsedQrData.originStationId || payload.originStationId,
-                            to: parsedQrData.destinationStationId || payload.destinationStationId,
-                            valid: parsedQrData.validFrom,
-                            expires: parsedQrData.validUntil,
-                            type: parsedQrData.ticketType || ticketType,
-                            passengers: parsedQrData.totalPassengers || actualTotalPassengers
-                        });
-                    } else if (typeof qrCode === 'string' && qrCode.length < 500) {
-                        // Use original QR code if it's not too long
-                        qrContent = qrCode;
-                    } else {
-                        // Fallback to ticket ID
-                        qrContent = ticketId;
-                    }
-                    
-                    // Ensure QR content is not too long (QR codes have size limits)
-                    if (qrContent.length > 800) {
-                        logger.warn('QR content too long, using simplified version', {
-                            ticketId,
-                            originalLength: qrContent.length
-                        });
-                        qrContent = JSON.stringify({
-                            id: ticketId,
-                            valid: parsedQrData?.validFrom || new Date().toISOString()
-                        });
-                    }
-                    
+                    // Use the provided qrCode string directly as the QR content
+                    const qrContent = String(qrCode);
+
                     // Generate QR code as base64 data (without data URL prefix)
                     const qrDataUrl = await QRCode.toDataURL(qrContent, {
                         errorCorrectionLevel: 'M',
@@ -298,8 +219,7 @@ class TicketConsumer {
                         logger.info('QR code published and URL generated successfully', { 
                             ticketId, 
                             qrContentLength: qrContent.length,
-                            qrUrl: qrCodeImage,
-                            usedParsedData: !!parsedQrData
+                            qrUrl: qrCodeImage
                         });
                     }
                 } else {
@@ -311,8 +231,7 @@ class TicketConsumer {
                     error: qrErr.message, 
                     stack: qrErr.stack,
                     qrCodeType: typeof qrCode,
-                    qrCodeLength: qrCode?.length || 0,
-                    hasParsedData: !!parsedQrData
+                    qrCodeLength: qrCode?.length || 0
                 });
                 qrCodeImage = null;
             }
@@ -327,8 +246,8 @@ class TicketConsumer {
             const finalVariables = {
                 ticketId: templateVariables.ticketId || ticketId,
                 passengerName: templateVariables.passengerName || 'Customer',
-                fromStation: templateVariables.fromStation || this.getStationName(payload.originStationId),
-                toStation: templateVariables.toStation || this.getStationName(payload.destinationStationId),
+                fromStation: templateVariables.fromStation || 'Unknown',
+                toStation: templateVariables.toStation || 'Unknown',
                 departureDate: templateVariables.departureDate || new Date().toLocaleDateString('vi-VN'),
                 departureTime: templateVariables.departureTime || new Date().toLocaleTimeString('vi-VN'),
                 price: templateVariables.price || this.formatCurrency(Number(totalPrice || 0)),
@@ -829,75 +748,7 @@ class TicketConsumer {
         }
     }
 
-    /**
-     * Test QR code generation functionality
-     * @param {string} ticketId - Test ticket ID
-     * @returns {Promise<Object>} Test result
-     */
-    async testQRCodeGeneration(ticketId = 'TEST_TICKET_001') {
-        try {
-            logger.info('Testing QR code generation', { ticketId });
-            
-            // Create test QR content
-            const testQrContent = JSON.stringify({
-                id: ticketId,
-                passenger: 'TEST_PASSENGER_001',
-                from: 'BEN_THANH',
-                to: 'BA_SON',
-                valid: new Date().toISOString(),
-                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                type: 'one_way',
-                passengers: 1
-            });
-            
-            // Test QR code image generation
-            const qrCodeImage = await QRCode.toDataURL(testQrContent, {
-                errorCorrectionLevel: 'M',
-                type: 'image/png',
-                quality: 0.92,
-                margin: 1,
-                width: 200,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            });
-            
-            const isValidImage = qrCodeImage.startsWith('data:image/png;base64,');
-            const base64Data = qrCodeImage.split(',')[1];
-            const imageSize = base64Data ? base64Data.length : 0;
-            
-            logger.info('QR code generation test completed', {
-                ticketId,
-                success: isValidImage,
-                qrContentLength: testQrContent.length,
-                imageSize,
-                imageFormat: isValidImage ? 'PNG' : 'UNKNOWN'
-            });
-            
-            return {
-                success: isValidImage,
-                ticketId,
-                qrContent: testQrContent,
-                qrCodeImage: isValidImage ? qrCodeImage : null,
-                imageSize,
-                error: isValidImage ? null : 'Invalid image format'
-            };
-        } catch (error) {
-            logger.error('QR code generation test failed', {
-                ticketId,
-                error: error.message,
-                stack: error.stack
-            });
-            
-            return {
-                success: false,
-                ticketId,
-                error: error.message
-            };
-        }
-    }
-
+    
 
 }
 

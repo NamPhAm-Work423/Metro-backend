@@ -407,7 +407,6 @@ class TicketDataEnrichmentService {
             'expired': 'Hết hạn',
             'cancelled': 'Đã hủy',
             'pending_payment': 'Chờ thanh toán',
-            'payment_confirmed': 'Đã thanh toán'
         };
         
         return statusMap[status] || status;

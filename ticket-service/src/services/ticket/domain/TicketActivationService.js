@@ -15,7 +15,7 @@ class TicketActivationService {
             throw new Error('Ticket is already active');
         }
 
-        if (!['payment_confirmed', 'inactive'].includes(ticket.status)) {
+        if (!['inactive'].includes(ticket.status)) {
             throw new Error('Ticket must be paid before activation');
         }
 
