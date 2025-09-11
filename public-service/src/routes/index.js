@@ -5,6 +5,7 @@ const router = express.Router();
 const cacheRoutes = require('./cache.route');
 const ticketRoutes = require('./ticket.route');
 const transportRoutes = require('./transport.route');
+const qrRoutes = require('./qr.route');
 const healthController = require('../controllers/health.controller');
 
 // Health check routes
@@ -33,5 +34,8 @@ router.use('/ticket', ticketRoutes);
 
 // Transport routes  
 router.use('/transport', transportRoutes);
+
+// QR routes
+router.use('/qr', qrRoutes);
 
 module.exports = router; 

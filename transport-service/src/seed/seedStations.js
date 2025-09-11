@@ -1231,7 +1231,7 @@ requiredStationNames.forEach((name) => {
 
 const seedStations = async () => {
   try {
-    console.log('🚇 Bắt đầu seed dữ liệu ga Metro TPHCM...');
+    console.log('Bắt đầu seed dữ liệu ga Metro TPHCM...');
     
     // Xóa dữ liệu cũ nếu có
     await Station.destroy({ where: {} });
@@ -1245,15 +1245,15 @@ const seedStations = async () => {
     // Thêm dữ liệu mới
     const stations = await Station.bulkCreate(stationsWithIds);
     
-    console.log(`✅ Đã tạo thành công ${stations.length} ga Metro TPHCM`);
-    console.log('📍 Các ga đã tạo với simple IDs:');
+    console.log(`Đã tạo thành công ${stations.length} ga Metro TPHCM`);
+    console.log('Các ga đã tạo với simple IDs:');
     stations.forEach((station, index) => {
       console.log(`   ${index + 1}. ${station.stationId} -> ${station.name}`);
     });
     
     return stations;
   } catch (error) {
-    console.error('❌ Lỗi khi seed dữ liệu ga Metro:', error);
+    console.error('Lỗi khi seed dữ liệu ga Metro:', error);
     throw error;
   }
 };

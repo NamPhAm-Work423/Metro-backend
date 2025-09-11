@@ -8,7 +8,6 @@ const ticketController = new TicketController();
 const transitPassController = new TransitPassController();
 const passengerDiscountController = new PassengerDiscountController();
 
-// Bind controller methods to preserve 'this' context
 const getAllFares = ticketController.getAllFares.bind(ticketController);
 const getFaresByRoute = ticketController.getFaresByRoute.bind(ticketController);
 const searchFares = ticketController.searchFares.bind(ticketController);

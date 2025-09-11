@@ -1,6 +1,7 @@
 const { logger } = require('./config/logger');
 const App = require('./app');
 const SchedulerService = require('./services/scheduler.service');
+const qrService = require('./services/qr.service');
 
 /**
  * Initialize and start the public service
@@ -28,6 +29,10 @@ async function startService() {
         logger.info('Initializing scheduler service...');
         const schedulerService = new SchedulerService();
         await schedulerService.initialize();
+
+        // Start QR Kafka consumer
+        logger.info('Initializing QR Kafka consumer...');
+        await qrService.initializeConsumer();
         
         // Start HTTP server
         const expressApp = app.getApp();
@@ -65,6 +70,10 @@ async function startService() {
                 try {
                     // Stop scheduler
                     schedulerService.stop();
+                    // Stop QR consumer if exists
+                    if (qrService.consumer) {
+                        await qrService.consumer.stop();
+                    }
                     
                     logger.info('Server shutdown completed');
                     process.exit(0);

@@ -8,6 +8,7 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler.mi
 const routes = require('./routes');
 const { register, errorCount } = require('./config/metrics');
 const metricsMiddleware = require('./middlewares/metrics.middleware');
+const path = require('path');
 
 class App {
     constructor() {
@@ -46,6 +47,9 @@ class App {
         // Body parsing middleware
         this.app.use(express.json({ limit: '10mb' }));
         this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+        // Static hosting for QR images
+        this.app.use('/qr', express.static(path.join(__dirname, 'public', 'qr')));
 
         // Request logging middleware
         this.app.use((req, res, next) => {

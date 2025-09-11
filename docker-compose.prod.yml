@@ -248,8 +248,16 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
       promtail:
         condition: service_started
+    volumes:
+      - qr_images:/app/src/public/qr 
     networks:
       - backend-network
     logging: *default-logging
@@ -945,6 +953,8 @@ volumes:
   pgadmin_data:
     driver: local
   loki_data:
+    driver: local
+  qr_images:
     driver: local
     
 networks:

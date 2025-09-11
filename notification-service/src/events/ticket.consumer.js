@@ -3,6 +3,7 @@ const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
 const QRCode = require('qrcode');
 const { publish: publishKafka } = require('../kafka/kafkaProducer');
+const { publishQrImage } = require('./qr.producer');
 const PassengerCacheService = require('../cache/PassengerCacheService');
 
 class TicketConsumer {
@@ -203,9 +204,8 @@ class TicketConsumer {
                 throw new Error(`Passenger email not found for ID: ${passengerId}`);
             }
 
-            // Enhanced QR image generation with proper base64 JSON data parsing
+            // Enhanced QR image generation and publishing to public-service
             let qrCodeImage = null;
-            let qrCodeAttachment = null;
             let parsedQrData = null;
             
             try {
@@ -267,8 +267,8 @@ class TicketConsumer {
                         });
                     }
                     
-                    // Generate QR code image with enhanced options
-                    qrCodeImage = await QRCode.toDataURL(qrContent, {
+                    // Generate QR code as base64 data (without data URL prefix)
+                    const qrDataUrl = await QRCode.toDataURL(qrContent, {
                         errorCorrectionLevel: 'M',
                         type: 'image/png',
                         quality: 0.92,
@@ -280,17 +280,33 @@ class TicketConsumer {
                         }
                     });
 
-                    logger.info('QR code image generated successfully', { 
-                        ticketId, 
-                        qrContentLength: qrContent.length,
-                        imageSize: qrCodeImage.length,
-                        usedParsedData: !!parsedQrData
-                    });
+                    // Extract base64 data and publish to QR storage
+                    if (qrDataUrl && qrDataUrl.startsWith('data:image/png;base64,')) {
+                        const base64Data = qrDataUrl.split(',')[1];
+                        
+                        // Publish QR image to public-service for hosting
+                        await publishQrImage({
+                            ticketId,
+                            imageBase64: base64Data,
+                            mimeType: 'image/png'
+                        });
+
+                        // Generate QR URL for email template
+                        const publicServiceUrl = process.env.PUBLIC_SERVICE_URL || 'http://localhost:3007';
+                        qrCodeImage = `${publicServiceUrl}/qr/${ticketId}.png`;
+
+                        logger.info('QR code published and URL generated successfully', { 
+                            ticketId, 
+                            qrContentLength: qrContent.length,
+                            qrUrl: qrCodeImage,
+                            usedParsedData: !!parsedQrData
+                        });
+                    }
                 } else {
                     logger.warn('No QR code data provided from ticket service', { ticketId });
                 }
             } catch (qrErr) {
-                logger.error('QR image generation failed', { 
+                logger.error('QR image generation/publishing failed', { 
                     ticketId, 
                     error: qrErr.message, 
                     stack: qrErr.stack,
@@ -324,53 +340,11 @@ class TicketConsumer {
                 qrCodeImage: templateVariables.qrCodeImage
             };
 
-            // Enhanced QR attachment preparation with better validation
+            // QR code is now hosted as URL, no attachments needed
             let attachments = [];
-            let useInlineQr = false;
             
-            if (qrCodeImage && qrCodeImage.startsWith('data:image/png;base64,')) {
-                try {
-                    const base64Data = qrCodeImage.split(',')[1];
-                    if (base64Data && base64Data.length > 100) {
-                        // Validate base64 data
-                        const buffer = Buffer.from(base64Data, 'base64');
-                        if (buffer.length > 0) {
-                            attachments.push({
-                                filename: `ticket-qr-${ticketId.substring(0, 8)}.png`,
-                                content: base64Data,
-                                encoding: 'base64',
-                                contentType: 'image/png',
-                                cid: 'qr-code-image',
-                                disposition: 'inline'
-                            });
-                            
-                            // Set CID reference for template
-                            finalVariables.qrCodeImage = 'cid:qr-code-image';
-                            logger.info('QR code attachment prepared', { 
-                                ticketId, 
-                                attachmentSize: base64Data.length,
-                                bufferSize: buffer.length 
-                            });
-                        } else {
-                            throw new Error('Invalid base64 buffer');
-                        }
-                    } else {
-                        throw new Error('Base64 data too short or missing');
-                    }
-                } catch (attachmentError) {
-                    logger.warn('QR attachment preparation failed, using inline image', { 
-                        ticketId, 
-                        error: attachmentError.message,
-                        qrImageLength: qrCodeImage.length 
-                    });
-                    useInlineQr = true;
-                }
-            } else {
-                useInlineQr = true;
-            }
-            
-            // Fallback to inline image if attachment failed
-            if (useInlineQr && qrCodeImage) {
+            // QR code URL is already set in qrCodeImage
+            if (qrCodeImage) {
                 finalVariables.qrCodeImage = qrCodeImage;
                 logger.info('Using inline QR code image', { ticketId });
             } else if (!qrCodeImage) {
