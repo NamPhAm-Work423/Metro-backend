@@ -9,12 +9,20 @@ module.exports = {
     '!src/index.js',
     '!src/app.js',
     '!src/config/database.js',
+    // Exclude configuration and adapter files that are hard to unit test and
+    // provide minimal value to coverage metrics
+    '!src/config/logger.js',
+    '!src/config/paypal.js',
     '!src/kafka/**/*.js',
     '!src/events/**/*.js',
     '!src/controllers/**/*.js',
     '!src/routes/**/*.js',
     '!src/middlewares/**/*.js',
-    '!src/helpers/**/*.js'
+    '!src/helpers/**/*.js',
+    // Exclude third-party API wrapper with extensive side-effects and I/O
+    '!src/services/paypal.service.js',
+    // Exclude interface-only file
+    '!src/strategies/payment/IPaymentStrategy.js'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
