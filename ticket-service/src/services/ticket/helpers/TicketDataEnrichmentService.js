@@ -307,15 +307,29 @@ class TicketDataEnrichmentService {
                 }
             };
 
-            // Add multi-use specific data
+            // Add validity data for all ticket types (needed for email templates)
+            if (ticket.validFrom && ticket.validUntil) {
+                enrichedData.displayData.validFromDate = isMultiUse ? 
+                    this.formatValidityDate(ticket.validFrom) : 
+                    this.formatDate(ticket.validFrom);
+                enrichedData.displayData.validFromTime = isMultiUse ? 
+                    this.formatValidityTime(ticket.validFrom) : 
+                    this.formatTime(ticket.validFrom);
+                enrichedData.displayData.validUntilDate = isMultiUse ? 
+                    this.formatValidityDate(ticket.validUntil) : 
+                    this.formatDate(ticket.validUntil);
+                enrichedData.displayData.validUntilTime = isMultiUse ? 
+                    this.formatValidityTime(ticket.validUntil) : 
+                    this.formatTime(ticket.validUntil);
+                enrichedData.displayData.validUntilDateTime = isMultiUse ? 
+                    this.formatValidityDateTime(ticket.validUntil) : 
+                    `${this.formatDate(ticket.validUntil)} lúc ${this.formatTime(ticket.validUntil)}`;
+                enrichedData.displayData.activationDate = this.formatDate(ticket.activatedAt || ticket.createdAt);
+            }
+
+            // Add multi-use specific usage statistics
             if (isMultiUse) {
                 const usageStats = this.calculateUsageStats(ticket);
-                enrichedData.displayData.validFromDate = this.formatValidityDate(ticket.validFrom);
-                enrichedData.displayData.validFromTime = this.formatValidityTime(ticket.validFrom);
-                enrichedData.displayData.validUntilDate = this.formatValidityDate(ticket.validUntil);
-                enrichedData.displayData.validUntilTime = this.formatValidityTime(ticket.validUntil);
-                enrichedData.displayData.validUntilDateTime = this.formatValidityDateTime(ticket.validUntil);
-                enrichedData.displayData.activationDate = this.formatDate(ticket.activatedAt || ticket.createdAt);
                 enrichedData.displayData.usageStats = usageStats;
             }
 
@@ -383,13 +397,23 @@ class TicketDataEnrichmentService {
                     departureTime: this.formatTime(new Date()),
                     statusText: ticket.status || 'active',
                     totalPassengersText: this.getTotalPassengersText(ticket.totalPassengers || 1),
-                    // Multi-use fallback data
-                    validFromDate: isMultiUse ? this.formatValidityDate(ticket.validFrom || new Date()) : null,
-                    validFromTime: isMultiUse ? this.formatValidityTime(ticket.validFrom || new Date()) : null,
-                    validUntilDate: isMultiUse ? this.formatValidityDate(ticket.validUntil || new Date()) : null,
-                    validUntilTime: isMultiUse ? this.formatValidityTime(ticket.validUntil || new Date()) : null,
-                    validUntilDateTime: isMultiUse ? this.formatValidityDateTime(ticket.validUntil || new Date()) : null,
-                    activationDate: isMultiUse ? this.formatDate(ticket.activatedAt || ticket.createdAt || new Date()) : null,
+                    validFromDate: ticket.validFrom ? 
+                        (isMultiUse ? this.formatValidityDate(ticket.validFrom) : this.formatDate(ticket.validFrom)) : 
+                        this.formatDate(new Date()),
+                    validFromTime: ticket.validFrom ? 
+                        (isMultiUse ? this.formatValidityTime(ticket.validFrom) : this.formatTime(ticket.validFrom)) : 
+                        this.formatTime(new Date()),
+                    validUntilDate: ticket.validUntil ? 
+                        (isMultiUse ? this.formatValidityDate(ticket.validUntil) : this.formatDate(ticket.validUntil)) : 
+                        this.formatDate(new Date()),
+                    validUntilTime: ticket.validUntil ? 
+                        (isMultiUse ? this.formatValidityTime(ticket.validUntil) : this.formatTime(ticket.validUntil)) : 
+                        this.formatTime(new Date()),
+                    validUntilDateTime: ticket.validUntil ? 
+                        (isMultiUse ? this.formatValidityDateTime(ticket.validUntil) : 
+                         `${this.formatDate(ticket.validUntil)} lúc ${this.formatTime(ticket.validUntil)}`) : 
+                        `${this.formatDate(new Date())} lúc ${this.formatTime(new Date())}`,
+                    activationDate: this.formatDate(ticket.activatedAt || ticket.createdAt || new Date()),
                     usageStats: isMultiUse ? this.calculateUsageStats(ticket) : null
                 }
             };

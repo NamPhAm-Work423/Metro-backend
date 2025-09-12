@@ -9,7 +9,7 @@ module.exports = {
     '!src/services/templates/**/*',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: {
     global: {
       lines: 75,

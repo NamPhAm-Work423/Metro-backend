@@ -8,7 +8,7 @@ module.exports = {
     'src/services/**/*.js'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: process.env.ENFORCE_COVERAGE === 'true' ? {
     global: {
       lines: 90,

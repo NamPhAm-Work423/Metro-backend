@@ -16,7 +16,7 @@ module.exports = {
     '!src/swagger/**'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: {
     global: {
       lines: 90,

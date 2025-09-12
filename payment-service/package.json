@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest --config ./jest.config.js --coverage=false",
+    "test": "jest --config ./jest.config.js",
+    "test:coverage": "jest --config ./jest.config.js --coverage",
+    "coverage:csv": "npm run test:coverage --silent && node scripts/coverage-to-csv.js",
     "test:unit": "jest --config ./jest.config.js --runInBand"
   },
   "dependencies": {

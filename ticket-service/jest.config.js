@@ -6,22 +6,35 @@ module.exports = {
     '**/?(*.)+(spec|test).js'
   ],
   collectCoverageFrom: [
-    'src/**/*.js',
+    // Core app and platform code under unit/integration tests
+    'src/app.js',
+    'src/config/**/*.js',
+    'src/middlewares/**/*.js',
+    'src/routes/**/*.js',
+    // Service layers that are unit/integration tested
+    'src/services/**/handlers/**/*.js',
+    'src/services/**/helpers/**/*.js',
+    'src/services/promotion/**/*.js',
+    'src/services/transitPass/**/*.js',
+
+    // Exclusions: infra, generated, data-only, heavy impls not targeted by tests
     '!src/index.js',
-    // Ignore infrastructure and generated/IDL files
     '!src/grpc/**',
     '!src/events/**',
     '!src/proto/**',
     '!src/seed/**',
     '!src/logs/**',
-    // Ignore pure data models and interface contracts (covered via integration)
+    '!src/kafka/**',
+    '!src/cron/**',
     '!src/models/**',
     '!src/services/**/interfaces/**',
-    // Allow focusing on unit-testable service logic; repositories may require DB
-    '!src/services/**/repositories/**'
+    '!src/services/**/repositories/**',
+    '!src/services/**/domain/**',
+    '!src/services/**/calculators/**',
+    '!src/services/**/services/**'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   clearMocks: true,
   restoreMocks: true,

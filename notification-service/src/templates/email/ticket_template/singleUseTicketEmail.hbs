@@ -215,16 +215,16 @@
                             <!-- Travel Date -->
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
                                 <tr>
-                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">📅 Ngày đi:</td>
-                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureDate}}</td>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">📅 Ngày hiệu lực:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{validFromDate}} lúc {{validFromTime}}</td>
                                 </tr>
                             </table>
                             
                             <!-- Travel Time -->
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-bottom: 1px solid #e9ecef;">
                                 <tr>
-                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">🕐 Giờ đi:</td>
-                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{departureTime}}</td>
+                                    <td style="padding: 12px 0; color: #6c757d; font-weight: 500; font-size: 14px;">⏰ Ngày hết hạn:</td>
+                                    <td align="right" style="padding: 12px 0; color: #495057; font-weight: 600; font-size: 14px;">{{validUntilDate}} lúc {{validUntilTime}}</td>
                                 </tr>
                             </table>
                             
@@ -258,9 +258,15 @@
                 <!-- Single Trip Warning -->
                 <div class="single-trip-warning">
                     <strong>⚠️ LƯU Ý: VÉ CHỈ SỬ DỤNG MỘT LẦN</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #8b4513;">
-                        Vé này chỉ có thể sử dụng một lần duy nhất cho chuyến đi từ <strong>{{fromStation}}</strong> đến <strong>{{toStation}}</strong>
-                    </p>
+                    {{#if isReturnTicket}}
+                        <p style="margin: 5px 0 0 0; font-size: 14px; color: #8b4513;">
+                            Vé này chỉ có thể sử dụng một lần duy nhất cho chuyến <strong>đi và về</strong> từ <strong>{{fromStation}}</strong> đến <strong>{{toStation}}</strong>
+                        </p>
+                    {{else}}
+                        <p style="margin: 5px 0 0 0; font-size: 14px; color: #8b4513;">
+                            Vé này chỉ có thể sử dụng một lần duy nhất cho chuyến đi từ <strong>{{fromStation}}</strong> đến <strong>{{toStation}}</strong>
+                        </p>
+                    {{/if}}
                 </div>
 
                 <!-- QR Code Section -->

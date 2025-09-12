@@ -119,49 +119,34 @@ class TicketConsumer {
         });
 
         try {
-            // Departure info now derived from activation time, since QR contains only ticketId/signature
-            const fallbackDate = activatedAt ? new Date(activatedAt) : new Date();
-            const departureInfo = {
-                date: this.formatDate(fallbackDate),
-                time: this.formatTime(fallbackDate)
-            };
             const actualTotalPassengers = totalPassengers || 1;
 
-            // Use enriched display data from ticket service if available, otherwise fallback to local formatting
+            // Trust enriched display data from TicketDataEnrichmentService 
             const displayData = payload.displayData || {};
             
-            // Get template name from enriched data or determine from ticket type
-            const templateName = payload.templateName || this.getEmailTemplateName(ticketType);
+            // Get template name from enriched data
+            const templateName = payload.templateName || 'singleUseTicketEmail'; //fallback
             
-            // Debug template selection
-            logger.info('Template selection debug', {
-                ticketId,
-                ticketType,
-                payloadTemplateName: payload.templateName,
-                calculatedTemplate: this.getEmailTemplateName(ticketType),
-                finalTemplate: templateName,
-                isMultiUseFromPayload: payload.isMultiUse
-            });
-            
-            logger.info('Processing ticket activation with display data', {
+            logger.info('Processing ticket activation with enriched data', {
                 ticketId,
                 hasDisplayData: !!payload.displayData,
                 displayDataFields: payload.displayData ? Object.keys(payload.displayData) : [],
                 templateName: templateName,
                 ticketType: ticketType,
                 isMultiUse: payload.isMultiUse,
-                fallbackUsed: !payload.displayData
+                enrichedDataUsed: !!payload.displayData
             });
             
+            // Use enriched data directly - no more local formatting
             const ticketData = {
                 ticketId: ticketId,
                 qrCode: qrCode,
-                price: displayData.formattedPrice || this.formatCurrency(Number(totalPrice)),
-                ticketType: displayData.ticketTypeName || (ticketType ? this.getTicketTypeName(ticketType, actualTotalPassengers) : this.getTicketType(actualTotalPassengers)),
-                departureDate: displayData.departureDate || departureInfo.date,
-                departureTime: displayData.departureTime || departureInfo.time,
-                fromStation: displayData.fromStationName  || 'Unknown',
-                toStation: displayData.toStationName || 'Unknown',
+                price: displayData.formattedPrice || '0 ₫', // minimal fallback
+                ticketType: displayData.ticketTypeName || 'Vé một chiều', // minimal fallback
+                departureDate: displayData.departureDate || new Date().toLocaleDateString('vi-VN'),
+                departureTime: displayData.departureTime || new Date().toLocaleTimeString('vi-VN'),
+                fromStation: displayData.fromStationName || 'Không xác định',
+                toStation: displayData.toStationName || 'Không xác định',
                 isActive: (status ? status === 'active' : false),
                 paymentMethod: paymentMethod || paymentData?.paymentMethod,
                 totalPassengers: actualTotalPassengers
@@ -259,9 +244,26 @@ class TicketConsumer {
                 qrCodeImage
             };
 
-            // Add multi-use specific variables if needed
+            // Add validity range variables for both single-use and multi-use
             const isMultiUseTemplate = templateName.includes('multiUse');
-            if (payload.isMultiUse && displayData) {
+
+            // Debug incoming/derived date sources for template
+            logger.info('Activation date inputs', {
+                payloadValidFrom: payload.validFrom,
+                payloadValidUntil: payload.validUntil,
+                payloadTicketValidFrom: payload.ticket?.validFrom,
+                payloadTicketValidUntil: payload.ticket?.validUntil,
+                displayDataValidFromDate: displayData?.validFromDate,
+                displayDataValidFromTime: displayData?.validFromTime,
+                displayDataValidUntilDate: displayData?.validUntilDate,
+                displayDataValidUntilTime: displayData?.validUntilTime,
+                templateName,
+                isMultiUseTemplate
+            });
+            
+            // Trust enriched validity data from TicketDataEnrichmentService
+            if (displayData?.validFromDate || displayData?.validUntilDate) {
+                // Use pre-formatted validity data from enrichment service
                 templateVariables.validFromDate = displayData.validFromDate;
                 templateVariables.validFromTime = displayData.validFromTime;
                 templateVariables.validUntilDate = displayData.validUntilDate;
@@ -269,41 +271,61 @@ class TicketConsumer {
                 templateVariables.validUntilDateTime = displayData.validUntilDateTime;
                 templateVariables.activationDate = displayData.activationDate;
                 templateVariables.usageStats = displayData.usageStats;
-            } else if (isMultiUseTemplate) {
-                // Protection: If using multi-use template but missing data, provide fallbacks
+                
+                logger.info('Using enriched validity data from TicketDataEnrichmentService', {
+                    ticketId,
+                    validFromDate: displayData.validFromDate,
+                    validUntilDate: displayData.validUntilDate
+                });
+            } else if (payload.validFrom && payload.validUntil) {
+                // Minimal fallback when enrichment service didn't provide formatted dates
+                const from = new Date(payload.validFrom);
+                const until = new Date(payload.validUntil);
+                templateVariables.validFromDate = from.toLocaleDateString('vi-VN');
+                templateVariables.validFromTime = from.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                templateVariables.validUntilDate = until.toLocaleDateString('vi-VN');
+                templateVariables.validUntilTime = until.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                templateVariables.validUntilDateTime = `${templateVariables.validUntilDate} lúc ${templateVariables.validUntilTime}`;
+                templateVariables.activationDate = templateVariables.validFromDate;
+                
+                logger.warn('Using payload validity dates with minimal formatting (enrichment service data missing)', {
+                    ticketId,
+                    validFrom: payload.validFrom,
+                    validUntil: payload.validUntil
+                });
+            } else {
+                // Emergency fallback - should rarely happen with proper enrichment service
                 const now = new Date();
                 const nextDay = new Date(now.getTime() + 24*60*60*1000);
-                templateVariables.validFromDate = this.formatDate(now);
-                templateVariables.validFromTime = this.formatTime(now);
-                templateVariables.validUntilDate = this.formatDate(nextDay);
-                templateVariables.validUntilTime = this.formatTime(nextDay);
-                templateVariables.validUntilDateTime = `${templateVariables.validUntilDate} lúc ${this.formatTime(nextDay)}`;
-                templateVariables.activationDate = this.formatDate(now);
-                templateVariables.usageStats = { totalTrips: 0, daysRemaining: 1, lastUsed: 'Chưa sử dụng' };
+                templateVariables.validFromDate = now.toLocaleDateString('vi-VN');
+                templateVariables.validFromTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                templateVariables.validUntilDate = nextDay.toLocaleDateString('vi-VN');
+                templateVariables.validUntilTime = nextDay.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                templateVariables.validUntilDateTime = `${templateVariables.validUntilDate} lúc ${templateVariables.validUntilTime}`;
+                templateVariables.activationDate = templateVariables.validFromDate;
+
+                if (isMultiUseTemplate) {
+                    templateVariables.usageStats = { totalTrips: 0, daysRemaining: 1, lastUsed: 'Chưa sử dụng' };
+                }
                 
-                logger.warn('Using multi-use template with fallback data for single-use ticket', {
+                logger.error('Emergency fallback for validity dates - enrichment service and payload both missing', {
                     ticketId,
                     ticketType,
                     templateName,
-                    reason: 'template_mismatch'
+                    payloadValidFrom: payload.validFrom,
+                    payloadValidUntil: payload.validUntil,
+                    hasDisplayData: !!displayData
                 });
             }
 
+            // Combine template variables with QR code and passenger data 
             const finalVariables = {
-                ticketId: templateVariables.ticketId || ticketId,
-                passengerName: templateVariables.passengerName || 'Customer',
-                fromStation: templateVariables.fromStation || 'Unknown',
-                toStation: templateVariables.toStation || 'Unknown',
-                departureDate: templateVariables.departureDate || new Date().toLocaleDateString('vi-VN'),
-                departureTime: templateVariables.departureTime || new Date().toLocaleTimeString('vi-VN'),
-                price: templateVariables.price || this.formatCurrency(Number(totalPrice || 0)),
-                ticketType: templateVariables.ticketType || this.getTicketTypeName(ticketType, actualTotalPassengers),
-                isActive: templateVariables.isActive !== undefined ? templateVariables.isActive : true,
-                paymentMethod: templateVariables.paymentMethod || paymentMethod,
-                totalPassengers: templateVariables.totalPassengers || actualTotalPassengers || 1,
-                qrCode: templateVariables.qrCode,
-                qrCodeImage: templateVariables.qrCodeImage,
-                // Multi-use specific variables
+                ...ticketData,
+                passengerName: passengerName,
+                qrCode: qrCode,
+                qrCodeImage,
+                rawTicketType: ticketType,
+                isReturnTicket: ticketType === 'return',
                 validFromDate: templateVariables.validFromDate,
                 validFromTime: templateVariables.validFromTime,
                 validUntilDate: templateVariables.validUntilDate,
@@ -312,6 +334,15 @@ class TicketConsumer {
                 activationDate: templateVariables.activationDate,
                 usageStats: templateVariables.usageStats
             };
+
+            // Log resolved values that will feed the email template
+            logger.info('Email variables date fields', {
+                validFromDate: finalVariables.validFromDate,
+                validFromTime: finalVariables.validFromTime,
+                validUntilDate: finalVariables.validUntilDate,
+                validUntilTime: finalVariables.validUntilTime,
+                validUntilDateTime: finalVariables.validUntilDateTime
+            });
 
             // QR code is now hosted as URL, no attachments needed
             let attachments = [];
@@ -699,10 +730,6 @@ class TicketConsumer {
                 ...failureData,
                 service: 'notification-service'
             });
-
-            // TODO: Optionally store in database for admin review and retry
-            // This could be implemented to store in a failed_notifications table
-            // for admin dashboard and retry mechanisms
             
         } catch (logError) {
             logger.error('Failed to log notification failure', {
@@ -711,131 +738,6 @@ class TicketConsumer {
             });
         }
     }
-
-    // Helper methods for data formatting and retrieval
-
-    /**
-     * Format currency for display
-     * @param {number} amount - Amount in VND
-     * @returns {string} Formatted currency string
-     */
-    formatCurrency(amount) {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
-    }
-
-    /**
-     * Format date for display
-     * @param {string|Date} date - Date to format
-     * @returns {string} Formatted date string
-     */
-    formatDate(date) {
-        return new Date(date).toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-    }
-
-    /**
-     * Format time for display
-     * @param {string|Date} date - Date to format
-     * @returns {string} Formatted time string
-     */
-    formatTime(date) {
-        return new Date(date).toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
-    /**
-     * Get ticket type based on passenger count
-     * @param {number} totalPassengers - Number of passengers
-     * @returns {string} Ticket type description
-     */
-    getTicketType(totalPassengers) {
-        if (totalPassengers === 1) return 'Vé một chiều';
-        if (totalPassengers > 1) return `Vé ${totalPassengers} hành khách`;
-        return 'Vé không xác định';
-    }
-
-    /**
-     * Get station name by ID (placeholder - implement based on your data)
-     * @param {string} stationId - Station ID
-     * @returns {string} Station name
-     */
-    getStationName(stationId) {
-        if (!stationId) return 'Unknown';
-        const normalized = String(stationId)
-            .trim()
-            .toUpperCase()
-            .replace(/-/g, '_');
-        const stationNames = {
-            'BEN_THANH': 'Bến Thành',
-            'SUI_TIEN': 'Suối Tiên',
-            'SUOI_TIEN': 'Suối Tiên',
-            'TAN_DINH': 'Tân Định',
-            'THI_NGHE': 'Thị Nghè',
-            'PHU_NHUAN': 'Phú Nhuận',
-            'GO_VAP': 'Gò Vấp',
-            'AN_DONG': 'An Đông',
-            'BA_SON': 'Ba Son'
-        };
-        return stationNames[normalized] || stationId;
-    }
-
-    /**
-     * Map ticket type code to localized name
-     */
-    getTicketTypeName(ticketType, totalPassengers) {
-        const type = String(ticketType || '').toLowerCase();
-        switch (type) {
-            case 'oneway':
-                return 'Vé một chiều';
-            case 'return':
-                return 'Vé khứ hồi';
-            case 'day_pass':
-                return 'Vé ngày';
-            case 'weekly_pass':
-                return 'Vé tuần';
-            case 'monthly_pass':
-                return 'Vé tháng';
-            case 'yearly_pass':
-                return 'Vé năm';
-            case 'lifetime_pass':
-                return 'Vé trọn đời';
-            default:
-                return this.getTicketType(totalPassengers);
-        }
-    }
-
-    /**
-     * Get email template name based on ticket type (fallback method)
-     * @param {string} ticketType - Ticket type enum
-     * @returns {string} Template filename without extension
-     */
-    getEmailTemplateName(ticketType) {
-        const SINGLE_USE_TICKET_TYPES = ['oneway', 'return'];
-        const type = String(ticketType || 'oneway').toLowerCase();
-        
-        const isSingleUse = SINGLE_USE_TICKET_TYPES.includes(type);
-        const result = isSingleUse ? 'singleUseTicketEmail' : 'multiUseTicketEmail';
-        
-        // Debug logging
-        logger.info('Template name calculation', {
-            inputTicketType: ticketType,
-            normalizedType: type,
-            isSingleUse,
-            resultTemplate: result
-        });
-        
-        return result;
-    }
-
-    
 
 }
 

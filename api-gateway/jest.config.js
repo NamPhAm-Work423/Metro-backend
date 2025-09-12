@@ -42,7 +42,7 @@ module.exports = {
     '<rootDir>/src/models/'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: process.env.ENFORCE_COVERAGE === 'true'
     ? {
         global: {

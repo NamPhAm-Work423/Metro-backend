@@ -191,13 +191,32 @@ Logs are written to:
 
 ## Development
 
-### Running Tests
+### Running Tests & Coverage CSV
 ```bash
-# Install test dependencies
-pip install pytest pytest-asyncio
+# Install test & coverage dependencies
+pip install -r requirements-dev.txt
 
-# Run tests
-pytest
+# Run tests with coverage reports
+pytest --cov=src --cov-report=term-missing --cov-report=html --cov-report=json:coverage.json
+
+# Export CSV from coverage.json
+python - << 'PY'
+import json, csv
+with open('coverage.json','r',encoding='utf-8') as f:
+    data = json.load(f)
+rows = [['file','statements_pct','statements_covered','statements_total','branches_pct','branches_covered','branches_total','functions_pct','functions_covered','functions_total','lines_pct','lines_covered','lines_total']]
+files = data.get('files') or {}
+for fname, metrics in files.items():
+    s = metrics.get('summary', {})
+    rows.append([
+        fname,
+        s.get('percent_covered', ''), s.get('covered_lines', ''), s.get('num_statements', ''),
+        '', '', '', '', '', '', s.get('percent_covered', ''), s.get('covered_lines', ''), s.get('num_statements', '')
+    ])
+with open('coverage-summary.csv','w',newline='',encoding='utf-8') as f:
+    csv.writer(f).writerows(rows)
+print('CSV written to coverage-summary.csv')
+PY
 ```
 
 ### Code Quality

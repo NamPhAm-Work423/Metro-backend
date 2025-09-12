@@ -260,6 +260,8 @@ async function publishTicketActivated(ticket, paymentData) {
             paymentStatus: paymentData.status,
             gatewayResponse: paymentData.gatewayResponse,
             activatedAt: ticket.activatedAt,
+            validFrom: ticket.validFrom,
+            validUntil: ticket.validUntil,
             status: 'active',
             templateName: enrichedTicketData.templateName,
             isMultiUse: enrichedTicketData.isMultiUse,
