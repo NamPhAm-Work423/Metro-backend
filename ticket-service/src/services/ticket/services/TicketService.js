@@ -101,14 +101,20 @@ class TicketService extends ITicketService {
             const payloadString = JSON.stringify(payload);
             const qrCodeData = Buffer.from(payloadString).toString('base64');
 
-            logger.debug('QR code generated successfully', {
+            logger.info('QR code generated successfully', {
                 ticketId,
-                encodedSize: qrCodeData.length
+                encodedSize: qrCodeData.length,
+                hasSecret: !!secret
             });
 
             return qrCodeData;
         } catch (error) {
-            logger.error('Failed to generate QR code', { error: error.message, ticketId });
+            logger.error('Failed to generate QR code', { 
+                error: error.message, 
+                ticketId,
+                hasSecret: !!process.env.TICKET_QR_SECRET,
+                stack: error.stack
+            });
             throw new Error(`QR code generation failed: ${error.message}`);
         }
     }
@@ -463,15 +469,22 @@ class TicketService extends ITicketService {
                 // Update the ticket object for return
                 ticket.qrCode = finalQrCodeData;
                 
-                logger.debug('Generated QR code with ticketId', {
+                logger.info('Generated QR code successfully for single-use ticket', {
                     ticketId: ticket.ticketId,
-                    passengerId: ticket.passengerId
+                    passengerId: ticket.passengerId,
+                    ticketType: ticket.ticketType,
+                    qrCodeLength: finalQrCodeData?.length || 0
                 });
             } catch (qrUpdateError) {
-                logger.warn('Failed to generate QR code', {
+                logger.error('Failed to generate QR code for single-use ticket', {
                     ticketId: ticket.ticketId,
-                    error: qrUpdateError.message
+                    passengerId: ticket.passengerId,
+                    ticketType: ticket.ticketType,
+                    error: qrUpdateError.message,
+                    stack: qrUpdateError.stack
                 });
+                // Don't throw error, but ensure qrCode is set to ticketId as fallback
+                ticket.qrCode = ticket.ticketId;
             }
 
             // Increment promotion usage only after successful ticket creation
@@ -663,16 +676,22 @@ class TicketService extends ITicketService {
                 // Update the ticket object for return
                 ticket.qrCode = finalQrCodeData;
                 
-                logger.debug('Generated pass QR code with ticketId', {
+                logger.info('Generated QR code successfully for multi-use ticket', {
                     ticketId: ticket.ticketId,
                     passengerId: ticket.passengerId,
-                    passType: ticketData.passType
+                    passType: ticketData.passType,
+                    qrCodeLength: finalQrCodeData?.length || 0
                 });
             } catch (qrUpdateError) {
-                logger.warn('Failed to generate pass QR code', {
+                logger.error('Failed to generate QR code for multi-use ticket', {
                     ticketId: ticket.ticketId,
-                    error: qrUpdateError.message
+                    passengerId: ticket.passengerId,
+                    passType: ticketData.passType,
+                    error: qrUpdateError.message,
+                    stack: qrUpdateError.stack
                 });
+                // Don't throw error, but ensure qrCode is set to ticketId as fallback
+                ticket.qrCode = ticket.ticketId;
             }
 
             // Increment promotion usage only after successful ticket creation
