@@ -81,9 +81,10 @@ const ticketService = {
         try {
             const { routeIds, statuses } = call.request;
             
-            logger.debug('gRPC GetPassengerIdsByRoutes called', {
+            logger.info('gRPC GetPassengerIdsByRoutes called', {
+                routeIds: routeIds,
                 routeIdsCount: routeIds?.length || 0,
-                statuses
+                statuses: statuses
             });
 
             if (!routeIds || routeIds.length === 0) {
@@ -100,10 +101,13 @@ const ticketService = {
                 statuses || ['active', 'inactive']
             );
 
-            logger.debug('gRPC GetPassengerIdsByRoutes success', {
-                requestedRoutes: routeIds.length,
-                uniquePassengers: result.passengerIds.length,
-                totalTraces: result.traces.length
+            logger.info('gRPC GetPassengerIdsByRoutes success', {
+                requestedRoutes: routeIds,
+                requestedRoutesCount: routeIds.length,
+                uniquePassengers: result.passengerIds,
+                uniquePassengersCount: result.passengerIds.length,
+                totalTraces: result.traces.length,
+                traces: result.traces
             });
 
             callback(null, {

@@ -381,6 +381,52 @@ class TicketService extends ITicketService {
                     paymentMethod: 'free',
                     qrCode: null
                 });
+
+                // Generate QR code for free ticket
+                logger.info('About to generate QR code for free single-use ticket', {
+                    ticketId: ticket.ticketId,
+                    ticketType: ticket.ticketType,
+                    paymentMethod: 'free',
+                    hasTicketObject: !!ticket,
+                    hasTicketId: !!ticket.ticketId
+                });
+
+                try {
+                    const freeTicketQrCodeData = this._generateQRCode(ticket.ticketId);
+                    
+                    await this.repository.update(ticket.ticketId, { qrCode: freeTicketQrCodeData });
+                    
+                    ticket.qrCode = freeTicketQrCodeData;
+                    
+                    await ticket.reload();
+                    
+                    logger.info('Generated and verified QR code successfully for free single-use ticket', {
+                        ticketId: ticket.ticketId,
+                        ticketType: ticket.ticketType,
+                        paymentMethod: 'free',
+                        qrCodeLength: freeTicketQrCodeData?.length || 0,
+                        qrCodeLengthAfterReload: ticket.qrCode?.length || 0,
+                        qrCodeMatches: ticket.qrCode === freeTicketQrCodeData
+                    });
+                } catch (freeQrUpdateError) {
+                    logger.error('Failed to generate QR code for free single-use ticket', {
+                        ticketId: ticket.ticketId,
+                        ticketType: ticket.ticketType,
+                        paymentMethod: 'free',
+                        error: freeQrUpdateError.message,
+                        stack: freeQrUpdateError.stack,
+                        errorName: freeQrUpdateError.name,
+                        errorCode: freeQrUpdateError.code
+                    });
+                    // Don't throw error, but ensure qrCode is set to ticketId as fallback
+                    ticket.qrCode = ticket.ticketId;
+                    
+                    logger.warn('Using ticketId as fallback QR code for free single-use ticket', {
+                        ticketId: ticket.ticketId,
+                        fallbackQrCode: ticket.ticketId
+                    });
+                }
+
                 try {
                     const syntheticPaymentId = `FREE_${ticket.ticketId}`;
                     await PaymentCompletionHandler.processPaymentCompletion(ticket, syntheticPaymentId, {
@@ -460,6 +506,14 @@ class TicketService extends ITicketService {
                 qrCode: null
             });
 
+            logger.info('About to generate QR code for single-use ticket', {
+                ticketId: ticket.ticketId,
+                ticketType: ticket.ticketType,
+                paymentMethod: ticketData.paymentMethod,
+                hasTicketObject: !!ticket,
+                hasTicketId: !!ticket.ticketId
+            });
+
             // Generate QR code based on ticketId after ticket creation
             try {
                 const finalQrCodeData = this._generateQRCode(ticket.ticketId);
@@ -469,22 +523,35 @@ class TicketService extends ITicketService {
                 // Update the ticket object for return
                 ticket.qrCode = finalQrCodeData;
                 
-                logger.info('Generated QR code successfully for single-use ticket', {
+                // Verify QR code was saved by reloading from database
+                await ticket.reload();
+                
+                logger.info('Generated and verified QR code successfully for single-use ticket', {
                     ticketId: ticket.ticketId,
                     passengerId: ticket.passengerId,
                     ticketType: ticket.ticketType,
-                    qrCodeLength: finalQrCodeData?.length || 0
+                    qrCodeLength: finalQrCodeData?.length || 0,
+                    qrCodeLengthAfterReload: ticket.qrCode?.length || 0,
+                    qrCodeMatches: ticket.qrCode === finalQrCodeData
                 });
             } catch (qrUpdateError) {
                 logger.error('Failed to generate QR code for single-use ticket', {
                     ticketId: ticket.ticketId,
                     passengerId: ticket.passengerId,
                     ticketType: ticket.ticketType,
+                    paymentMethod: ticketData.paymentMethod,
                     error: qrUpdateError.message,
-                    stack: qrUpdateError.stack
+                    stack: qrUpdateError.stack,
+                    errorName: qrUpdateError.name,
+                    errorCode: qrUpdateError.code
                 });
                 // Don't throw error, but ensure qrCode is set to ticketId as fallback
                 ticket.qrCode = ticket.ticketId;
+                
+                logger.warn('Using ticketId as fallback QR code for single-use ticket', {
+                    ticketId: ticket.ticketId,
+                    fallbackQrCode: ticket.ticketId
+                });
             }
 
             // Increment promotion usage only after successful ticket creation
@@ -676,11 +743,16 @@ class TicketService extends ITicketService {
                 // Update the ticket object for return
                 ticket.qrCode = finalQrCodeData;
                 
-                logger.info('Generated QR code successfully for multi-use ticket', {
+                // Verify QR code was saved by reloading from database
+                await ticket.reload();
+                
+                logger.info('Generated and verified QR code successfully for multi-use ticket', {
                     ticketId: ticket.ticketId,
                     passengerId: ticket.passengerId,
                     passType: ticketData.passType,
-                    qrCodeLength: finalQrCodeData?.length || 0
+                    qrCodeLength: finalQrCodeData?.length || 0,
+                    qrCodeLengthAfterReload: ticket.qrCode?.length || 0,
+                    qrCodeMatches: ticket.qrCode === finalQrCodeData
                 });
             } catch (qrUpdateError) {
                 logger.error('Failed to generate QR code for multi-use ticket', {

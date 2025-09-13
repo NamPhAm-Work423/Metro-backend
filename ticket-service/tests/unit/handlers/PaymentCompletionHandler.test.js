@@ -87,7 +87,8 @@ describe('PaymentCompletionHandler', () => {
                 ticketId: 'test-ticket',
                 status: 'pending_payment',
                 fareId: 'test-fare-id',
-                update: jest.fn().mockResolvedValue()
+                update: jest.fn().mockResolvedValue(),
+                reload: jest.fn().mockResolvedValue()
             };
         });
 

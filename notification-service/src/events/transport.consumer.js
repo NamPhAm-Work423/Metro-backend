@@ -229,8 +229,32 @@ class TransportEventConsumer {
 
             // Step 3: Filter tickets that actually contain the affected routes in fareBreakdown
             const relevantTickets = tickets.filter(ticket => {
+                logger.debug('Checking ticket for route matching', {
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId,
+                    hasFareBreakdown: !!ticket.fareBreakdown,
+                    routeIds,
+                    fareBreakdown: ticket.fareBreakdown ? {
+                        hasSegmentFares: !!ticket.fareBreakdown.segmentFares,
+                        segmentFaresCount: ticket.fareBreakdown.segmentFares?.length || 0,
+                        segmentFares: ticket.fareBreakdown.segmentFares?.map(s => ({ routeId: s.routeId })) || [],
+                        hasJourneyDetails: !!ticket.fareBreakdown.journeyDetails,
+                        hasRouteSegments: !!ticket.fareBreakdown.journeyDetails?.routeSegments,
+                        routeSegmentsCount: ticket.fareBreakdown.journeyDetails?.routeSegments?.length || 0,
+                        routeSegments: ticket.fareBreakdown.journeyDetails?.routeSegments?.map(s => ({ routeId: s.routeId })) || []
+                    } : null
+                });
+                
                 if (!ticket.fareBreakdown) return false;
-                return ticketGrpcClient.ticketContainsRoutes(ticket.fareBreakdown, routeIds);
+                
+                const result = ticketGrpcClient.ticketContainsRoutes(ticket.fareBreakdown, routeIds);
+                logger.debug('Ticket route matching result', {
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId,
+                    isMatch: result
+                });
+                
+                return result;
             });
 
             logger.info('Filtered relevant tickets', {

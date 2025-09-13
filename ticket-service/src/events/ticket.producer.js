@@ -274,7 +274,7 @@ async function publishTicketActivated(ticket, paymentData) {
             displayData: enrichedTicketData.displayData
         };
 
-        logger.debug('Publishing ticket activated event with enriched data', {
+        logger.info('Publishing ticket activated event with enriched data', {
             ticketId: ticket.ticketId,
             paymentId: ticket.paymentId,
             passengerId: ticket.passengerId,
@@ -285,6 +285,8 @@ async function publishTicketActivated(ticket, paymentData) {
             destinationStationId: ticket.destinationStationId,
             qrCodeLength: ticket.qrCode?.length || 0,
             hasQrCode: !!ticket.qrCode,
+            qrCodeValue: ticket.qrCode ? String(ticket.qrCode).substring(0, 50) + '...' : 'null',
+            qrCodeType: typeof ticket.qrCode,
             paymentMethod: paymentData.paymentMethod,
             paymentStatus: paymentData.status,
             enrichedDisplayData: {

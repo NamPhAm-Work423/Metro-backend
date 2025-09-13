@@ -203,52 +203,7 @@ class TicketGrpcClient {
         return false;
     }
 
-    /**
-     * Check if a ticket's fare breakdown contains any of the specified routes
-     * @param {Object} fareBreakdown - Ticket fare breakdown object
-     * @param {Array} routeIds - Array of route IDs to check for
-     * @returns {boolean} True if ticket contains any of the routes
-     */
-    ticketContainsRoutes(fareBreakdown, routeIds) {
-        if (!fareBreakdown || !routeIds || routeIds.length === 0) {
-            return false;
-        }
 
-        // Check if any route in fareBreakdown matches any of the routeIds
-        if (fareBreakdown.routes && Array.isArray(fareBreakdown.routes)) {
-            return fareBreakdown.routes.some(route => 
-                routeIds.includes(route.routeId || route.id)
-            );
-        }
-
-        // Check if fareBreakdown has routeId property directly
-        if (fareBreakdown.routeId && routeIds.includes(fareBreakdown.routeId)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Extract unique passenger IDs from an array of tickets
-     * @param {Array} tickets - Array of ticket objects
-     * @returns {Array} Array of unique passenger IDs
-     */
-    extractUniquePassengerIds(tickets) {
-        if (!tickets || !Array.isArray(tickets)) {
-            return [];
-        }
-
-        const passengerIds = new Set();
-        
-        tickets.forEach(ticket => {
-            if (ticket.passengerId) {
-                passengerIds.add(ticket.passengerId);
-            }
-        });
-
-        return Array.from(passengerIds);
-    }
 
     /**
      * Close gRPC client connection

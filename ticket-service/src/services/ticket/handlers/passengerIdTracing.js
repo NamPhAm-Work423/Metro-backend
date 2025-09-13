@@ -32,8 +32,18 @@ class PassengerIdTracingService {
             // Get all tickets with specified statuses
             const tickets = await this.getTicketsWithFareBreakdown(statuses);
             
-            logger.debug('Retrieved tickets for tracing', {
-                totalTickets: tickets.length
+            logger.info('Retrieved tickets for tracing', {
+                totalTickets: tickets.length,
+                routeIds: routeIds,
+                statuses: statuses,
+                ticketDetails: tickets.map(ticket => ({
+                    ticketId: ticket.ticketId,
+                    passengerId: ticket.passengerId,
+                    status: ticket.status,
+                    ticketType: ticket.ticketType,
+                    hasFareBreakdown: !!ticket.fareBreakdown,
+                    fareBreakdownKeys: ticket.fareBreakdown ? Object.keys(ticket.fareBreakdown) : []
+                }))
             });
 
             // Trace tickets that contain any of the specified routes
@@ -102,6 +112,26 @@ class PassengerIdTracingService {
         tickets.forEach(ticket => {
             const matchResult = this.checkTicketContainsRoutes(ticket, routeIds);
             
+            // Log detailed information for each ticket
+            logger.info('Ticket route matching analysis', {
+                ticketId: ticket.ticketId,
+                passengerId: ticket.passengerId,
+                ticketType: ticket.ticketType,
+                status: ticket.status,
+                isMatch: matchResult.isMatch,
+                matchedRoutes: matchResult.matchedRoutes,
+                reason: matchResult.reason,
+                fareBreakdown: ticket.fareBreakdown ? {
+                    hasSegmentFares: !!ticket.fareBreakdown.segmentFares,
+                    segmentFaresCount: ticket.fareBreakdown.segmentFares?.length || 0,
+                    hasJourneyDetails: !!ticket.fareBreakdown.journeyDetails,
+                    hasRouteSegments: !!ticket.fareBreakdown.journeyDetails?.routeSegments,
+                    routeSegmentsCount: ticket.fareBreakdown.journeyDetails?.routeSegments?.length || 0,
+                    segmentFaresRoutes: ticket.fareBreakdown.segmentFares?.map(s => s.routeId) || [],
+                    journeyRoutes: ticket.fareBreakdown.journeyDetails?.routeSegments?.map(s => s.routeId) || []
+                } : null
+            });
+            
             if (matchResult.isMatch) {
                 matchedTickets.push(ticket);
                 traces.push({
@@ -112,6 +142,13 @@ class PassengerIdTracingService {
                     reason: matchResult.reason
                 });
             }
+        });
+
+        logger.info('Route tracing summary', {
+            totalTickets: tickets.length,
+            matchedTickets: matchedTickets.length,
+            requestedRoutes: routeIds,
+            matchedPassengerIds: matchedTickets.map(t => t.passengerId)
         });
 
         return {

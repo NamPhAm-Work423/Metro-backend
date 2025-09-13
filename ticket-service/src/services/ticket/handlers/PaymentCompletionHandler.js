@@ -158,6 +158,21 @@ class PaymentCompletionHandler {
             // Apply update
             await ticket.update(updateData);
             
+            // Reload ticket to ensure all fields (including QR code) are populated
+            await ticket.reload();
+            
+            // Log QR code status after reload for debugging
+            logger.info('Ticket reloaded after payment completion', {
+                ticketId: ticket.ticketId,
+                paymentId,
+                hasQrCode: !!ticket.qrCode,
+                qrCodeLength: ticket.qrCode?.length || 0,
+                qrCodeValue: ticket.qrCode ? String(ticket.qrCode).substring(0, 50) + '...' : 'null',
+                status: ticket.status,
+                ticketType: this.getTicketTypeDescription(ticket),
+                fareId: ticket.fareId
+            });
+            
             // Log completion
             this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
             

@@ -29,19 +29,24 @@ class TicketActivationService {
             activatedAt
         });
 
+        // Ensure all fields including QR code are populated
+        await updatedTicket.reload();
+        
         logger.info('Long-term ticket activated successfully', {
             ticketId: ticket.ticketId,
             ticketType: ticket.ticketType,
             validFrom,
             validUntil,
             activatedAt,
-            passengerId: ticket.passengerId
+            passengerId: ticket.passengerId,
+            hasQrCode: !!updatedTicket.qrCode,
+            qrCodeLength: updatedTicket.qrCode?.length || 0
         });
 
         try {
             const paymentData = {
-                paymentMethod: ticket.paymentMethod,
-                status: ticket.status,
+                paymentMethod: updatedTicket.paymentMethod,
+                status: updatedTicket.status,
                 gatewayResponse: null
             };
             await publishTicketActivated(updatedTicket, paymentData);

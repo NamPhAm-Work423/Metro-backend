@@ -31,6 +31,9 @@ async function activateDueTickets(limit = 500) {
                 validFrom,
                 validUntil
             });
+            
+            await ticket.reload();
+            
             try {
                 await publishTicketActivated(ticket, {
                     paymentMethod: ticket.paymentMethod,
@@ -48,7 +51,9 @@ async function activateDueTickets(limit = 500) {
                 ticketId: ticket.ticketId,
                 ticketType: ticket.ticketType,
                 validFrom,
-                validUntil
+                validUntil,
+                hasQrCode: !!ticket.qrCode,
+                qrCodeLength: ticket.qrCode?.length || 0
             });
         } catch (err) {
             logger.error('Failed to auto-activate ticket', {

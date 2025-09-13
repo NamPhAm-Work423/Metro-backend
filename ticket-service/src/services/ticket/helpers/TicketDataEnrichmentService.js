@@ -274,6 +274,15 @@ class TicketDataEnrichmentService {
             const stationIds = [ticket.originStationId, ticket.destinationStationId].filter(Boolean);
             const stationNames = await this.getStationNamesBatch(stationIds);
             
+            logger.info('TicketDataEnrichmentService - processing ticket', {
+                ticketId: ticket.ticketId,
+                ticketType: ticket.ticketType,
+                hasQrCode: !!ticket.qrCode,
+                qrCodeLength: ticket.qrCode?.length || 0,
+                qrCodeValue: ticket.qrCode ? String(ticket.qrCode).substring(0, 50) + '...' : 'null',
+                isMultiUse
+            });
+            
             const enrichedData = {
                 ticketId: ticket.ticketId,
                 passengerId: ticket.passengerId,

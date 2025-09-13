@@ -114,8 +114,12 @@ class TicketConsumer {
             destinationStationId: payload.destinationStationId,
             hasQrCode: !!qrCode,
             qrCodeLength: qrCode?.length || 0,
+            qrCodeType: typeof qrCode,
+            qrCodePreview: qrCode ? String(qrCode).substring(0, 50) + '...' : 'null',
             paymentMethod,
-            status
+            status,
+            isMultiUse: payload.isMultiUse,
+            payloadKeys: Object.keys(payload)
         });
 
         try {
@@ -127,15 +131,18 @@ class TicketConsumer {
             // Get template name from enriched data
             const templateName = payload.templateName || 'singleUseTicketEmail'; //fallback
             
-            logger.info('Processing ticket activation with enriched data', {
-                ticketId,
-                hasDisplayData: !!payload.displayData,
-                displayDataFields: payload.displayData ? Object.keys(payload.displayData) : [],
-                templateName: templateName,
-                ticketType: ticketType,
-                isMultiUse: payload.isMultiUse,
-                enrichedDataUsed: !!payload.displayData
-            });
+        logger.info('Processing ticket activation with enriched data', {
+            ticketId,
+            hasDisplayData: !!payload.displayData,
+            displayDataFields: payload.displayData ? Object.keys(payload.displayData) : [],
+            templateName: templateName,
+            ticketType: ticketType,
+            isMultiUse: payload.isMultiUse,
+            enrichedDataUsed: !!payload.displayData,
+            hasQrCode: !!qrCode,
+            qrCodeLength: qrCode?.length || 0,
+            qrCodeType: typeof qrCode
+        });
             
             // Use enriched data directly - no more local formatting
             const ticketData = {
@@ -186,6 +193,14 @@ class TicketConsumer {
             
             try {
                 if (qrCode) {
+                    logger.info('Starting QR code generation for ticket', { 
+                        ticketId, 
+                        ticketType,
+                        qrCodeProvided: !!qrCode,
+                        qrCodeLength: qrCode?.length || 0,
+                        isMultiUse: payload.isMultiUse
+                    });
+                    
                     // Use the provided qrCode string directly as the QR content
                     const qrContent = String(qrCode);
 
@@ -201,10 +216,23 @@ class TicketConsumer {
                             light: '#FFFFFF'
                         }
                     });
+                    
+                    logger.info('QR code image generated successfully', { 
+                        ticketId, 
+                        qrDataUrlLength: qrDataUrl?.length || 0,
+                        hasCorrectPrefix: qrDataUrl?.startsWith('data:image/png;base64,')
+                    });
 
                     // Extract base64 data and publish to QR storage
                     if (qrDataUrl && qrDataUrl.startsWith('data:image/png;base64,')) {
                         const base64Data = qrDataUrl.split(',')[1];
+                        
+                        logger.info('Attempting to publish QR image to public service', { 
+                            ticketId,
+                            ticketType,
+                            base64DataLength: base64Data?.length || 0,
+                            isMultiUse: payload.isMultiUse
+                        });
                         
                         // Publish QR image to public-service for hosting
                         await publishQrImage({
@@ -218,9 +246,20 @@ class TicketConsumer {
                         qrCodeImage = `${publicServiceUrl}/qr/${ticketId}.png`;
 
                         logger.info('QR code published and URL generated successfully', { 
-                            ticketId, 
+                            ticketId,
+                            ticketType,
                             qrContentLength: qrContent.length,
-                            qrUrl: qrCodeImage
+                            qrUrl: qrCodeImage,
+                            publicServiceUrl,
+                            isMultiUse: payload.isMultiUse
+                        });
+                    } else {
+                        logger.warn('QR data URL invalid or missing prefix', { 
+                            ticketId,
+                            ticketType,
+                            hasQrDataUrl: !!qrDataUrl,
+                            qrDataUrlPrefix: qrDataUrl?.substring(0, 30) || 'null',
+                            isMultiUse: payload.isMultiUse
                         });
                     }
                 } else {
@@ -350,10 +389,21 @@ class TicketConsumer {
             // QR code URL is already set in qrCodeImage
             if (qrCodeImage) {
                 finalVariables.qrCodeImage = qrCodeImage;
-                logger.info('Using inline QR code image', { ticketId });
-            } else if (!qrCodeImage) {
+                logger.info('Using inline QR code image', { 
+                    ticketId, 
+                    ticketType,
+                    qrCodeImage,
+                    isMultiUse: payload.isMultiUse
+                });
+            } else {
                 finalVariables.qrCodeImage = null;
-                logger.warn('No QR code image available', { ticketId });
+                logger.warn('No QR code image available - will use text fallback', { 
+                    ticketId,
+                    ticketType,
+                    hasQrCode: !!qrCode,
+                    qrCodeLength: qrCode?.length || 0,
+                    isMultiUse: payload.isMultiUse
+                });
             }
 
             const emailSubject = isMultiUseTemplate
