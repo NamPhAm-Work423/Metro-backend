@@ -541,6 +541,76 @@ class TicketController {
         }
     });
 
+    // PUT /v1/tickets/:id/status
+    updateTicketStatus = asyncErrorHandler(async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const { status, reason } = req.body;
+            const updatedBy = req.user?.id;
+
+            // Validate required fields
+            if (!status) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Status is required',
+                    error: 'MISSING_STATUS'
+                });
+            }
+
+            // Validate status format
+            const validStatuses = ['active', 'inactive', 'pending_payment', 'used', 'expired', 'cancelled'];
+            if (!validStatuses.includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+                    error: 'INVALID_STATUS'
+                });
+            }
+
+            // Get current ticket status before update
+            const currentTicket = await ticketService.getTicketById(id);
+            const oldStatus = currentTicket ? currentTicket.status : 'unknown';
+            
+            const ticket = await ticketService.updateTicketStatus(id, status, reason, updatedBy);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Ticket status updated successfully',
+                data: {
+                    ticketId: ticket.ticketId,
+                    oldStatus: oldStatus,
+                    newStatus: ticket.status,
+                    reason: reason || null,
+                    updatedBy: updatedBy,
+                    updatedAt: ticket.updatedAt
+                }
+            });
+        } catch (error) {
+            // Handle specific error cases
+            if (error.message.includes('Invalid status transition')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INVALID_STATUS_TRANSITION'
+                });
+            }
+            
+            if (error.message === 'Ticket not found') {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_NOT_FOUND'
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_UPDATE_TICKET_STATUS'
+            });
+        }
+    });
+
     // DELETE /v1/tickets/:id/delete
     deleteTicket = asyncErrorHandler(async (req, res, next) => {
         try {

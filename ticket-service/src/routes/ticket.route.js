@@ -37,8 +37,9 @@ router.get('/:id/payment', ...authorizeRoles('passenger', 'staff', 'admin'), tic
 // Staff and admin management routes
 router.get('/:id/detail', ...authorizeRoles('staff', 'admin'), ticketController.getTicketDetail);
 router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.updateTicket);
+router.put('/:id/status', ...authorizeRoles('admin'), ticketController.updateTicketStatus);
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
-
+    
 // Admin-only routes
 router.get('/getAllTickets', ...authorizeRoles('staff', 'admin'), ticketController.getAllTickets);
 router.get('/getTicketStatistics', ...authorizeRoles('staff', 'admin'), ticketController.getTicketStatistics);

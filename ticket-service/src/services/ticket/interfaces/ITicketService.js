@@ -80,6 +80,18 @@ class ITicketService {
     }
 
     /**
+     * Update ticket status with validation
+     * @param {string} ticketId - Ticket ID
+     * @param {string} newStatus - New status to set
+     * @param {string} reason - Reason for status change (optional)
+     * @param {string} updatedBy - User ID who is updating the status
+     * @returns {Promise<Object>} Updated ticket
+     */
+    async updateTicketStatus(ticketId, newStatus, reason = null, updatedBy = null) {
+        throw new Error('Method not implemented');
+    }
+
+    /**
      * Cancel ticket
      * @param {string} ticketId - Ticket ID
      * @param {string} reason - Cancellation reason

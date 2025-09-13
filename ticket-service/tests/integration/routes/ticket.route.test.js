@@ -86,6 +86,18 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
       success: true, 
       data: { ticketId: req.params.id } 
     })),
+    updateTicketStatus: jest.fn((req, res) => res.status(200).json({ 
+      success: true, 
+      message: 'Ticket status updated successfully',
+      data: { 
+        ticketId: req.params.id, 
+        oldStatus: 'active',
+        newStatus: req.body.status,
+        reason: req.body.reason || null,
+        updatedBy: req.user?.id,
+        updatedAt: new Date()
+      } 
+    })),
     deleteTicket: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       message: 'Ticket deleted successfully' 
@@ -305,6 +317,19 @@ describe('Ticket Routes', () => {
 
       expect(res.statusCode).toBe(200);
       expect(ticketControllerMock.updateTicket).toHaveBeenCalled();
+    });
+
+    it('PUT /api/tickets/:id/status should return 200', async () => {
+      const res = await request(app)
+        .put('/api/tickets/ticket-123/status')
+        .set('Authorization', 'Bearer test')
+        .send({ status: 'active', reason: 'Payment completed' });
+
+      expect(res.statusCode).toBe(200);
+      expect(ticketControllerMock.updateTicketStatus).toHaveBeenCalled();
+      expect(res.body.message).toBe('Ticket status updated successfully');
+      expect(res.body.data.newStatus).toBe('active');
+      expect(res.body.data.reason).toBe('Payment completed');
     });
 
     it('DELETE /api/tickets/:id/delete should return 200', async () => {

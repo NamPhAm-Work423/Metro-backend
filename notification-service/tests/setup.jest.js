@@ -3,3 +3,5 @@ jest.mock('../src/config/database', () => ({
   sequelize: { sync: jest.fn().mockResolvedValue(), close: jest.fn() },
 }));
 
+
+

@@ -13,6 +13,7 @@ const TicketValidatorService = require('./TicketValidatorService');
 const TicketCommunicationService = require('./TicketCommunicationService');
 const TicketPaymentService = require('./TicketPaymentService');
 const TicketPriceCalculator = require('../calculators/TicketPriceCalculator');
+const TicketStatusService = require('./TicketStatusService');
 
 class TicketService extends ITicketService {
     constructor() {
@@ -23,6 +24,7 @@ class TicketService extends ITicketService {
         this.communication = TicketCommunicationService;
         this.payment = TicketPaymentService;
         this.priceCalculator = TicketPriceCalculator;
+        this.statusService = TicketStatusService;
     }
 
     /**
@@ -791,6 +793,18 @@ class TicketService extends ITicketService {
      */
     async updateTicket(ticketId, updateData) {
         return await this.repository.update(ticketId, updateData);
+    }
+
+    /**
+     * Update ticket status with validation
+     * @param {string} ticketId - Ticket ID
+     * @param {string} newStatus - New status to set
+     * @param {string} reason - Reason for status change (optional)
+     * @param {string} updatedBy - User ID who is updating the status
+     * @returns {Promise<Object>} Updated ticket
+     */
+    async updateTicketStatus(ticketId, newStatus, reason = null, updatedBy = null) {
+        return await this.statusService.updateTicketStatus(ticketId, newStatus, reason, updatedBy);
     }
 
     /**

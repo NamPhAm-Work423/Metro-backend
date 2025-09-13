@@ -1,6 +1,11 @@
 # Mac
 .DS_Store
 qr
+analysis
+reports
+docs
+README.service.md
+coverage-to-csv.js
 # Logs
 logs
 logs/*
