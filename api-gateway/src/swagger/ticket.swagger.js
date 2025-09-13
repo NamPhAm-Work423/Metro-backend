@@ -59,7 +59,7 @@
  *           type: string
  *         status:
  *           type: string
- *           enum: ['pending_payment', 'active', 'used', 'expired', 'cancelled', 'refunded']
+ *           enum: ['pending_payment', 'active', 'inactive', 'used', 'expired', 'cancelled', 'refunded']
  *         ticketType:
  *           type: string
  *           enum: ['oneway', 'return', 'day_pass', 'weekly_pass', 'monthly_pass', 'yearly_pass', 'lifetime_pass']
@@ -1281,6 +1281,125 @@
  *                   type: string
  *                 data:
  *                   $ref: '#/components/schemas/Ticket'
+ *
+ * /v1/route/ticket/tickets/{id}/status:
+ *   put:
+ *     summary: Update ticket status (admin only)
+ *     tags: [Tickets]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ticket ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, pending_payment, used, expired, cancelled]
+ *                 description: New status for the ticket
+ *               reason:
+ *                 type: string
+ *                 description: Optional reason for status change
+ *                 maxLength: 500
+ *           example:
+ *             status: "active"
+ *             reason: "Payment completed successfully"
+ *     responses:
+ *       200:
+ *         description: Ticket status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticketId:
+ *                       type: string
+ *                       format: uuid
+ *                     oldStatus:
+ *                       type: string
+ *                       description: Previous status of the ticket
+ *                     newStatus:
+ *                       type: string
+ *                       description: New status of the ticket
+ *                     reason:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Reason for status change
+ *                     updatedBy:
+ *                       type: string
+ *                       format: uuid
+ *                       description: ID of user who updated the status
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Timestamp of the update
+ *       400:
+ *         description: Bad request - Invalid status or status transition
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid status. Must be one of: active, inactive, pending_payment, used, expired, cancelled"
+ *                 error:
+ *                   type: string
+ *                   example: "INVALID_STATUS"
+ *       404:
+ *         description: Ticket not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Ticket not found"
+ *                 error:
+ *                   type: string
+ *                   example: "TICKET_NOT_FOUND"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
+ *                 error:
+ *                   type: string
+ *                   example: "INTERNAL_ERROR_UPDATE_TICKET_STATUS"
  *
  * /v1/route/ticket/tickets/{id}/delete:
  *   delete:
@@ -2751,7 +2870,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/getAllPassengerDiscounts:
  *   get:
- *     summary: Get all passenger discounts (no auth required)
+ *     summary: Get all passenger discounts 
  *     tags: [PassengerDiscounts]
  *     responses:
  *       200:
@@ -2772,7 +2891,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/getPassengerDiscountByType/{passengerType}:
  *   get:
- *     summary: Get passenger discount by type (no auth required)
+ *     summary: Get passenger discount by type 
  *     tags: [PassengerDiscounts]
  *     parameters:
  *       - in: path
@@ -2798,7 +2917,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/createPassengerDiscount:
  *   post:
- *     summary: Create passenger discount (no auth required)
+ *     summary: Create passenger discount 
  *     tags: [PassengerDiscounts]
  *     requestBody:
  *       required: true
@@ -2848,7 +2967,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/updatePassengerDiscount/{discountId}:
  *   put:
- *     summary: Update passenger discount (no auth required)
+ *     summary: Update passenger discount 
  *     tags: [PassengerDiscounts]
  *     parameters:
  *       - in: path
@@ -2896,7 +3015,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/deletePassengerDiscount/{discountId}:
  *   delete:
- *     summary: Delete passenger discount (no auth required)
+ *     summary: Delete passenger discount 
  *     tags: [PassengerDiscounts]
  *     parameters:
  *       - in: path
@@ -2919,7 +3038,7 @@
  *
  * /v1/route/ticket/passengerDiscounts/calculateDiscount/{passengerType}:
  *   get:
- *     summary: Calculate discount for passenger type (no auth required)
+ *     summary: Calculate discount for passenger type 
  *     tags: [PassengerDiscounts]
  *     parameters:
  *       - in: path
