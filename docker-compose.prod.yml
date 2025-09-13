@@ -130,6 +130,7 @@ services:
       - /opt/env/user-service.env
     expose:
       - "8002"
+      - "50054"
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -176,6 +177,8 @@ services:
       kafka-3:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       api-gateway:
         condition: service_healthy

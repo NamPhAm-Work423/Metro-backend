@@ -55,7 +55,10 @@ class StationController {
 
     async updateStation(req, res, next) {
         try {
-            const station = await stationService.updateStation(req.params.id, req.body);
+            // Get user info from request (from auth middleware)
+            const updatedBy = req.user?.userId || req.user?.id || 'admin';
+            
+            const station = await stationService.updateStation(req.params.id, req.body, updatedBy);
             return res.status(200).json({
                 success: true,
                 message: 'Station updated successfully',

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>Thông báo hoạt động trở lại ga</title>
+  <!--[if mso]><style>* { font-family: Arial, sans-serif !important; }</style><![endif]-->
+  <style>
+    html, body { margin:0 !important; padding:0 !important; height:100% !important; width:100% !important; }
+    * { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100%; }
+    table, td { mso-table-lspace:0pt !important; mso-table-rspace:0pt !important; }
+    table { border-collapse:collapse !important; }
+    img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+    a { text-decoration:none; }
+
+    @media screen and (max-width:620px){
+      .container{width:100% !important;}
+      .px{padding-left:18px !important; padding-right:18px !important;}
+      .py{padding-top:18px !important; padding-bottom:18px !important;}
+      .h1{font-size:22px !important; line-height:28px !important;}
+      .text{font-size:15px !important; line-height:22px !important;}
+      .btn a{display:block !important; width:100% !important; text-align:center !important;}
+      .chips td{display:block !important; width:100% !important;}
+    }
+
+    @media (prefers-color-scheme: dark){
+      body{background:#0f1115 !important;}
+      .card{background:#161a22 !important;}
+      .muted{color:#aeb6c1 !important;}
+      .title{color:#86efac !important;}
+      .accent{background:#0f2f23 !important;}
+      .pill--ok{background:#0d2e22 !important; color:#86efac !important; border-color:#16a34a !important;}
+      .chip{background:#0c2233 !important; border-color:#2d9cdb !important; color:#cde9ff !important;}
+      .panel-info{background:#082d35 !important; border-color:#2aa5c0 !important;}
+      .panel-ok{background:#0d2916 !important; border-color:#22c55e !important; color:#bff0cf !important;}
+      .divider{background:#243043 !important;}
+    }
+  </style>
+</head>
+<body style="background:#f3f6fb; margin:0; padding:0;">
+  <!-- Preheader (ẩn) -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
+    {{stationName}} đã hoạt động trở lại từ {{reactivatedAt}}. Xem các tuyến khôi phục & thông tin bổ sung.
+  </div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+      <td align="center" style="padding:26px 12px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" class="container" style="width:600px; max-width:600px;">
+
+          <!-- Hero stripe -->
+          <tr>
+            <td aria-hidden="true" class="accent" style="background:linear-gradient(90deg,#16a34a 0%,#22c55e 40%,#2dd4bf 100%); height:6px; border-radius:8px 8px 0 0;"></td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#ffffff; padding:18px 22px; border-bottom:1px solid #eef2f7;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td align="left" style="font:700 18px/1 Segoe UI, Roboto, Arial, sans-serif; color:#059669;">
+                    Metro System
+                  </td>
+                  <td align="right" style="font:600 12px/1 Segoe UI, Roboto, Arial, sans-serif; color:#065f46;">
+                    <span class="pill--ok" style="display:inline-block; background:#ecfdf5; color:#065f46; border:1px solid #86efac; padding:6px 10px; border-radius:999px;">
+                      ✅ ĐÃ KHÔI PHỤC
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td class="card px py" style="background:#ffffff; padding:26px 26px 14px; border-radius:0 0 12px 12px; box-shadow:0 8px 22px rgba(17,24,39,.06);">
+
+              <!-- Title -->
+              <table role="presentation" width="100%">
+                <tr>
+                  <td align="left" style="padding-bottom:8px;">
+                    <div style="font-size:38px; line-height:1;" aria-hidden="true">🎉</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="title h1" style="font:800 24px/30px Segoe UI, Roboto, Arial, sans-serif; color:#111827; letter-spacing:.2px;">
+                      THÔNG BÁO HOẠT ĐỘNG TRỞ LẠI
+                    </div>
+                    <div class="muted" style="font:500 13px/18px Segoe UI, Roboto, Arial, sans-serif; color:#6b7280; margin-top:4px;">
+                      Cập nhật dịch vụ • Phát hành: {{issuedAt}}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Station card -->
+              <table role="presentation" width="100%" style="margin-top:18px; background:#f8fafc; border:1px solid #eef2f7; border-left:4px solid #16a34a; border-radius:10px;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <div style="font:800 18px/24px Segoe UI, Roboto, Arial, sans-serif; color:#0f172a; margin-bottom:4px;">
+                      {{stationName}}
+                    </div>
+                    <div class="muted" style="font:500 14px/20px Segoe UI, Roboto, Arial, sans-serif; color:#6b7280;">
+                      📍 {{location}}
+                    </div>
+                    <div style="margin-top:10px;">
+                      <table role="presentation" class="panel-ok" style="width:100%; background:#e7f8ee; border-left:4px solid #22c55e; border-radius:8px;">
+                        <tr>
+                          <td style="padding:12px 14px;">
+                            <div style="font:700 14px/20px Segoe UI, Roboto, Arial, sans-serif; color:#065f46; margin-bottom:2px;">
+                              Thời gian hoạt động trở lại
+                            </div>
+                            <div style="font:600 15px/22px Segoe UI, Roboto, Arial, sans-serif; color:#064e3b;">
+                              {{reactivatedAt}}
+                            </div>
+                            {{#if serviceWindow}}
+                            <div style="font:500 13px/18px Segoe UI, Roboto, Arial, sans-serif; color:#0f5132; margin-top:4px;">
+                              Khung giờ tăng cường: {{serviceWindow}}
+                            </div>
+                            {{/if}}
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Intro -->
+              <div class="text" style="font:400 15px/24px Segoe UI, Roboto, Arial, sans-serif; color:#374151; margin:18px 0 0;">
+                Kính gửi Quý khách,
+              </div>
+              <div class="text" style="font:400 15px/24px Segoe UI, Roboto, Arial, sans-serif; color:#374151; margin:6px 0 0;">
+                Chúng tôi vui mừng thông báo <strong>{{stationName}}</strong> đã hoạt động trở lại bình thường.
+              </div>
+
+              <!-- Restored routes -->
+              {{#if affectedRoutes.length}}
+              <div style="font:800 16px/22px Segoe UI, Roboto, Arial, sans-serif; color:#111827; margin:20px 0 8px;">
+                Các tuyến đã hoạt động trở lại
+              </div>
+              <table class="chips" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                {{#each affectedRoutes}}
+                <tr>
+                  <td style="padding:4px 0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #bbf7d0; background:#ecfdf5; border-radius:999px;">
+                      <tr>
+                        <td style="padding:8px 12px; font:700 13px/16px Segoe UI, Roboto, Arial, sans-serif; color:#065f46;">
+                          {{routeName}}
+                        </td>
+                        <td style="padding:8px 10px; font:600 12px/16px Segoe UI, Roboto, Arial, sans-serif; color:#065f46; border-left:1px dashed #86efac;">
+                          {{routeId}}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                {{/each}}
+              </table>
+              {{/if}}
+
+              <!-- Extra info -->
+              <table role="presentation" width="100%" style="margin:16px 0 0; background:#e8f6fb; border-left:4px solid #17a2b8; border-radius:8px;" class="panel-info">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <div style="font:800 13px/18px Segoe UI, Roboto, Arial, sans-serif; color:#0d5666; margin-bottom:6px;">
+                      Thông tin bổ sung
+                    </div>
+                    <ul style="margin:0; padding:0 0 0 18px; font:400 15px/22px Segoe UI, Roboto, Arial, sans-serif; color:#0d1b2a;">
+                      <li>Tất cả dịch vụ đã hoạt động bình thường</li>
+                      <li>Quý khách có thể sử dụng ga như trước</li>
+                      <li>Cảm ơn sự kiên nhẫn của Quý khách trong thời gian qua</li>
+                    </ul>
+                    {{#if notes}}
+                    <div style="margin-top:8px; font:500 13px/18px Segoe UI, Roboto, Arial, sans-serif; color:#334155;">
+                      Ghi chú: {{notes}}
+                    </div>
+                    {{/if}}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" style="margin:20px 0 14px;">
+                <tr><td class="divider" style="height:1px; background:#eef2f7;"></td></tr>
+              </table>
+
+              <!-- CTA -->
+              <table role="presentation" width="100%">
+                <tr>
+                  <td align="left" class="btn" style="padding:0 0 10px 0;">
+                    <!--[if mso]>
+                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{statusUrl}}" style="height:44px;v-text-anchor:middle;width:248px;" arcsize="12%" stroke="f" fillcolor="#16a34a">
+                        <w:anchorlock/>
+                        <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:700;">Xem tình trạng hệ thống</center>
+                      </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="{{statusUrl}}" style="background:#16a34a; color:#fff; display:inline-block; padding:12px 18px; border-radius:10px; font:800 14px/16px Segoe UI, Roboto, Arial, sans-serif;">
+                      Xem tình trạng hệ thống
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+                <tr>
+                  <td align="left" class="btn">
+                    <!--[if mso]>
+                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{plannerUrl}}" style="height:44px;v-text-anchor:middle;width:248px;" arcsize="12%" strokecolor="#16a34a" fillcolor="#ffffff">
+                        <w:anchorlock/>
+                        <center style="color:#16a34a;font-family:Arial,sans-serif;font-size:14px;font-weight:700;">Lập kế hoạch chuyến đi</center>
+                      </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="{{plannerUrl}}" style="background:#ffffff; color:#16a34a; display:inline-block; padding:12px 18px; border-radius:10px; border:1px solid #16a34a; font:800 14px/16px Segoe UI, Roboto, Arial, sans-serif;">
+                      Lập kế hoạch chuyến đi
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Closing -->
+              <div class="text" style="font:400 15px/24px Segoe UI, Roboto, Arial, sans-serif; color:#374151; margin:18px 0 8px;">
+                Chúc Quý khách có những chuyến đi thuận lợi và an toàn!
+              </div>
+
+              <!-- Footer -->
+              <table role="presentation" width="100%" style="margin-top:6px;">
+                <tr>
+                  <td style="font:400 12px/18px Segoe UI, Roboto, Arial, sans-serif; color:#6b7280;">
+                    Email: <a href="mailto:support@metro.vn" style="color:#16a34a;">support@metro.vn</a> • Hotline: <a href="tel:1900xxxx" style="color:#16a34a;">1900-xxxx</a>
+                  </td>
+                </tr>
+                <tr><td style="height:8px;"></td></tr>
+                <tr>
+                  <td align="center" style="font:400 11px/16px Segoe UI, Roboto, Arial, sans-serif; color:#9ca3af;">
+                    © {{year}} Metro System. Tất cả các quyền được bảo lưu.
+                  </td>
+                </tr>
+                <tr><td style="height:16px;"></td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

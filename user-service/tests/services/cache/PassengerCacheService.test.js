@@ -18,7 +18,8 @@ describe('PassengerCacheService', () => {
 
     mockLogger = {
       warn: jest.fn(),
-      error: jest.fn()
+      error: jest.fn(),
+      debug: jest.fn()
     };
 
     cacheService = new PassengerCacheService(mockRedis, mockLogger);
@@ -430,6 +431,59 @@ describe('PassengerCacheService', () => {
         error: 'Redis error'
       });
       expect(result).toBe(false);
+    });
+  });
+
+  describe('setPassenger edge cases', () => {
+    test('logs error when redis client is null', async () => {
+      const serviceWithNullRedis = new PassengerCacheService(null, mockLogger);
+      const passengerData = {
+        passengerId: 'p123',
+        userId: 'u123',
+        email: 'test@example.com'
+      };
+
+      await serviceWithNullRedis.setPassenger(passengerData);
+
+      expect(mockLogger.error).toHaveBeenCalledWith('Redis client is null - cannot set passenger cache', {
+        passengerId: 'p123',
+        userId: 'u123'
+      });
+    });
+
+    test('skips setting when passenger already exists and forceRefresh is false', async () => {
+      const passengerData = {
+        passengerId: 'p123',
+        userId: 'u123',
+        email: 'test@example.com'
+      };
+
+      // Mock hasPassenger to return true (passenger exists)
+      jest.spyOn(cacheService, 'hasPassenger').mockResolvedValue(true);
+
+      await cacheService.setPassenger(passengerData, false);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('Passenger already exists in cache, skipping set', {
+        passengerId: 'p123',
+        userId: 'u123'
+      });
+      expect(mockRedis.multi).not.toHaveBeenCalled();
+    });
+
+    test('forces refresh when forceRefresh is true even if passenger exists', async () => {
+      const passengerData = {
+        passengerId: 'p123',
+        userId: 'u123',
+        email: 'test@example.com'
+      };
+
+      // Mock hasPassenger to return true (passenger exists)
+      jest.spyOn(cacheService, 'hasPassenger').mockResolvedValue(true);
+
+      await cacheService.setPassenger(passengerData, true);
+
+      expect(mockRedis.multi).toHaveBeenCalled();
+      expect(mockRedis.set).toHaveBeenCalledTimes(3);
     });
   });
 });

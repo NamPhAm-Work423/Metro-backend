@@ -36,6 +36,7 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
     deleteTicket: jest.fn(),
     getAllTickets: jest.fn(),
     getTicketStatistics: jest.fn(),
+    getTicketsByRoutes: jest.fn(),
     expireTickets: jest.fn(),
     healthCheck: jest.fn(),
     getTicketPayment: jest.fn(),

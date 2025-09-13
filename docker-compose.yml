@@ -133,6 +133,8 @@ services:
       - DB_NAME=notification_db
       - DB_USER=notification_service
       - DB_PASSWORD=1
+      - TICKET_SERVICE_GRPC_URL=ticket-service:50052
+      - USER_SERVICE_GRPC_URL=user-service:50054
       - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./notification-service:/app
@@ -143,6 +145,10 @@ services:
       kafka-2:
         condition: service_healthy
       kafka-3:
+        condition: service_healthy
+      ticket-service:
+        condition: service_healthy
+      user-service:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -165,6 +171,7 @@ services:
     container_name: user-service
     expose:
       - "8002" 
+      - "50054"
     env_file:
       - ./user-service/.env
     environment:
@@ -219,6 +226,8 @@ services:
       kafka-3:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend-network

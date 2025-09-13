@@ -45,6 +45,27 @@ async function getPassengerById(id) {
     }
 }
 
+async function getPassengersByIds(passengerIds) {
+    try {
+        const { Op } = require('sequelize');
+        const passengers = await Passenger.findAll({
+            where: { 
+                passengerId: {
+                    [Op.in]: passengerIds
+                },
+                isActive: true 
+            }
+        });
+        return passengers;
+    } catch (err) {
+        logger.error('Error fetching passengers by IDs', { 
+            error: err.message, 
+            passengerIdsCount: passengerIds?.length || 0 
+        });
+        throw err;
+    }
+}
+
 async function getPassengerByUserId(userId) {
     try {
         const passenger = await Passenger.findOne({ where: { userId } });
@@ -212,6 +233,7 @@ async function setPassengerCache(passengerData) {
 module.exports = {
     getAllPassengers,
     getPassengerById,
+    getPassengersByIds,
     getPassengerByUserId,
     createPassenger,
     updatePassenger,
@@ -220,5 +242,6 @@ module.exports = {
     deletePassengerByUserId,
     syncPassengerCacheForUser,
     setPassengerCache,
+    getPassengerCache,
 
 }; 

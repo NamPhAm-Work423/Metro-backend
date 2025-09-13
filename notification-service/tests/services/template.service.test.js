@@ -5,6 +5,9 @@ jest.mock('../../src/config/logger', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
+// Unmock TemplateService to test the real implementation
+jest.unmock('../../src/services/template.service');
+
 const path = require('path');
 const TemplateService = require('../../src/services/template.service');
 

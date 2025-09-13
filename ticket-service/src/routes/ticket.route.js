@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
-
-// Price calculation routes (for frontend display)
+const TicketValidationMiddleware = require('../middlewares/ticket.validation.middleware');
 router.post('/calculate-price', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.calculateTicketPrice);
 
 // Passenger ticket creation
@@ -39,9 +38,13 @@ router.get('/:id/detail', ...authorizeRoles('staff', 'admin'), ticketController.
 router.put('/:id/update', ...authorizeRoles('staff', 'admin'), ticketController.updateTicket);
 router.put('/:id/status', ...authorizeRoles('admin'), ticketController.updateTicketStatus);
 router.delete('/:id/delete', ...authorizeRoles('staff', 'admin'), ticketController.deleteTicket);
-    
+
 // Admin-only routes
 router.get('/getAllTickets', ...authorizeRoles('staff', 'admin'), ticketController.getAllTickets);
 router.get('/getTicketStatistics', ...authorizeRoles('staff', 'admin'), ticketController.getTicketStatistics);
-
+router.get('/getTicketsByRoutes', 
+    ...authorizeRoles('staff', 'admin'),
+    TicketValidationMiddleware.validateGetTicketsByRoutes,
+    ticketController.getTicketsByRoutes
+);
 module.exports = router;

@@ -9,6 +9,9 @@ const TemplateService = require('./services/template.service');
 const NotificationEventHandler = require('./events/notification.event');
 const { startAuthConsumer } = require('./events/auth.consumer');
 const TicketConsumer = require('./events/ticket.consumer');
+const TransportEventConsumer = require('./events/transport.consumer');
+const ticketGrpcClient = require('./grpc/ticket.client');
+const userGrpcClient = require('./grpc/user.client');
 const { initializeRedis } = require('./config/redis');
 const { sequelize } = require('./models');
 
@@ -35,6 +38,21 @@ async function start() {
 		// Don't exit - service should work without database logging
 	}
 
+	// Initialize gRPC clients
+	try {
+		await Promise.all([
+			ticketGrpcClient.initialize(),
+			userGrpcClient.initialize()
+		]);
+		logger.info('gRPC clients initialized successfully');
+	} catch (error) {
+		logger.error('gRPC clients initialization failed', { 
+			error: error.message,
+			stack: error.stack
+		});
+		// Continue without gRPC - service should work with fallback logic
+	}
+
 	// Setup providers with enhanced configuration
 	const emailProvider = new ResendEmailProvider({
 		apiKey: process.env.RESEND_API_KEY,
@@ -42,18 +60,23 @@ async function start() {
 		maxRetries: parseInt(process.env.EMAIL_MAX_RETRIES) || 3
 	});
 	
+	// Initialize Vonage SMS provider
 	const smsProvider = new VonageSmsProvider({
 		apiKey: process.env.VONAGE_API_KEY,
 		apiSecret: process.env.VONAGE_API_SECRET,
 		from: process.env.VONAGE_FROM,
 		maxRetries: parseInt(process.env.SMS_MAX_RETRIES) || 3
 	});
+	logger.info('Using Vonage SMS Provider');
 	const templateService = new TemplateService();
 	const notificationService = new NotificationService({ emailProvider, smsProvider, templateService });
 	const eventHandler = new NotificationEventHandler(notificationService);
 	
 	// Initialize ticket consumer
 	const ticketConsumer = new TicketConsumer(notificationService);
+
+	// Initialize transport event consumer
+	const transportEventConsumer = new TransportEventConsumer(notificationService);
 
 	// Start HTTP server
 	const app = new App().getApp();
@@ -86,6 +109,9 @@ async function start() {
 	
 	// Start ticket consumer
 	await ticketConsumer.start();
+	
+	// Start transport event consumer
+	await transportEventConsumer.start();
 
 	// Graceful shutdown
 	const shutdown = async (signal) => {
@@ -95,6 +121,20 @@ async function start() {
 		await ticketConsumer.stop().catch(err => 
 			logger.error('Error stopping ticket consumer', { error: err.message })
 		);
+		
+		// Stop transport event consumer
+		await transportEventConsumer.stop().catch(err => 
+			logger.error('Error stopping transport event consumer', { error: err.message })
+		);
+		
+		// Close gRPC clients
+		try {
+			ticketGrpcClient.close();
+			userGrpcClient.close();
+			logger.info('gRPC clients closed successfully');
+		} catch (error) {
+			logger.error('Error closing gRPC clients', { error: error.message });
+		}
 		
 		server.close(() => process.exit(0));
 	};

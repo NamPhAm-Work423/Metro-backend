@@ -1,0 +1,18 @@
+⏰ THÔNG BÁO TRỄ TUYẾN
+
+Tuyến: {{routeName}} ({{routeId}})
+Thời gian trễ: {{delayMinutes}} phút
+Lý do: {{reason}}
+
+{{#if affectedStations}}
+Các ga bị ảnh hưởng:
+{{#each affectedStations}}
+• {{stationName}} - Dự kiến đến: {{estimatedArrival}}
+{{/each}}
+{{/if}}
+
+Vui lòng điều chỉnh thời gian di chuyển.
+Xin lỗi vì sự bất tiện này!
+
+---
+Metro System

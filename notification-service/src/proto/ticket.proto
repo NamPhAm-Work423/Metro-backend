@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package ticket;
+
+service TicketService {
+  rpc GetTicketsByRoutes(GetTicketsByRoutesRequest) returns (GetTicketsByRoutesResponse);
+  rpc GetPassengerIdsByRoutes(GetPassengerIdsByRoutesRequest) returns (GetPassengerIdsByRoutesResponse);
+  rpc GetTicketsByPassengerIds(GetTicketsByPassengerIdsRequest) returns (GetTicketsByPassengerIdsResponse);
+}
+
+message GetTicketsByRoutesRequest {
+  repeated string routeIds = 1;
+  repeated string statuses = 2; // ['active', 'inactive']
+}
+
+message GetTicketsByRoutesResponse {
+  repeated TicketInfo tickets = 1;
+  int32 totalCount = 2;
+}
+
+message GetPassengerIdsByRoutesRequest {
+  repeated string routeIds = 1;
+  repeated string statuses = 2; // ['active', 'inactive']
+}
+
+message GetPassengerIdsByRoutesResponse {
+  repeated string passengerIds = 1;
+  int32 totalCount = 2;
+  repeated TicketTrace traces = 3; // Debug info showing which tickets matched
+}
+
+message GetTicketsByPassengerIdsRequest {
+  repeated string passengerIds = 1;
+}
+
+message GetTicketsByPassengerIdsResponse {
+  repeated TicketInfo tickets = 1;
+  int32 totalCount = 2;
+}
+
+message TicketInfo {
+  string ticketId = 1;
+  string passengerId = 2;
+  string status = 3;
+  string ticketType = 4; // 'short_term', 'long_term'
+  FareBreakdown fareBreakdown = 5;
+  string createdAt = 6;
+  string updatedAt = 7;
+}
+
+message TicketTrace {
+  string ticketId = 1;
+  string passengerId = 2;
+  string ticketType = 3;
+  repeated string matchedRouteIds = 4;
+  string reason = 5; // Why this ticket was included
+}
+
+message FareBreakdown {
+  JourneyDetails journeyDetails = 1;
+  repeated SegmentFare segmentFares = 2;
+  repeated PassengerBreakdown passengerBreakdown = 3;
+  int32 totalPassengers = 4;
+}
+
+message JourneyDetails {
+  bool isDirectJourney = 1;
+  int32 totalRoutes = 2;
+  int32 totalStations = 3;
+  repeated RouteSegment routeSegments = 4;
+  repeated string connectionPoints = 5;
+}
+
+message RouteSegment {
+  string routeId = 1;
+  string routeName = 2;
+  string originStationId = 3;
+  string destinationStationId = 4;
+  int32 stationCount = 5;
+}
+
+message SegmentFare {
+  string routeId = 1;
+  string routeName = 2;
+  string originStationId = 3;
+  string destinationStationId = 4;
+  int32 stationCount = 5;
+  double basePrice = 6;
+  double tripPrice = 7;
+  FareDetails fareDetails = 8;
+}
+
+message FareDetails {
+  string fareId = 1;
+  string basePrice = 2;
+  string currency = 3;
+}
+
+message PassengerBreakdown {
+  string type = 1;
+  int32 count = 2;
+  double pricePerPerson = 3;
+  double subtotal = 4;
+}

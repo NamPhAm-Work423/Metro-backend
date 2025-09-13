@@ -1,0 +1,25 @@
+❌ THÔNG BÁO HỦY TUYẾN
+
+Tuyến: {{routeName}} ({{routeId}})
+Thời gian hủy: {{cancelledAt}}
+Lý do: {{reason}}
+
+{{#if alternativeRoutes}}
+Tuyến thay thế:
+{{#each alternativeRoutes}}
+• {{routeName}} ({{routeId}}) - Từ {{originStation}} đến {{destinationStation}}
+{{/each}}
+{{/if}}
+
+{{#if affectedStations}}
+Các ga bị ảnh hưởng:
+{{#each affectedStations}}
+• {{stationName}}
+{{/each}}
+{{/if}}
+
+Vui lòng sử dụng tuyến thay thế.
+Cảm ơn bạn đã thông cảm!
+
+---
+Metro System

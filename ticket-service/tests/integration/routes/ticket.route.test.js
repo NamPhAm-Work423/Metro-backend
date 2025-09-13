@@ -110,6 +110,12 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
       success: true, 
       data: { totalTickets: 100, activeTickets: 50 } 
     })),
+    getTicketsByRoutes: jest.fn((req, res) => res.status(200).json({ 
+      success: true, 
+      message: 'Tickets retrieved successfully by routes',
+      data: { tickets: [], totalCount: 0, routeIds: [], statuses: [] },
+      count: 0
+    })),
     useTicket: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       message: 'Ticket used successfully',

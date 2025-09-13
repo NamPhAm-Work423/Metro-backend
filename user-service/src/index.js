@@ -7,6 +7,7 @@ const { Admin, Passenger, Staff } = require('./models/index.model');
 const userEventConsumer = require('./events/user.consumer.event');
 const seedAdminProfile = require('./utils/seedAdmin');
 const { initializeRedis } = require('./config/redis');
+const { startGrpcServer } = require('./grpc/userServer');
 
 const PORT = process.env.PORT || 3001;
 const SERVICE_NAME = 'user-service';
@@ -82,13 +83,25 @@ async function startApplication() {
         
         // Start HTTP server
         app.listen(PORT, () => {
-            logger.info(`${SERVICE_NAME} running on port ${PORT}`, {
+            logger.info(`${SERVICE_NAME} HTTP server running on port ${PORT}`, {
                 port: PORT,
                 environment: process.env.NODE_ENV || 'development',
                 service: SERVICE_NAME,
                 timestamp: new Date().toISOString()
             });
         });
+        
+        // Start gRPC server
+        try {
+            startGrpcServer();
+            logger.info('User gRPC server started successfully');
+        } catch (error) {
+            logger.error('Failed to start User gRPC server', {
+                error: error.message,
+                stack: error.stack
+            });
+            // Continue without gRPC - service should work with HTTP only
+        }
         
     } catch (error) {
         logger.error('Failed to start application', { 

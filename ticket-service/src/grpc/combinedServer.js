@@ -6,6 +6,7 @@ const { logger } = require('../config/logger');
 const { Fare } = require('../models/index.model');
 const PassengerDiscount = require('../models/passengerDiscount.model');
 const TransitPass = require('../models/transitPass.model');
+const passengerIdTracingService = require('../services/ticket/handlers/passengerIdTracing');
 
 function loadProto(relativePath) {
     const protoPath = path.join(__dirname, relativePath);
@@ -210,6 +211,7 @@ async function startCombinedGrpcServer() {
         const discountPkg = loadProto('../proto/passengerDiscount.proto').passengerdiscount;
         const transitPassPkg = loadProto('../proto/transitPass.proto').transitpass;
         const ticketCronPkg = loadProto('../proto/ticketCron.proto').ticketcron;
+        const ticketPkg = loadProto('../proto/ticket.proto').ticket;
 
         // Build services
         const fareService = await buildFareService();
@@ -245,6 +247,93 @@ async function startCombinedGrpcServer() {
                 }
             };
         })();
+        
+        const ticketService = {
+            async GetTicketsByRoutes(call, callback) {
+                try {
+                    const { routeIds, statuses } = call.request;
+                    logger.debug('gRPC GetTicketsByRoutes called', {
+                        routeIdsCount: routeIds?.length || 0,
+                        statuses
+                    });
+
+                    const result = await passengerIdTracingService.getTicketsByRoutes(
+                        routeIds || [], 
+                        statuses || ['active', 'inactive']
+                    );
+
+                    callback(null, {
+                        tickets: result.tickets,
+                        totalCount: result.totalCount
+                    });
+                } catch (error) {
+                    logger.error('gRPC GetTicketsByRoutes failed', { error: error.message });
+                    callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+                }
+            },
+
+            async GetPassengerIdsByRoutes(call, callback) {
+                try {
+                    const { routeIds, statuses } = call.request;
+                    logger.debug('gRPC GetPassengerIdsByRoutes called', {
+                        routeIdsCount: routeIds?.length || 0,
+                        statuses
+                    });
+
+                    const result = await passengerIdTracingService.getPassengerIdsByRoutes(
+                        routeIds || [], 
+                        statuses || ['active', 'inactive']
+                    );
+
+                    callback(null, {
+                        passengerIds: result.passengerIds,
+                        totalCount: result.totalCount,
+                        traces: result.traces
+                    });
+                } catch (error) {
+                    logger.error('gRPC GetPassengerIdsByRoutes failed', { error: error.message });
+                    callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+                }
+            },
+
+            async GetTicketsByPassengerIds(call, callback) {
+                try {
+                    const { passengerIds } = call.request;
+                    logger.debug('gRPC GetTicketsByPassengerIds called', {
+                        passengerIdsCount: passengerIds?.length || 0
+                    });
+
+                    const { Ticket } = require('../models/index.model');
+                    const { Op } = require('sequelize');
+
+                    const tickets = await Ticket.findAll({
+                        where: {
+                            passengerId: { [Op.in]: passengerIds || [] },
+                            isActive: true
+                        },
+                        attributes: ['ticketId', 'passengerId', 'status', 'ticketType', 'fareBreakdown', 'createdAt', 'updatedAt']
+                    });
+
+                    const grpcTickets = tickets.map(ticket => ({
+                        ticketId: ticket.ticketId,
+                        passengerId: ticket.passengerId,
+                        status: ticket.status,
+                        ticketType: ticket.ticketType,
+                        fareBreakdown: passengerIdTracingService.convertFareBreakdownToGrpc(ticket.fareBreakdown),
+                        createdAt: ticket.createdAt?.toISOString() || '',
+                        updatedAt: ticket.updatedAt?.toISOString() || ''
+                    }));
+
+                    callback(null, {
+                        tickets: grpcTickets,
+                        totalCount: grpcTickets.length
+                    });
+                } catch (error) {
+                    logger.error('gRPC GetTicketsByPassengerIds failed', { error: error.message });
+                    callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+                }
+            }
+        };
 
         // Create and bind server once
         const server = new grpc.Server();
@@ -252,6 +341,7 @@ async function startCombinedGrpcServer() {
         server.addService(discountPkg.PassengerDiscountService.service, passengerDiscountService);
         server.addService(transitPassPkg.TransitPassService.service, transitPassService);
         server.addService(ticketCronPkg.TicketCronService.service, ticketCronService);
+        server.addService(ticketPkg.TicketService.service, ticketService);
 
         const port = process.env.TICKET_GRPC_PORT;
         const serverAddress = `0.0.0.0:${port}`;

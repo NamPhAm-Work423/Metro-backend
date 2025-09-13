@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const passengerDiscountController = require('../controllers/passengerDiscount.controller');
+const { authorizeRoles } = require('../middlewares/authorization');
 
 // GET /v1/ticket/passengerDiscounts
 router.get('/getAllPassengerDiscounts', ...authorizeRoles('staff', 'admin'), passengerDiscountController.getAllPassengerDiscounts);

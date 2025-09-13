@@ -157,3 +157,107 @@ describe('station.service error paths', () => {
     await expect(stationService.updateStationFacilities('x', [])).rejects.toThrow('db');
   });
 });
+
+// Tests for getAffectedRoutes method
+describe('station.service getAffectedRoutes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('getAffectedRoutes returns routes for station', async () => {
+    const mockRouteStations = [
+      {
+        routeId: 'route-1',
+        sequence: 1,
+        Route: {
+          routeId: 'route-1',
+          name: 'Route 1',
+          originId: 'station-1',
+          destinationId: 'station-3'
+        }
+      },
+      {
+        routeId: 'route-2',
+        sequence: 2,
+        Route: {
+          routeId: 'route-2',
+          name: 'Route 2',
+          originId: 'station-1',
+          destinationId: 'station-4'
+        }
+      }
+    ];
+
+    RouteStation.findAll.mockResolvedValue(mockRouteStations);
+
+    const result = await stationService.getAffectedRoutes('station-1');
+
+    expect(RouteStation.findAll).toHaveBeenCalledWith({
+      where: { stationId: 'station-1' },
+      include: [
+        {
+          model: models.Route,
+          attributes: ['routeId', 'name', 'originId', 'destinationId']
+        }
+      ],
+      attributes: ['routeId', 'sequence']
+    });
+
+    expect(result).toEqual([
+      {
+        routeId: 'route-1',
+        routeName: 'Route 1',
+        sequence: 1,
+        originId: 'station-1',
+        destinationId: 'station-3'
+      },
+      {
+        routeId: 'route-2',
+        routeName: 'Route 2',
+        sequence: 2,
+        originId: 'station-1',
+        destinationId: 'station-4'
+      }
+    ]);
+  });
+
+  test('getAffectedRoutes returns empty array when no routes found', async () => {
+    RouteStation.findAll.mockResolvedValue([]);
+
+    const result = await stationService.getAffectedRoutes('station-1');
+
+    expect(result).toEqual([]);
+  });
+
+  test('getAffectedRoutes handles missing Route data gracefully', async () => {
+    const mockRouteStations = [
+      {
+        routeId: 'route-1',
+        sequence: 1,
+        Route: null // Route data missing
+      }
+    ];
+
+    RouteStation.findAll.mockResolvedValue(mockRouteStations);
+
+    const result = await stationService.getAffectedRoutes('station-1');
+
+    expect(result).toEqual([
+      {
+        routeId: 'route-1',
+        routeName: 'Unknown Route',
+        sequence: 1,
+        originId: undefined,
+        destinationId: undefined
+      }
+    ]);
+  });
+
+  test('getAffectedRoutes handles database errors', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('Database connection failed'));
+
+    const result = await stationService.getAffectedRoutes('station-1');
+
+    expect(result).toEqual([]);
+  });
+});

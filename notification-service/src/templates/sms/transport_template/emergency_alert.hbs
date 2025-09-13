@@ -1,0 +1,27 @@
+🚨 THÔNG BÁO KHẨN CẤP
+
+{{alertType}}: {{title}}
+Mức độ: {{severity}}
+Thời gian: {{alertTime}}
+
+{{#if affectedStations}}
+Các ga bị ảnh hưởng:
+{{#each affectedStations}}
+• {{stationName}} ({{location}})
+{{/each}}
+{{/if}}
+
+{{#if affectedRoutes}}
+Các tuyến bị ảnh hưởng:
+{{#each affectedRoutes}}
+• {{routeName}} ({{routeId}})
+{{/each}}
+{{/if}}
+
+Hướng dẫn: {{instructions}}
+
+Vui lòng tuân thủ hướng dẫn của nhân viên.
+Đảm bảo an toàn cho bản thân và những người xung quanh.
+
+---
+Metro System

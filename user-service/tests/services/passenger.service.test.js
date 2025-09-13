@@ -36,6 +36,8 @@ const passengerService = require('../../src/services/passenger.service');
 describe('passenger.service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset Passenger.findOne mock to avoid interference between tests
+    Passenger.findOne.mockClear();
   });
 
   test('getAllPassengers returns list', async () => {
@@ -203,6 +205,32 @@ describe('passenger.service', () => {
     const ok = await passengerService.setPassengerCache(payload);
     expect(PassengerCacheService.setPassenger).toHaveBeenCalledWith(payload);
     expect(ok).toBe(true);
+  });
+
+  test('getPassengersByIds returns passengers for given IDs', async () => {
+    const mockPassengers = [{ id: '1' }, { id: '2' }];
+    Passenger.findAll.mockResolvedValue(mockPassengers);
+    const result = await passengerService.getPassengersByIds(['p1', 'p2']);
+    expect(Passenger.findAll).toHaveBeenCalledWith({
+      where: { 
+        passengerId: { [require('sequelize').Op.in]: ['p1', 'p2'] },
+        isActive: true 
+      }
+    });
+    expect(result).toEqual(mockPassengers);
+  });
+
+  test('getPassengersByIds propagates errors', async () => {
+    Passenger.findAll.mockRejectedValue(new Error('db error'));
+    await expect(passengerService.getPassengersByIds(['p1'])).rejects.toThrow('db error');
+  });
+
+
+  test('syncPassengerCacheForUser returns false on error', async () => {
+    jest.spyOn(passengerService, 'getPassengerByUserId').mockRejectedValue(new Error('db error'));
+    
+    const ok = await passengerService.syncPassengerCacheForUser('u1');
+    expect(ok).toBe(false);
   });
 });
 

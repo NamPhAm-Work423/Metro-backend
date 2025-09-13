@@ -988,6 +988,37 @@ class TicketController {
             });
         }
     });
+
+    // GET /v1/tickets/getTicketsByRoutes
+    getTicketsByRoutes = asyncErrorHandler(async (req, res, next) => {
+        try {
+            // Use validated data from middleware
+            const { routeIds, statuses } = req.validatedQuery;
+
+            // Call service layer
+            const passengerIdTracingService = require('../services/ticket/handlers/passengerIdTracing');
+            const result = await passengerIdTracingService.getTicketsByRoutes(routeIds, statuses);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Tickets retrieved successfully by routes',
+                data: {
+                    tickets: result.tickets,
+                    totalCount: result.totalCount,
+                    routeIds: routeIds,
+                    statuses: statuses
+                },
+                count: result.tickets.length
+            });
+
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TICKETS_BY_ROUTES'
+            });
+        }
+    });
 }
 
 module.exports = new TicketController();

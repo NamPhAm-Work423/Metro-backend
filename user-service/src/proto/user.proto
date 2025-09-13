@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package user;
+
+service UserService {
+  rpc GetPassengersByIds(GetPassengersByIdsRequest) returns (GetPassengersByIdsResponse);
+  rpc GetPassengerPhoneNumbers(GetPassengerPhoneNumbersRequest) returns (GetPassengerPhoneNumbersResponse);
+  rpc GetPassengerById(GetPassengerByIdRequest) returns (GetPassengerByIdResponse);
+  rpc UpdatePassengerPreferences(UpdatePassengerPreferencesRequest) returns (UpdatePassengerPreferencesResponse);
+}
+
+message GetPassengersByIdsRequest {
+  repeated string passengerIds = 1;
+}
+
+message GetPassengersByIdsResponse {
+  repeated PassengerInfo passengers = 1;
+  int32 totalCount = 2;
+}
+
+message GetPassengerPhoneNumbersRequest {
+  repeated string passengerIds = 1;
+}
+
+message GetPassengerPhoneNumbersResponse {
+  repeated PassengerContact contacts = 1;
+  int32 totalCount = 2;
+}
+
+message GetPassengerByIdRequest {
+  string passengerId = 1;
+}
+
+message GetPassengerByIdResponse {
+  PassengerInfo passenger = 1;
+  bool found = 2;
+}
+
+message UpdatePassengerPreferencesRequest {
+  string passengerId = 1;
+  NotificationPreferences preferences = 2;
+}
+
+message UpdatePassengerPreferencesResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PassengerInfo {
+  string passengerId = 1;
+  string name = 2;
+  string phoneNumber = 3;
+  string email = 4;
+  bool isActive = 5;
+  NotificationPreferences preferences = 6;
+  string createdAt = 7;
+  string updatedAt = 8;
+}
+
+message PassengerContact {
+  string passengerId = 1;
+  string phoneNumber = 2;
+  string name = 3;
+  NotificationPreferences preferences = 4;
+}
+
+message NotificationPreferences {
+  bool smsNotifications = 1;
+  bool emailNotifications = 2;
+  bool stationAlerts = 3;
+  bool routeAlerts = 4;
+  bool promotionalAlerts = 5;
+  bool maintenanceAlerts = 6;
+}

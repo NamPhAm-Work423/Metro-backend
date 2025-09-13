@@ -10,6 +10,7 @@ const { BaseProvider, ISmsProvider } = require('./base.provider');
 class VonageSmsProvider extends BaseProvider {
 	constructor(config) {
 		super(config);
+		this.config = config; 
 		this.validateConfig(config, ['apiKey', 'apiSecret', 'from']);
 		this.defaultFrom = config.from;
 		this.client = new Vonage({ 
@@ -28,9 +29,18 @@ class VonageSmsProvider extends BaseProvider {
 		};
 
 		try {
+			logger.debug('Sending SMS via Vonage', {
+				to: smsData.to,
+				from: smsData.from,
+				textLength: smsData.text.length,
+				apiKey: this.config.apiKey ? `${this.config.apiKey.substring(0, 8)}...` : 'undefined'
+			});
+
 			const response = await this.executeWithRetry(() => 
 				this.client.sms.send(smsData)
 			);
+			
+			logger.debug('Vonage API response', { response });
 			
 			const message = response?.messages?.[0];
 			const status = message?.status;
@@ -48,6 +58,13 @@ class VonageSmsProvider extends BaseProvider {
 				});
 			} else {
 				const errorText = message['error-text'] || 'Unknown error';
+				logger.error('Vonage SMS failed with error', {
+					status,
+					errorText,
+					to: smsData.to,
+					from: smsData.from,
+					message: message
+				});
 				throw new Error(`SMS failed with status ${status}: ${errorText}`);
 			}
 		} catch (error) {
@@ -55,7 +72,8 @@ class VonageSmsProvider extends BaseProvider {
 				error: error.message, 
 				to: smsData.to,
 				from: smsData.from,
-				stack: error.stack
+				stack: error.stack,
+				response: error.response || 'No response data'
 			});
 			throw new Error(`SMS delivery failed: ${error.message}`);
 		}
