@@ -21,7 +21,8 @@ describe('Station Deactivation End-to-End Flow', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockNotificationService = {
-            sendSms: jest.fn().mockResolvedValue({ success: true, id: 'sms-123', status: 'sent' })
+            sendSms: jest.fn().mockResolvedValue({ success: true, id: 'sms-123', status: 'sent' }),
+            sendEmail: jest.fn().mockResolvedValue({ success: true, id: 'email-123', status: 'sent' })
         };
         consumer = new TransportEventConsumer(mockNotificationService);
     });
@@ -36,13 +37,13 @@ describe('Station Deactivation End-to-End Flow', () => {
             ticketGrpcClient.ticketContainsRoutes.mockReturnValue(true);
             ticketGrpcClient.extractUniquePassengerIds.mockReturnValue(scenario.expectedPassengerIds);
             
-            userGrpcClient.getPassengerPhoneNumbers.mockResolvedValue(mockGrpcResponses.passengerContacts);
-            userGrpcClient.filterSmsEnabledContacts.mockReturnValue(
-                mockGrpcResponses.passengerContacts.contacts.filter(c => c.smsEnabled)
+            userGrpcClient.getPassengerEmails.mockResolvedValue(mockGrpcResponses.passengerEmails);
+            userGrpcClient.filterEmailEnabledPassengers.mockReturnValue(
+                mockGrpcResponses.passengerEmails.passengers.filter(p => p.emailEnabled)
             );
-            userGrpcClient.convertContactsToUsers.mockReturnValue([
-                { passengerId: 'passenger-001', phoneNumber: '+84901234567', name: 'Nguyễn Văn An' },
-                { passengerId: 'passenger-002', phoneNumber: '+84907654321', name: 'Trần Thị Bình' }
+            userGrpcClient.convertPassengersToUsers.mockReturnValue([
+                { userId: 'passenger-001', email: 'nguyen@example.com', name: 'Nguyễn Văn An' },
+                { userId: 'passenger-002', email: 'tran@example.com', name: 'Trần Thị Bình' }
             ]);
 
             consumer.templateService.render.mockResolvedValue(mockRenderedSms);
@@ -61,23 +62,28 @@ describe('Station Deactivation End-to-End Flow', () => {
             // Step 2: Verify passenger IDs were extracted
             expect(ticketGrpcClient.extractUniquePassengerIds).toHaveBeenCalled();
 
-            // Step 3: Verify passenger phone numbers were retrieved
-            expect(userGrpcClient.getPassengerPhoneNumbers).toHaveBeenCalledWith(
+            // Step 3: Verify passenger emails were retrieved
+            expect(userGrpcClient.getPassengerEmails).toHaveBeenCalledWith(
                 scenario.expectedPassengerIds
             );
 
-            // Step 4: Verify SMS filtering and conversion
-            expect(userGrpcClient.filterSmsEnabledContacts).toHaveBeenCalled();
-            expect(userGrpcClient.convertContactsToUsers).toHaveBeenCalled();
+            // Step 4: Verify email filtering and conversion
+            expect(userGrpcClient.filterEmailEnabledPassengers).toHaveBeenCalled();
+            expect(userGrpcClient.convertPassengersToUsers).toHaveBeenCalled();
 
-            // Step 5: Verify template rendering
-            expect(consumer.templateService.render).toHaveBeenCalledWith(
-                'sms/transport_template/station_deactivation.hbs',
+            // Step 5: Verify email notifications were sent
+            expect(mockNotificationService.sendEmail).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    stationName: 'Ga Bến Thành',
-                    location: 'Quận 1, TP.HCM',
-                    reason: 'Bảo trì hệ thống',
-                    affectedRoutes: expect.any(Array)
+                    to: expect.any(String),
+                    subject: expect.stringContaining('Thông báo tạm ngừng hoạt động ga'),
+                    template: 'transport_template/station_deactivation',
+                    variables: expect.objectContaining({
+                        stationName: 'Ga Bến Thành',
+                        location: 'Quận 1, TP.HCM',
+                        reason: 'Bảo trì hệ thống',
+                        affectedRoutes: expect.any(Array)
+                    }),
+                    category: 'station_alert'
                 })
             );
         });
@@ -103,12 +109,12 @@ describe('Station Deactivation End-to-End Flow', () => {
             );
             
             // Should not proceed to user service calls
-            expect(userGrpcClient.getPassengerPhoneNumbers).not.toHaveBeenCalled();
+            expect(userGrpcClient.getPassengerEmails).not.toHaveBeenCalled();
             expect(consumer.templateService.renderTemplate).not.toHaveBeenCalled();
         });
 
         it('should handle mixed SMS preferences scenario', async () => {
-            const scenario = testScenarios.mixedSmsPreferences;
+            const scenario = testScenarios.mixedEmailPreferences;
             const eventData = mockStationDeactivationEvent;
 
             // Mock responses with mixed SMS preferences
@@ -119,7 +125,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             ticketGrpcClient.ticketContainsRoutes.mockReturnValue(true);
             ticketGrpcClient.extractUniquePassengerIds.mockReturnValue(['passenger-001']);
             
-            userGrpcClient.getPassengerPhoneNumbers.mockResolvedValue({
+            userGrpcClient.getPassengerEmails.mockResolvedValue({
                 contacts: [
                     {
                         passengerId: 'passenger-001',
@@ -129,7 +135,7 @@ describe('Station Deactivation End-to-End Flow', () => {
                     }
                 ]
             });
-            userGrpcClient.filterSmsEnabledContacts.mockReturnValue([
+            userGrpcClient.filterEmailEnabledPassengers.mockReturnValue([
                 {
                     passengerId: 'passenger-001',
                     phoneNumber: '+84901234567',
@@ -137,15 +143,15 @@ describe('Station Deactivation End-to-End Flow', () => {
                     name: 'Nguyễn Văn An'
                 }
             ]);
-            userGrpcClient.convertContactsToUsers.mockReturnValue([
+            userGrpcClient.convertPassengersToUsers.mockReturnValue([
                 { passengerId: 'passenger-001', phoneNumber: '+84901234567', name: 'Nguyễn Văn An' }
             ]);
 
             consumer.templateService.render.mockResolvedValue(mockRenderedSms);
 
             await consumer.handleStationDeactivation(eventData);
-            expect(userGrpcClient.filterSmsEnabledContacts).toHaveBeenCalled();
-            expect(consumer.templateService.render).toHaveBeenCalled();
+            expect(userGrpcClient.filterEmailEnabledPassengers).toHaveBeenCalled();
+            expect(mockNotificationService.sendEmail).toHaveBeenCalled();
         });
 
         it('should handle duplicate passenger IDs correctly', async () => {
@@ -165,7 +171,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             ticketGrpcClient.ticketContainsRoutes.mockReturnValue(true);
             ticketGrpcClient.extractUniquePassengerIds.mockReturnValue(['passenger-001']); // Should be unique
             
-            userGrpcClient.getPassengerPhoneNumbers.mockResolvedValue({
+            userGrpcClient.getPassengerEmails.mockResolvedValue({
                 contacts: [
                     {
                         passengerId: 'passenger-001',
@@ -175,7 +181,7 @@ describe('Station Deactivation End-to-End Flow', () => {
                     }
                 ]
             });
-            userGrpcClient.filterSmsEnabledContacts.mockReturnValue([
+            userGrpcClient.filterEmailEnabledPassengers.mockReturnValue([
                 {
                     passengerId: 'passenger-001',
                     phoneNumber: '+84901234567',
@@ -183,7 +189,7 @@ describe('Station Deactivation End-to-End Flow', () => {
                     name: 'Nguyễn Văn An'
                 }
             ]);
-            userGrpcClient.convertContactsToUsers.mockReturnValue([
+            userGrpcClient.convertPassengersToUsers.mockReturnValue([
                 { passengerId: 'passenger-001', phoneNumber: '+84901234567', name: 'Nguyễn Văn An' }
             ]);
 
@@ -195,7 +201,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             expect(ticketGrpcClient.extractUniquePassengerIds).toHaveBeenCalledWith(ticketsWithDuplicates);
             
             // Verify user service was called with unique passenger IDs only
-            expect(userGrpcClient.getPassengerPhoneNumbers).toHaveBeenCalledWith(['passenger-001']);
+            expect(userGrpcClient.getPassengerEmails).toHaveBeenCalledWith(['passenger-001']);
         });
     });
 
@@ -209,7 +215,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             expect(ticketGrpcClient.getTicketsByRoutes).toHaveBeenCalled();
             
             // Should not proceed to user service calls
-            expect(userGrpcClient.getPassengerPhoneNumbers).not.toHaveBeenCalled();
+            expect(userGrpcClient.getPassengerEmails).not.toHaveBeenCalled();
         });
 
         it('should handle user service gRPC errors gracefully', async () => {
@@ -223,7 +229,7 @@ describe('Station Deactivation End-to-End Flow', () => {
 
             await consumer.handleStationDeactivation(eventData);
             expect(ticketGrpcClient.getTicketsByRoutes).toHaveBeenCalled();
-            expect(userGrpcClient.getPassengerPhoneNumbers).toHaveBeenCalled();
+            expect(userGrpcClient.getPassengerEmails).toHaveBeenCalled();
         });
 
         it('should handle template rendering errors with fallback', async () => {
@@ -237,14 +243,14 @@ describe('Station Deactivation End-to-End Flow', () => {
             userGrpcClient.filterSmsEnabledContacts.mockReturnValue(
                 mockGrpcResponses.passengerContacts.contacts.filter(c => c.smsEnabled)
             );
-            userGrpcClient.convertContactsToUsers.mockReturnValue([
+            userGrpcClient.convertPassengersToUsers.mockReturnValue([
                 { passengerId: 'passenger-001', phoneNumber: '+84901234567', name: 'Nguyễn Văn An' }
             ]);
 
             consumer.templateService.renderTemplate.mockRejectedValue(new Error('Template rendering failed'));
 
             await consumer.handleStationDeactivation(eventData);
-            expect(consumer.templateService.render).toHaveBeenCalled();
+            expect(mockNotificationService.sendEmail).toHaveBeenCalled();
         });
 
         it('should handle empty affected routes gracefully', async () => {
@@ -307,7 +313,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             ticketGrpcClient.ticketContainsRoutes.mockReturnValue(true);
             ticketGrpcClient.extractUniquePassengerIds.mockReturnValue(largePassengerIds);
             
-            userGrpcClient.getPassengerPhoneNumbers.mockResolvedValue({
+            userGrpcClient.getPassengerEmails.mockResolvedValue({
                 contacts: largePassengerIds.map(id => ({
                     passengerId: id,
                     phoneNumber: `+8490${id.slice(-7)}`,
@@ -336,7 +342,7 @@ describe('Station Deactivation End-to-End Flow', () => {
             const startTime = Date.now();
             await consumer.handleStationDeactivation(eventData);
             const endTime = Date.now();
-            expect(userGrpcClient.getPassengerPhoneNumbers).toHaveBeenCalledWith(largePassengerIds);
+            expect(userGrpcClient.getPassengerEmails).toHaveBeenCalledWith(largePassengerIds);
             
             // Should complete within reasonable time
             expect(endTime - startTime).toBeLessThan(10000); // 10 seconds

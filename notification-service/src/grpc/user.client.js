@@ -253,6 +253,70 @@ class UserGrpcClient {
     }
 
     /**
+     * Filter passengers to only include those with SMS enabled
+     * @param {Array} contacts - Array of contact objects
+     * @returns {Array} Array of SMS-enabled contacts
+     */
+    filterSmsEnabledContacts(contacts) {
+        if (!contacts || !Array.isArray(contacts)) {
+            return [];
+        }
+
+        return contacts.filter(contact => {
+            return contact.smsEnabled === true;
+        });
+    }
+
+    /**
+     * Convert contact objects to user objects for SMS notifications
+     * @param {Array} contacts - Array of contact objects
+     * @returns {Array} Array of user objects
+     */
+    convertContactsToUsers(contacts) {
+        if (!contacts || !Array.isArray(contacts)) {
+            return [];
+        }
+
+        return contacts.map(contact => ({
+            passengerId: contact.passengerId,
+            phoneNumber: contact.phoneNumber,
+            name: contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
+        }));
+    }
+
+    /**
+     * Filter passengers to only include those with email enabled
+     * @param {Array} passengers - Array of passenger objects
+     * @returns {Array} Array of email-enabled passengers
+     */
+    filterEmailEnabledPassengers(passengers) {
+        if (!passengers || !Array.isArray(passengers)) {
+            return [];
+        }
+
+        return passengers.filter(passenger => {
+            return passenger.emailEnabled === true && passenger.email;
+        });
+    }
+
+    /**
+     * Convert passenger objects to user objects for email notifications
+     * @param {Array} passengers - Array of passenger objects
+     * @returns {Array} Array of user objects
+     */
+    convertPassengersToUsers(passengers) {
+        if (!passengers || !Array.isArray(passengers)) {
+            return [];
+        }
+
+        return passengers.map(passenger => ({
+            userId: passenger.passengerId,
+            email: passenger.email,
+            name: passenger.name || `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim()
+        }));
+    }
+
+    /**
      * Close gRPC client connection
      */
     close() {

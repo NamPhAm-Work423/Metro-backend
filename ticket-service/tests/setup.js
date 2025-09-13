@@ -14,6 +14,7 @@ process.env.REDIS_PORT = '6379';
 process.env.REDIS_PASSWORD = '';
 process.env.KAFKA_BROKERS = 'localhost:9092';
 process.env.GRPC_TRANSPORT_SERVICE_URL = 'localhost:50051';
+process.env.TICKET_GRPC_PORT = '50052';
 
 // Mock console methods to reduce noise in test output
 global.console = {

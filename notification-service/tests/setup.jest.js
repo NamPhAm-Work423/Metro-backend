@@ -139,6 +139,7 @@ jest.mock('../src/grpc/user.client', () => ({
   initialize: jest.fn().mockResolvedValue(),
   close: jest.fn().mockResolvedValue(),
   getPassengerPhoneNumbers: jest.fn().mockResolvedValue({ contacts: [] }),
+  getPassengerEmails: jest.fn().mockResolvedValue({ passengers: [] }),
   filterSmsEnabledContacts: jest.fn().mockImplementation((contacts) => {
     if (!contacts || !Array.isArray(contacts)) return [];
     return contacts.filter(contact => contact.smsEnabled === true);
@@ -149,6 +150,18 @@ jest.mock('../src/grpc/user.client', () => ({
       passengerId: contact.passengerId,
       phoneNumber: contact.phoneNumber,
       name: contact.name || 'Unknown'
+    }));
+  }),
+  filterEmailEnabledPassengers: jest.fn().mockImplementation((passengers) => {
+    if (!passengers || !Array.isArray(passengers)) return [];
+    return passengers.filter(passenger => passenger.emailEnabled === true && passenger.email);
+  }),
+  convertPassengersToUsers: jest.fn().mockImplementation((passengers) => {
+    if (!passengers || !Array.isArray(passengers)) return [];
+    return passengers.map(passenger => ({
+      userId: passenger.passengerId,
+      email: passenger.email,
+      name: passenger.name || 'Unknown'
     }));
   })
 }));

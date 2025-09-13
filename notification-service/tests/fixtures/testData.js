@@ -293,6 +293,22 @@ const mockGrpcResponses = {
     },
     passengerContacts: {
         contacts: mockPassengerContacts
+    },
+    passengerEmails: {
+        passengers: [
+            {
+                passengerId: 'passenger-001',
+                email: 'nguyen@example.com',
+                name: 'Nguyễn Văn An',
+                emailEnabled: true
+            },
+            {
+                passengerId: 'passenger-002',
+                email: 'tran@example.com',
+                name: 'Trần Thị Bình',
+                emailEnabled: true
+            }
+        ]
     }
 };
 
@@ -303,7 +319,7 @@ const testScenarios = {
         routeIds: ['tuyen-metro-so-1-ben-thanh-suoi-tien', 'tuyen-metro-so-2-bx-an-suong-moi-cat-lai'],
         statuses: ['active', 'inactive'],
         expectedPassengerIds: ['passenger-001', 'passenger-002'],
-        expectedSmsEnabledUsers: 2
+        expectedEmailEnabledUsers: 2
     },
     
     // Scenario 2: No matching tickets
@@ -311,15 +327,15 @@ const testScenarios = {
         routeIds: ['non-existent-route'],
         statuses: ['active'],
         expectedPassengerIds: [],
-        expectedSmsEnabledUsers: 0
+        expectedEmailEnabledUsers: 0
     },
     
-    // Scenario 3: Mixed SMS preferences
-    mixedSmsPreferences: {
+    // Scenario 3: Mixed email preferences
+    mixedEmailPreferences: {
         routeIds: ['tuyen-metro-so-1-ben-thanh-suoi-tien'],
         statuses: ['active'],
         expectedPassengerIds: ['passenger-001'],
-        expectedSmsEnabledUsers: 1 // Only passenger-001 has SMS enabled
+        expectedEmailEnabledUsers: 1 // Only passenger-001 has email enabled
     },
     
     // Scenario 4: Duplicate passenger IDs
@@ -327,7 +343,7 @@ const testScenarios = {
         routeIds: ['tuyen-metro-so-1-ben-thanh-suoi-tien', 'tuyen-metro-so-3-bx-mien-tay-bx-mien-dong'],
         statuses: ['active'],
         expectedPassengerIds: ['passenger-001'], // Should be unique
-        expectedSmsEnabledUsers: 1
+        expectedEmailEnabledUsers: 1
     }
 };
 

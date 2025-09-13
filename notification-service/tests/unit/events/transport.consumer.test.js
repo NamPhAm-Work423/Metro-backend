@@ -107,7 +107,7 @@ describe('TransportEventConsumer', () => {
                 ['active', 'inactive']
             );
             expect(userGrpcClient.getPassengerEmails).toHaveBeenCalledWith(['passenger-1', 'passenger-2']);
-            expect(consumer.templateService.render).toHaveBeenCalled();
+            expect(mockNotificationService.sendEmail).toHaveBeenCalled();
         });
 
         it('should handle empty affected routes gracefully', async () => {
