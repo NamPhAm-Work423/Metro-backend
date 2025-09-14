@@ -7,6 +7,7 @@ docs
 README.service.md
 coverage-to-csv.js
 Latex
+vps_handlers.md
 # Logs
 logs
 logs/*
