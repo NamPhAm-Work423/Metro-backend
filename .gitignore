@@ -6,6 +6,7 @@ reports
 docs
 README.service.md
 coverage-to-csv.js
+Latex
 # Logs
 logs
 logs/*

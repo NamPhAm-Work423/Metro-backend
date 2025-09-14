@@ -1,320 +1,347 @@
-# Transport Service
+# Transport Service — Service README
 
-Microservice handling transportation infrastructure management for the Metro backend system.
-
-## Overview
-
-The Transport Service manages the core transportation infrastructure including:
-- **Routes**: Metro line definitions and route management
-- **Stations**: Station information and geographical data
-- **Trains**: Train fleet management and specifications
-- **Trips**: Scheduled trips and real-time operations
-- **Stops**: Individual stop points and timing
-- **Route-Station Relationships**: Complex routing and connectivity
-
-### Key Features:
-- ✅ **Comprehensive Route Management**: Full metro line and route definitions
-- ✅ **Station Network**: Complete station database with geographical information
-- ✅ **Fleet Management**: Train inventory and operational status
-- ✅ **Schedule Management**: Trip planning and real-time schedule updates
-- ✅ **gRPC Server**: High-performance API for other services
-- ✅ **Event-Driven Architecture**: Kafka integration for real-time updates
-
-## Features
-
-### Route Management
-- Metro line definitions and route creation
-- Route optimization and path planning
-- Multi-modal transportation support
-- Route-station relationship management
-
-### Station Management
-- Station geographical data and metadata
-- Accessibility information and facilities
-- Station capacity and platform management
-- Real-time station status updates
-
-### Train Management
-- Train fleet inventory and specifications
-- Maintenance scheduling and tracking
-- Train assignment to routes
-- Real-time train location and status
-
-### Trip Management
-- Schedule creation and management
-- Real-time trip tracking
-- Delay notifications and updates
-- Trip analytics and reporting
-
-### Stop Management
-- Individual stop point management
-- Timing and schedule coordination
-- Stop accessibility and amenities
-- Real-time arrival/departure information
-
-## API Endpoints
-
-### Route Routes (`/v1/transport/route`)
-- `GET /` - Get all routes
-- `GET /:id` - Get route details
-- `POST /` - Create new route (admin only)
-- `PUT /:id` - Update route (admin only)
-- `DELETE /:id` - Delete route (admin only)
-- `GET /:id/stations` - Get stations on route
-
-### Station Routes (`/v1/transport/station`)
-- `GET /` - Get all stations
-- `GET /:id` - Get station details
-- `POST /` - Create new station (admin only)
-- `PUT /:id` - Update station (admin only)
-- `DELETE /:id` - Delete station (admin only)
-- `GET /:id/routes` - Get routes serving station
-
-### Train Routes (`/v1/transport/train`)
-- `GET /` - Get all trains
-- `GET /:id` - Get train details
-- `POST /` - Create new train (admin only)
-- `PUT /:id` - Update train (admin only)
-- `DELETE /:id` - Delete train (admin only)
-- `GET /:id/schedule` - Get train schedule
-
-### Trip Routes (`/v1/transport/trip`)
-- `GET /` - Get all trips
-- `GET /:id` - Get trip details
-- `POST /` - Create new trip (admin only)
-- `PUT /:id` - Update trip (admin only)
-- `DELETE /:id` - Delete trip (admin only)
-- `GET /schedule` - Get trip schedules
-
-### Stop Routes (`/v1/transport/stop`)
-- `GET /` - Get all stops
-- `GET /:id` - Get stop details
-- `POST /` - Create new stop (admin only)
-- `PUT /:id` - Update stop (admin only)
-- `DELETE /:id` - Delete stop (admin only)
-
-### Route-Station Routes (`/v1/transport/route-station`)
-- `GET /` - Get all route-station relationships
-- `POST /` - Create route-station relationship (admin only)
-- `PUT /:id` - Update relationship (admin only)
-- `DELETE /:id` - Delete relationship (admin only)
-
-## Architecture
-
-```
-transport-service/
-├── src/
-│   ├── config/          # Database, logger configs
-│   ├── models/          # Sequelize models (Route, Station, Train, Trip, Stop)
-│   ├── controllers/     # HTTP request handlers
-│   ├── services/        # Business logic
-│   ├── routes/          # Express routes
-│   ├── grpc/            # gRPC server implementation
-│   ├── proto/           # Protocol buffer definitions
-│   ├── kafka/           # Kafka utilities
-│   ├── middlewares/     # Authorization, etc.
-│   ├── helpers/         # Utility functions
-│   ├── app.js           # Express application
-│   └── index.js         # Entry point
-├── package.json
-├── Dockerfile
-└── README.md
-```
-
-## Environment Variables
-
-Create a `.env` file in the transport-service directory:
-
-```env
-NODE_ENV=production
-PORT=3002
-
-#Service JWT
-SERVICE_JWT_SECRET=ad9be0a348b0e7825a2f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
-
-# Database
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=transport_db    
-DB_USER=transport_service
-DB_PASSWORD=transportpass
-
-KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
-KAFKA_CLIENT_ID=transport_service
-KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
-```
-
-### Environment Variables Explanation:
-
-#### 🏗️ **Application Configuration**
-- **NODE_ENV**: Runtime environment (development/production)
-- **PORT**: Service port (default: 3002)
-
-#### 🔐 **Authentication**
-- **SERVICE_JWT_SECRET**: JWT secret for inter-service communication
-
-#### 📊 **Database Configuration**
-- **DB_HOST**: PostgreSQL host
-- **DB_PORT**: PostgreSQL port
-- **DB_NAME**: Database name for transport service
-- **DB_USER**: Database username
-- **DB_PASSWORD**: Database password
-
-#### 📨 **Event System (Kafka)**
-- **KAFKA_BROKERS**: Kafka broker addresses
-- **KAFKA_CLIENT_ID**: Unique client identifier
-- **KAFKA_BROKERS_INTERNAL**: Internal Kafka broker addresses
-
-## Getting Started
-
-### Development
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-### Docker
-```bash
-# Build and run with docker-compose
-docker-compose up transport-service
-```
-
-## gRPC Server
-
-The Transport Service provides a gRPC server for high-performance communication with other services:
-
-### Available gRPC Methods:
-- `GetRoute(RouteRequest)` - Get route information
-- `GetStation(StationRequest)` - Get station details
-- `GetRouteStations(RouteRequest)` - Get all stations on a route
-- `CalculateDistance(DistanceRequest)` - Calculate distance between stations
-- `GetNextTrips(TripRequest)` - Get upcoming trips for a route
-
-### Protocol Buffers:
-```protobuf
-service TransportService {
-  rpc GetRoute(RouteRequest) returns (RouteResponse);
-  rpc GetStation(StationRequest) returns (StationResponse);
-  rpc GetRouteStations(RouteRequest) returns (RouteStationsResponse);
-  rpc CalculateDistance(DistanceRequest) returns (DistanceResponse);
-  rpc GetNextTrips(TripRequest) returns (TripsResponse);
-}
-```
-
-## Data Models
-
-### Route
-- Route ID, name, and description
-- Start and end stations
-- Route type (metro, bus, tram)
-- Operational status
-
-### Station
-- Station ID, name, and code
-- Geographical coordinates (latitude, longitude)
-- Address and accessibility information
-- Platform and facility details
-
-### Train
-- Train ID, model, and specifications
-- Capacity and configuration
-- Maintenance status and schedule
-- Current route assignment
-
-### Trip
-- Trip ID and schedule information
-- Route and train assignment
-- Start and end times
-- Real-time status updates
-
-### Stop
-- Stop ID and timing information
-- Station and trip relationships
-- Arrival and departure times
-- Platform assignments
-
-## Event Flow
+## 1. Tổng quan
+- **Chức năng chính**: Quản lý hệ thống giao thông Metro TPHCM bao gồm tuyến đường, ga tàu, chuyến tàu, tàu và điểm dừng
+- **Vai trò trong hệ MetroHCM**: Service cốt lõi cung cấp thông tin giao thông công cộng cho các service khác (ticket, user, notification)
+- **Giao tiếp**: 
+  - REST API ⟷ API Gateway, User Service, Ticket Service
+  - gRPC ⟷ Control Service, Public Service
+  - Kafka Events ⟷ Notification Service, Report Service
+- **Kiến trúc & pattern**: Layered Architecture với SOLID principles, Dependency Injection, Repository pattern
+- **Lưu đồ chuỗi** cho luồng tìm tuyến đường:
 
 ```mermaid
 sequenceDiagram
-    participant A as Admin
-    participant T as Transport Service
-    participant gRPC as gRPC Clients
-    participant K as Kafka
-    participant DB as PostgreSQL
-
-    Note over A,DB: Infrastructure Management
-
-    A->>T: Create/Update Route
-    T->>DB: Store route data
-    T->>K: Publish route.updated event
-    
-    A->>T: Schedule Trip
-    T->>DB: Store trip schedule
-    T->>K: Publish trip.scheduled event
-    
-    Note over gRPC,DB: Real-time Queries
-    
-    gRPC->>T: GetRoute request
-    T->>DB: Query route data
-    T->>gRPC: Return route details
-    
-    gRPC->>T: CalculateDistance request
-    T->>T: Calculate station distance
-    T->>gRPC: Return distance info
+  participant Client
+  participant API Gateway
+  participant Transport Service
+  participant Database
+  participant Kafka
+  Note over Transport Service: Tìm tuyến đường giữa 2 ga
+  Client->>API Gateway: GET /transport/route/search/between-stations
+  API Gateway->>Transport Service: Forward request
+  Transport Service->>Database: Query routes by origin/destination
+  Database-->>Transport Service: Return matching routes
+  Transport Service->>Kafka: Publish route search event
+  Transport Service-->>API Gateway: Return routes with stations
+  API Gateway-->>Client: JSON response
 ```
 
-### Event Processing:
+## 2. Sơ đồ hệ thống (Mermaid)
 
-1. **Infrastructure Updates**: Real-time updates for routes, stations, and schedules
-2. **Trip Management**: Schedule changes and real-time trip updates
-3. **Performance Monitoring**: Service health and operational metrics
-4. **Integration Events**: Cross-service communication via Kafka
+```mermaid
+graph LR
+  A[Client/API Gateway] -->|HTTP REST| S[Transport Service]
+  S -->|PostgreSQL| DB[(Transport DB)]
+  S -->|gRPC| CS[Control Service]
+  S -->|gRPC| MS[Public Service]
+  S -->|Kafka Events| NS[Notification Service]
+  S -->|Kafka Events| RS[Report Service]
+  S -->|Prometheus| M[Metrics]
+```
 
-## Integration
+## 3. API & Hợp đồng
 
-### gRPC Communication
-- **High Performance**: Binary protocol for efficient data transfer
-- **Type Safety**: Protocol buffer definitions ensure data integrity
-- **Streaming Support**: Real-time updates for trip and route information
-- **Load Balancing**: Automatic service discovery and load distribution
+### 3.1 REST endpoints
 
-### REST API
-- **Admin Operations**: Full CRUD operations for all entities
-- **Public Queries**: Read-only access for public transportation data
-- **Authentication**: JWT-based authorization for admin operations
+| Method | Path | Mô tả | Auth | Request | Response | Status Codes |
+| ------ | ---- | ----- | ---- | ------- | -------- | ------------ |
+| GET | `/v1/transport/route/` | Lấy tất cả tuyến | passenger/staff/admin | - | `{routes: Route[]}` | 200, 401, 403 |
+| GET | `/v1/transport/route/active` | Lấy tuyến đang hoạt động | passenger/staff/admin | - | `{routes: Route[]}` | 200, 401, 403 |
+| GET | `/v1/transport/route/search/between-stations` | Tìm tuyến giữa 2 ga | passenger/staff/admin | `?originId&destinationId` | `{routes: Route[]}` | 200, 400, 401, 403 |
+| GET | `/v1/transport/route/:id` | Lấy tuyến theo ID | passenger/staff/admin | - | `{route: Route}` | 200, 404, 401, 403 |
+| GET | `/v1/transport/route/:routeId/stations` | Lấy ga theo tuyến | passenger/staff/admin | - | `{stations: Station[]}` | 200, 404, 401, 403 |
+| POST | `/v1/transport/route/` | Tạo tuyến mới | admin | `{name, originId, destinationId, distance, duration}` | `{route: Route}` | 201, 400, 401, 403 |
+| PUT | `/v1/transport/route/:id` | Cập nhật tuyến | admin | `{name?, distance?, duration?, isActive?}` | `{route: Route}` | 200, 404, 400, 401, 403 |
+| DELETE | `/v1/transport/route/:id` | Xóa tuyến | admin | - | `{message: string}` | 200, 404, 401, 403 |
+| GET | `/v1/transport/station/` | Lấy tất cả ga | passenger/staff/admin | - | `{stations: Station[]}` | 200, 401, 403 |
+| GET | `/v1/transport/station/:id` | Lấy ga theo ID | passenger/staff/admin | - | `{station: Station}` | 200, 404, 401, 403 |
+| GET | `/v1/transport/train/` | Lấy tất cả tàu | passenger/staff/admin | - | `{trains: Train[]}` | 200, 401, 403 |
+| GET | `/v1/transport/trip/` | Lấy tất cả chuyến | passenger/staff/admin | - | `{trips: Trip[]}` | 200, 401, 403 |
+| GET | `/health` | Health check | - | - | `{status: "OK", service: string}` | 200 |
 
-## Health Check & Monitoring
+### 3.2 gRPC (Proto)
 
-### Endpoints:
-- **Health Check**: `GET /health` - Service health status
-- **Database Check**: Included in health endpoint
-- **gRPC Health**: gRPC health checking protocol
-- **Kafka Check**: Included in health endpoint
+* **Vị trí file**: `src/proto/transport.proto`
+* **Cách build/generate**: Sử dụng `@grpc/proto-loader` để load proto file
+* **Versioning & Compatibility**: Proto3 syntax, backward compatible
 
-### Monitoring Features:
-- **Winston Logging**: Structured logging with daily rotation
-- **Error Tracking**: Comprehensive error handling with correlation IDs
-- **Performance Metrics**: Request timing and database query performance
-- **gRPC Metrics**: Request/response times and error rates
-- **Event Tracking**: Kafka message processing status
+**Các RPC methods**:
+- `GetRoute(GetRouteRequest) returns (RouteResponse)`
+- `GetStation(GetStationRequest) returns (StationResponse)`
+- `GetTrip(GetTripRequest) returns (TripResponse)`
+- `GetRoutesByStations(GetRoutesByStationsRequest) returns (RoutesResponse)`
+- `GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse)`
+- `CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse)`
+- `ListRoutes(ListRoutesRequest) returns (RoutesResponse)`
+- `ListTrains(ListTrainsRequest) returns (TrainsResponse)`
+- `BulkUpsertTrips(BulkUpsertTripsRequest) returns (BulkUpsertTripsResponse)`
+- `BulkUpsertStops(BulkUpsertStopsRequest) returns (BulkUpsertStopsResponse)`
 
-## Performance Optimization
+### 3.3 Event (Kafka)
 
-### Database Optimization:
-- **Indexing**: Optimized indexes for geographical queries
-- **Connection Pooling**: Efficient database connection management
-- **Query Optimization**: Optimized queries for route and station lookups
+| Topic | Direction | Key | Schema | Semantics | Retry/DLQ |
+| ----- | --------- | --- | ------ | --------- | --------- |
+| `route.created` | Producer | routeId | `{routeId, name, originId, destinationId}` | At-least-once | 8 retries |
+| `route.updated` | Producer | routeId | `{routeId, changes: object}` | At-least-once | 8 retries |
+| `station.created` | Producer | stationId | `{stationId, name, location, coordinates}` | At-least-once | 8 retries |
+| `trip.created` | Producer | tripId | `{tripId, routeId, trainId, schedule}` | At-least-once | 8 retries |
+| `transport.search` | Producer | searchId | `{query, results, timestamp}` | At-least-once | 8 retries |
 
-### Caching Strategy:
-- **Route Caching**: Frequently accessed route information
-- **Station Data**: Cached station details and geographical data
-- **Schedule Caching**: Trip schedules and real-time updates
+## 4. Dữ liệu & Migrations
 
-### gRPC Optimization:
-- **Connection Reuse**: Persistent gRPC connections
-- **Compression**: Data compression for large responses
-- **Streaming**: Efficient real-time data streaming 
+* **Loại CSDL**: PostgreSQL
+* **Bảng chính**:
+
+| Bảng | Cột chính | Kiểu | Index | Ràng buộc |
+| ---- | --------- | ---- | ----- | --------- |
+| `Stations` | `stationId` (PK), `name`, `location`, `latitude`, `longitude`, `openTime`, `closeTime`, `facilities` (JSON), `connections` (JSON), `isActive` | STRING(100), STRING(100), STRING(100), FLOAT, FLOAT, TIME, TIME, JSON, JSON, BOOLEAN | `stationId`, `name` | NOT NULL constraints |
+| `Routes` | `routeId` (PK), `name`, `originId` (FK), `destinationId` (FK), `numberOfStations`, `distance`, `duration`, `isActive` | STRING(100), STRING(100), STRING(100), STRING(100), INTEGER, FLOAT, FLOAT, BOOLEAN | `routeId`, `originId`, `destinationId` | Foreign keys to Stations |
+| `RouteStations` | `routeStationId` (PK), `routeId` (FK), `stationId` (FK), `sequence` | STRING(100), STRING(100), STRING(100), INTEGER | `routeId`, `stationId`, `sequence` | Composite unique on (routeId, sequence) |
+| `Trains` | `trainId` (PK), `name`, `type`, `capacity`, `status`, `routeId` (FK), `lastMaintenance`, `isActive` | STRING(100), STRING(100), STRING(50), INTEGER, STRING(50), STRING(100), DATE, BOOLEAN | `trainId`, `routeId`, `status` | Foreign key to Routes |
+| `Trips` | `tripId` (PK), `routeId` (FK), `trainId` (FK), `departureTime`, `arrivalTime`, `dayOfWeek`, `serviceDate`, `isActive` | STRING(100), STRING(100), STRING(100), TIME, TIME, STRING(20), DATE, BOOLEAN | `tripId`, `routeId`, `trainId`, `serviceDate` | Foreign keys to Routes, Trains |
+| `Stops` | `stopId` (PK), `tripId` (FK), `stationId` (FK), `arrivalTime`, `departureTime`, `sequence` | STRING(100), STRING(100), STRING(100), TIME, TIME, INTEGER | `tripId`, `stationId`, `sequence` | Foreign keys to Trips, Stations |
+
+* **Quan hệ & cascade**: 
+  - Route → Station (origin/destination): CASCADE DELETE
+  - Route → RouteStation: CASCADE DELETE
+  - Route → Trip: CASCADE DELETE
+  - Train → Trip: CASCADE DELETE
+  - Trip → Stop: CASCADE DELETE
+* **Seeds/fixtures**: `src/seed/` - Khởi tạo dữ liệu Metro TPHCM thực tế
+* **Cách chạy migration**: Tự động sync khi khởi động service (`sequelize.sync()`)
+
+## 5. Cấu hình & Secrets
+
+### 5.1 Biến môi trường
+
+| ENV | Bắt buộc | Giá trị mẫu | Mô tả | Phạm vi |
+| --- | -------- | ----------- | ----- | ------- |
+| `NODE_ENV` | ✅ | `production` | Môi trường chạy | dev/staging/prod |
+| `PORT` | ✅ | `8003` | Port HTTP server | 1-65535 |
+| `SERVICE_JWT_SECRET` | ✅ | `CHANGE_ME` | Secret cho JWT service-to-service | String |
+| `DB_HOST` | ✅ | `postgres` | Host PostgreSQL | IP/Domain |
+| `DB_PORT` | ✅ | `5432` | Port PostgreSQL | 1-65535 |
+| `DB_NAME` | ✅ | `transport_db` | Tên database | String |
+| `DB_USER` | ✅ | `transport_service` | Username database | String |
+| `DB_PASSWORD` | ✅ | `${TRANSPORT_DB_PASSWORD}` | Password database | String |
+| `TRANSPORT_GRPC_HOST` | ✅ | `transport-service` | Host gRPC server | IP/Domain |
+| `TRANSPORT_GRPC_PORT` | ✅ | `50051` | Port gRPC server | 1-65535 |
+| `KAFKA_BROKERS` | ✅ | `kafka-1:19092,kafka-2:19093,kafka-3:19094` | Kafka brokers | Comma-separated |
+| `KAFKA_CLIENT_ID` | ✅ | `transport-service` | Kafka client ID | String |
+| `API_GATEWAY_ORIGIN` | ✅ | `https://api.metrohcm.io.vn` | Origin API Gateway | URL |
+| `ALLOWED_ORIGINS` | ❌ | `https://api.metrohcm.io.vn` | Origins được phép CORS | Comma-separated |
+
+### 5.2 Profiles
+
+* **dev**: CORS enabled, debug logging, local Kafka/DB
+* **staging**: CORS disabled, info logging, staging infrastructure
+* **prod**: CORS disabled, error logging, production infrastructure
+* **Nguồn secrets**: Environment variables, Docker secrets, Kubernetes secrets
+
+## 6. Bảo mật & Tuân thủ
+
+* **AuthN/AuthZ**: JWT-based với role-based access control (passenger/staff/admin)
+* **Input validation & sanitize**: Express-validator middleware, Sequelize model validation
+* **CORS & CSRF**: CORS configurable per environment, Helmet.js for security headers
+* **Rate limit / Anti-abuse**: Network source validation middleware, chỉ cho phép request từ API Gateway
+* **Nhật ký/Audit**: Winston logger với daily rotation, structured JSON logs
+* **Lỗ hổng tiềm ẩn & khuyến nghị**: 
+  - Direct access protection (chỉ API Gateway)
+  - Input sanitization cần tăng cường
+  - Cần thêm rate limiting per user/IP
+
+## 7. Độ tin cậy & Khả dụng
+
+* **Timeouts/Retry/Backoff**: Kafka retry 8 lần với exponential backoff
+* **Circuit breaker/Bulkhead**: (Không tìm thấy trong repo)
+* **Idempotency**: BulkUpsertTrips có idempotency key dựa trên (routeId, serviceDate)
+* **Outbox/Saga/Orchestrator**: (Không tìm thấy trong repo)
+* **Khả năng phục hồi sự cố**: Graceful shutdown, database connection pooling, Kafka consumer auto-restart
+
+## 8. Observability
+
+* **Logging**: Winston với JSON format, daily rotation, correlation ID qua request headers
+* **Metrics**: Prometheus metrics (`/metrics` endpoint):
+  - `http_request_duration_seconds` - HTTP request duration
+  - `app_errors_total` - Application error counter
+  - Default Node.js metrics (CPU, memory, event loop)
+* **Tracing**: (Không tìm thấy trong repo)
+* **Healthchecks**: `/health` endpoint trả về service status
+
+## 9. Build, Run, Test
+
+### 9.1 Local
+
+```bash
+# prerequisites
+Node.js 18+, PostgreSQL 13+, Kafka 2.8+
+
+# install dependencies
+npm install
+
+# setup environment
+cp env.example .env
+# Edit .env with your database and Kafka settings
+
+# run
+npm start
+# or for development
+npm run dev
+```
+
+### 9.2 Docker/Compose
+
+```bash
+docker build -t transport-service .
+docker run --env-file .env -p 8003:8003 -p 50051:50051 transport-service
+```
+
+### 9.3 Kubernetes/Helm
+
+* (Không tìm thấy trong repo)
+
+### 9.4 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Generate coverage CSV
+npm run coverage:csv
+```
+
+* **Coverage**: Jest với threshold 90% lines, 80% branches (khi ENFORCE_COVERAGE=true)
+
+## 10. CI/CD
+
+* (Không tìm thấy trong repo)
+
+## 11. Hiệu năng & Quy mô
+
+* **Bottlenecks đã thấy từ code**: 
+  - N+1 queries trong gRPC responses (cần eager loading)
+  - Bulk operations không có pagination
+* **Kỹ thuật**: Sequelize eager loading, database indexing, connection pooling
+* **Định hướng benchmark/kịch bản tải**: Cần load testing cho route search và bulk operations
+
+## 12. Rủi ro & Nợ kỹ thuật
+
+* **Danh sách vấn đề hiện tại**:
+  - Thiếu circuit breaker pattern
+  - Không có distributed tracing
+  - Bulk operations có thể gây timeout với dataset lớn
+  - Thiếu caching layer cho frequent queries
+* **Ảnh hưởng & ưu tiên**:
+  - High: Performance issues với large datasets
+  - Medium: Observability gaps
+  - Low: Missing resilience patterns
+* **Kế hoạch cải thiện**:
+  - Implement Redis caching
+  - Add OpenTelemetry tracing
+  - Implement circuit breaker cho external calls
+  - Add pagination cho bulk operations
+
+## 13. Phụ lục
+
+### Sơ đồ ERD
+
+```mermaid
+erDiagram
+  Station ||--o{ Route : "origin"
+  Station ||--o{ Route : "destination"
+  Station ||--o{ RouteStation : "belongs to"
+  Station ||--o{ Stop : "stops at"
+  
+  Route ||--o{ RouteStation : "has stations"
+  Route ||--o{ Trip : "has trips"
+  Route ||--o{ Train : "assigned to"
+  
+  Train ||--o{ Trip : "operates"
+  
+  Trip ||--o{ Stop : "has stops"
+  
+  Station {
+    string stationId PK
+    string name
+    string location
+    float latitude
+    float longitude
+    time openTime
+    time closeTime
+    json facilities
+    json connections
+    boolean isActive
+  }
+  
+  Route {
+    string routeId PK
+    string name
+    string originId FK
+    string destinationId FK
+    int numberOfStations
+    float distance
+    float duration
+    boolean isActive
+  }
+  
+  RouteStation {
+    string routeStationId PK
+    string routeId FK
+    string stationId FK
+    int sequence
+  }
+  
+  Train {
+    string trainId PK
+    string name
+    string type
+    int capacity
+    string status
+    string routeId FK
+    date lastMaintenance
+    boolean isActive
+  }
+  
+  Trip {
+    string tripId PK
+    string routeId FK
+    string trainId FK
+    time departureTime
+    time arrivalTime
+    string dayOfWeek
+    date serviceDate
+    boolean isActive
+  }
+  
+  Stop {
+    string stopId PK
+    string tripId FK
+    string stationId FK
+    time arrivalTime
+    time departureTime
+    int sequence
+  }
+```
+
+### Bảng mã lỗi chuẩn
+
+| Code | HTTP Status | Mô tả |
+| ---- | ----------- | ----- |
+| `ROUTE_NOT_FOUND` | 404 | Tuyến không tồn tại |
+| `STATION_NOT_FOUND` | 404 | Ga không tồn tại |
+| `TRIP_NOT_FOUND` | 404 | Chuyến tàu không tồn tại |
+| `TRAIN_NOT_FOUND` | 404 | Tàu không tồn tại |
+| `INVALID_ROUTE_SEQUENCE` | 400 | Thứ tự ga không hợp lệ |
+| `DIRECT_ACCESS_FORBIDDEN` | 403 | Truy cập trực tiếp bị cấm |
+| `UNAUTHORIZED` | 401 | Chưa xác thực |
+| `FORBIDDEN` | 403 | Không có quyền |
+| `INTERNAL_ERROR` | 500 | Lỗi hệ thống |
+
+### License & 3rd-party
+
+* **License**: (Không tìm thấy trong repo)
+* **3rd-party dependencies**: Express, Sequelize, KafkaJS, gRPC, Winston, Prometheus client

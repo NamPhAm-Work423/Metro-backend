@@ -136,124 +136,161 @@ open http://localhost:8000/api-docs
 ### Core Services
 
 #### 🔐 **API Gateway** (`:8000`)
-- **Central Entry Point**: All client requests routed through gateway
+- **Central Entry Point**: Single entry point for all client requests
 - **Authentication & Authorization**: JWT tokens + API keys for dual auth system
 - **Dynamic Service Routing**: Express-http-proxy with path resolution
 - **Load Balancing**: Redis-backed least connections algorithm
-- **Circuit Breaker**: Opossum-based fault tolerance
-- **Rate Limiting**: Multi-tier rate limiting (auth, sensitive, API, user-specific)
+- **Circuit Breaker**: Opossum-based fault tolerance (50% error threshold, 30s timeout)
+- **Rate Limiting**: Multi-tier rate limiting (auth: 5 req/min, API: 100 req/15min, sensitive: 3 req/min)
 - **Security**: Helmet.js, CORS, input validation, SQL injection prevention
+- **Service Discovery**: Dynamic service registration and health monitoring
 
 #### 🔑 **Authentication Service** (`:8001`)
-- **JWT Token Management**: Access and refresh token generation/validation
-- **User Authentication**: Login, logout, session management
-- **Role-Based Access Control**: Admin, passenger, staff roles
-- **Password Security**: bcrypt hashing, secure token generation
-- **Email Verification**: Account verification system
-- **Account Security**: Auto-locking, temporary blocks, admin controls
+- **JWT Token Management**: Access (15m) and refresh (7d) token generation/validation
+- **User Authentication**: Login, logout, session management with Redis
+- **Role-Based Access Control**: Admin, passenger, staff roles with granular permissions
+- **Password Security**: bcrypt hashing (10 rounds), secure token generation
+- **Email Verification**: Account verification system with SMTP integration
+- **Account Security**: Auto-locking (5 failed attempts = 2h lock), temporary blocks
+- **API Key Management**: Service-to-service authentication keys
 
 #### 👥 **User Service** (`:8002`)
-- **Unified User Management**: Admin, passenger, and staff users
+- **Unified User Management**: Consolidated admin, passenger, and staff user management
+- **Event-Driven Profile Creation**: Automatic profile creation from Kafka user events
+- **Role-Based Processing**: Smart handling based on user roles (passenger/staff auto-created, admin manual)
 - **Profile Management**: User profiles, preferences, account settings
-- **Event-Driven Updates**: Kafka integration for real-time user updates
-- **Redis Caching**: Fast access to user data
-- **Registration & Account Management**: User onboarding and lifecycle
+- **gRPC Integration**: High-performance communication with Ticket and Transport services
+- **Redis Caching**: Fast access to user data with 30-minute TTL
 
 #### 🚇 **Transport Service** (`:8003`)
-- **Route Management**: Metro line definitions and route optimization
-- **Station Network**: Complete station database with geographical data
-- **Train Fleet Management**: Train inventory and operational status
-- **Trip Scheduling**: Real-time trip tracking and schedule management
-- **gRPC Server**: High-performance API for other services
+- **Route Management**: Metro line definitions with origin/destination stations
+- **Station Network**: Complete station database with geographical coordinates
+- **Train Fleet Management**: Train inventory with capacity and maintenance tracking
+- **Trip Scheduling**: Real-time trip tracking with departure/arrival times
+- **gRPC Server**: High-performance API for other services (port 50051)
+- **Bulk Operations**: Efficient bulk upsert for trips and stops
 - **Real-time Updates**: Kafka integration for infrastructure changes
 
 #### 🎫 **Ticket Service** (`:8004`)
-- **Ticket Management**: Creation, validation, and lifecycle management
-- **Fare Calculation**: Dynamic pricing (zone-based, distance-based, time-based)
-- **Promotion System**: Discount codes, campaigns, special offers
-- **Short-Term Tickets**: One-way and return tickets with station-based pricing
-- **Long-Term Passes**: Day, weekly, monthly, yearly, and lifetime passes
+- **Ticket Management**: Complete lifecycle from creation to usage
+- **Advanced Fare Calculation**: Station-based pricing with passenger type discounts
+- **Promotion System**: Discount codes with validation and usage limits
+- **Short-Term Tickets**: One-way and return tickets with QR code generation
+- **Long-Term Passes**: Day, weekly, monthly, yearly passes with activation scheduling
 - **Passenger Caching**: Redis-based performance optimization
-- **gRPC Integration**: Efficient communication with transport service
-
-#### 💳 **Payment Service** (`:8006`)
-- **Multi-Gateway Support**: VNPay (Vietnamese) and PayPal (International)
-- **Multi-Currency**: VND and USD payment processing
-- **Webhook Handling**: Secure payment status verification
-- **Transaction Logging**: Comprehensive payment audit trail
-- **Event-Driven**: Kafka-based payment event publishing
-- **Refund Processing**: Complete refund management system
+- **gRPC Integration**: Efficient communication with Transport service (port 50052)
+- **Payment Integration**: Seamless payment processing workflow
 
 #### 🌐 **Public Service** (`:8005`)
 - **Data Aggregation**: Fetches data from Transport and Ticket services via gRPC
-- **Caching Layer**: Redis-based caching for fast data retrieval
+- **Caching Layer**: Redis-based caching with 1-hour TTL for fast data retrieval
 - **REST APIs**: Public access to transport and ticket information
 - **Automated Sync**: Hourly data synchronization from backend services
 - **Performance Optimized**: Sub-millisecond response times for cached data
+- **QR Code Hosting**: Static file serving for ticket QR codes
+#### 💳 **Payment Service** (`:8006`)
+- **Multi-Gateway Support**: VNPay (VND) and PayPal (USD) integration
+- **Webhook Handling**: Secure payment status verification with signature validation
+- **Transaction Logging**: Comprehensive payment audit trail
+- **Event-Driven**: Kafka-based payment event publishing
+- **Multi-Currency**: VND and USD payment processing
+- **Refund Processing**: Complete refund management system
+- **Security**: HMAC signature verification for webhooks
 
 ### Supporting Services
 
-#### 📊 **Management Service** (`:8007`)
-- **Service Health Monitoring**: Real-time health checks for all services
-- **Infrastructure Management**: Docker container orchestration
-- **Prometheus Metrics**: Comprehensive metrics collection
-- **Alert Management**: Automated alerting and notifications
-- **Service Discovery**: Dynamic service registration and discovery
-
-#### 📈 **Report Service** (`:8008`)
-- **Report Generation**: Daily, weekly, monthly, and custom reports
+#### 📈 **Report Service** (`:8007`)
+- **Report Generation**: Daily, weekly, monthly, and custom reports with FastAPI
 - **Real-time Analytics**: Kafka event processing for live metrics
-- **Template System**: Reusable report templates
-- **Scheduled Reports**: Automated report generation
+- **Template System**: Reusable report templates with configurable parameters
+- **Scheduled Reports**: Automated report generation with cron scheduling
 - **Data Visualization**: Charts and analytics dashboards
+- **File Storage**: HTML/PDF report generation and storage
+
+#### 🤖 **Control Service** (`:8008`)
+- **AI-Powered Scheduling**: Prophet ML forecasting for demand prediction
+- **Smart Route Optimization**: Heuristic algorithms for efficient trip planning
+- **Real-time Rescheduling**: Dynamic schedule adjustments based on demand
+- **gRPC Server**: High-performance scheduling API (port 50053)
+- **Model Persistence**: Joblib-based Prophet model storage and training
+- **Bulk Trip Generation**: Efficient creation of daily schedules for all routes
 
 #### 🔔 **Notification Service** (`:8009`)
-- **Push Notifications**: Real-time push notification system
-- **Email Notifications**: SMTP-based email delivery
-- **SMS Integration**: Text message notifications
-- **In-App Messaging**: Internal messaging system
-- **Notification Preferences**: User-configurable notification settings
+- **Multi-Channel Notifications**: Email (Resend) and SMS (Vonage) delivery
+- **Template Engine**: Handlebars-based email and SMS templates
+- **Event-Driven**: Kafka consumer for ticket, auth, and system events
+- **QR Code Generation**: Automatic QR code creation for ticket notifications
+- **Delivery Tracking**: Comprehensive notification status and timeline tracking
+- **Retry Mechanism**: Automatic retry for failed notifications
 
-#### 💳 **Card Service** (`:8010`)
-- **Smart Card Management**: Metro card registration and activation
-- **Balance Management**: Card balance tracking and updates
-- **Transaction History**: Complete transaction audit trail
-- **Card Security**: Advanced security features and fraud prevention
-- **Integration**: Seamless integration with payment and ticket services
+#### ⏰ **Scheduler Service** (`:8010`)
+- **Cron Job Management**: Centralized scheduling for all periodic tasks
+- **Ticket Activation**: Automated long-term ticket activation (every 5 minutes)
+- **Expiration Notifications**: Automated expiring ticket notifications (daily at 8 AM)
+- **Job Registry**: In-memory job registry with concurrency control
+- **gRPC Integration**: Communication with Ticket service for operations
+- **Health Monitoring**: Comprehensive scheduler status and job statistics
+
+#### 🔗 **Webhook Service** (`:3003`)
+- **Payment Webhook Processing**: PayPal and Sepay webhook handling
+- **Idempotency**: Redis-based duplicate webhook prevention
+- **Event Transformation**: Webhook payload to business event conversion
+- **Audit Logging**: MongoDB-based webhook processing audit trail
+- **Retry Mechanism**: Failed webhook retry with exponential backoff
+- **Statistics**: Comprehensive webhook processing analytics
 
 ## 🛠️ Technology Stack
 
 ### Backend Technologies
-- **Node.js 18+**: JavaScript/TypeScript runtime
-- **Python 3.8+**: Python services (Report, Management)
+- **Node.js 18+**: JavaScript runtime for most services
+- **Python 3.11+**: Python services (Report, Control)
 - **Express.js**: Web framework for Node.js services
-- **FastAPI**: Modern Python web framework
-- **Sequelize**: Node.js ORM for database operations
+- **FastAPI**: Modern Python web framework (Report Service)
+- **Sequelize**: Node.js ORM for PostgreSQL operations
 - **SQLAlchemy**: Python ORM for database operations
+- **MongoDB**: Document database for webhook audit logs
 
 ### Database & Caching
-- **PostgreSQL 15**: Primary database for all services
-- **Redis 7**: Distributed caching and session storage
-- **Connection Pooling**: Optimized database connections
+- **PostgreSQL 15**: Primary database for most services
+- **Redis 7**: Distributed caching, session storage, and idempotency
+- **Connection Pooling**: Optimized database connections (max 20-1000 per service)
+- **Database Indexing**: Optimized queries with proper indexing strategies
 
 ### Message Queue & Communication
 - **Apache Kafka**: Event streaming and message queuing
-- **gRPC**: High-performance inter-service communication
-- **Protocol Buffers**: Efficient data serialization
+- **gRPC**: High-performance inter-service communication (ports 50051-50060)
+- **Protocol Buffers**: Efficient data serialization (.proto files)
+- **Event-Driven Architecture**: Kafka-based event publishing and consumption
 
 ### Security & Authentication
-- **JWT Tokens**: JSON Web Tokens for authentication
-- **bcrypt**: Password hashing and security
+- **JWT Tokens**: JSON Web Tokens for authentication (HS256, 5-15min expiry)
+- **bcrypt**: Password hashing and security (10-12 rounds)
 - **Helmet.js**: Security headers and protection
 - **CORS**: Cross-origin resource sharing
-- **Rate Limiting**: Multi-tier request limiting
+- **Rate Limiting**: Multi-tier request limiting (express-rate-limit)
+- **API Keys**: Service-to-service authentication
+- **HMAC Signatures**: Webhook signature verification
+
+### AI & Machine Learning
+- **Prophet**: Facebook's time series forecasting library
+- **Joblib**: Model persistence and serialization
+- **Pandas & NumPy**: Data manipulation and analysis
+- **Heuristic Algorithms**: Custom scheduling optimization
 
 ### Monitoring & Observability
 - **Prometheus**: Metrics collection and monitoring
 - **Grafana**: Data visualization and dashboards
-- **AlertManager**: Alert management and notifications
 - **Winston**: Structured logging with daily rotation
-- **Health Checks**: Comprehensive health monitoring
+- **Health Checks**: Comprehensive health monitoring endpoints
+- **Correlation IDs**: Request tracking across services
+- **Structured Logging**: JSON format with service context
+
+### External Integrations
+- **VNPay**: Vietnamese payment gateway
+- **PayPal**: International payment gateway
+- **Resend**: Email delivery service
+- **Vonage**: SMS delivery service
+- **SMTP**: Email server integration
 
 ### Development Tools
 - **Docker & Docker Compose**: Containerization and orchestration
@@ -261,73 +298,205 @@ open http://localhost:8000/api-docs
 - **Jest**: JavaScript testing framework
 - **pytest**: Python testing framework
 - **Swagger/OpenAPI**: API documentation
+- **Handlebars**: Template engine for notifications
 
 ## 📚 API Documentation
 
 ### Authentication Endpoints
 ```bash
-POST /v1/auth/register     # User registration
-POST /v1/auth/login        # User login
-POST /v1/auth/refresh      # Token refresh
-POST /v1/auth/logout       # User logout
-GET  /v1/auth/key/:userId  # Generate API key
+POST /v1/auth/register              # User registration
+POST /v1/auth/login                 # User login
+POST /v1/auth/refresh               # Token refresh
+POST /v1/auth/logout                # User logout
+POST /v1/auth/forgot-password       # Password reset request
+POST /v1/auth/reset-password        # Password reset
+POST /v1/auth/verify-email          # Email verification
+GET  /v1/auth/key/:id               # Generate API key
+GET  /v1/auth/keys/:userId          # List user API keys
+DELETE /v1/auth/key/:id             # Delete API key
 ```
 
 ### User Management
 ```bash
-GET    /v1/users           # List users
-POST   /v1/users           # Create user
-GET    /v1/users/:id       # Get user details
-PUT    /v1/users/:id       # Update user
-DELETE /v1/users/:id       # Delete user
+# Admin Management
+GET    /v1/user/admin/getAllAdmins     # List all admins
+GET    /v1/user/admin/getAdminById/:id # Get admin by ID
+PUT    /v1/user/admin/updateAdmin/:id  # Update admin
+GET    /v1/user/admin/me               # Get current admin
+
+# Passenger Management
+GET    /v1/user/passenger/getallPassengers    # List all passengers
+GET    /v1/user/passenger/getPassengerById/:id # Get passenger by ID
+POST   /v1/user/passenger/createPassenger     # Create passenger
+PUT    /v1/user/passenger/updatePassenger/:id # Update passenger
+DELETE /v1/user/passenger/deletePassenger/:id # Delete passenger
+GET    /v1/user/passenger/me                  # Get current passenger
+PUT    /v1/user/passenger/me                  # Update current passenger
+
+# Staff Management
+GET    /v1/user/staff/getAllStaff        # List all staff
+GET    /v1/user/staff/getStaffById/:id   # Get staff by ID
+POST   /v1/user/staff/createStaff        # Create staff
+PUT    /v1/user/staff/updateStaff/:id    # Update staff
+DELETE /v1/user/staff/deleteStaff/:id    # Delete staff
+PUT    /v1/user/staff/updateStaffStatus/:id # Update staff status
+GET    /v1/user/staff/me                 # Get current staff
 ```
 
 ### Transport System
 ```bash
-GET /v1/transport/routes           # List all routes
-GET /v1/transport/routes/:id       # Get route details
-GET /v1/transport/stations         # List all stations
-GET /v1/transport/stations/:id     # Get station details
-GET /v1/transport/trips            # List trips
-GET /v1/transport/trains           # List trains
+GET /v1/transport/route/                    # List all routes
+GET /v1/transport/route/active              # List active routes
+GET /v1/transport/route/search/between-stations # Search routes
+GET /v1/transport/route/:id                 # Get route details
+GET /v1/transport/route/:routeId/stations   # Get route stations
+POST /v1/transport/route/                   # Create route (admin)
+PUT /v1/transport/route/:id                 # Update route (admin)
+DELETE /v1/transport/route/:id              # Delete route (admin)
+GET /v1/transport/station/                  # List all stations
+GET /v1/transport/station/:id               # Get station details
+GET /v1/transport/train/                    # List all trains
+GET /v1/transport/trip/                     # List all trips
 ```
 
 ### Ticketing System
 ```bash
-POST /v1/ticket/tickets/create-short-term  # Create short-term ticket
-POST /v1/ticket/tickets/create-long-term   # Create long-term pass
-GET  /v1/ticket/tickets/:id               # Get ticket details
-PUT  /v1/ticket/tickets/:id/validate      # Validate ticket
-GET  /v1/ticket/fares                     # Get fare information
-POST /v1/ticket/fares/calculate           # Calculate fare
+POST /v1/ticket/tickets/calculate-price     # Calculate ticket price
+POST /v1/ticket/tickets/create-short-term   # Create short-term ticket
+POST /v1/ticket/tickets/create-long-term    # Create long-term pass
+GET  /v1/ticket/tickets/me                  # Get my tickets
+GET  /v1/ticket/tickets/:id/getTicket       # Get ticket with QR
+POST /v1/ticket/tickets/:id/use             # Use ticket
+POST /v1/ticket/tickets/qr/:qrCode/use      # Use ticket via QR
+GET  /v1/ticket/tickets/:id/validate        # Validate ticket
+POST /v1/ticket/tickets/:id/cancel          # Cancel ticket
+GET  /v1/ticket/tickets/getAllTickets       # List all tickets (admin)
+GET  /v1/ticket/tickets/getTicketStatistics # Ticket statistics
 ```
 
 ### Payment Processing
 ```bash
+# VNPay
 POST /v1/payment/vnpay              # Initiate VNPay payment
 GET  /v1/payment/vnpay/return       # Handle VNPay return
+POST /v1/payment/vnpay/ipn          # Handle VNPay IPN
+
+# PayPal
 POST /v1/payment/paypal/create-order # Create PayPal order
 POST /v1/payment/paypal/capture/:id  # Capture PayPal payment
+GET  /v1/payment/paypal/order/:id    # Get PayPal order
+POST /v1/payment/paypal/webhook      # Handle PayPal webhook
 ```
 
 ### Public APIs
 ```bash
-GET /v1/public/transport/routes      # Public route information
-GET /v1/public/transport/stations    # Public station data
-GET /v1/public/tickets/fares         # Public fare information
-GET /v1/public/tickets/transit-passes # Public pass information
+GET /transport/routes                # Public route information
+GET /transport/routes/:id            # Public route details
+GET /transport/routes/search         # Search routes
+GET /transport/stations              # Public station data
+GET /transport/stations/:id          # Public station details
+GET /transport/routes/:routeId/stations # Route stations
+GET /ticket/fares                    # Public fare information
+GET /ticket/fares/route/:routeId     # Route-specific fares
+GET /ticket/fares/search             # Search fares
+GET /ticket/transit-passes           # Public pass information
+GET /ticket/passenger-discounts      # Passenger discounts
+GET /qr/:ticketId                    # Get QR code image
+```
+
+### Notification Management
+```bash
+GET /notification/emails/getAllEmails        # List emails (admin)
+GET /notification/emails/getEmailStats       # Email statistics
+GET /notification/emails/getEmailById/:id    # Email details
+GET /notification/emails/getEmailTimeline/:id # Email timeline
+POST /notification/emails/retryEmail/:id     # Retry failed email
+GET /notification/sms/getAllSMS              # List SMS (admin)
+GET /notification/sms/getSMSStats            # SMS statistics
+GET /notification/sms/getSMSCosts            # SMS cost analysis
+POST /notification/sms/retrySMS/:id          # Retry failed SMS
+```
+
+### Report & Analytics
+```bash
+POST /v1/reports/                    # Create report
+GET  /v1/reports/                    # List reports
+GET  /v1/reports/:id                 # Get report
+DELETE /v1/reports/:id               # Delete report
+POST /v1/reports/templates           # Create template
+GET  /v1/reports/templates           # List templates
+POST /v1/reports/schedules           # Create schedule
+GET  /v1/reports/analytics/daily     # Daily analytics
+GET  /v1/reports/analytics/weekly    # Weekly analytics
+GET  /v1/reports/analytics/monthly   # Monthly analytics
+```
+
+### Webhook Processing
+```bash
+POST /webhook/paypal                 # PayPal webhook
+POST /webhook/sepay                  # Sepay webhook
+GET  /webhook/statistics             # Combined statistics
+GET  /webhook/paypal/statistics      # PayPal statistics
+GET  /webhook/sepay/statistics       # Sepay statistics
+POST /webhook/paypal/retry           # Retry failed PayPal webhooks
+POST /webhook/sepay/retry            # Retry failed Sepay webhooks
 ```
 
 ## 🔄 Event System
 
 ### Kafka Topics
-- `user-events`: User lifecycle events (created, updated, deleted)
-- `payment-events`: Payment processing events (initiated, completed, failed)
-- `ticket-events`: Ticket lifecycle events (created, validated, expired)
-- `transport-events`: Transport updates (routes, stations, trips)
-- `notification-events`: Notification delivery events
 
-### Event Flow Example
+#### User & Authentication Events
+- `user.created`: User registration events
+- `user.login`: User login events
+- `user.deleted`: User deletion events
+- `auth.welcome.email`: Welcome email notifications
+- `auth.verification.email`: Email verification notifications
+- `auth.password.reset.email`: Password reset notifications
+
+#### Ticket Events
+- `ticket.created`: Ticket creation events
+- `ticket.activated`: Long-term ticket activation events
+- `ticket.cancelled`: Ticket cancellation events
+- `ticket.used`: Ticket usage events
+- `ticket.expired`: Ticket expiration events
+- `ticket.expiring_soon`: Expiring ticket notifications
+- `ticket.payment_ready`: Payment URL generation events
+- `ticket.payment_completed`: Payment completion events
+- `ticket.payment_failed`: Payment failure events
+
+#### Transport Events
+- `route.created`: Route creation events
+- `route.updated`: Route update events
+- `station.created`: Station creation events
+- `trip.created`: Trip creation events
+- `transport.search`: Route search events
+
+#### Payment Events
+- `payment.initiated`: Payment initiation events
+- `payment.completed`: Payment completion events
+- `payment.failed`: Payment failure events
+- `paypal.webhook.event`: PayPal webhook events
+- `sepay.webhook.event`: Sepay webhook events
+
+#### Notification Events
+- `notification.events`: Generic notification events
+- `qr.storage`: QR code image storage events
+- `passenger-sync-request`: Passenger cache sync requests
+- `passenger-cache-sync`: Passenger cache synchronization
+
+#### System Events
+- `passenger.created`: Passenger profile creation
+- `passenger.updated`: Passenger profile updates
+- `passenger.deleted`: Passenger profile deletion
+- `staff.created`: Staff profile creation
+- `staff.updated`: Staff profile updates
+- `staff.deleted`: Staff profile deletion
+- `staff.status.changed`: Staff status changes
+
+### Event Flow Examples
+
+#### Ticket Purchase Flow
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -339,10 +508,48 @@ sequenceDiagram
 
     U->>AG: Purchase ticket
     AG->>TS: Create ticket
+    TS->>K: Publish ticket.created
     TS->>PS: Process payment
     PS->>K: Publish payment.completed
-    K->>NS: Send notification
-    NS->>U: Payment confirmation
+    K->>TS: Consume payment.completed
+    TS->>K: Publish ticket.activated
+    K->>NS: Send activation notification
+    NS->>U: Ticket activation email
+```
+
+#### User Registration Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant AG as API Gateway
+    participant AS as Auth Service
+    participant US as User Service
+    participant K as Kafka
+    participant NS as Notification Service
+
+    U->>AG: Register user
+    AG->>AS: Create user account
+    AS->>K: Publish user.created
+    K->>US: Consume user.created
+    US->>US: Create passenger/staff profile
+    US->>K: Publish passenger.created
+    K->>NS: Send welcome notification
+    NS->>U: Welcome email
+```
+
+#### AI Scheduling Flow
+```mermaid
+sequenceDiagram
+    participant CS as Control Service
+    participant TS as Transport Service
+    participant K as Kafka
+    participant NS as Notification Service
+
+    CS->>CS: Generate daily schedules
+    CS->>TS: BulkUpsertTrips
+    TS->>K: Publish trip.created
+    K->>NS: Send schedule notifications
+    NS->>Passengers: Schedule updates
 ```
 
 ## 🚀 Deployment
@@ -375,13 +582,25 @@ docker-compose -f docker-compose.prod.yml up -d
 # Gateway health
 curl http://localhost:8000/health
 
-# Service-specific health checks
+# Core Services Health Checks
 curl http://localhost:8001/health  # Auth service
 curl http://localhost:8002/health  # User service
 curl http://localhost:8003/health  # Transport service
 curl http://localhost:8004/health  # Ticket service
 curl http://localhost:8005/health  # Public service
 curl http://localhost:8006/health  # Payment service
+
+# Supporting Services Health Checks
+curl http://localhost:8007/health  # Report service
+curl http://localhost:8008/health  # Control service
+curl http://localhost:8009/health  # Notification service
+curl http://localhost:8010/health  # Scheduler service
+curl http://localhost:3003/health  # Webhook service
+
+# Detailed Health Checks
+curl http://localhost:8005/health/detailed  # Public service detailed
+curl http://localhost:8009/notification/health  # Notification service detailed
+curl http://localhost:3003/webhook/health  # Webhook service detailed
 ```
 
 ## 📊 Monitoring & Management

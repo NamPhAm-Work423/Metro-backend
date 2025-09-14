@@ -1,304 +1,308 @@
-# Webhook Service - Metro Backend
+# Webhook Service — Service README
+> Mục đích: Mô tả kiến trúc, API, dữ liệu, vận hành, và tiêu chuẩn chất lượng cho service này.
 
-Microservice chuyên xử lý webhook events từ các payment providers với kiến trúc SOLID và modular design.
+## 1. Tổng quan
+- **Chức năng chính:** Xử lý webhook events từ các payment providers (PayPal, Sepay) với kiến trúc SOLID và modular design
+- **Vai trò trong hệ MetroHCM:** Trung tâm xử lý webhook từ payment providers, chuyển đổi và phân phối events tới các services khác
+- **Giao tiếp:** 
+  - **REST** ⟷ PayPal, Sepay (webhook providers)
+  - **Event (Kafka)** ⟷ payment-service, ticket-service, notification-service
+- **Kiến trúc & pattern:** Clean Architecture + SOLID Principles, Layered Architecture, Dependency Injection, Event-Driven Architecture
+- **Lưu đồ chuỗi (Mermaid sequence) cho luồng xử lý webhook:**
 
-## 🏗️ Kiến trúc
-
-### Clean Architecture + SOLID Principles
-
-```
-webhook/
-├── src/
-│   ├── app.js                   # Express configuration
-│   ├── index.js                 # Entry point
-│   │
-│   ├── config/                  # Cấu hình hệ thống
-│   │   ├── database.js          # MongoDB connection
-│   │   ├── logger.js            # Winston logging
-│   │   ├── redis.js             # Redis client
-│   │   └── metrics.js           # Prometheus metrics
-│   │
-│   ├── models/                  # Database models
-│   │   ├── index.model.js       # Generic webhook model
-│   │   └── paypal.hook.model.js # PayPal specific model
-│   │
-│   ├── paypal/                  # PayPal provider module
-│   │   ├── interfaces/
-│   │   │   └── IPayPalWebhookHandler.js
-│   │   ├── validators/
-│   │   │   ├── paypalSignatureValidator.js
-│   │   │   └── paypalEventValidator.js
-│   │   └── services/
-│   │       └── paypalWebhookService.js
-│   │
-│   ├── controllers/             # HTTP controllers
-│   │   └── paypal.controller.js # PayPal endpoints
-│   │
-│   ├── routes/                  # Express routes
-│   │   ├── index.js             # Main router
-│   │   └── paypal.routes.js     # PayPal routes
-│   │
-│   ├── repositories/            # Data access layer
-│   │   ├── interfaces/
-│   │   │   └── IWebhookRepository.js
-│   │   └── webhookLog.repository.js
-│   │
-│   ├── infrastructure/          # External services
-│   │   ├── paypalClient.js      # PayPal SDK client
-│   │   └── redisClient.js       # Redis idempotency manager
-│   │
-│   ├── kafka/                   # Kafka integration
-│   │   ├── kafkaProducer.js     # Message publisher
-│   │   └── kafkaConsumer.js     # Message consumer
-│   │
-│   ├── middlewares/             # Express middlewares
-│   │   ├── rateLimiter.js       # Rate limiting
-│   │   └── metrics.middleware.js
-│   │
-│   └── utils/                   # Utilities
-│       └── errorHandler.js
-│
-├── Dockerfile
-├── package.json
-└── env.example
+```mermaid
+sequenceDiagram
+  participant PayPal as PayPal/Sepay
+  participant Webhook as Webhook Service
+  participant Redis as Redis Cache
+  participant MongoDB as MongoDB
+  participant Kafka as Kafka
+  participant Payment as Payment Service
+  
+  Note over Webhook: Webhook Processing Flow
+  PayPal->>Webhook: POST /webhook/paypal|sepay
+  Webhook->>Redis: Check idempotency
+  Redis-->>Webhook: Duplicate check result
+  Webhook->>MongoDB: Save webhook log
+  Webhook->>Webhook: Extract business data
+  Webhook->>Kafka: Publish event
+  Kafka->>Payment: Process payment event
+  Webhook->>Redis: Mark as processed
+  Webhook-->>PayPal: 200 OK response
 ```
 
-## 🚀 Features
+## 2. Sơ đồ hệ thống (Mermaid)
 
-### Core Capabilities
-- ✅ **MongoDB Audit Logging** - Lưu raw webhook data cho audit và replay
-- ✅ **Redis Idempotency** - Chống duplicate processing
-- ✅ **Kafka Event Publishing** - Publish events tới các services khác
-- ✅ **Signature Verification** - Verify PayPal webhook signatures
-- ✅ **Rate Limiting** - Bảo vệ chống spam
-- ✅ **Error Handling & Retry** - Robust error handling với retry logic
+```mermaid
+graph LR
+  A[PayPal/Sepay] -->|HTTP Webhook| S[Webhook Service]
+  S -->|Audit Log| DB[(MongoDB)]
+  S -->|Idempotency| R[(Redis)]
+  S -->|Events| K[(Kafka)]
+  K -->|Payment Events| PS[Payment Service]
+  PS -->|Ticket Events| TS[Ticket Service]
+  PS -->|Notification Events| NS[Notification Service]
+```
 
-### PayPal Integration
-- **Supported Events:**
-  - `PAYMENT.CAPTURE.COMPLETED`
-  - `PAYMENT.CAPTURE.DENIED`
-  - `CHECKOUT.ORDER.APPROVED`
-  - `PAYMENT.CAPTURE.PENDING`
-  - `CHECKOUT.ORDER.COMPLETED`
-  - `PAYMENT.CAPTURE.REFUNDED`
+## 3. API & Hợp đồng
 
-- **Target Services:**
-  - `payment-service` - Payment state updates
-  - `ticket-service` - Ticket activation/deactivation
-  - `notification-service` - User notifications
+### 3.1 REST endpoints
 
-## 🛠️ Setup & Configuration
+| Method | Path | Mô tả | Auth | Request | Response | Status Codes |
+| ------ | ---- | ----- | ---- | ------- | -------- | ------------ |
+| POST | `/webhook/paypal` | PayPal webhook endpoint | None | PayPal webhook payload | Processing result | 200, 400, 422, 500 |
+| POST | `/webhook/sepay` | Sepay webhook endpoint | None | Sepay webhook payload | Processing result | 200, 400, 422, 500 |
+| GET | `/webhook/health` | Service health check | None | - | Health status | 200, 503 |
+| GET | `/webhook/statistics` | Combined statistics | None | Query: startDate, endDate | Statistics data | 200, 500 |
+| GET | `/webhook/paypal/statistics` | PayPal statistics | None | Query: startDate, endDate | PayPal stats | 200, 500 |
+| GET | `/webhook/sepay/statistics` | Sepay statistics | None | Query: startDate, endDate | Sepay stats | 200, 500 |
+| POST | `/webhook/paypal/retry` | Retry failed PayPal webhooks | None | Query: limit | Retry results | 200, 500 |
+| POST | `/webhook/sepay/retry` | Retry failed Sepay webhooks | None | Query: limit | Retry results | 200, 500 |
+| GET | `/metrics` | Prometheus metrics | None | - | Metrics data | 200 |
 
-### Environment Variables
+### 3.2 OpenAPI/Proto
+
+* **Vị trí file:** (Không tìm thấy trong repo)
+* **Cách build/generate client/server:** (Không tìm thấy trong repo)
+* **Versioning & Compatibility:** REST API v1, backward compatible
+
+### 3.3 Event (Kafka/Queue)
+
+| Topic | Direction | Key | Schema | Semantics | Retry/DLQ |
+| ----- | --------- | --- | ------ | --------- | --------- |
+| `paypal.webhook.event` | Out | PayPal Order ID | PayPal webhook payload | At-least-once | Built-in retry |
+| `sepay.webhook.event` | Out | Sepay Transaction ID | Sepay webhook payload | At-least-once | Built-in retry |
+| `paypal.payment.completed` | Out | Ticket ID | Payment completion data | At-least-once | Built-in retry |
+| `sepay.payment.completed` | Out | Ticket ID | Payment completion data | At-least-once | Built-in retry |
+
+## 4. Dữ liệu & Migrations
+
+* **Loại CSDL:** MongoDB
+* **Bảng/collection chính:**
+
+### PayPal Webhook Collection (`paypal_webhook_hooks`)
+| Field | Type | Index | Ràng buộc | Mô tả |
+| ----- | ---- | ----- | --------- | ----- |
+| webhookId | String | Unique | Required | PayPal webhook ID |
+| eventType | String | Index | Enum | PayPal event type |
+| resourceType | String | - | Enum | Resource type (capture, order, payment, refund) |
+| resourceId | String | Index | Required | PayPal resource ID |
+| rawPayload | Mixed | - | Required | Raw webhook data |
+| status | String | Index | Enum | Processing status |
+| paypalData | Object | - | - | Extracted business data |
+| eventsPublished | Array | - | - | Published events log |
+| idempotencyKey | String | Unique | Required | Idempotency key |
+| signatureVerified | Boolean | - | Default: false | Signature verification status |
+
+### Sepay Webhook Collection (`sepay_webhook_hooks`)
+| Field | Type | Index | Ràng buộc | Mô tả |
+| ----- | ---- | ----- | --------- | ----- |
+| webhookId | String | Unique | Required | Sepay webhook ID |
+| eventType | String | Index | Enum | Sepay event type |
+| resourceType | String | - | Enum | Resource type (capture, order, payment, refund, bank_transfer) |
+| resourceId | String | Index | Required | Sepay resource ID |
+| rawPayload | Mixed | - | Required | Raw webhook data |
+| status | String | Index | Enum | Processing status |
+| sepayData | Object | - | - | Extracted business data |
+| eventsPublished | Array | - | - | Published events log |
+| idempotencyKey | String | Unique | Required | Idempotency key |
+| signatureVerified | Boolean | - | Default: false | Signature verification status |
+
+* **Quan hệ & cascade:** No foreign key relationships (document-based)
+* **Seeds/fixtures:** (Không tìm thấy trong repo)
+* **Cách chạy migration:** MongoDB auto-creates collections on first write
+
+## 5. Cấu hình & Secrets
+
+### 5.1 Biến môi trường (bảng bắt buộc)
+
+| ENV | Bắt buộc | Giá trị mẫu | Mô tả | Phạm vi |
+| --- | -------- | ----------- | ----- | ------- |
+| PORT | No | 3003 | Service port | All |
+| NODE_ENV | No | development | Environment | All |
+| PAYPAL_CLIENT_ID | Yes | - | PayPal client ID | Production |
+| PAYPAL_CLIENT_SECRET | Yes | - | PayPal client secret | Production |
+| PAYPAL_WEBHOOK_ID | Yes | - | PayPal webhook ID | Production |
+| PAYPAL_MODE | No | sandbox | PayPal environment | All |
+| MONGODB_HOST | No | localhost | MongoDB host | All |
+| MONGODB_PORT | No | 27017 | MongoDB port | All |
+| MONGODB_DB_NAME | No | metro_webhook | Database name | All |
+| MONGODB_USER | No | - | MongoDB username | Production |
+| MONGODB_PASSWORD | No | - | MongoDB password | Production |
+| REDIS_HOST | No | localhost | Redis host | All |
+| REDIS_PORT | No | 6379 | Redis port | All |
+| REDIS_PASSWORD | No | - | Redis password | Production |
+| REDIS_KEY_PREFIX | No | metrohcm:webhook: | Redis key prefix | All |
+| KAFKA_BROKERS | No | localhost:9092 | Kafka brokers | All |
+| KAFKA_CLIENT_ID | No | webhook | Kafka client ID | All |
+| KAFKA_GROUP_ID | No | webhook-service-group | Kafka group ID | All |
+| ALLOWED_ORIGINS | No | - | CORS allowed origins | Production |
+
+### 5.2 Profiles
+
+* **dev:** MongoDB localhost, Redis localhost, PayPal sandbox mode
+* **staging:** MongoDB cluster, Redis cluster, PayPal sandbox mode
+* **prod:** MongoDB cluster, Redis cluster, PayPal live mode
+* **Nguồn secrets:** Environment variables, Docker secrets, Kubernetes secrets
+
+## 6. Bảo mật & Tuân thủ
+
+* **AuthN/AuthZ:** No authentication for webhook endpoints (PayPal/Sepay call directly)
+* **Input validation & sanitize:** Joi validation, express-validator, custom validation
+* **CORS & CSRF:** CORS enabled for PayPal/Sepay domains, CSRF protection via Helmet
+* **Rate limit / Anti-abuse:** Redis-based rate limiting (100 req/15min default, 10 req/15min auth)
+* **Nhật ký/Audit:** Winston structured logging, MongoDB audit trail
+* **Lỗ hổng tiềm ẩn & khuyến nghị:**
+  - Webhook signature verification currently simplified
+  - Consider implementing proper PayPal webhook signature validation
+  - Add request size limits and timeout handling
+
+## 7. Độ tin cậy & Khả dụng
+
+* **Timeouts/Retry/Backoff:** 
+  - MongoDB: 5s connection timeout, exponential backoff retry
+  - Kafka: 8 retries with exponential backoff
+  - Redis: Graceful degradation if unavailable
+* **Circuit breaker/Bulkhead:** (Không tìm thấy trong repo)
+* **Idempotency (keys, store):** Redis-based idempotency with SHA256 keys, 24h TTL
+* **Outbox/Saga/Orchestrator:** Event sourcing pattern with MongoDB audit log
+* **Khả năng phục hồi sự cố:** Graceful shutdown, connection pooling, error handling
+
+## 8. Observability
+
+* **Logging:** Winston with daily rotation, structured JSON format, correlation IDs
+* **Metrics:** Prometheus metrics at `/metrics` endpoint
+  - `http_request_duration_seconds` - HTTP request duration
+  - `app_errors_total` - Application error counter
+* **Tracing:** Request ID tracking via `x-request-id` header
+* **Healthchecks:** `/webhook/health` endpoint with service status
+
+## 9. Build, Run, Test
+
+### 9.1 Local
 
 ```bash
-# Server
-PORT=3003
-NODE_ENV=development
+# prerequisites
+Node.js 18+, MongoDB, Redis, Kafka
 
-# PayPal
-PAYPAL_CLIENT_ID=your_paypal_client_id
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret
-PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
-PAYPAL_MODE=sandbox
-
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/metro_webhook
-MONGODB_HOST=localhost
-MONGODB_PORT=27017
-MONGODB_DB_NAME=metro_webhook
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Kafka
-KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=webhook-service
-KAFKA_GROUP_ID=webhook-service-group
-```
-
-### Installation
-
-```bash
-# Install dependencies
+# run
 npm install
-
-# Start development
 npm run dev
-
-# Start production
-npm start
 ```
 
-## 📡 API Endpoints
-
-### PayPal Webhooks
+### 9.2 Docker/Compose
 
 ```bash
-# Webhook endpoint (PayPal calls this)
-POST /v1/paypal/webhooks
-
-# Get statistics
-GET /v1/paypal/statistics?startDate=2024-01-01&endDate=2024-01-31
-
-# Retry failed webhooks
-POST /v1/paypal/retry?limit=10
-
-# Health check
-GET /v1/paypal/health
-
-# Test endpoint (dev only)
-GET /v1/paypal/test
-```
-
-### General Endpoints
-
-```bash
-# Service health
-GET /v1/health
-
-# Combined statistics
-GET /v1/statistics
-
-# API documentation
-GET /v1/docs
-```
-
-## 🎯 Event Flow
-
-### PayPal Webhook Processing
-
-1. **Receive Webhook** → PayPal gửi event đến `/v1/paypal/webhooks`
-2. **Signature Verification** → Verify PayPal signature
-3. **Idempotency Check** → Check Redis để tránh duplicate
-4. **Save to MongoDB** → Lưu raw data cho audit
-5. **Extract Business Data** → Parse PayPal data
-6. **Publish to Kafka** → Send events đến target services
-7. **Update Status** → Mark as processed
-
-### Kafka Events Published
-
-```javascript
-// Payment completed
-{
-  topic: 'payment.completed',
-  service: 'payment-service',
-  eventData: {
-    type: 'PAYMENT_COMPLETED',
-    paymentId: 'capture_id',
-    orderId: 'order_id',
-    amount: { value: '100.00', currency: 'USD' },
-    provider: 'paypal'
-  }
-}
-
-// Ticket activation
-{
-  topic: 'ticket.payment.completed',
-  service: 'ticket-service',
-  eventData: {
-    type: 'TICKET_PAYMENT_COMPLETED',
-    paymentId: 'capture_id',
-    orderId: 'order_id',
-    customId: 'ticket_id'
-  }
-}
-```
-
-## 🔧 Extensibility
-
-### Adding New Payment Providers
-
-1. **Create Provider Module:**
-   ```
-   src/stripe/                  # New provider
-   ├── interfaces/
-   ├── validators/
-   ├── services/
-   └── models/
-   ```
-
-2. **Implement Interfaces:**
-   - Extend `IWebhookRepository`
-   - Create provider-specific models
-   - Implement signature validation
-
-3. **Add Routes:**
-   - Create `stripe.routes.js`
-   - Add to main router
-
-4. **Update Models:**
-   - Add provider to `WebhookLog` enum
-   - Create specialized model như `StripeHook`
-
-## 🔍 Monitoring & Debugging
-
-### Logs
-- **Winston logging** với structured format
-- **Daily log rotation**
-- **Different log levels** (error, warn, info, debug)
-
-### Metrics
-- **Prometheus metrics** available tại `/metrics`
-- **Processing statistics** via API
-- **Health checks** cho all components
-
-### Database Queries
-```javascript
-// Find by PayPal order
-const hooks = await PayPalHook.findByOrderId('order_id');
-
-// Get statistics
-const stats = await PayPalHook.getPayPalStatistics(startDate, endDate);
-
-// Find failed webhooks
-const failed = await PayPalHook.getFailedWebhooks(50);
-```
-
-## 🧪 Testing
-
-```bash
-# Run tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# Test webhook endpoint
-curl -X POST http://localhost:3003/v1/paypal/test
-```
-
-## 🚀 Production Deployment
-
-### Docker
-```dockerfile
-# Build
 docker build -t metro/webhook-service .
-
-# Run
-docker run -p 3003:3003 metro/webhook-service
+docker run --env-file .env -p 3003:3003 metro/webhook-service
 ```
 
-### Environment Checklist
-- [ ] MongoDB connection string
-- [ ] Redis connection
-- [ ] Kafka brokers
-- [ ] PayPal credentials
-- [ ] Log level set to 'info' or 'warn'
-- [ ] Rate limiting configured
-- [ ] Health checks enabled
+### 9.3 Kubernetes/Helm (nếu có)
 
----
+* **Chart path:** (Không tìm thấy trong repo)
+* **Values quan trọng:** (Không tìm thấy trong repo)
+* **Lệnh cài đặt:** (Không tìm thấy trong repo)
 
-## 🎉 Summary
+### 9.4 Testing
 
-Webhook service đã được thiết kế với:
+* **Cách chạy:** `npm test`, `npm run test:watch`
+* **Coverage:** Jest with coverage reports in `coverage/` directory
+* **Test types:** Unit tests, integration tests, controller tests
 
-- **✅ Clean Architecture** - Tách biệt rõ ràng các layers
-- **✅ SOLID Principles** - Dễ maintain và extend
-- **✅ Modular Design** - PayPal tách biệt, dễ thêm providers mới
-- **✅ Production Ready** - Error handling, logging, monitoring
-- **✅ Scalable** - Redis, Kafka, MongoDB cho high performance
+## 10. CI/CD
 
-Ready để handle PayPal webhooks và có thể mở rộng cho Stripe, VNPay, MoMo, v.v. trong tương lai! 🚀
+* **Workflow path:** (Không tìm thấy trong repo)
+* **Job chính:** (Không tìm thấy trong repo)
+* **Ma trận build:** (Không tìm thấy trong repo)
+* **Tagging/Release:** (Không tìm thấy trong repo)
+* **Gates:** ESLint, Jest tests, Docker build
+
+## 11. Hiệu năng & Quy mô
+
+* **Bottlenecks đã thấy từ code:**
+  - MongoDB connection pooling (max 10 connections)
+  - Redis single connection (no connection pooling)
+  - Kafka producer single instance
+* **Kỹ thuật:** 
+  - Redis idempotency caching
+  - MongoDB indexing on frequently queried fields
+  - Kafka message partitioning by order/transaction ID
+* **Định hướng benchmark/kịch bản tải:** Load testing with webhook simulation, MongoDB performance tuning
+
+## 12. Rủi ro & Nợ kỹ thuật
+
+* **Danh sách vấn đề hiện tại:**
+  - PayPal webhook signature verification simplified
+  - No circuit breaker implementation
+  - Single Redis connection (no pooling)
+  - No proper error recovery for failed webhook processing
+* **Ảnh hưởng & ưu tiên:**
+  - High: Signature verification (security risk)
+  - Medium: Circuit breaker (resilience)
+  - Low: Redis pooling (performance)
+* **Kế hoạch cải thiện:**
+  - Implement proper PayPal webhook signature validation
+  - Add circuit breaker pattern for external dependencies
+  - Implement Redis connection pooling
+  - Add webhook retry mechanism with exponential backoff
+
+## 13. Phụ lục
+
+* **Sơ đồ ERD (nếu service có DB) – dùng Mermaid ER:**
+
+```mermaid
+erDiagram
+  PAYPAL_WEBHOOK ||--o{ EVENTS_PUBLISHED : "has"
+  SEPAY_WEBHOOK ||--o{ EVENTS_PUBLISHED : "has"
+  
+  PAYPAL_WEBHOOK {
+    String webhookId PK
+    String eventType
+    String resourceType
+    String resourceId
+    Mixed rawPayload
+    String status
+    Object paypalData
+    String idempotencyKey UK
+    Boolean signatureVerified
+    Date createdAt
+    Date updatedAt
+  }
+  
+  SEPAY_WEBHOOK {
+    String webhookId PK
+    String eventType
+    String resourceType
+    String resourceId
+    Mixed rawPayload
+    String status
+    Object sepayData
+    String idempotencyKey UK
+    Boolean signatureVerified
+    Date createdAt
+    Date updatedAt
+  }
+  
+  EVENTS_PUBLISHED {
+    String service
+    String topic
+    Mixed eventData
+    Date publishedAt
+    String messageId
+    Boolean success
+    String errorMessage
+  }
+```
+
+* **Bảng mã lỗi chuẩn & cấu trúc response lỗi:**
+
+| Error Code | HTTP Status | Mô tả | Response Format |
+| ---------- | ----------- | ----- | --------------- |
+| INVALID_WEBHOOK_PAYLOAD | 400 | Invalid webhook structure | `{success: false, error: "INVALID_WEBHOOK_PAYLOAD", message: "..."}` |
+| INVALID_EVENT_STRUCTURE | 400 | Event validation failed | `{success: false, error: "INVALID_EVENT_STRUCTURE", message: "..."}` |
+| WEBHOOK_PROCESSING_FAILED | 422 | Processing failed | `{success: false, error: "WEBHOOK_PROCESSING_FAILED", message: "..."}` |
+| INTERNAL_SERVER_ERROR | 500 | Server error | `{success: false, error: "INTERNAL_SERVER_ERROR", message: "..."}` |
+| STATISTICS_ERROR | 500 | Statistics retrieval failed | `{success: false, error: "STATISTICS_ERROR", message: "..."}` |
+| RETRY_ERROR | 500 | Retry operation failed | `{success: false, error: "RETRY_ERROR", message: "..."}` |
+
+* **License & 3rd-party:** MIT License, dependencies listed in package.json

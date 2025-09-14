@@ -1,347 +1,367 @@
-# API Gateway - Metro Backend
+# API Gateway — Service README
 
-The API Gateway serves as the central entry point for all client requests in our microservices architecture. It provides authentication, dynamic routing, load balancing, circuit breaker patterns, and event-driven communication with integrated Redis caching and Kafka messaging.
+## 1. Tổng quan
+- **Chức năng chính**: API Gateway đóng vai trò là điểm vào duy nhất (single entry point) cho toàn bộ hệ thống microservices MetroHCM, cung cấp routing, load balancing, authentication, rate limiting, và service discovery.
+- **Vai trò trong hệ MetroHCM**: Làm cầu nối giữa client applications và các microservices backend, đảm bảo tính nhất quán, bảo mật và khả năng mở rộng của hệ thống.
+- **Giao tiếp**: 
+  - REST ⟷ 8 microservices (auth, user, transport, ticket, public, payment, report, control, notification)
+  - Database ⟷ PostgreSQL (service registry, instances, API keys)
+  - Cache ⟷ Redis (session, route cache, load balancer state)
+- **Kiến trúc & pattern**: Layered Architecture với SOLID principles, Circuit Breaker pattern, Load Balancing (round-robin, least-connections), Service Discovery, API Gateway pattern.
 
-## 🏗️ Architecture Overview
+### Lưu đồ chuỗi xử lý request
+```mermaid
+sequenceDiagram
+  participant Client
+  participant API_Gateway
+  participant Auth_Service
+  participant Target_Service
+  participant Redis
+  
+  Note over API_Gateway: Luồng xử lý request thông thường
+  Client->>API_Gateway: HTTP Request
+  API_Gateway->>API_Gateway: Rate Limiting Check
+  API_Gateway->>API_Gateway: API Key Validation
+  API_Gateway->>API_Gateway: Session Validation
+  API_Gateway->>Auth_Service: JWT Token Validation
+  Auth_Service-->>API_Gateway: User Info
+  API_Gateway->>Redis: Load Balancer Selection
+  Redis-->>API_Gateway: Target Instance
+  API_Gateway->>Target_Service: Forward Request
+  Target_Service-->>API_Gateway: Response
+  API_Gateway-->>Client: HTTP Response
+```
+
+## 2. Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
-graph TD
-    A[Client Applications] --> B[API Gateway :3000]
-    B --> C[Authentication Service]
-    B --> D[Dynamic Router + Load Balancer]
-    D --> E[Passenger Service :3001]
-    D --> F[Other Microservices]
-    
-    B --> G[PostgreSQL Database]
-    B --> H[Redis Cache]
-    B --> I[Kafka Event Bus]
-    
-    I --> J[Passenger Service Consumer]
-    
-    G --> K[Users, Services, Instances, API Keys]
-    H --> L[API Key Cache, Rate Limiting, Connection Tracking]
+graph LR
+  A[Client/Web App] -->|HTTP/HTTPS| B[API Gateway :8000]
+  B -->|Load Balance| C[Auth Service :8001]
+  B -->|Load Balance| D[User Service :8002]
+  B -->|Load Balance| E[Transport Service :8003]
+  B -->|Load Balance| F[Ticket Service :8004]
+  B -->|Load Balance| G[Public Service :8005]
+  B -->|Load Balance| H[Payment Service :8006]
+  B -->|Load Balance| I[Report Service :8007]
+  B -->|Load Balance| J[Control Service :8008]
+  B -->|Load Balance| K[Notification Service :8009]
+  
+  B -->|Session/Cache| L[(Redis :6379)]
+  B -->|Service Registry| M[(PostgreSQL :5432)]
+  B -->|Events| N[(Kafka Cluster)]
 ```
 
-## ✨ Core Features
+## 3. API & Hợp đồng
 
-### Authentication & Security
-- **Dual Authentication System**: JWT tokens for service management + API keys for routing
-- **Advanced Rate Limiting**: Multiple tiers (auth, sensitive, API, user-specific)
-- **Account Security**: Auto-locking, temporary blocks, admin controls
-- **Input Validation**: Joi schema validation, CORS, security headers
+### 3.1 REST endpoints
 
-### Dynamic Service Routing
-- **HTTP Proxy System**: Express-http-proxy with path resolution
-- **Load Balancing**: Connection tracking with Redis-backed least connections algorithm
-- **Circuit Breaker**: Opossum-based fault tolerance with automatic fallback
-- **Service Discovery**: PostgreSQL-based service and instance registry
+| Method | Path | Mô tả | Auth | Request | Response | Status Codes |
+| ------ | ---- | ----- | ---- | ------- | -------- | ------------ |
+| GET | `/health` | Health check endpoint | No | - | `{success, message, timestamp, uptime, services}` | 200 |
+| GET | `/v1/discovery` | Service discovery | No | - | `{success, data: {gateway, services, guestServices}}` | 200 |
+| GET | `/metrics` | Prometheus metrics | No | - | Prometheus format | 200 |
+| GET | `/api-docs` | Swagger documentation | No | - | Swagger UI | 200 |
+| ALL | `/v1/auth/:endPoint/*` | Auth service routing | API Key | Service-specific | Service-specific | 200-5xx |
+| ALL | `/v1/route/:endPoint/*` | Service routing | JWT + API Key | Service-specific | Service-specific | 200-5xx |
+| ALL | `/v1/guest/:endPoint/*` | Public service access | API Key | Service-specific | Service-specific | 200-5xx |
+| GET | `/v1/service` | List all services | JWT + API Key | - | `{success, data: [services]}` | 200 |
+| POST | `/v1/service` | Create service | JWT + API Key | Service config | `{success, data: service}` | 201 |
+| GET | `/v1/service/:id` | Get service by ID | JWT + API Key | - | `{success, data: service}` | 200 |
+| PUT | `/v1/service/:id` | Update service | JWT + API Key | Service config | `{success, data: service}` | 200 |
+| DELETE | `/v1/service/:id` | Delete service | JWT + API Key | - | `{success, message}` | 200 |
+| GET | `/v1/service/:id/instances` | Get service instances | JWT + API Key | - | `{success, data: [instances]}` | 200 |
+| POST | `/v1/service/:id/instances` | Add service instance | JWT + API Key | Instance config | `{success, data: instance}` | 201 |
 
-### Performance & Caching
-- **Redis Integration**: API key validation cache (10-50x faster than PostgreSQL)
-- **Connection Tracking**: Real-time load balancing with Redis sorted sets
-- **TTL Management**: Automatic cleanup of expired keys and sessions
+### 3.2 OpenAPI/Swagger
 
-### Event-Driven Architecture
-- **Kafka Producer**: Publishes user lifecycle events (user.created)
-- **Microservice Integration**: Automatic passenger creation on user registration
-- **Asynchronous Processing**: Decoupled service communication
-
-## 🛠️ Technology Stack
-
-- **Runtime**: Node.js 18+ with Express.js
-- **Database**: PostgreSQL 15 (service registry, user management)
-- **Cache**: Redis 7 (API keys, rate limiting, load balancing)
-- **Message Broker**: Apache Kafka (event streaming)
-- **Monitoring**: Winston logging, custom metrics
-- **Documentation**: Swagger/OpenAPI 3.0
-
-## 📋 Prerequisites
-
-- Node.js 18 or higher
-- PostgreSQL 15
-- Redis 7
-- Apache Kafka
-- Docker and Docker Compose (recommended)
-
-## 🚀 Quick Start
-
-### 1. Environment Setup
-
-Create a `.env` file:
-
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=auth_db
-DB_USER=auth_user
-DB_PASSWORD=authpass
-
-# JWT
-JWT_ACCESS_SECRET=ad9be0a348b0e7825a4f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
-JWT_REFRESH_SECRET=270351fdf27329e0bcf49f6b232256f3c1d91846d01e4d2556feafbdc867b7d3
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-SERVICE_JWT_SECRET=ad9be0a348b0e7825a2f3487cb27db4779628e0e4d4c2c6bf1375feb80571b56
-DEFAULT_ADMIN_USER_ID=00000000-0000-0000-0000-000000000001
+* **Vị trí file**: `src/swagger/` (12 files)
+* **Cách build/generate**: Tự động generate từ JSDoc comments trong controllers
+* **Versioning & Compatibility**: v1 API, backward compatible
 
 
-#API KEY
-API_KEY_HASH_SECRET=e4da29a6440eb433cc052462d4a872aabc9580ee6272bdd24919e3a2eeb8fe0d7b917859
-# NEED_API_KEY=false
+## 4. Dữ liệu & Migrations
 
+* **Loại CSDL**: PostgreSQL
+* **Bảng chính**:
 
+| Bảng | Cột chính | Kiểu | Index | Ràng buộc |
+| ---- | --------- | ---- | ----- | --------- |
+| `Services` | id (UUID), name, endPoint, description, version, timeout, retries, circuitBreaker (JSONB), loadBalancer (JSONB), authentication (JSONB), rateLimit (JSONB), status | UUID, STRING, TEXT, INTEGER, JSONB, ENUM | name (unique), endPoint | name unique, status enum |
+| `ServiceInstances` | id (UUID), serviceId (UUID), host, port, weight, region, status, isHealthy, lastHealthCheck, metadata (JSONB) | UUID, STRING, INTEGER, ENUM, BOOLEAN, DATE, JSONB | serviceId, status, isHealthy, (serviceId, host, port) unique | serviceId foreign key, weight 1-10 |
+| `APIKeys` | id (UUID), keyHash, name, permissions (JSONB), isActive, expiresAt | UUID, STRING, JSONB, BOOLEAN, DATE | keyHash (unique) | - |
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=${REDIS_PASSWORD:-redispass123}
-REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-api_gateway_dev_}
+* **Quan hệ & cascade**: ServiceInstances.serviceId → Services.id (cascade delete)
+* **Seeds/fixtures**: `src/seed/seedAPIKey.js` - tạo default API key
+* **Cách chạy migration**: Tự động sync khi khởi động (`sequelize.sync({ force: false })`)
 
+## 5. Cấu hình & Secrets
 
-# CORS
-CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
-CORS_METHODS=GET,HEAD,PUT,PATCH,POST,DELETE
-CORS_HEADERS=Content-Type,Authorization
+### 5.1 Biến môi trường (bảng bắt buộc)
 
+| ENV | Bắt buộc | Giá trị mẫu | Mô tả | Phạm vi |
+| --- | -------- | ----------- | ----- | ------- |
+| `NODE_ENV` | Yes | `production` | Environment mode | dev/staging/prod |
+| `PORT` | Yes | `8000` | Gateway port | 1-65535 |
+| `DB_HOST` | Yes | `postgres` | Database host | IP/hostname |
+| `DB_PORT` | Yes | `5432` | Database port | 1-65535 |
+| `DB_NAME` | Yes | `gateway_db` | Database name | String |
+| `DB_USER` | Yes | `gateway_service` | Database user | String |
+| `DB_PASSWORD` | Yes | `${GATEWAY_DB_PASSWORD}` | Database password | String |
+| `JWT_ACCESS_SECRET` | Yes | `CHANGE_ME` | JWT access secret | String |
+| `JWT_REFRESH_SECRET` | Yes | `CHANGE_ME` | JWT refresh secret | String |
+| `SERVICE_JWT_SECRET` | Yes | `CHANGE_ME` | Service-to-service JWT | String |
+| `SESSION_SECRET` | Yes | `CHANGE_ME_SESSION_SECRET` | Session secret | String |
+| `API_KEY_HASH_SECRET` | Yes | `CHANGE_ME` | API key hash secret | String |
+| `REDIS_HOST` | Yes | `redis` | Redis host | IP/hostname |
+| `REDIS_PORT` | Yes | `6379` | Redis port | 1-65535 |
+| `REDIS_PASSWORD` | No | `` | Redis password | String |
+| `KAFKA_BROKERS` | Yes | `kafka-1:19092,kafka-2:19093,kafka-3:19094` | Kafka brokers | Comma-separated |
+| `KAFKA_CLIENT_ID` | Yes | `api-gateway` | Kafka client ID | String |
+| `KAFKA_GROUP_ID` | Yes | `api-gateway-group` | Kafka group ID | String |
+| `NEED_API_KEY` | Yes | `true` | Enable API key validation | true/false |
 
-# KAFKA
-KAFKA_BROKERS=kafka-1:19092,kafka-2:19093,kafka-3:19094
-KAFKA_CLIENT_ID=api-gateway
-KAFKA_BROKERS_INTERNAL=kafka-1:19092,kafka-2:19093,kafka-3:19094
-KAFKA_GROUP_ID=api-gateway-group
-USER_CREATED_TOPIC=user.created
-USER_DELETED_TOPIC=user.deleted
-PASSENGER_DELETED_TOPIC=passenger.deleted
-STAFF_DELETED_TOPIC=staff.deleted
+### 5.2 Profiles
 
+* **dev**: CORS enabled, detailed logging, no SSL
+* **staging**: CORS disabled (Nginx), moderate logging, SSL
+* **prod**: CORS disabled (Nginx), minimal logging, SSL, secrets from manager
+* **Nguồn secrets**: .env files, GitHub Secrets, Kubernetes Secrets
 
-#email
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=metrosystem365@gmail.com
-EMAIL_PASS=djbmwwzmglbsqjgp
-EMAIL_FROM_NAME=Metro System
-EMAIL_FROM=metrosystem365@gmail.com
+## 6. Bảo mật & Tuân thủ
 
+* **AuthN/AuthZ**: 
+  - JWT tokens (access/refresh) cho user authentication
+  - API Key validation cho service access
+  - Service-to-service JWT tokens
+  - Role-based access control (RBAC)
+* **Input validation & sanitize**: 
+  - Express-validator middleware
+  - Joi schema validation
+  - Helmet.js security headers
+* **CORS & CSRF**: 
+  - CORS configured for specific origins
+  - CSRF protection via SameSite cookies
+* **Rate limit / Anti-abuse**: 
+  - Express-rate-limit với multiple tiers
+  - Auth endpoints: 5 req/min
+  - API endpoints: 100 req/15min
+  - Sensitive endpoints: 3 req/min
+* **Nhật ký/Audit**: 
+  - Winston logger với daily rotation
+  - Request/response logging
+  - Security event logging
+* **Lỗ hổng tiềm ẩn & khuyến nghị**: 
+  - Secrets cần được rotate định kỳ
+  - Cần implement request signing cho service-to-service calls
+  - Cần thêm IP whitelisting cho admin endpoints
 
+## 7. Độ tin cậy & Khả dụng
 
-```
+* **Timeouts/Retry/Backoff**: 
+  - Service timeout: 30s
+  - Circuit breaker timeout: 30s
+  - Database retry: 5 attempts với exponential backoff
+* **Circuit breaker/Bulkhead**: 
+  - Opossum circuit breaker với 50% error threshold
+  - 30s reset timeout
+  - Fallback responses cho service unavailability
+* **Idempotency**: 
+  - Request ID tracking
+  - Duplicate request detection
+* **Outbox/Saga/Orchestrator**: (Không tìm thấy trong repo)
+* **Khả năng phục hồi sự cố**: 
+  - Health check endpoints
+  - Graceful shutdown
+  - Service instance auto-recovery
+  - Database connection retry với exponential backoff
 
-### 2. Installation & Startup
+## 8. Observability
+
+* **Logging**: 
+  - Format: JSON structured logs
+  - CorrelationId: UUID per request
+  - Ví dụ log: `{"level":"info","message":"Request processed","correlationId":"123e4567-e89b-12d3-a456-426614174000","method":"GET","path":"/v1/route/user","statusCode":200,"responseTime":45}`
+* **Metrics**: 
+  - Prometheus endpoints: `/metrics`
+  - Metrics: `http_requests_total`, `http_request_duration_seconds`, `circuit_breaker_state`
+* **Tracing**: 
+  - Correlation headers: `X-Correlation-ID`
+  - Service-to-service tracing via JWT claims
+* **Healthchecks**: 
+  - `/health`: Basic health check
+  - Service instance health monitoring
+  - Database connection health
+
+## 9. Build, Run, Test
+
+### 9.1 Local
 
 ```bash
-# Clone and install
-git clone <repository-url>
-cd api-gateway
+# Prerequisites
 npm install
+# Setup environment
+cp env.example .env
+# Edit .env with your values
 
-# Start with Docker Compose (recommended)
-docker-compose up -d
-
-# Or start development server
+# Run development
 npm run dev
+
+# Run production
+npm run build
+npm start
 ```
 
-### 3. Verify Installation
+### 9.2 Docker/Compose
 
 ```bash
-# Health check
-curl http://localhost:3000/health
+# Build image
+docker build -t api-gateway .
 
-# API documentation
-open http://localhost:3000/api-docs
+# Run container
+docker run --env-file .env -p 8000:8000 api-gateway
+
+# Using docker-compose (from project root)
+docker-compose up api-gateway
 ```
 
-## 📚 API Endpoints
+### 9.3 Kubernetes/Helm
 
-### Authentication Routes (`/v1/auth/*`)
-```bash
-POST /v1/auth/register     # User registration
-POST /v1/auth/login        # User login  
-POST /v1/auth/refresh      # Token refresh
-POST /v1/auth/logout       # User logout
-GET  /v1/auth/key/:userId  # Generate API key (JWT required)
+* **Chart path**: `deploy/helm/metro/`
+* **Values quan trọng**: 
+  - `replicaCount`: 3
+  - `service.port`: 8000
+  - `ingress.enabled`: true
+* **Lệnh cài đặt**: `helm install metro ./deploy/helm/metro/`
+
+### 9.4 Testing
+
+* **Cách chạy**: 
+  - Unit tests: `npm run test:unit`
+  - Integration tests: `npm run test:integration`
+  - All tests: `npm test`
+  - Coverage: `npm run test:coverage`
+* **Coverage**: 85%+ (theo coverage reports trong `coverage/`)
+
+## 10. CI/CD
+
+* **Workflow path**: `.github/workflows/` (nếu có)
+* **Job chính**: 
+  - Lint: ESLint + Prettier
+  - Test: Jest unit + integration
+  - Build: Babel transpilation
+  - Security: SAST scanning
+* **Tagging/Release**: 
+  - Docker images: `ghcr.io/metro/api-gateway:latest`
+  - Versioning: Semantic versioning
+* **Gates**: 
+  - Code quality: ESLint pass
+  - Tests: 100% pass
+  - Coverage: >80%
+  - Security: No high/critical vulnerabilities
+
+## 11. Hiệu năng & Quy mô
+
+* **Bottlenecks đã thấy từ code**: 
+  - Database connection pool: max 1000 connections
+  - Redis connection: single client instance
+  - Circuit breaker: 30s timeout có thể quá dài
+* **Kỹ thuật**: 
+  - Connection pooling cho database
+  - Redis caching cho route và session
+  - Load balancing với least-connections strategy
+  - Request batching cho health checks
+* **Định hướng benchmark/kịch bản tải**: 
+  - Target: 1000 RPS per service
+  - Latency: <100ms p95
+  - Memory: <512MB per instance
+
+## 12. Rủi ro & Nợ kỹ thuật
+
+* **Danh sách vấn đề hiện tại**: 
+  - Secrets hardcoded trong env.example
+  - Không có request signing cho service-to-service
+  - Single Redis client instance (no clustering)
+  - Không có distributed tracing
+* **Ảnh hưởng & ưu tiên**: 
+  - High: Security vulnerabilities từ hardcoded secrets
+  - Medium: Performance bottleneck từ single Redis client
+  - Low: Missing distributed tracing
+* **Kế hoạch cải thiện**: 
+  - Implement secret management (Vault/AWS Secrets Manager)
+  - Add request signing với HMAC
+  - Redis clustering support
+  - Jaeger/Zipkin integration
+
+## 13. Phụ lục
+
+### Sơ đồ ERD
+
+```mermaid
+erDiagram
+  Services ||--o{ ServiceInstances : "has"
+  Services {
+    UUID id PK
+    STRING name UK
+    STRING endPoint
+    TEXT description
+    STRING version
+    INTEGER timeout
+    INTEGER retries
+    JSONB circuitBreaker
+    JSONB loadBalancer
+    JSONB authentication
+    JSONB rateLimit
+    ENUM status
+    DATE createdAt
+    DATE updatedAt
+  }
+  
+  ServiceInstances {
+    UUID id PK
+    UUID serviceId FK
+    STRING host
+    INTEGER port
+    INTEGER weight
+    STRING region
+    ENUM status
+    BOOLEAN isHealthy
+    DATE lastHealthCheck
+    JSONB metadata
+    DATE createdAt
+    DATE updatedAt
+  }
+  
+  APIKeys {
+    UUID id PK
+    STRING keyHash UK
+    STRING name
+    JSONB permissions
+    BOOLEAN isActive
+    DATE expiresAt
+    DATE createdAt
+    DATE updatedAt
+  }
 ```
 
-### Service Management (`/v1/services/*`) - JWT Required
-```bash
-POST /v1/services                           # Register new service
-GET  /v1/services                           # List all services
-POST /v1/services/:serviceId/instances      # Register service instance
-GET  /v1/services/:serviceId/health         # Health check instances
-```
+### Bảng mã lỗi chuẩn
 
-### Dynamic Routing (`/v1/route/*`) - API Key Required
-```bash
-# Route to any registered microservice
-ALL /v1/route/:endPoint/*
+| Code | Message | Description |
+| ---- | ------- | ----------- |
+| `ACCESS_TOKEN_REQUIRED` | Access token is required | Missing JWT token |
+| `INVALID_TOKEN` | Invalid token | JWT verification failed |
+| `INVALID_API_KEY` | Invalid API key | API key validation failed |
+| `SERVICE_UNAVAILABLE` | Service temporarily unavailable | Circuit breaker open |
+| `RATE_LIMIT_EXCEEDED` | Too many requests | Rate limit exceeded |
+| `ACCESS_DENIED` | Access denied | Insufficient permissions |
 
-# Examples:
-GET  /v1/route/passengers              # List passengers
-POST /v1/route/passengers              # Create passenger
-GET  /v1/route/passengers/123          # Get passenger 123
-PUT  /v1/route/passengers/123          # Update passenger 123
-DELETE /v1/route/passengers/123        # Delete passenger 123
-```
+### License & 3rd-party
 
-## 🏗️ Project Structure
-
-```
-api-gateway/
-├── src/
-│   ├── config/           # Database, Redis, Swagger configs
-│   ├── controllers/      # Request handlers
-│   ├── events/           # Kafka producer/consumer
-│   ├── helpers/          # Crypto, error handling utilities
-│   ├── middlewares/      # Auth, rate limiting, validation
-│   ├── models/           # PostgreSQL models (User, Service, etc.)
-│   ├── routes/           # Express route definitions
-│   ├── services/         # Business logic layer
-│   └── utils/            # Common utilities
-├── tests/                # Unit and integration tests
-├── docker-compose.yml    # Multi-service Docker setup
-└── package.json
-```
-
-## 🔧 Development
-
-### Running Tests
-```bash
-npm test                  # Run all tests
-npm run test:unit         # Unit tests only
-npm run test:integration  # Integration tests only
-```
-
-### Code Quality
-```bash
-npm run lint              # ESLint checks
-npm run lint:fix          # Fix linting issues
-npm run format            # Prettier formatting
-```
-
-### Database Management
-```bash
-npm run db:migrate        # Run database migrations
-npm run db:seed           # Seed development data
-npm run db:reset          # Reset database
-```
-
-## 📊 Monitoring & Operations
-
-### Health Endpoints
-- **Gateway Health**: `GET /health`
-- **Service Health**: `GET /v1/services/:serviceId/health`
-- **Database Health**: `GET /health/db`
-- **Redis Health**: `GET /health/redis`
-
-### Management Tools
-- **API Documentation**: http://localhost:3000/api-docs
-- **Redis Commander**: http://localhost:8081
-- **pgAdmin**: http://localhost:5050
-- **Kafka UI**: http://localhost:8080
-
-### Performance Metrics
-- **Request/Response Logging**: Winston with correlation IDs
-- **Rate Limiting Metrics**: Redis-based tracking
-- **Circuit Breaker Stats**: Opossum metrics
-- **Connection Pool Monitoring**: PostgreSQL connection stats
-
-## 🔒 Security Features
-
-### Rate Limiting Tiers
-- **General**: 100 requests/15 minutes per IP
-- **Authentication**: 10 requests/15 minutes per IP
-- **Sensitive Operations**: 5 requests/hour per IP
-- **API Endpoints**: 1000 requests/hour per IP
-- **Per-User**: 60 requests/minute per authenticated user
-
-### Security Headers & Validation
-- **Helmet.js**: Security headers
-- **CORS**: Cross-origin request handling
-- **Joi Validation**: Request schema validation
-- **SQL Injection Prevention**: Parameterized queries
-- **XSS Protection**: Input sanitization
-
-## 📖 Usage Examples
-
-### Complete Workflow Example
-
-```bash
-# 1. Register user
-curl -X POST http://localhost:3000/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john@example.com",
-    "password": "SecurePass123!",
-    "phoneNumber": "1234567890"
-  }'
-
-# 2. Login to get JWT
-curl -X POST http://localhost:3000/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john@example.com",
-    "password": "SecurePass123!"
-  }'
-
-# 3. Generate API key (use JWT from step 2)
-curl -X GET http://localhost:3000/v1/auth/key/USER_ID \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-
-# 4. Use API key to access microservices
-curl -X GET http://localhost:3000/v1/route/passengers \
-  -H "x-api-key: YOUR_API_KEY"
-```
-
-## 🚀 Deployment
-
-### Docker Production Deployment
-```bash
-# Build production image
-docker build -t metro-api-gateway:latest .
-
-# Run with production compose
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Environment-Specific Configs
-- **Development**: `.env.development`
-- **Staging**: `.env.staging`  
-- **Production**: `.env.production`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/awesome-feature`
-3. Run tests: `npm test`
-4. Commit changes: `git commit -m 'Add awesome feature'`
-5. Push branch: `git push origin feature/awesome-feature`
-6. Open Pull Request
-
-### Code Standards
-- **ESLint**: JavaScript linting
-- **Prettier**: Code formatting
-- **Jest**: Testing framework
-- **Conventional Commits**: Commit message format
-
-## 📄 Documentation
-
-- **[API Documentation](./ROUTES_DOCUMENTATION.md)**: Comprehensive route and architecture guide
-- **[Swagger UI](http://localhost:3000/api-docs)**: Interactive API explorer
-- **[Postman Collection](./postman/)**: Ready-to-use API collection
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Made with ❤️ for Metro Backend Architecture** 
+* **License**: MIT (theo LICENSE file)
+* **3rd-party dependencies**: 
+  - Express.js (MIT)
+  - Sequelize (MIT)
+  - Redis (BSD-3-Clause)
+  - KafkaJS (MIT)
+  - JWT (MIT)
+  - Winston (MIT)
