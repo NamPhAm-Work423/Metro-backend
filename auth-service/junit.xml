@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="69" failures="0" errors="0" time="2.676">
+  <testsuite name="TokensService" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="0.832" tests="5">
+    <testcase classname="TokensService createTokens returns access and refresh tokens with payload" name="TokensService createTokens returns access and refresh tokens with payload" time="0.022">
+    </testcase>
+    <testcase classname="TokensService refreshAccessToken validates token and returns new access token" name="TokensService refreshAccessToken validates token and returns new access token" time="0.007">
+    </testcase>
+    <testcase classname="TokensService refreshAccessToken throws on mismatched subject" name="TokensService refreshAccessToken throws on mismatched subject" time="0.017">
+    </testcase>
+    <testcase classname="TokensService createTokens defaults roles to [&quot;passenger&quot;] when roles not provided" name="TokensService createTokens defaults roles to [&quot;passenger&quot;] when roles not provided" time="0.007">
+    </testcase>
+    <testcase classname="TokensService refreshAccessToken propagates error when jwt.verify throws" name="TokensService refreshAccessToken propagates error when jwt.verify throws" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="apiKey.cache" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="0.865" tests="2">
+    <testcase classname="apiKey.cache formatters apply prefix correctly" name="apiKey.cache formatters apply prefix correctly" time="0.007">
+    </testcase>
+    <testcase classname="apiKey.cache storeAPIKey writes to redis with expected fields" name="apiKey.cache storeAPIKey writes to redis with expected fields" time="0.008">
+    </testcase>
+  </testsuite>
+  <testsuite name="AuthMiddleware" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="0.976" tests="4">
+    <testcase classname="AuthMiddleware authenticate returns 401 when no token" name="AuthMiddleware authenticate returns 401 when no token" time="0.008">
+    </testcase>
+    <testcase classname="AuthMiddleware authenticate ok with Bearer token" name="AuthMiddleware authenticate ok with Bearer token" time="0.007">
+    </testcase>
+    <testcase classname="AuthMiddleware validateAPIKeyMiddleware 401 when missing header" name="AuthMiddleware validateAPIKeyMiddleware 401 when missing header" time="0.001">
+    </testcase>
+    <testcase classname="AuthMiddleware validateAPIKeyMiddleware ok when service validates" name="AuthMiddleware validateAPIKeyMiddleware ok when service validates" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="KeyService" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="0.982" tests="6">
+    <testcase classname="KeyService generateAPIKeyForUser stores DB and cache and returns token + id" name="KeyService generateAPIKeyForUser stores DB and cache and returns token + id" time="0.015">
+    </testcase>
+    <testcase classname="KeyService validateAPIKey falls back to DB and warms cache" name="KeyService validateAPIKey falls back to DB and warms cache" time="0.002">
+    </testcase>
+    <testcase classname="KeyService validateAPIKey returns null when not in cache or DB" name="KeyService validateAPIKey returns null when not in cache or DB" time="0.001">
+    </testcase>
+    <testcase classname="KeyService getActiveAPIKeyForUser rotates when no cached session key" name="KeyService getActiveAPIKeyForUser rotates when no cached session key" time="0.005">
+    </testcase>
+    <testcase classname="KeyService getActiveAPIKeyForUser returns null when no active key" name="KeyService getActiveAPIKeyForUser returns null when no active key" time="0">
+    </testcase>
+    <testcase classname="KeyService revokeAllUserKeys expires active keys" name="KeyService revokeAllUserKeys expires active keys" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="KeyService extra coverage" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="0.985" tests="5">
+    <testcase classname="KeyService extra coverage validateAPIKey returns cached metadata on cache hit" name="KeyService extra coverage validateAPIKey returns cached metadata on cache hit" time="0.014">
+    </testcase>
+    <testcase classname="KeyService extra coverage getAPIKeysByUserId returns array" name="KeyService extra coverage getAPIKeysByUserId returns array" time="0.001">
+    </testcase>
+    <testcase classname="KeyService extra coverage deleteAPIKeyById returns true when deletedCount&gt;0" name="KeyService extra coverage deleteAPIKeyById returns true when deletedCount&gt;0" time="0.001">
+    </testcase>
+    <testcase classname="KeyService extra coverage getActiveAPIKeyForUser returns cached token and updates lastUsedAt" name="KeyService extra coverage getActiveAPIKeyForUser returns cached token and updates lastUsedAt" time="0.001">
+    </testcase>
+    <testcase classname="KeyService extra coverage validateAPIKey returns null on redis error (catch path)" name="KeyService extra coverage validateAPIKey returns null on redis error (catch path)" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="EmailService" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="1.143" tests="7">
+    <testcase classname="EmailService sendVerificationEmail uses template and sends" name="EmailService sendVerificationEmail uses template and sends" time="0.014">
+    </testcase>
+    <testcase classname="EmailService sendPasswordResetEmail uses template and sends" name="EmailService sendPasswordResetEmail uses template and sends" time="0.004">
+    </testcase>
+    <testcase classname="EmailService sendWelcomeEmail uses template and sends" name="EmailService sendWelcomeEmail uses template and sends" time="0.004">
+    </testcase>
+    <testcase classname="EmailService returns not-configured when transporter missing" name="EmailService returns not-configured when transporter missing" time="0.002">
+    </testcase>
+    <testcase classname="EmailService queues on rate limit error" name="EmailService queues on rate limit error" time="0.005">
+    </testcase>
+    <testcase classname="EmailService sendEmailDirect succeeds when configured" name="EmailService sendEmailDirect succeeds when configured" time="0.001">
+    </testcase>
+    <testcase classname="EmailService testConnection reports true when verify ok" name="EmailService testConnection reports true when verify ok" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="auth.controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="1.279" tests="3">
+    <testcase classname="auth.controller generateAPIToken returns token" name="auth.controller generateAPIToken returns token" time="0.037">
+    </testcase>
+    <testcase classname="auth.controller getAPIKeyByUser validates userId required" name="auth.controller getAPIKeyByUser validates userId required" time="0.007">
+    </testcase>
+    <testcase classname="auth.controller deleteKeyById 404 when not found" name="auth.controller deleteKeyById 404 when not found" time="0.007">
+    </testcase>
+  </testsuite>
+  <testsuite name="user.controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="1.318" tests="8">
+    <testcase classname="user.controller signup success" name="user.controller signup success" time="0.05">
+    </testcase>
+    <testcase classname="user.controller login success sets cookies" name="user.controller login success sets cookies" time="0.01">
+    </testcase>
+    <testcase classname="user.controller refresh token requires cookie" name="user.controller refresh token requires cookie" time="0.005">
+    </testcase>
+    <testcase classname="user.controller resendVerification success" name="user.controller resendVerification success" time="0.004">
+    </testcase>
+    <testcase classname="user.controller resendVerification missing email" name="user.controller resendVerification missing email" time="0.005">
+    </testcase>
+    <testcase classname="user.controller resendVerification invalid email format" name="user.controller resendVerification invalid email format" time="0.006">
+    </testcase>
+    <testcase classname="user.controller resendVerification user not found" name="user.controller resendVerification user not found" time="0.005">
+    </testcase>
+    <testcase classname="user.controller resendVerification user already verified" name="user.controller resendVerification user already verified" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="UserService" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:12:25" time="1.793" tests="29">
+    <testcase classname="UserService signup creates user and triggers background tasks" name="UserService signup creates user and triggers background tasks" time="0.082">
+    </testcase>
+    <testcase classname="UserService signup rejects when roles include admin" name="UserService signup rejects when roles include admin" time="0.025">
+    </testcase>
+    <testcase classname="UserService login validates password and returns tokens" name="UserService login validates password and returns tokens" time="0.132">
+    </testcase>
+    <testcase classname="UserService login throws when password empty" name="UserService login throws when password empty" time="0.001">
+    </testcase>
+    <testcase classname="UserService login throws when user not found" name="UserService login throws when user not found" time="0">
+    </testcase>
+    <testcase classname="UserService login throws when account locked" name="UserService login throws when account locked" time="0.001">
+    </testcase>
+    <testcase classname="UserService login throws when unverified and NEED_EMAIL_VERIFICATION=true" name="UserService login throws when unverified and NEED_EMAIL_VERIFICATION=true" time="0">
+    </testcase>
+    <testcase classname="UserService forgotPassword happy path stores token and sends email" name="UserService forgotPassword happy path stores token and sends email" time="0.001">
+    </testcase>
+    <testcase classname="UserService forgotPassword cleans up redis on email failure" name="UserService forgotPassword cleans up redis on email failure" time="0.003">
+    </testcase>
+    <testcase classname="UserService resetPassword invalid or expired token" name="UserService resetPassword invalid or expired token" time="0.001">
+    </testcase>
+    <testcase classname="UserService verifyEmailToken success" name="UserService verifyEmailToken success" time="0.004">
+    </testcase>
+    <testcase classname="UserService unlockUserAccount not found" name="UserService unlockUserAccount not found" time="0">
+    </testcase>
+    <testcase classname="UserService refreshToken returns new access token" name="UserService refreshToken returns new access token" time="0.002">
+    </testcase>
+    <testcase classname="UserService refreshToken throws when user not found" name="UserService refreshToken throws when user not found" time="0.002">
+    </testcase>
+    <testcase classname="UserService logout updates lastLogoutAt" name="UserService logout updates lastLogoutAt" time="0.001">
+    </testcase>
+    <testcase classname="UserService deleteUserByUserId handles not found" name="UserService deleteUserByUserId handles not found" time="0">
+    </testcase>
+    <testcase classname="UserService forgotPassword returns true for unknown email" name="UserService forgotPassword returns true for unknown email" time="0.001">
+    </testcase>
+    <testcase classname="UserService forgotPassword throws when Redis unavailable" name="UserService forgotPassword throws when Redis unavailable" time="0">
+    </testcase>
+    <testcase classname="UserService resetPassword rejects with short password" name="UserService resetPassword rejects with short password" time="0.002">
+    </testcase>
+    <testcase classname="UserService resetPassword success flow" name="UserService resetPassword success flow" time="0.066">
+    </testcase>
+    <testcase classname="UserService checkResetToken returns exists and ttl" name="UserService checkResetToken returns exists and ttl" time="0.001">
+    </testcase>
+    <testcase classname="UserService revokeResetToken returns true when deleted" name="UserService revokeResetToken returns true when deleted" time="0.001">
+    </testcase>
+    <testcase classname="UserService checkResetToken handles Redis error path" name="UserService checkResetToken handles Redis error path" time="0">
+    </testcase>
+    <testcase classname="UserService verifyEmailToken invalid token returns false" name="UserService verifyEmailToken invalid token returns false" time="0.001">
+    </testcase>
+    <testcase classname="UserService unlockUserAccount success" name="UserService unlockUserAccount success" time="0">
+    </testcase>
+    <testcase classname="UserService resendVerification success" name="UserService resendVerification success" time="0.002">
+    </testcase>
+    <testcase classname="UserService resendVerification user not found" name="UserService resendVerification user not found" time="0.001">
+    </testcase>
+    <testcase classname="UserService resendVerification user already verified" name="UserService resendVerification user already verified" time="0">
+    </testcase>
+    <testcase classname="UserService resendVerification handles email service error gracefully" name="UserService resendVerification handles email service error gracefully" time="0.001">
+    </testcase>
+  </testsuite>
+</testsuites>

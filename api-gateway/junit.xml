@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="68" failures="0" errors="0" time="1.844">
+  <testsuite name="CustomError" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="0.74" tests="2">
+    <testcase classname="CustomError sets status and statusCode" name="CustomError sets status and statusCode" time="0.009">
+    </testcase>
+    <testcase classname="CustomError 5xx maps to error status" name="CustomError 5xx maps to error status" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="service.controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="0.773" tests="9">
+    <testcase classname="service.controller findServiceById returns 200" name="service.controller findServiceById returns 200" time="0.009">
+    </testcase>
+    <testcase classname="service.controller findServiceByName returns 200" name="service.controller findServiceByName returns 200" time="0.001">
+    </testcase>
+    <testcase classname="service.controller findServiceByEndPoint returns 200" name="service.controller findServiceByEndPoint returns 200" time="0.001">
+    </testcase>
+    <testcase classname="service.controller findServiceInstanceEndPoint returns 200" name="service.controller findServiceInstanceEndPoint returns 200" time="0">
+    </testcase>
+    <testcase classname="service.controller createService and bulk/create/delete" name="service.controller createService and bulk/create/delete" time="0.002">
+    </testcase>
+    <testcase classname="service.controller getAllService and getServiceByName" name="service.controller getAllService and getServiceByName" time="0.001">
+    </testcase>
+    <testcase classname="service.controller getServiceById 404 when not found" name="service.controller getServiceById 404 when not found" time="0.001">
+    </testcase>
+    <testcase classname="service.controller updateService success" name="service.controller updateService success" time="0.001">
+    </testcase>
+    <testcase classname="service.controller getServiceInstances success" name="service.controller getServiceInstances success" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="routing.controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="0.792" tests="4">
+    <testcase classname="routing.controller useService decodes and routes" name="routing.controller useService decodes and routes" time="0.01">
+    </testcase>
+    <testcase classname="routing.controller useService handles error with CustomError" name="routing.controller useService handles error with CustomError" time="0.015">
+    </testcase>
+    <testcase classname="routing.controller useService preserves proxy status code when already set" name="routing.controller useService preserves proxy status code when already set" time="0.001">
+    </testcase>
+    <testcase classname="routing.controller checkServiceHealth returns 200/503" name="routing.controller checkServiceHealth returns 200/503" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Error Controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="0.767" tests="9">
+    <testcase classname="Error Controller errorHandler should handle error with default status code 500" name="Error Controller errorHandler should handle error with default status code 500" time="0.022">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should handle error with custom status code" name="Error Controller errorHandler should handle error with custom status code" time="0.002">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should include stack trace in development environment" name="Error Controller errorHandler should include stack trace in development environment" time="0.001">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should not include stack trace in production environment" name="Error Controller errorHandler should not include stack trace in production environment" time="0.004">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should handle validation errors (400)" name="Error Controller errorHandler should handle validation errors (400)" time="0.001">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should handle unauthorized errors (401)" name="Error Controller errorHandler should handle unauthorized errors (401)" time="0.001">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should handle forbidden errors (403)" name="Error Controller errorHandler should handle forbidden errors (403)" time="0.002">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should set default error status and status code" name="Error Controller errorHandler should set default error status and status code" time="0.001">
+    </testcase>
+    <testcase classname="Error Controller errorHandler should preserve existing error status and status code" name="Error Controller errorHandler should preserve existing error status and status code" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="crypto.helper" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="0.863" tests="3">
+    <testcase classname="crypto.helper createAPIToken and generateResetToken produce hex strings" name="crypto.helper createAPIToken and generateResetToken produce hex strings" time="0.007">
+    </testcase>
+    <testcase classname="crypto.helper hashToken + validateToken round-trip" name="crypto.helper hashToken + validateToken round-trip" time="0.001">
+    </testcase>
+    <testcase classname="crypto.helper sha256 returns stable digest" name="crypto.helper sha256 returns stable digest" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Gateway Auth Routes" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.233" tests="2">
+    <testcase classname="Gateway Auth Routes should allow only auth endpoint under /v1/auth" name="Gateway Auth Routes should allow only auth endpoint under /v1/auth" time="0.036">
+    </testcase>
+    <testcase classname="Gateway Auth Routes should block non-auth endpoints under /v1/auth" name="Gateway Auth Routes should block non-auth endpoints under /v1/auth" time="0.007">
+    </testcase>
+  </testsuite>
+  <testsuite name="Routing Routes" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.282" tests="8">
+    <testcase classname="Routing Routes Dynamic Routing Tests should route exact endpoint match" name="Routing Routes Dynamic Routing Tests should route exact endpoint match" time="0.035">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should route endpoint with additional path segments" name="Routing Routes Dynamic Routing Tests should route endpoint with additional path segments" time="0.006">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should handle POST requests to endpoints" name="Routing Routes Dynamic Routing Tests should handle POST requests to endpoints" time="0.019">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should handle PUT requests to endpoints" name="Routing Routes Dynamic Routing Tests should handle PUT requests to endpoints" time="0.007">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should handle DELETE requests to endpoints" name="Routing Routes Dynamic Routing Tests should handle DELETE requests to endpoints" time="0.006">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should handle complex nested paths" name="Routing Routes Dynamic Routing Tests should handle complex nested paths" time="0.007">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should handle URL-encoded paths" name="Routing Routes Dynamic Routing Tests should handle URL-encoded paths" time="0.006">
+    </testcase>
+    <testcase classname="Routing Routes Dynamic Routing Tests should support all HTTP methods (PATCH)" name="Routing Routes Dynamic Routing Tests should support all HTTP methods (PATCH)" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="Guest Routes" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.302" tests="9">
+    <testcase classname="Guest Routes Public Service Access should allow access to public service endpoint" name="Guest Routes Public Service Access should allow access to public service endpoint" time="0.052">
+    </testcase>
+    <testcase classname="Guest Routes Public Service Access should allow access to public service with additional paths" name="Guest Routes Public Service Access should allow access to public service with additional paths" time="0.008">
+    </testcase>
+    <testcase classname="Guest Routes Public Service Access should support different HTTP methods" name="Guest Routes Public Service Access should support different HTTP methods" time="0.008">
+    </testcase>
+    <testcase classname="Guest Routes Security Restrictions should block access to non-public service endpoints" name="Guest Routes Security Restrictions should block access to non-public service endpoints" time="0.007">
+    </testcase>
+    <testcase classname="Guest Routes Security Restrictions should block access to ticket service via guest route" name="Guest Routes Security Restrictions should block access to ticket service via guest route" time="0.007">
+    </testcase>
+    <testcase classname="Guest Routes Security Restrictions should block access to transport service via guest route" name="Guest Routes Security Restrictions should block access to transport service via guest route" time="0.006">
+    </testcase>
+    <testcase classname="Guest Routes Rate Limiting should include rate limit headers in response" name="Guest Routes Rate Limiting should include rate limit headers in response" time="0.008">
+    </testcase>
+    <testcase classname="Guest Routes Logging should log guest access attempts" name="Guest Routes Logging should log guest access attempts" time="0.006">
+    </testcase>
+    <testcase classname="Guest Routes Logging should log unauthorized access attempts" name="Guest Routes Logging should log unauthorized access attempts" time="0.008">
+    </testcase>
+  </testsuite>
+  <testsuite name="Auth Controller" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.326" tests="8">
+    <testcase classname="Auth Controller generateAPIToken should generate API token successfully" name="Auth Controller generateAPIToken should generate API token successfully" time="0.01">
+    </testcase>
+    <testcase classname="Auth Controller generateAPIToken should handle errors when generating API token" name="Auth Controller generateAPIToken should handle errors when generating API token" time="0.01">
+    </testcase>
+    <testcase classname="Auth Controller getAPIKeyByUser should get API keys for user successfully" name="Auth Controller getAPIKeyByUser should get API keys for user successfully" time="0.001">
+    </testcase>
+    <testcase classname="Auth Controller getAPIKeyByUser should return 400 when user ID is missing" name="Auth Controller getAPIKeyByUser should return 400 when user ID is missing" time="0.001">
+    </testcase>
+    <testcase classname="Auth Controller getAPIKeyByUser should handle errors when getting API keys" name="Auth Controller getAPIKeyByUser should handle errors when getting API keys" time="0.001">
+    </testcase>
+    <testcase classname="Auth Controller deleteKeyById should delete API key successfully" name="Auth Controller deleteKeyById should delete API key successfully" time="0.001">
+    </testcase>
+    <testcase classname="Auth Controller deleteKeyById should return 404 when API key not found" name="Auth Controller deleteKeyById should return 404 when API key not found" time="0.001">
+    </testcase>
+    <testcase classname="Auth Controller deleteKeyById should handle errors when deleting API key" name="Auth Controller deleteKeyById should handle errors when deleting API key" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Service Routes Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.331" tests="10">
+    <testcase classname="Service Routes Integration Tests GET /api/services should get all services" name="Service Routes Integration Tests GET /api/services should get all services" time="0.051">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests POST /api/services should create a new service" name="Service Routes Integration Tests POST /api/services should create a new service" time="0.025">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests GET /api/services/:serviceId should get service by ID" name="Service Routes Integration Tests GET /api/services/:serviceId should get service by ID" time="0.008">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests PUT /api/services/:serviceId should update service" name="Service Routes Integration Tests PUT /api/services/:serviceId should update service" time="0.009">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests DELETE /api/services/:serviceId should delete service" name="Service Routes Integration Tests DELETE /api/services/:serviceId should delete service" time="0.007">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests GET /api/services/:serviceId/instances should get service instances" name="Service Routes Integration Tests GET /api/services/:serviceId/instances should get service instances" time="0.006">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests POST /api/services/:serviceId/instances should create new instance" name="Service Routes Integration Tests POST /api/services/:serviceId/instances should create new instance" time="0.006">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests GET /api/services/:serviceId/instances/:instanceId should get instance by ID" name="Service Routes Integration Tests GET /api/services/:serviceId/instances/:instanceId should get instance by ID" time="0.006">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests PUT /api/services/:serviceId/instances/:instanceId should update instance" name="Service Routes Integration Tests PUT /api/services/:serviceId/instances/:instanceId should update instance" time="0.009">
+    </testcase>
+    <testcase classname="Service Routes Integration Tests DELETE /api/services/:serviceId/instances/:instanceId should delete instance" name="Service Routes Integration Tests DELETE /api/services/:serviceId/instances/:instanceId should delete instance" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="Index Routes" errors="0" failures="0" skipped="0" timestamp="2025-09-14T09:10:29" time="1.435" tests="4">
+    <testcase classname="Index Routes GET /health returns gateway health payload" name="Index Routes GET /health returns gateway health payload" time="0.026">
+    </testcase>
+    <testcase classname="Index Routes GET /v1/discovery returns discovery info with gateway meta" name="Index Routes GET /v1/discovery returns discovery info with gateway meta" time="0.005">
+    </testcase>
+    <testcase classname="Index Routes GET /health should return 200 with success true" name="Index Routes GET /health should return 200 with success true" time="0.003">
+    </testcase>
+    <testcase classname="Index Routes GET /api-docs should return 200" name="Index Routes GET /api-docs should return 200" time="0.003">
+    </testcase>
+  </testsuite>
+</testsuites>

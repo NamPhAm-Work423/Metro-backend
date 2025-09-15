@@ -1018,19 +1018,30 @@ erDiagram
   TICKETS {
     UUID ticketId PK
     UUID passengerId
-    DECIMAL totalPrice
+    INTEGER totalPassengers
+    UUID tripId
+    UUID fareId
+    UUID transitPassId
+    UUID promotionId
+    STRING originStationId
+    STRING destinationStationId
+    DATE purchaseDate
+    DATE validFrom
+    DATE validUntil
+    ENUM ticketType
+    ARRAY usedList
+    DATE activatedAt
     DECIMAL originalPrice
     DECIMAL discountAmount
     DECIMAL finalPrice
-    ENUM status
-    ENUM ticketType
-    TEXT qrCode
-    DATE validFrom
-    DATE validUntil
-    DATE activatedAt
-    JSON fareBreakdown
-    STRING paymentId
+    DECIMAL totalPrice
     ENUM paymentMethod
+    STRING paymentId
+    ENUM status
+    INTEGER stationCount
+    JSON fareBreakdown
+    TEXT qrCode
+    BOOLEAN isActive
   }
   FARES {
     UUID fareId PK

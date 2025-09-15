@@ -383,7 +383,6 @@ docker-compose up -d
 
 ```mermaid
 erDiagram
-  USERS ||--o{ KEYS : "has"
   USERS {
     UUID id PK
     VARCHAR email UK
