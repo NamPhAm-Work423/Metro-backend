@@ -42,7 +42,7 @@ async def init_db():
     """Initialize database tables"""
     try:
         # Import all models here to ensure they are registered
-        from ..models import report_model, user_model
+        from ..models import report_model
         
         # Create all tables
         Base.metadata.create_all(bind=engine)

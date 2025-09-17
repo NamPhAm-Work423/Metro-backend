@@ -98,6 +98,38 @@ describe('routeStation.service', () => {
     expect(result[0].routeInfo.routeId).toBe('r1');
   });
 
+  test('findRoutesBetweenTwoStations falls back to shortest path when no common route', async () => {
+    // First call (origin): r1 at seq 5
+    // Second call (destination): r2 at seq 3 -> no common route
+    RouteStation.findAll
+      .mockResolvedValueOnce([{ routeId: 'r1', sequence: 5 }])
+      .mockResolvedValueOnce([{ routeId: 'r2', sequence: 3 }]);
+
+    const spy = jest.spyOn(routeStationService, 'findShortestPathWithTransfers').mockResolvedValue({ path: [], totalCost: 0, transfers: 0, segments: [] });
+    const result = await routeStationService.findRoutesBetweenTwoStations('sA','sB');
+    expect(spy).toHaveBeenCalledWith('sA','sB', 2);
+    expect(result).toEqual({ shortestPath: { path: [], totalCost: 0, transfers: 0, segments: [] } });
+    spy.mockRestore();
+  });
+
+  test('findShortestPathWithTransfers returns path and segments', async () => {
+    // Build two routes where a transfer is needed: R1: A-B, R2: B-C
+    RouteStation.findAll.mockResolvedValue([
+      { routeId: 'R1', stationId: 'A', sequence: 1 },
+      { routeId: 'R1', stationId: 'B', sequence: 2 },
+      { routeId: 'R2', stationId: 'B', sequence: 1 },
+      { routeId: 'R2', stationId: 'C', sequence: 2 }
+    ]);
+    Station.findAll.mockResolvedValue([
+      { stationId: 'A', name: 'A' }, { stationId: 'B', name: 'B' }, { stationId: 'C', name: 'C' }
+    ]);
+
+    const result = await routeStationService.findShortestPathWithTransfers('A','C', 2);
+    expect(result.path.length).toBeGreaterThanOrEqual(2);
+    expect(result.segments.length).toBe(2);
+    expect(result.transfers).toBe(1);
+  });
+
   test('validateRouteSequence validates consecutive sequences', async () => {
     RouteStation.findAll.mockResolvedValue([{ sequence: 1 }, { sequence: 2 }]);
     const result = await routeStationService.validateRouteSequence('r1');

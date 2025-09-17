@@ -265,7 +265,8 @@ class RouteStationService {
             );
 
             if (commonRoutes.length === 0) {
-                return [];
+                const shortest = await this.findShortestPathWithTransfers(originStationId, destinationStationId, 2);
+                return { shortestPath: shortest };
             }
 
             // Get full route details for common routes
@@ -373,6 +374,176 @@ class RouteStationService {
             return { 
                 message: 'Route stations reordered successfully',
                 validation
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Find shortest path between two stations allowing transfers using Dijkstra.
+     * Edge weight = 1 per adjacent station; adding transferPenalty when switching routeId.
+     * Returns path (stations in order), totalCost, transfers count, and segments by route.
+     */
+    async findShortestPathWithTransfers(originStationId, destinationStationId, transferPenalty = 2) {
+        try {
+            if (!originStationId || !destinationStationId) {
+                throw new Error('originStationId and destinationStationId are required');
+            }
+
+            // 1) Build adjacency list from RouteStation sequences per route
+            const all = await RouteStation.findAll({
+                attributes: ['routeId', 'stationId', 'sequence'],
+                order: [['routeId', 'ASC'], ['sequence', 'ASC']]
+            });
+
+            if (!all || all.length === 0) {
+                return { path: [], totalCost: Infinity, transfers: 0, segments: [] };
+            }
+
+            /** neighbors: stationId -> Array<{ to: stationId, routeId: string, weight: number }> */
+            const neighbors = new Map();
+            const addEdge = (from, to, routeId) => {
+                if (!neighbors.has(from)) neighbors.set(from, []);
+                neighbors.get(from).push({ to, routeId, weight: 1 });
+            };
+
+            // Group by routeId
+            const byRoute = new Map();
+            for (const rs of all) {
+                if (!byRoute.has(rs.routeId)) byRoute.set(rs.routeId, []);
+                byRoute.get(rs.routeId).push({ stationId: rs.stationId, sequence: rs.sequence });
+            }
+            // For each route, connect consecutive stations bidirectionally
+            for (const [routeId, stations] of byRoute.entries()) {
+                stations.sort((a, b) => a.sequence - b.sequence);
+                for (let i = 0; i < stations.length - 1; i++) {
+                    const a = stations[i].stationId;
+                    const b = stations[i + 1].stationId;
+                    addEdge(a, b, routeId);
+                    addEdge(b, a, routeId);
+                }
+            }
+
+            if (!neighbors.has(originStationId) || !neighbors.has(destinationStationId)) {
+                return { path: [], totalCost: Infinity, transfers: 0, segments: [] };
+            }
+
+            // 2) Dijkstra over (stationId, routeId) state space
+            const keyOf = (stationId, routeId) => `${stationId}|${routeId || '-'}`;
+            const dist = new Map();
+            const prev = new Map(); // key -> { stationId, routeId }
+
+            // Simple binary heap priority queue implementation
+            class MinHeap {
+                constructor() { this.arr = []; }
+                push(node) { this.arr.push(node); this.#up(this.arr.length - 1); }
+                pop() { if (this.arr.length === 0) return null; const top = this.arr[0]; const last = this.arr.pop(); if (this.arr.length) { this.arr[0] = last; this.#down(0); } return top; }
+                size() { return this.arr.length; }
+                #up(i) { while (i > 0) { const p = Math.floor((i - 1) / 2); if (this.arr[p].dist <= this.arr[i].dist) break; [this.arr[p], this.arr[i]] = [this.arr[i], this.arr[p]]; i = p; } }
+                #down(i) { const n = this.arr.length; while (true) { let s = i; const l = 2 * i + 1, r = 2 * i + 2; if (l < n && this.arr[l].dist < this.arr[s].dist) s = l; if (r < n && this.arr[r].dist < this.arr[s].dist) s = r; if (s === i) break; [this.arr[s], this.arr[i]] = [this.arr[i], this.arr[s]]; i = s; } }
+            }
+
+            const heap = new MinHeap();
+            // Start with unknown route at origin (no penalty for first edge)
+            heap.push({ stationId: originStationId, routeId: null, dist: 0 });
+            dist.set(keyOf(originStationId, null), 0);
+
+            let bestKeyAtDestination = null;
+
+            while (heap.size() > 0) {
+                const cur = heap.pop();
+                const curKey = keyOf(cur.stationId, cur.routeId);
+                // Skip stale
+                if (cur.dist !== dist.get(curKey)) continue;
+
+                if (cur.stationId === destinationStationId) { bestKeyAtDestination = curKey; break; }
+
+                const edges = neighbors.get(cur.stationId) || [];
+                for (const edge of edges) {
+                    let w = edge.weight;
+                    if (cur.routeId !== null && cur.routeId !== edge.routeId) {
+                        w += Number(transferPenalty) || 0;
+                    }
+                    const nextKey = keyOf(edge.to, edge.routeId);
+                    const newDist = cur.dist + w;
+                    if (newDist < (dist.has(nextKey) ? dist.get(nextKey) : Infinity)) {
+                        dist.set(nextKey, newDist);
+                        prev.set(nextKey, { stationId: cur.stationId, routeId: cur.routeId });
+                        heap.push({ stationId: edge.to, routeId: edge.routeId, dist: newDist });
+                    }
+                }
+            }
+
+            if (!bestKeyAtDestination) {
+                return { path: [], totalCost: Infinity, transfers: 0, segments: [] };
+            }
+
+            // 3) Reconstruct path (stationId sequence and route segments)
+            const pathKeys = [];
+            let curKey = bestKeyAtDestination;
+            while (curKey) {
+                pathKeys.push(curKey);
+                const p = prev.get(curKey);
+                if (!p) break;
+                curKey = keyOf(p.stationId, p.routeId);
+            }
+            pathKeys.reverse();
+
+            const pathStations = pathKeys.map(k => ({
+                stationId: k.split('|')[0],
+                routeId: (k.split('|')[1] === '-') ? null : k.split('|')[1]
+            }));
+
+            // Collapse into segments by routeId
+            const segments = [];
+            for (const node of pathStations) {
+                if (segments.length === 0) {
+                    segments.push({ routeId: node.routeId, stations: [node.stationId] });
+                } else {
+                    const last = segments[segments.length - 1];
+                    if (last.routeId === node.routeId) {
+                        last.stations.push(node.stationId);
+                    } else {
+                        segments.push({ routeId: node.routeId, stations: [node.stationId] });
+                    }
+                }
+            }
+
+            // Cleanup: segments may start with null for origin; merge if needed
+            const cleaned = [];
+            for (const seg of segments) {
+                if (seg.routeId === null) {
+                    // merge into next if exists
+                    if (cleaned.length === 0) continue;
+                } else {
+                    cleaned.push(seg);
+                }
+            }
+
+            const totalCost = dist.get(bestKeyAtDestination);
+            let transfers = 0;
+            for (let i = 1; i < pathStations.length; i++) {
+                const prevNode = pathStations[i - 1];
+                const node = pathStations[i];
+                if (prevNode.routeId && node.routeId && prevNode.routeId !== node.routeId) transfers++;
+            }
+
+            // Load station details for result
+            const stationIds = [...new Set(pathStations.map(p => p.stationId))];
+            const stations = await Station.findAll({ where: { stationId: { [Op.in]: stationIds } } });
+            const stationMap = new Map(stations.map(s => [s.stationId, s]));
+
+            const detailedPath = pathStations.map(p => ({
+                station: stationMap.get(p.stationId) || { stationId: p.stationId },
+                viaRouteId: p.routeId
+            }));
+
+            return {
+                path: detailedPath,
+                totalCost,
+                transfers,
+                segments: cleaned
             };
         } catch (error) {
             throw error;

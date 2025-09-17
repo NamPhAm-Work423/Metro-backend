@@ -52,6 +52,121 @@ graph LR
   B -->|Events| N[(Kafka Cluster)]
 ```
 
+## 2.1 Sơ đồ thành phần (Component Diagram)
+
+```mermaid
+graph TD
+  subgraph Client
+    U[Web/Mobile Client]
+  end
+
+  subgraph API_Gateway[:8000 Express App]
+    R[Express Routers]
+    M[Middlewares]
+    S[Core Services]
+    O[Observability]
+  end
+
+  subgraph Routers
+    R1[Auth Router<br/>/v1/auth/:endPoint/*]
+    R2[Service Router<br/>/v1/route/:endPoint/*]
+    R3[Guest Router<br/>/v1/guest/:endPoint/*]
+    R4[System Router<br/>/health, /metrics, /api-docs, /v1/discovery]
+  end
+
+  subgraph Middlewares
+    M1[Helmet, CORS, Compression, CookieParser]
+    M2[RateLimiter]
+    M3[API Key Validator]
+    M4[Session store - express-session with Redis]
+    M5[JWT Auth - via Auth Service]
+    M6[Input Validation - express-validator/Joi]
+    M7[Error Handler]
+  end
+
+  subgraph Core_Services
+    S1[Service Registry - Sequelize]
+    S2[Load Balancer - RoundRobin and LeastConnections]
+    S3[Circuit Breaker - Opossum]
+    S4[HTTP Proxy - express http proxy]
+    S5[Kafka Client - KafkaJS]
+  end
+
+  subgraph Data_Stores
+    DB[(PostgreSQL<br/>Services, ServiceInstances, APIKeys)]
+    RD[(Redis<br/>Sessions, LB state, Caches)]
+  end
+
+  subgraph Observability
+    L1[Winston + DailyRotate]
+    L2[Prometheus client /metrics]
+  end
+
+  subgraph External_Services
+    A[Auth Service :8001]
+    B[User Service :8002]
+    C[Transport Service :8003]
+    D[Ticket Service :8004]
+    E[Public Service :8005]
+    F[Payment Service :8006]
+    G[Report Service :8007]
+    H[Control Service :8008]
+    I[Notification Service :8009]
+    K[(Kafka Cluster)]
+  end
+
+  U -->|HTTP/HTTPS| API_Gateway
+  API_Gateway --> R
+  API_Gateway --> M
+  API_Gateway --> S
+  API_Gateway --> O
+
+  R --> R1
+  R --> R2
+  R --> R3
+  R --> R4
+
+  M --> M1
+  M --> M2
+  M --> M3
+  M --> M4
+  M --> M5
+  M --> M6
+  M --> M7
+
+  S --> S1
+  S --> S2
+  S --> S3
+  S --> S4
+  S --> S5
+
+  S1 --- DB
+  M4 --- RD
+  O --> L1
+  O --> L2
+
+  %% Auth flow
+  M5 --> A
+
+  %% Routing flow
+  R1 -->|forward via S2/S3/S4| A
+  R2 -->|forward via S2/S3/S4| B
+  R2 -->|forward via S2/S3/S4| C
+  R2 -->|forward via S2/S3/S4| D
+  R2 -->|forward via S2/S3/S4| E
+  R2 -->|forward via S2/S3/S4| F
+  R2 -->|forward via S2/S3/S4| G
+  R2 -->|forward via S2/S3/S4| H
+  R2 -->|forward via S2/S3/S4| I
+
+  %% Discovery & keys
+  R4 --> S1
+  M3 --> S1
+
+  %% Events
+  S5 --- K
+```
+
 ## 3. API & Hợp đồng
 
 ### 3.1 REST endpoints

@@ -9,6 +9,9 @@ router.get('/', ...authorizeRoles('staff', 'admin'), routeStationController.getA
 // Search routes between stations (all roles)
 router.get('/search/between-stations', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findRoutesBetweenTwoStations);
 
+// Shortest path between two stations with transfers (all roles)
+router.get('/shortest-path', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findShortestPath);
+
 // Get route-station by ID (staff and admin)
 router.get('/:id', ...authorizeRoles('staff', 'admin'), routeStationController.getRouteStationById);
 

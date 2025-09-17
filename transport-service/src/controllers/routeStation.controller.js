@@ -218,6 +218,25 @@ class RouteStationController {
             });
         }
     }
+
+    async findShortestPath(req, res, next) {
+        try {
+            const { originStationId, destinationStationId, transferPenalty } = req.query;
+            const penalty = transferPenalty !== undefined ? Number(transferPenalty) : 2;
+            const result = await routeStationService.findShortestPathWithTransfers(originStationId, destinationStationId, penalty);
+            return res.status(200).json({
+                success: true,
+                data: result
+            });
+        } catch (error) {
+            if (typeof next === 'function') { next(error); }
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_FIND_SHORTEST_PATH'
+            });
+        }
+    }
 }
 
 module.exports = new RouteStationController(); 
