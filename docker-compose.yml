@@ -546,9 +546,9 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      - ./management-service/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./management-service/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
-      - ./management-service/prometheus/services.json:/etc/prometheus/services.json
+      - ./management-service/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./management-service/monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
+      - ./management-service/monitoring/prometheus/services.json:/etc/prometheus/services.json
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     ports:
@@ -588,7 +588,7 @@ services:
     image: prom/alertmanager:latest
     container_name: alertmanager
     volumes:
-      - ./management-service/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./management-service/monitoring/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     ports:
       - "9093:9093"
     networks:
@@ -625,6 +625,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      jaeger:
+        condition: service_healthy
     networks:
       - backend-network
     restart: unless-stopped
@@ -636,6 +638,9 @@ services:
       - "3100:3100"
     command:
       - -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./management-service/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
     networks:
       - backend-network
     restart: unless-stopped
@@ -646,11 +651,38 @@ services:
       retries: 3
       start_period: 40s
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector HTTP
+      - "14250:14250"  # Jaeger collector gRPC
+      - "6831:6831/udp"  # Jaeger agent UDP (compact)
+      - "6832:6832/udp"  # Jaeger agent UDP (binary)
+      - "5778:5778"   # Jaeger agent HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=9411
+    networks:
+      - backend-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
   promtail:
     image: grafana/promtail:2.9.4
     container_name: promtail
     volumes:
-      - ./management-service/promtail-prod-config.yml:/etc/promtail/config.yml:ro
+      - ./management-service/monitoring/promtail/promtail-prod-config.yml:/etc/promtail/config.yml:ro
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -998,6 +1030,8 @@ volumes:
   pgadmin_data:
     driver: local
   grafana_data:
+    driver: local
+  loki_data:
     driver: local
 
 networks:

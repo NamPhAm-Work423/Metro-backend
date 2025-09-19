@@ -9,6 +9,9 @@ module.exports = {
     'src/helpers/**/*.js',
     'src/utils/**/*.js',
     'src/routes/**/*.js',
+    'src/services/**/*.js',
+    // Exclude deprecated/unused services
+    '!src/services/email.service.js',
     // Always exclude bootstrap/infrastructure
     '!src/index.js',
     '!src/app.js',
@@ -22,7 +25,7 @@ module.exports = {
     '!src/seed/**',
     '!src/models/**',
     '!src/middlewares/**',
-    '!src/services/**'
+    // allow services to be covered
   ],
   testMatch: [
     '<rootDir>/tests/**/*.test.js'

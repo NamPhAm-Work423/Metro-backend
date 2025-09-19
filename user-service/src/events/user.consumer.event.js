@@ -1,8 +1,8 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
 const { Passenger, Staff } = require('../models/index.model');
-const passengerService = require('../services/passenger.service');
-const passengerProducer = require('./passenger.producer.event');
+const passengerController = require('../controllers/passenger.controller');
+const staffController = require('../controllers/staff.controller');
 
 class UserEventConsumer {
     constructor() {
@@ -35,27 +35,8 @@ class UserEventConsumer {
                 logger.info('Passenger profile already exists', { userId });
                 return exists;
             }
-
-            // Create passenger profile
-            const passenger = await Passenger.create({
-                userId,
-                username,
-                email,
-                firstName,
-                lastName,
-                phoneNumber: phoneNumber || null,
-                dateOfBirth: dateOfBirth || null,
-                gender: gender || null,
-                address: address || null,
-                isActive: true
-            });
-
-            logger.info('Passenger profile created successfully', { 
-                userId, 
-                username, 
-                passengerId: passenger.passengerId 
-            });
-
+            // Delegate to controller to create passenger via service
+            const passenger = await passengerController.createPassengerFromUserEvent(userData);
             return passenger;
 
         } catch (err) {
@@ -92,16 +73,7 @@ class UserEventConsumer {
             }
 
             // Create staff profile
-            const staff = await Staff.create({
-                userId,
-                username,
-                email,
-                firstName,
-                lastName,
-                phoneNumber: phoneNumber || '000000000', // Default phone with 9 digits (minimum)
-                dateOfBirth: dateOfBirth || null,
-                isActive: true
-            });
+            const staff = await staffController.createStaffFromUserEvent(userData);
 
             logger.info('Staff profile created successfully', { 
                 userId, 
@@ -192,73 +164,7 @@ class UserEventConsumer {
      */
     async handleUserLoginEvent(userData) {
         try {
-            logger.info('Handling user.login event', {
-                userId: userData.userId,
-                username: userData.username,
-                roles: userData.roles
-            });
-    
-            if (!userData.roles || !Array.isArray(userData.roles)) {
-                logger.warn('User login event has no roles defined', {
-                    userId: userData.userId
-                });
-                return;
-            }
-            
-            // For admin users, create a virtual passenger cache without requiring passenger profile
-            if (userData.roles.includes('admin')) {
-                logger.info('Admin user detected, creating virtual passenger cache', {
-                    userId: userData.userId
-                });
-                
-                const adminPassengerData = {
-                    passengerId: process.env.ADMIN_PASSENGER_ID, // Use userId as passengerId for admin
-                    userId: userData.userId,
-                    firstName: 'Admin',
-                    lastName: 'User',
-                    phoneNumber: '0000000000',
-                    email: userData.email || null,
-                    fullName: 'Admin User',
-                    dateOfBirth: null,
-                    gender: null,
-                    updatedAt: new Date().toISOString()
-                };
-                
-                await passengerService.setPassengerCache(adminPassengerData);
-                logger.info('Admin passenger cache successfully synced on login', {
-                    passengerId: adminPassengerData.passengerId,
-                    userId: adminPassengerData.userId,
-                    syncSource: 'admin-login-event'
-                });
-                return;
-            }
-            
-            // For regular passengers, check if they have passenger role
-            if (!userData.roles.includes('passenger')) {
-                logger.info('User is not a passenger, skipping passenger cache sync', {
-                    userId: userData.userId
-                });
-                return;
-            }
-    
-            const passenger = await passengerService.getPassengerByUserId(userData.userId);
-
-            if (!passenger) {
-                logger.error('Passenger profile not found during login event', {
-                    userId: userData.userId
-                });
-                return;
-            }
-
-            await passengerService.syncPassengerCacheForUser(userData.userId, userData.email);
-            logger.info('Passenger cache successfully synced on login', {
-                passengerId: passenger.passengerId,
-                userId: passenger.userId,
-                syncSource: 'user-login-event'
-            });
-    
-            
-    
+            await passengerController.handleUserLoginEvent(userData);
         } catch (error) {
             logger.error('Error during handleUserLoginEvent', {
                 error: error.message,
@@ -274,30 +180,7 @@ class UserEventConsumer {
      */
     async handlePassengerSyncRequest(payload) {
         try {
-            const { userId, requestedBy } = payload;
-            
-            logger.info('Processing passenger-sync-request', { 
-                userId, 
-                requestedBy: requestedBy || 'unknown',
-                source: payload.source || 'unknown'
-            });
-
-            // Lookup passenger from database
-            const passenger = await passengerService.getPassengerByUserId(userId);
-            
-            if (!passenger) {
-                logger.warn('Passenger not found for sync request', { userId, requestedBy });
-                return;
-            }
-
-            // Publish passenger-cache-sync event
-            await passengerProducer.publishPassengerCacheSync(passenger);
-            
-            logger.info('Successfully published passenger-cache-sync in response to sync request', {
-                userId,
-                passengerId: passenger.passengerId,
-                requestedBy
-            });
+            await passengerController.handlePassengerSyncRequest(payload);
 
         } catch (error) {
             logger.error('Error handling passenger-sync-request', {

@@ -11,6 +11,98 @@ describe('train.controller', () => {
     jest.clearAllMocks();
   });
 
+  test('getActiveTrains returns 200', async () => {
+    trainService.getActiveTrains.mockResolvedValue([]);
+    await trainController.getActiveTrains(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getActiveTrains handles 500', async () => {
+    trainService.getActiveTrains.mockRejectedValue(new Error('db'));
+    await trainController.getActiveTrains(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('getTrainsByType returns 200', async () => {
+    trainService.getTrainsByType.mockResolvedValue([]);
+    req.params.type = 'metro';
+    await trainController.getTrainsByType(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getTrainsByType handles 500', async () => {
+    trainService.getTrainsByType.mockRejectedValue(new Error('db'));
+    await trainController.getTrainsByType(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('getTrainsByStatus returns 200', async () => {
+    trainService.getTrainsByStatus.mockResolvedValue([]);
+    req.params.status = 'active';
+    await trainController.getTrainsByStatus(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getTrainsByStatus handles 500', async () => {
+    trainService.getTrainsByStatus.mockRejectedValue(new Error('db'));
+    await trainController.getTrainsByStatus(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('updateTrainStatus returns 200', async () => {
+    trainService.updateTrainStatus.mockResolvedValue({});
+    req.params.id = 't1';
+    req.body.status = 'inactive';
+    await trainController.updateTrainStatus(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('updateTrainStatus handles 400', async () => {
+    trainService.updateTrainStatus.mockRejectedValue(new Error('bad'));
+    await trainController.updateTrainStatus(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('scheduleTrainMaintenance returns 200', async () => {
+    trainService.scheduleMaintenanceForTrain.mockResolvedValue({});
+    req.params.id = 't1';
+    req.body.maintenanceDate = '2025-01-01';
+    await trainController.scheduleTrainMaintenance(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('scheduleTrainMaintenance handles 400', async () => {
+    trainService.scheduleMaintenanceForTrain.mockRejectedValue(new Error('bad'));
+    await trainController.scheduleTrainMaintenance(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('getTrainsNeedingMaintenance returns 200', async () => {
+    trainService.getTrainsNeedingMaintenance.mockResolvedValue([]);
+    req.query.daysThreshold = '30';
+    await trainController.getTrainsNeedingMaintenance(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getTrainsNeedingMaintenance handles 500', async () => {
+    trainService.getTrainsNeedingMaintenance.mockRejectedValue(new Error('db'));
+    await trainController.getTrainsNeedingMaintenance(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('getTrainUtilization returns 200', async () => {
+    trainService.getTrainUtilization.mockResolvedValue({});
+    req.params.id = 't1';
+    await trainController.getTrainUtilization(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getTrainUtilization handles 500', async () => {
+    trainService.getTrainUtilization.mockRejectedValue(new Error('db'));
+    await trainController.getTrainUtilization(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   test('getAllTrains returns 200', async () => {
     trainService.getAllTrains.mockResolvedValue([]);
     await trainController.getAllTrains(req, res);

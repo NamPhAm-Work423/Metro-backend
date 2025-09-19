@@ -1,3 +1,6 @@
+// IMPORTANT: Tracing must be initialized FIRST before any other imports
+require('./tracing');
+
 const http = require('http');
 const app = require('./app');
 const sequelize = require('./config/database');

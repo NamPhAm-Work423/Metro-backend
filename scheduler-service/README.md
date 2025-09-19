@@ -25,7 +25,211 @@ sequenceDiagram
   Registry-->>Scheduler: Job completion status
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class SchedulerService {
+        +getStatus()
+        +start()
+        +stop()
+        +triggerJob(jobId, force)
+        +updateJob(jobId, cron, enabled)
+        +listJobs()
+    }
+
+    class JobRegistry {
+        +registerJob(jobId, job)
+        +unregisterJob(jobId)
+        +getJob(jobId)
+        +getAllJobs()
+        +startAllJobs()
+        +stopAllJobs()
+        +triggerJob(jobId, force)
+        +updateJob(jobId, cron, enabled)
+        +isJobRunning(jobId)
+        +getJobStatus(jobId)
+    }
+
+    class CronJob {
+        +jobId: String
+        +cronExpression: String
+        +enabled: Boolean
+        +running: Boolean
+        +lastRun: Date
+        +nextRun: Date
+        +runCount: Integer
+        +successCount: Integer
+        +errorCount: Integer
+        +averageDuration: Float
+        +durations: Array
+        +start()
+        +stop()
+        +trigger(force)
+        +update(cron, enabled)
+        +getStatus()
+        +recordRun(duration, success)
+    }
+
+    class TicketActivateJob {
+        +jobId: String
+        +cronExpression: String
+        +enabled: Boolean
+        +limit: Integer
+        +execute()
+        +activateDueTickets()
+        +handleSuccess(result)
+        +handleError(error)
+    }
+
+    class TicketExpiringJob {
+        +jobId: String
+        +cronExpression: String
+        +enabled: Boolean
+        +limit: Integer
+        +execute()
+        +publishExpiringSoon()
+        +handleSuccess(result)
+        +handleError(error)
+    }
+
+    class NoopJob {
+        +jobId: String
+        +cronExpression: String
+        +enabled: Boolean
+        +execute()
+        +handleSuccess(result)
+        +handleError(error)
+    }
+
+    class TicketGrpcClient {
+        +activateDueTickets(limit)
+        +publishExpiringSoon(limit)
+        +getConnectionStatus()
+        +reconnect()
+        +close()
+    }
+
+    class SchedulerGrpcService {
+        +getStatus(request)
+        +start(request)
+        +stop(request)
+        +triggerJob(request)
+        +updateJob(request)
+        +listJobs(request)
+    }
+
+    class HealthController {
+        +getHealth(req, res)
+        +getSchedulerStatus(req, res)
+        +getJobStatus(req, res)
+    }
+
+    class JobController {
+        +getJobs(req, res)
+        +getJobById(req, res)
+        +triggerJob(req, res)
+        +updateJob(req, res)
+        +startScheduler(req, res)
+        +stopScheduler(req, res)
+    }
+
+    class ConfigManager {
+        +getJobConfig(jobId)
+        +getCronExpression(jobId)
+        +getJobLimit(jobId)
+        +isJobEnabled(jobId)
+        +updateJobConfig(jobId, config)
+        +validateCronExpression(cron)
+    }
+
+    class MetricsCollector {
+        +recordJobExecution(jobId, duration, success)
+        +recordJobError(jobId, error)
+        +getJobMetrics(jobId)
+        +getSchedulerMetrics()
+        +resetMetrics()
+    }
+
+    class LoggerService {
+        +logJobStart(jobId, trigger)
+        +logJobComplete(jobId, duration, success)
+        +logJobError(jobId, error)
+        +logSchedulerEvent(event, data)
+        +getLogLevel()
+        +setLogLevel(level)
+    }
+
+    class JobStatus {
+        +jobId: String
+        +enabled: Boolean
+        +running: Boolean
+        +lastRun: Date
+        +nextRun: Date
+        +runCount: Integer
+        +successCount: Integer
+        +errorCount: Integer
+        +averageDuration: Float
+        +successRate: Float
+    }
+
+    class SchedulerStatus {
+        +running: Boolean
+        +startedAt: Date
+        +uptime: Integer
+        +totalJobs: Integer
+        +enabledJobs: Integer
+        +runningJobs: Integer
+        +lastActivity: Date
+    }
+
+    class JobExecutionResult {
+        +jobId: String
+        +startedAt: Date
+        +completedAt: Date
+        +duration: Integer
+        +success: Boolean
+        +result: Object
+        +error: String
+        +trigger: String
+    }
+
+    SchedulerService --> JobRegistry : uses
+    SchedulerService --> SchedulerGrpcService : uses
+    SchedulerService --> HealthController : uses
+    SchedulerService --> JobController : uses
+
+    JobRegistry --> CronJob : manages
+    JobRegistry --> TicketActivateJob : manages
+    JobRegistry --> TicketExpiringJob : manages
+    JobRegistry --> NoopJob : manages
+
+    TicketActivateJob --> TicketGrpcClient : uses
+    TicketExpiringJob --> TicketGrpcClient : uses
+
+    SchedulerGrpcService --> JobRegistry : uses
+    SchedulerGrpcService --> ConfigManager : uses
+
+    HealthController --> JobRegistry : uses
+    HealthController --> SchedulerStatus : creates
+
+    JobController --> JobRegistry : uses
+    JobController --> ConfigManager : uses
+
+    ConfigManager --> CronJob : configures
+    ConfigManager --> TicketActivateJob : configures
+    ConfigManager --> TicketExpiringJob : configures
+
+    MetricsCollector --> JobExecutionResult : records
+    LoggerService --> JobExecutionResult : logs
+
+    CronJob --> JobStatus : creates
+    TicketActivateJob --> JobStatus : creates
+    TicketExpiringJob --> JobStatus : creates
+    NoopJob --> JobStatus : creates
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

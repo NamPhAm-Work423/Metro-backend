@@ -5,6 +5,7 @@ const { logger } = require('../config/logger');
 const { getClient } = require('../config/redis');
 const PassengerCacheService = require('../services/cache/PassengerCacheService');
 const { publish } = require('../kafka/kafkaProducer');
+const { addCustomSpan } = require('../tracing');
 
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
@@ -117,55 +118,156 @@ class TicketController {
 
     // POST /v1/tickets/create-short-term
     createShortTermTicket = asyncErrorHandler(async (req, res, next) => {
-        try {
+        await addCustomSpan('ticket.create-short-term', async (span) => {
             const ticketData = req.body;
             
-            // Get passenger from cache to validate existence
-            const { passengerId, passenger } = await this._getPassengerFromCache(req);
-
-            const result = await ticketService.createShortTermTicket({
-                ...ticketData,
-                passengerId,
-                passengerInfo: passenger // Include passenger info for validation
+            span.setAttributes({
+                'operation.type': 'create',
+                'operation.entity': 'ticket',
+                'ticket.type': 'short_term',
+                'ticket.start_station': ticketData.startStationId,
+                'ticket.end_station': ticketData.endStationId,
+                'ticket.quantity': ticketData.quantity || 1,
+                'request.authenticated': !!req.user,
+                'user.id': req.user?.id || 'unknown'
             });
 
-            // Check if payment response was received
-            if (result.paymentResponse) {
-                return res.status(201).json({
-                    success: true,
-                    message: 'Ticket created and payment URL generated successfully',
-                    data: {
-                        ticket: result.ticket,
-                        payment: {
-                            paymentId: result.paymentId,
-                            paymentUrl: result.paymentResponse.paymentUrl,
-                            paymentMethod: result.paymentResponse.paymentMethod,
-                            paypalOrderId: result.paymentResponse.paypalOrderId,
-                            status: 'ready'
-                        }
-                    }
+            try {
+                logger.traceInfo('Creating short-term ticket', {
+                    ticketData: {
+                        startStationId: ticketData.startStationId,
+                        endStationId: ticketData.endStationId,
+                        quantity: ticketData.quantity
+                    },
+                    requestedBy: req.user?.id
                 });
-            } else {
-                return res.status(201).json({
-                    success: true,
-                    message: 'Ticket created successfully. Payment URL will be available shortly.',
-                    data: {
-                        ticket: result.ticket,
-                        payment: {
-                            paymentId: result.paymentId,
-                            status: 'processing',
-                            message: 'Payment URL is being generated. Please check back in a few seconds.'
+                
+                // Get passenger from cache to validate existence
+                const { passengerId, passenger } = await addCustomSpan('ticket.get-passenger-cache', async (cacheSpan) => {
+                    cacheSpan.setAttributes({
+                        'cache.operation': 'get_passenger',
+                        'cache.source': 'redis'
+                    });
+                    
+                    const result = await this._getPassengerFromCache(req);
+                    
+                    cacheSpan.setAttributes({
+                        'cache.passenger_found': !!result.passenger,
+                        'passenger.id': result.passengerId || 'not_found'
+                    });
+                    
+                    return result;
+                });
+
+                span.setAttributes({
+                    'passenger.id': passengerId,
+                    'passenger.found': !!passenger
+                });
+
+                const result = await addCustomSpan('ticket.service.create-short-term', async (serviceSpan) => {
+                    serviceSpan.setAttributes({
+                        'service.operation': 'create_short_term_ticket',
+                        'ticket.passenger_id': passengerId,
+                        'ticket.start_station': ticketData.startStationId,
+                        'ticket.end_station': ticketData.endStationId
+                    });
+                    
+                    const serviceResult = await ticketService.createShortTermTicket({
+                        ...ticketData,
+                        passengerId,
+                        passengerInfo: passenger // Include passenger info for validation
+                    });
+                    
+                    serviceSpan.setAttributes({
+                        'service.success': !!serviceResult,
+                        'ticket.created_id': serviceResult?.ticket?.ticketId,
+                        'payment.required': !!serviceResult?.paymentResponse,
+                        'payment.id': serviceResult?.paymentId || 'none'
+                    });
+                    
+                    return serviceResult;
+                });
+
+                // Check if payment response was received
+                if (result.paymentResponse) {
+                    span.setAttributes({
+                        'ticket.creation_success': true,
+                        'payment.url_generated': !!result.paymentResponse.paymentUrl,
+                        'payment.method': result.paymentResponse.paymentMethod,
+                        'http.status_code': 201
+                    });
+                    
+                    logger.traceInfo('Short-term ticket created with payment', {
+                        ticketId: result.ticket?.ticketId,
+                        paymentId: result.paymentId,
+                        paymentMethod: result.paymentResponse.paymentMethod,
+                        paymentUrl: !!result.paymentResponse.paymentUrl
+                    });
+                    
+                    return res.status(201).json({
+                        success: true,
+                        message: 'Ticket created and payment URL generated successfully',
+                        data: {
+                            ticket: result.ticket,
+                            payment: {
+                                paymentId: result.paymentId,
+                                paymentUrl: result.paymentResponse.paymentUrl,
+                                paymentMethod: result.paymentResponse.paymentMethod,
+                                paypalOrderId: result.paymentResponse.paypalOrderId,
+                                status: 'ready'
+                            }
                         }
-                    }
+                    });
+                } else {
+                    span.setAttributes({
+                        'ticket.creation_success': true,
+                        'payment.url_generated': false,
+                        'http.status_code': 201
+                    });
+                    
+                    logger.traceInfo('Short-term ticket created, payment processing', {
+                        ticketId: result.ticket?.ticketId,
+                        paymentId: result.paymentId
+                    });
+                    
+                    return res.status(201).json({
+                        success: true,
+                        message: 'Ticket created successfully. Payment URL will be available shortly.',
+                        data: {
+                            ticket: result.ticket,
+                            payment: {
+                                paymentId: result.paymentId,
+                                status: 'processing',
+                                message: 'Payment URL is being generated. Please check back in a few seconds.'
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                span.recordException(error);
+                span.setAttributes({
+                    'ticket.creation_success': false,
+                    'error.type': error.constructor.name,
+                    'error.message': error.message,
+                    'http.status_code': 500
+                });
+                
+                logger.traceError('Failed to create short-term ticket', error, {
+                    ticketData: {
+                        startStationId: ticketData.startStationId,
+                        endStationId: ticketData.endStationId,
+                        quantity: ticketData.quantity
+                    },
+                    requestedBy: req.user?.id
+                });
+                
+                return res.status(500).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INTERNAL_ERROR_CREATE_SHORT_TERM_TICKET'
                 });
             }
-        } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: error.message,
-                error: 'INTERNAL_ERROR_CREATE_SHORT_TERM_TICKET'
-            });
-        }
+        });
     });
 
     // POST /v1/tickets/create-long-term
@@ -271,25 +373,100 @@ class TicketController {
 
     // GET /v1/tickets/me
     getMyTickets = asyncErrorHandler(async (req, res, next) => {
-        try {
-        const { passengerId } = await this._getPassengerFromCache(req);
+        await addCustomSpan('ticket.get-my-tickets', async (span) => {
+            span.setAttributes({
+                'operation.type': 'read',
+                'operation.entity': 'ticket',
+                'operation.scope': 'user_tickets',
+                'request.authenticated': !!req.user,
+                'user.id': req.user?.id || 'unknown'
+            });
 
-        const filters = req.query;
-        const tickets = await ticketService.getTicketsByPassenger(passengerId, filters);
-        
-        return res.status(200).json({
-            success: true,
-            message: 'My tickets retrieved successfully',
-            data: tickets,
-            count: tickets.length
-            });
-        } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: error.message,
-                error: 'INTERNAL_ERROR_GET_MY_TICKETS'
-            });
-        }
+            try {
+                logger.traceInfo('Fetching user tickets', {
+                    filters: req.query,
+                    requestedBy: req.user?.id
+                });
+
+                const { passengerId } = await addCustomSpan('ticket.get-passenger-cache', async (cacheSpan) => {
+                    cacheSpan.setAttributes({
+                        'cache.operation': 'get_passenger',
+                        'cache.source': 'redis'
+                    });
+                    
+                    const result = await this._getPassengerFromCache(req);
+                    
+                    cacheSpan.setAttributes({
+                        'cache.passenger_found': !!result.passenger,
+                        'passenger.id': result.passengerId || 'not_found'
+                    });
+                    
+                    return result;
+                });
+
+                span.setAttributes({
+                    'passenger.id': passengerId,
+                    'query.has_filters': Object.keys(req.query || {}).length > 0
+                });
+
+                const filters = req.query;
+                const tickets = await addCustomSpan('ticket.service.get-by-passenger', async (serviceSpan) => {
+                    serviceSpan.setAttributes({
+                        'service.operation': 'get_tickets_by_passenger',
+                        'passenger.id': passengerId,
+                        'query.filters': JSON.stringify(filters || {})
+                    });
+                    
+                    const result = await ticketService.getTicketsByPassenger(passengerId, filters);
+                    
+                    serviceSpan.setAttributes({
+                        'service.success': true,
+                        'tickets.count': result.length,
+                        'tickets.found': result.length > 0
+                    });
+                    
+                    return result;
+                });
+                
+                span.setAttributes({
+                    'operation.success': true,
+                    'response.tickets_count': tickets.length,
+                    'http.status_code': 200
+                });
+                
+                logger.traceInfo('User tickets retrieved successfully', {
+                    passengerId,
+                    ticketsCount: tickets.length,
+                    filters: req.query
+                });
+                
+                return res.status(200).json({
+                    success: true,
+                    message: 'My tickets retrieved successfully',
+                    data: tickets,
+                    count: tickets.length
+                });
+            } catch (error) {
+                span.recordException(error);
+                span.setAttributes({
+                    'operation.success': false,
+                    'error.type': error.constructor.name,
+                    'error.message': error.message,
+                    'http.status_code': 500
+                });
+                
+                logger.traceError('Failed to retrieve user tickets', error, {
+                    filters: req.query,
+                    requestedBy: req.user?.id
+                });
+                
+                return res.status(500).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INTERNAL_ERROR_GET_MY_TICKETS'
+                });
+            }
+        });
     });
 
     // GET /v1/tickets/me/unused

@@ -40,7 +40,178 @@ sequenceDiagram
   ControlService-->>Client: GenerateScheduleResponse(trips)
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class ControlService {
+        +GenerateSchedule(request)
+        +GenerateDailySchedules(request)
+        +Reschedule(request)
+        +GetPlan(request)
+    }
+
+    class PlanningService {
+        +generate_for_route(routeId, date, dayOfWeek, serviceStart, serviceEnd)
+        +plan_departures(startTime, endTime, headway)
+        +assign_trains_to_trips(departures, trains)
+        +calculate_trip_times(route, stations, departureTime)
+        +create_trip_stops(trip, stations, segmentRunTime, dwellTime)
+    }
+
+    class ForecastService {
+        +forecast_headways(routeId, date, dayOfWeek)
+        +simulate_passenger_demand(routeId, date, dayOfWeek, scenario)
+        +_get_or_train_model(routeId)
+        +_load_model_from_disk(routeId)
+        +_save_model_to_disk(routeId, model)
+        +_generate_intelligent_timebands(routeId, date, dayOfWeek)
+        +_calculate_optimal_headway_for_demand(passengerCount)
+        +_weekday_patterns()
+        +_weekend_patterns()
+    }
+
+    class HeuristicScheduler {
+        +generate_departure_times(startTime, endTime, headway)
+        +calculate_optimal_headway(demand, capacity)
+        +adjust_headway_for_events(baseHeadway, eventType)
+        +validate_schedule_feasibility(departures, constraints)
+    }
+
+    class TransportGrpcClient {
+        +get_route(routeId)
+        +get_route_stations(routeId)
+        +list_trains()
+        +bulk_upsert_trips(trips)
+        +bulk_upsert_stops(stops)
+        +get_route_by_id(routeId)
+        +calculate_station_count(routeId)
+    }
+
+    class ModelManager {
+        +load_model(routeId)
+        +save_model(routeId, model)
+        +train_model(routeId, data)
+        +predict_demand(model, features)
+        +validate_model_performance(model, testData)
+        +get_model_info(routeId)
+    }
+
+    class ScheduleValidator {
+        +validate_schedule(schedule)
+        +check_capacity_constraints(schedule, trains)
+        +validate_time_windows(schedule, serviceHours)
+        +check_headway_consistency(schedule)
+        +validate_route_coverage(schedule, stations)
+    }
+
+    class MetricsCollector {
+        +record_schedule_generation_time(duration)
+        +record_trips_generated(count)
+        +record_forecast_accuracy(actual, predicted)
+        +record_model_performance(metrics)
+        +get_metrics_summary()
+    }
+
+    class HealthChecker {
+        +check_transport_service_health()
+        +check_model_availability()
+        +check_disk_space()
+        +get_health_status()
+    }
+
+    class ConfigManager {
+        +get_default_headway_peak()
+        +get_default_headway_offpeak()
+        +get_default_dwell_time()
+        +get_default_turnaround_time()
+        +get_model_directory()
+        +get_transport_service_config()
+    }
+
+    class TimeBandHeadway {
+        +startTime: Time
+        +endTime: Time
+        +headwaySec: Integer
+        +passengerDemand: Integer
+        +scenario: String
+    }
+
+    class TripPlan {
+        +tripId: String
+        +routeId: String
+        +trainId: String
+        +departureTime: Time
+        +arrivalTime: Time
+        +dayOfWeek: String
+        +serviceDate: Date
+        +stops: StopPlan[]
+    }
+
+    class StopPlan {
+        +stopId: String
+        +stationId: String
+        +arrivalTime: Time
+        +departureTime: Time
+        +sequence: Integer
+    }
+
+    class ScheduleRequest {
+        +routeId: String
+        +date: Date
+        +dayOfWeek: String
+        +serviceStart: Time
+        +serviceEnd: Time
+        +direction: String
+    }
+
+    class ScheduleResponse {
+        +trips: Integer
+        +success: Boolean
+        +message: String
+        +generatedAt: Timestamp
+    }
+
+    class ProphetModel {
+        +routeId: String
+        +modelData: Binary
+        +trainedAt: Timestamp
+        +accuracy: Float
+        +lastUsed: Timestamp
+    }
+
+    ControlService --> PlanningService : uses
+    ControlService --> MetricsCollector : uses
+    ControlService --> HealthChecker : uses
+
+    PlanningService --> ForecastService : uses
+    PlanningService --> HeuristicScheduler : uses
+    PlanningService --> TransportGrpcClient : uses
+    PlanningService --> ScheduleValidator : uses
+
+    ForecastService --> ModelManager : uses
+    ForecastService --> TimeBandHeadway : creates
+
+    HeuristicScheduler --> TripPlan : creates
+    HeuristicScheduler --> StopPlan : creates
+
+    ModelManager --> ProphetModel : manages
+
+    TransportGrpcClient --> TripPlan : creates
+    TransportGrpcClient --> StopPlan : creates
+
+    ScheduleValidator --> TripPlan : validates
+    ScheduleValidator --> StopPlan : validates
+
+    ConfigManager --> PlanningService : configures
+    ConfigManager --> ForecastService : configures
+    ConfigManager --> HeuristicScheduler : configures
+
+    MetricsCollector --> ControlService : monitors
+    HealthChecker --> ControlService : monitors
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph TB
@@ -98,6 +269,52 @@ graph TB
 | Topic | Direction | Key | Schema | Semantics | Retry/DLQ |
 | ----- | --------- | --- | ------ | --------- | --------- |
 | (Không tìm thấy trong repo) | - | - | - | - | - |
+
+## 3.5 Cách model/thuật toán hoạt động (thực tế trong code)
+
+- Thành phần chính:
+  - `PlanningService`: điều phối toàn bộ lập lịch cho một tuyến/ngày; gọi Transport-service, gọi dự báo, tạo trips & stops.
+  - `HeuristicScheduler`: sinh danh sách giờ xuất phát đều nhau theo `headway` trong các time-band.
+  - `ForecastService`: khung tích hợp Prophet (đào tạo/lưu `.joblib` theo `MODEL_DIR`). Hiện tại `forecast_headways()` trả về 1 time-band cố định [05:00:00 → 22:30:00] với `headway_sec = 1800` (30 phút).
+
+- Dòng dữ liệu chi tiết
+```mermaid
+sequenceDiagram
+  participant Client
+  participant CS as Control gRPC
+  participant PS as PlanningService
+  participant TS as Transport gRPC
+  participant FS as ForecastService
+
+  Client->>CS: GenerateSchedule(routeId,date,dayOfWeek,serviceStart,serviceEnd)
+  CS->>PS: generate_for_route(...)
+  PS->>TS: GetRoute(routeId) -> duration(min)
+  PS->>TS: GetRouteStations(routeId) -> [{stationId,sequence}]
+  PS->>TS: ListTrains() -> active trainIds[]
+  PS->>FS: forecast_headways(routeId,date,dayOfWeek)
+  FS-->>PS: [ {start,end,headway_sec=1800} ]
+  PS->>PS: plan_departures(start,end,headway)
+  PS->>TS: BulkUpsertTrips(TripInput[])
+  TS-->>PS: trips[]
+  PS->>TS: BulkUpsertStops(StopInput[])
+  TS-->>PS: created count
+  PS-->>CS: trips count
+  CS-->>Client: GenerateScheduleResponse(trips)
+```
+
+- Tính toán thời gian:
+  - `num_segments = len(routeStations) - 1`
+  - `segment_run_time_sec = (route.duration_min * 60) / num_segments`
+  - Ga đầu: chỉ có `departureTime`. Ga cuối: chỉ `arrivalTime`.
+  - Ga giữa: `arrival = prev + segment_run_time_sec`, `departure = arrival + dwell_sec`.
+
+- Phân công tàu: vòng lặp modulo theo số tàu active (`trainId = trains[idx % len(trains)]`).
+
+### 3.6 Tham số đầu vào/ra (mapping nhanh)
+- Input từ client (gRPC): `routeId`, `date`, `dayOfWeek`, `serviceStart`, `serviceEnd`.
+- Env (`settings`): `TRANSPORT_GRPC_HOST|PORT`, `DEFAULT_DWELL_SEC`, `DEFAULT_TURNAROUND_SEC`, `MODEL_DIR`.
+- Từ Transport-service: `GetRoute.duration`, `GetRouteStations[]`, `ListTrains()` (lọc `status=='active'`).
+- Output: `GenerateScheduleResponse.trips` (số trips đã tạo); thực thể Trips/Stops được lưu qua Transport-service.
 
 ## 4. Dữ liệu & Migrations
 
@@ -204,19 +421,52 @@ docker run --env-file .env -p 8008:8008 control-service:dev
 
 * (Không tìm thấy trong repo)
 
-### 9.4 Testing
+### 9.4 Testing & Demo
 
-* **Cách chạy**: 
+* **Cách chạy demo**:
+
+  **Docker Development:**
   ```bash
-  # Demo application
-  python src/ai_scheduler/examples/ai_scheduler_demo.py
+  # Start control-service container
+  docker-compose up -d control-service transport-service
   
+  # Exec into container for interactive demo
+  docker exec -it control-service bash
+  cd /app/src/ai_scheduler/examples
+  
+  # Quick test dynamic headway calculation
+  python test_dynamic_demo.py
+  
+  # Full detailed demo (recommended for presentations)
+  python detailed_demand_demo.py
+  ```
+  
+  **Docker Production:**
+  ```bash
+  # Use production compose file
+  docker-compose -f docker-compose.prod.yml up -d control-service
+  
+  # Exec into production container
+  docker exec -it control-service bash
+  cd /app/src/ai_scheduler/examples
+  python detailed_demand_demo.py
+  ```
+
+  **Local Development (without Docker):**
+  ```bash
   # Prophet model test
   python -m ai_scheduler.tests.smoke_forecast
   
   # Model pre-training
   python -m ai_scheduler.tests.pretrain
   ```
+
+* **Demo Features**:
+  - Dynamic headway adjustment (2-30 minutes) based on passenger demand
+  - Real-time scenario testing (rush hour, events, weather)
+  - Business impact metrics and ROI analysis
+  - Interactive presentation mode cho board meetings
+  
 * **Coverage**: (Không tìm thấy trong repo)
 
 ## 10. CI/CD
@@ -257,6 +507,60 @@ docker run --env-file .env -p 8008:8008 control-service:dev
   - Add comprehensive testing
   - Add authentication middleware
   - Add Kafka event publishing
+
+## 13.1 Docker Demo Setup
+
+* **Quick Start Guide**: [`DOCKER_DEMO_QUICKSTART.md`](DOCKER_DEMO_QUICKSTART.md) - Complete workflow cho Docker environment
+* **Detailed Demo Guide**: [`DEMO_GUIDE.md`](DEMO_GUIDE.md) - Comprehensive demo instructions
+* **Docker Setup**: [`docker-demo-setup.md`](docker-demo-setup.md) - Technical Docker configuration
+* **Validation Script**: [`validate-docker-demo.sh`](validate-docker-demo.sh) - Pre-demo health check
+
+* **5-Minute Setup**:
+  ```bash
+  # Start services
+  docker-compose up -d control-service transport-service
+  
+  # Validate environment
+  bash control-service/validate-docker-demo.sh
+  
+  # Run demo  
+  docker exec -it control-service bash
+  cd /app/src/ai_scheduler/examples
+  python detailed_demand_demo.py
+  ```
+
+## 14. Đưa vào thực tế (checklist triển khai)
+
+### 14.1 Tối thiểu để chạy production
+- Cấu hình môi trường:
+  - `TRANSPORT_GRPC_HOST`/`PORT` trỏ đúng Transport-service.
+  - `DEFAULT_DWELL_SEC`, `DEFAULT_TURNAROUND_SEC` theo tiêu chuẩn vận hành.
+  - `MODEL_DIR` có quyền đọc/ghi (nếu dùng Prophet).
+- Nâng cao độ tin cậy:
+  - Tăng `ThreadPoolExecutor` (nếu có) hoặc chạy multi-replica.
+  - Health/metrics được scrape bởi Prometheus, alerting sẵn sàng.
+- Bảo mật/cứng hoá:
+  - Bổ sung auth/ACL cho gRPC (mTLS hoặc token-based) nếu cần.
+  - Validate chặt chẽ `date`, `dayOfWeek`, `serviceStart`/`End`.
+
+### 14.2 Nâng cấp dùng ML thật sự
+- Kết nối `forecast_headways()` với Prophet:
+  - Gọi `_get_or_train_model(routeId)` để lấy model.
+  - Sinh forecast theo từng khoảng thời gian trong ngày → suy headway theo ngưỡng demand (ví dụ: peak <= 360s, off-peak 600–900s).
+  - Trả mảng nhiều time-band (peak/off-peak) thay vì 1 band cố định.
+- Quản trị model:
+  - Chu kỳ retrain (hàng tuần/tháng) và lưu `.joblib` vào `MODEL_DIR`.
+  - Theo dõi drift: nếu chênh lệch lớn giữa dự báo và thực tế → trigger retrain.
+
+### 14.3 Hiệu năng & chi phí
+- Cache dữ liệu ít thay đổi trong ngày: `routeStations`, `trains`.
+- Batch routes khi `GenerateDailySchedules` (song song hoá per route).
+- Giới hạn số departures (ví dụ không vượt 23:00) để tránh trùng.
+
+### 14.4 Quy trình vận hành
+- Trước giờ chạy: seed lịch cho ngày hôm sau (`INIT_SEED_ON_START=true`, `INIT_SEED_DAYS=1..n`).
+- Khi thay đổi phương án chạy tàu: gọi `GenerateSchedule` với khung giờ mới.
+- Khi có cố/điều chỉnh: triển khai `Reschedule` dựa trên nguyên nhân (`reasons[]`) và phạm vi (`affectedRoutes[]`).
 
 ## 13. Phụ lục
 

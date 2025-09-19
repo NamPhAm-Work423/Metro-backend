@@ -34,6 +34,20 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("Database initialized successfully")
         
+        # Optionally run seed on startup
+        settings = get_settings()
+        if getattr(settings, "SEED_ON_STARTUP", False):
+            async def _run_seed_once_off_loop():
+                try:
+                    from .seed.seed_report_data import seed_report_data
+                    logger.info("SEED_ON_STARTUP=true → starting seed data generation in background")
+                    # Run blocking seeding in a worker thread to avoid blocking the event loop
+                    await asyncio.to_thread(seed_report_data)
+                    logger.info("Seed data generation completed on startup")
+                except Exception as e:
+                    logger.error("Seed data generation failed on startup", error=str(e))
+            app.state.seed_task = asyncio.create_task(_run_seed_once_off_loop())
+        
         # Start Kafka consumer
         global report_consumer, report_consumer_task
         report_consumer = ReportEventConsumer()
@@ -53,6 +67,16 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down Report Service...")
         
         try:
+            # Ensure seed task finished/cancelled
+            seed_task = getattr(app.state, 'seed_task', None)
+            if seed_task and not seed_task.done():
+                seed_task.cancel()
+                try:
+                    await seed_task
+                except Exception:
+                    pass
+                logger.info("Seed task cancelled")
+
             # Stop Kafka consumer
             if report_consumer_task:
                 # Ensure background task is cancelled/stopped cleanly

@@ -54,6 +54,11 @@ async function connectWithRetry() {
     const maxRetries = 10;
     const baseDelay = 1000; // 1 second
     
+    // Skip actual DB connection attempts during tests to avoid noisy logs
+    if (process.env.NODE_ENV === 'test') {
+        return;
+    }
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             await sequelize.authenticate();

@@ -1,4 +1,5 @@
 const { Service, ServiceInstance } = require('../models/index.model');
+const { deleteServiceFromRedis, deleteInstanceFromRedis } = require('./loadBalancer.service');
 
 class ServiceService {
     findServiceById = async (id) => {

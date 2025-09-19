@@ -6,6 +6,7 @@ const FareService = require('../../fare.service');
 const ITicketService = require('../interfaces/ITicketService');
 const PassengerTypeHelper = require('../../../helpers/passengerType.helper');
 const PaymentCompletionHandler = require('../handlers/PaymentCompletionHandler');
+const IdempotencyHelper = require('../../../helpers/IdempotencyHelper');
 
 // Import other services
 const TicketRepository = require('../repositories/TicketRepository');
@@ -25,6 +26,7 @@ class TicketService extends ITicketService {
         this.payment = TicketPaymentService;
         this.priceCalculator = TicketPriceCalculator;
         this.statusService = TicketStatusService;
+        this.idempotency = IdempotencyHelper;
     }
 
     /**
@@ -303,11 +305,42 @@ class TicketService extends ITicketService {
     }
 
     /**
+     * Private helper method to sanitize QR code for idempotency key generation
+     * @param {string} qrCode - QR code string
+     * @returns {string} Sanitized QR code hash for consistent idempotency
+     */
+    _sanitizeQRForIdempotency(qrCode) {
+        // Create a hash of the QR code for consistent idempotency keys
+        // while avoiding storing the full QR code in Redis
+        const crypto = require('crypto');
+        return crypto.createHash('sha256').update(qrCode).digest('hex').substring(0, 32);
+    }
+
+    /**
      * Create a short-term ticket (oneway or return) based on station count and fare calculation
+     * @param {Object} ticketData - The ticket data
+     * @param {string} idempotencyKey - Optional custom idempotency key
+     * @returns {Promise<Object>} The created ticket with payment information
+     */
+    async createShortTermTicket(ticketData, idempotencyKey = null) {
+        // Use custom idempotency key or generate one from ticket data
+        const operation = 'create_short_term_ticket';
+        
+        return await this.idempotency.executeWithIdempotency(
+            operation,
+            idempotencyKey ? { customKey: idempotencyKey } : ticketData,
+            async () => this._createShortTermTicketInternal(ticketData),
+            ticketData.passengerId,
+            1800 // 30 minutes TTL
+        );
+    }
+
+    /**
+     * Internal method for creating short-term ticket (wrapped by idempotency)
      * @param {Object} ticketData - The ticket data
      * @returns {Promise<Object>} The created ticket with payment information
      */
-    async createShortTermTicket(ticketData) {
+    async _createShortTermTicketInternal(ticketData) {
         try {
             // Validate passenger counts (additional validation)
             const totalPassengers = this._validatePassengerCounts(ticketData);
@@ -605,9 +638,28 @@ class TicketService extends ITicketService {
     /**
      * Create a long-term ticket (pass-based) using TransitPass model pricing
      * @param {Object} ticketData - The ticket data
+     * @param {string} idempotencyKey - Optional custom idempotency key
      * @returns {Promise<Object>} The created ticket with payment information
      */
-    async createLongTermTicket(ticketData) {
+    async createLongTermTicket(ticketData, idempotencyKey = null) {
+        // Use custom idempotency key or generate one from ticket data
+        const operation = 'create_long_term_ticket';
+        
+        return await this.idempotency.executeWithIdempotency(
+            operation,
+            idempotencyKey ? { customKey: idempotencyKey } : ticketData,
+            async () => this._createLongTermTicketInternal(ticketData),
+            ticketData.passengerId,
+            1800 // 30 minutes TTL
+        );
+    }
+
+    /**
+     * Internal method for creating long-term ticket (wrapped by idempotency)
+     * @param {Object} ticketData - The ticket data
+     * @returns {Promise<Object>} The created ticket with payment information
+     */
+    async _createLongTermTicketInternal(ticketData) {
         try {
             const validPassTypes = TransitPass.transitPassType;
             if (!validPassTypes.includes(ticketData.passType.toLowerCase())) {
@@ -1020,12 +1072,32 @@ class TicketService extends ITicketService {
     }
 
     /**
-     * Activate long-term ticket (start countdown)
+     * Activate long-term ticket (start countdown) with idempotency protection
+     * @param {string} ticketId - Ticket ID
+     * @param {string} passengerId - Passenger ID (optional, for validation)
+     * @param {string} idempotencyKey - Optional custom idempotency key
+     * @returns {Promise<Object>} Activated ticket
+     */
+    async activateTicket(ticketId, passengerId = null, idempotencyKey = null) {
+        const operation = 'activate_ticket';
+        const data = { ticketId, passengerId };
+        
+        return await this.idempotency.executeWithIdempotency(
+            operation,
+            idempotencyKey ? { customKey: idempotencyKey } : data,
+            async () => this._activateTicketInternal(ticketId, passengerId),
+            passengerId,
+            600 // 10 minutes TTL
+        );
+    }
+
+    /**
+     * Internal method for activating ticket (wrapped by idempotency)
      * @param {string} ticketId - Ticket ID
      * @param {string} passengerId - Passenger ID (optional, for validation)
      * @returns {Promise<Object>} Activated ticket
      */
-    async activateTicket(ticketId, passengerId = null) {
+    async _activateTicketInternal(ticketId, passengerId = null) {
         let ticket = null;
         try {
             ticket = await Ticket.findByPk(ticketId);
@@ -1241,12 +1313,32 @@ class TicketService extends ITicketService {
         }
     }
     /**
-     * Use ticket
+     * Use ticket with idempotency protection
+     * @param {string} ticketId - Ticket ID
+     * @param {string} passengerId - Passenger ID
+     * @param {string} idempotencyKey - Optional custom idempotency key
+     * @returns {Promise<Object>} Used ticket
+     */
+    async useTicket(ticketId, passengerId, idempotencyKey = null) {
+        const operation = 'use_ticket';
+        const data = { ticketId, passengerId };
+        
+        return await this.idempotency.executeWithIdempotency(
+            operation,
+            idempotencyKey ? { customKey: idempotencyKey } : data,
+            async () => this._useTicketInternal(ticketId, passengerId),
+            passengerId,
+            300 // 5 minutes TTL (shorter for usage operations)
+        );
+    }
+
+    /**
+     * Internal method for using ticket (wrapped by idempotency)
      * @param {string} ticketId - Ticket ID
      * @param {string} passengerId - Passenger ID
      * @returns {Promise<Object>} Used ticket
      */
-    async useTicket(ticketId, passengerId) {
+    async _useTicketInternal(ticketId, passengerId) {
         try {
             const ticket = await Ticket.findByPk(ticketId);
             if (!ticket) {
@@ -1284,12 +1376,32 @@ class TicketService extends ITicketService {
     }
 
     /**
-     * Use ticket by QR code (for staff/admin use)
+     * Use ticket by QR code (for staff/admin use) with idempotency protection
+     * @param {string} qrCode - QR code string
+     * @param {string} staffId - Staff/Admin ID who is using the ticket
+     * @param {string} idempotencyKey - Optional custom idempotency key
+     * @returns {Promise<Object>} Used ticket
+     */
+    async useTicketByQRCode(qrCode, staffId, idempotencyKey = null) {
+        const operation = 'use_ticket_by_qr';
+        const data = { qrCode: this._sanitizeQRForIdempotency(qrCode), staffId };
+        
+        return await this.idempotency.executeWithIdempotency(
+            operation,
+            idempotencyKey ? { customKey: idempotencyKey } : data,
+            async () => this._useTicketByQRCodeInternal(qrCode, staffId),
+            staffId,
+            300 // 5 minutes TTL
+        );
+    }
+
+    /**
+     * Internal method for using ticket by QR code (wrapped by idempotency)
      * @param {string} qrCode - QR code string
      * @param {string} staffId - Staff/Admin ID who is using the ticket
      * @returns {Promise<Object>} Used ticket
      */
-    async useTicketByQRCode(qrCode, staffId) {
+    async _useTicketByQRCodeInternal(qrCode, staffId) {
         try {
             // Find ticket by QR code
             const ticket = await Ticket.findOne({

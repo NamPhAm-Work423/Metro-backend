@@ -27,7 +27,239 @@ sequenceDiagram
   ReportService->>Client: Trả về báo cáo
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class ReportService {
+        +create_report(reportData)
+        +get_reports(skip, limit, reportType, status)
+        +get_report(reportId)
+        +delete_report(reportId)
+        +generate_report(reportId)
+        +_generate_daily_report(report)
+        +_generate_weekly_report(report)
+        +_generate_monthly_report(report)
+        +_generate_custom_report(report)
+        +_create_report_items(report, data)
+        +_generate_report_file(report, data)
+    }
+
+    class ReportTemplateService {
+        +create_template(templateData)
+        +get_templates()
+        +get_template_by_id(templateId)
+        +update_template(templateId, updateData)
+        +delete_template(templateId)
+        +validate_template(templateData)
+    }
+
+    class ReportScheduleService {
+        +create_schedule(scheduleData)
+        +get_schedules()
+        +get_schedule_by_id(scheduleId)
+        +update_schedule(scheduleId, updateData)
+        +delete_schedule(scheduleId)
+        +execute_scheduled_reports()
+        +get_next_run_time(schedule)
+    }
+
+    class AnalyticsService {
+        +get_daily_analytics()
+        +get_weekly_analytics()
+        +get_monthly_analytics()
+        +get_custom_analytics(startDate, endDate, metrics)
+        +calculate_user_metrics()
+        +calculate_ticket_metrics()
+        +calculate_revenue_metrics()
+        +calculate_usage_metrics()
+    }
+
+    class KafkaEventConsumer {
+        +start()
+        +stop()
+        +handle_user_created(event)
+        +handle_user_login(event)
+        +handle_ticket_created(event)
+        +handle_ticket_activated(event)
+        +handle_ticket_cancelled(event)
+        +handle_ticket_used(event)
+        +process_event(event)
+    }
+
+    class ReportGenerator {
+        +generate_html_report(data, template)
+        +generate_pdf_report(htmlContent)
+        +create_chart_image(data, chartType)
+        +format_metrics_data(metrics)
+        +apply_template_variables(template, variables)
+    }
+
+    class MetricsCollector {
+        +collect_user_metrics()
+        +collect_ticket_metrics()
+        +collect_revenue_metrics()
+        +collect_usage_metrics()
+        +aggregate_metrics_by_period(period)
+        +calculate_growth_rates(metrics)
+    }
+
+    class FileManager {
+        +save_report_file(reportId, content, format)
+        +get_report_file(reportId)
+        +delete_report_file(reportId)
+        +cleanup_old_files(retentionDays)
+        +get_file_size(reportId)
+        +get_storage_usage()
+    }
+
+    class ReportController {
+        +create_report(request)
+        +get_reports(request)
+        +get_report_by_id(request)
+        +delete_report(request)
+        +get_health(request)
+        +get_metrics(request)
+    }
+
+    class TemplateController {
+        +create_template(request)
+        +get_templates(request)
+        +get_template_by_id(request)
+        +update_template(request)
+        +delete_template(request)
+    }
+
+    class ScheduleController {
+        +create_schedule(request)
+        +get_schedules(request)
+        +get_schedule_by_id(request)
+        +update_schedule(request)
+        +delete_schedule(request)
+    }
+
+    class AnalyticsController {
+        +get_daily_analytics(request)
+        +get_weekly_analytics(request)
+        +get_monthly_analytics(request)
+        +get_custom_analytics(request)
+    }
+
+    class Report {
+        +id: String
+        +title: String
+        +description: Text
+        +reportType: String
+        +status: String
+        +filePath: String
+        +metadataJson: JSON
+        +createdAt: DateTime
+        +updatedAt: DateTime
+        +completedAt: DateTime
+    }
+
+    class ReportItem {
+        +id: String
+        +reportId: String
+        +itemType: String
+        +title: String
+        +content: JSON
+        +orderIndex: Integer
+        +createdAt: DateTime
+    }
+
+    class ReportTemplate {
+        +id: String
+        +name: String
+        +description: Text
+        +templateType: String
+        +config: JSON
+        +isActive: Integer
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+
+    class ReportSchedule {
+        +id: String
+        +templateId: String
+        +name: String
+        +scheduleType: String
+        +scheduleConfig: JSON
+        +recipients: JSON
+        +isActive: Integer
+        +lastRun: DateTime
+        +nextRun: DateTime
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+
+    class ReportMetric {
+        +id: String
+        +metricName: String
+        +metricValue: Float
+        +metricUnit: String
+        +reportId: String
+        +timestamp: DateTime
+        +metadataJson: JSON
+    }
+
+    class User {
+        +id: String
+        +username: String
+        +email: String
+        +fullName: String
+        +role: String
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+
+    class DatabaseService {
+        +connect()
+        +disconnect()
+        +get_session()
+        +create_tables()
+        +get_connection_status()
+    }
+
+    class KafkaService {
+        +connect()
+        +disconnect()
+        +consume_messages()
+        +get_consumer_status()
+        +get_lag_info()
+    }
+
+    ReportService --> Report : manages
+    ReportService --> ReportItem : manages
+    ReportService --> ReportGenerator : uses
+    ReportService --> MetricsCollector : uses
+    ReportService --> FileManager : uses
+
+    ReportTemplateService --> ReportTemplate : manages
+    ReportScheduleService --> ReportSchedule : manages
+    ReportScheduleService --> ReportTemplate : uses
+
+    AnalyticsService --> MetricsCollector : uses
+    AnalyticsService --> ReportMetric : manages
+
+    KafkaEventConsumer --> KafkaService : uses
+    KafkaEventConsumer --> MetricsCollector : uses
+
+    ReportController --> ReportService : uses
+    TemplateController --> ReportTemplateService : uses
+    ScheduleController --> ReportScheduleService : uses
+    AnalyticsController --> AnalyticsService : uses
+
+    ReportGenerator --> FileManager : uses
+    MetricsCollector --> DatabaseService : uses
+
+    Report ||--o{ ReportItem : contains
+    Report ||--o{ ReportMetric : tracks
+    ReportTemplate ||--o{ ReportSchedule : used_by
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

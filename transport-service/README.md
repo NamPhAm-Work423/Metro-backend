@@ -27,7 +27,291 @@ sequenceDiagram
   API Gateway-->>Client: JSON response
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class RouteService {
+        +createRoute(routeData)
+        +getAllRoutes(filters)
+        +getRouteById(routeId)
+        +updateRoute(routeId, updateData)
+        +deleteRoute(routeId)
+        +getActiveRoutes()
+        +getRoutesByStation(stationId)
+        +findRoutesBetweenStations(originId, destinationId)
+        +calculateRouteDistance(routeId)
+    }
+
+    class StationService {
+        +createStation(stationData)
+        +getAllStations(filters)
+        +getStationById(stationId)
+        +updateStation(stationId, updateData)
+        +deleteStation(stationId)
+        +getActiveStations()
+        +getStationsByOperatingTime(currentTime)
+        +getNextStops(stationId, currentTime, dayOfWeek, limit)
+        +getRoutesByStation(stationId)
+        +updateStationFacilities(stationId, facilities)
+    }
+
+    class TrainService {
+        +createTrain(trainData)
+        +getAllTrains(filters)
+        +getTrainById(trainId)
+        +updateTrain(trainId, updateData)
+        +deleteTrain(trainId)
+        +getActiveTrains()
+        +getTrainsByType(type)
+        +getTrainsByStatus(status)
+        +updateTrainStatus(trainId, status)
+        +scheduleMaintenance(trainId, maintenanceDate)
+        +getTrainUtilization(trainId)
+    }
+
+    class TripService {
+        +createTrip(tripData)
+        +getAllTrips(filters)
+        +getTripById(tripId)
+        +updateTrip(tripId, updateData)
+        +deleteTrip(tripId)
+        +getActiveTrips()
+        +getUpcomingTrips(currentTime, dayOfWeek)
+        +findTripsBetweenStations(originStationId, destinationStationId, dayOfWeek)
+        +getTripsByRoute(routeId)
+        +getTripsByTrain(trainId)
+        +getTripsByDay(dayOfWeek)
+        +getTripStatistics(tripId)
+    }
+
+    class StopService {
+        +createStop(stopData)
+        +createMultipleStops(stopsData)
+        +getAllStops()
+        +getStopsByTrip(tripId)
+        +getStopsByStation(stationId)
+        +updateStop(stopId, updateData)
+        +deleteStop(stopId)
+        +validateStopSequence(tripId, stops)
+    }
+
+    class RouteStationService {
+        +createRouteStation(routeStationData)
+        +getRouteStationsByRoute(routeId)
+        +getRouteStationsByStation(stationId)
+        +updateRouteStationSequence(routeStationId, sequence)
+        +deleteRouteStation(routeStationId)
+        +findRoutesBetweenTwoStations(originStationId, destinationStationId)
+        +findShortestPathWithTransfers(originStationId, destinationStationId, transferPenalty)
+        +validateRouteStationSequence(routeId)
+        +setupRouteStations(routeId, stationSequences)
+        +reorderRouteStations(routeId, newSequences)
+    }
+
+    class TransportGrpcService {
+        +getRoute(request)
+        +getStation(request)
+        +getTrip(request)
+        +getRoutesByStations(request)
+        +getRouteStations(request)
+        +calculateStationCount(request)
+        +listRoutes(request)
+        +listTrains(request)
+        +bulkUpsertTrips(request)
+        +bulkUpsertStops(request)
+    }
+
+    class TransportEventProducer {
+        +publishStationStatusChanged(stationData)
+        +publishStationDeactivated(stationData)
+        +publishRouteUpdated(routeData)
+        +publishTripScheduled(tripData)
+    }
+
+    class TransportEventConsumer {
+        +start()
+        +stop()
+        +handleControlServiceEvent(event)
+        +handlePublicServiceEvent(event)
+    }
+
+    class RouteController {
+        +getAllRoutes(req, res)
+        +getActiveRoutes(req, res)
+        +searchRoutesBetweenStations(req, res)
+        +getRouteById(req, res)
+        +getRouteStations(req, res)
+        +getRoutePath(req, res)
+        +validateRoute(req, res)
+        +reorderRouteStations(req, res)
+        +setupRoute(req, res)
+        +createRoute(req, res)
+        +updateRoute(req, res)
+        +deleteRoute(req, res)
+    }
+
+    class StationController {
+        +getAllStations(req, res)
+        +getActiveStations(req, res)
+        +getStationsByOperatingTime(req, res)
+        +getNextStops(req, res)
+        +getRoutesByStation(req, res)
+        +getStationById(req, res)
+        +createStation(req, res)
+        +updateStation(req, res)
+        +updateStationFacilities(req, res)
+        +deleteStation(req, res)
+    }
+
+    class TrainController {
+        +getAllTrains(req, res)
+        +getActiveTrains(req, res)
+        +getTrainsByType(req, res)
+        +getTrainsByStatus(req, res)
+        +getTrainById(req, res)
+        +getTrainUtilization(req, res)
+        +createTrain(req, res)
+        +updateTrain(req, res)
+        +updateTrainStatus(req, res)
+        +scheduleMaintenance(req, res)
+    }
+
+    class TripController {
+        +getAllTrips(req, res)
+        +getActiveTrips(req, res)
+        +getUpcomingTrips(req, res)
+        +searchTripsBetweenStations(req, res)
+        +getTripsByRoute(req, res)
+        +getTripsByTrain(req, res)
+        +getTripsByDay(req, res)
+        +getTripById(req, res)
+        +getTripStatistics(req, res)
+        +createTrip(req, res)
+        +updateTrip(req, res)
+        +deleteTrip(req, res)
+    }
+
+    class StopController {
+        +getAllStops(req, res)
+        +getStopsByTrip(req, res)
+        +getStopsByStation(req, res)
+        +createStop(req, res)
+        +createMultipleStops(req, res)
+        +updateStop(req, res)
+        +deleteStop(req, res)
+        +validateStopSequence(req, res)
+    }
+
+    class Route {
+        +routeId: String
+        +name: String
+        +originId: String
+        +destinationId: String
+        +numberOfStations: Integer
+        +distance: Float
+        +duration: Float
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Station {
+        +stationId: String
+        +name: String
+        +location: String
+        +latitude: Float
+        +longitude: Float
+        +openTime: Time
+        +closeTime: Time
+        +facilities: JSON
+        +connections: JSON
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class RouteStation {
+        +routeStationId: String
+        +routeId: String
+        +stationId: String
+        +sequence: Integer
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Train {
+        +trainId: String
+        +name: String
+        +type: String
+        +capacity: Integer
+        +status: String
+        +routeId: String
+        +lastMaintenance: Date
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Trip {
+        +tripId: String
+        +routeId: String
+        +trainId: String
+        +departureTime: Time
+        +arrivalTime: Time
+        +dayOfWeek: String
+        +serviceDate: Date
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Stop {
+        +stopId: String
+        +tripId: String
+        +stationId: String
+        +arrivalTime: Time
+        +departureTime: Time
+        +sequence: Integer
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    RouteService --> Route : manages
+    StationService --> Station : manages
+    TrainService --> Train : manages
+    TripService --> Trip : manages
+    StopService --> Stop : manages
+    RouteStationService --> RouteStation : manages
+
+    RouteController --> RouteService : uses
+    StationController --> StationService : uses
+    TrainController --> TrainService : uses
+    TripController --> TripService : uses
+    StopController --> StopService : uses
+
+    TransportGrpcService --> RouteService : uses
+    TransportGrpcService --> StationService : uses
+    TransportGrpcService --> TripService : uses
+    TransportGrpcService --> StopService : uses
+
+    TransportEventProducer --> Route : publishes
+    TransportEventProducer --> Station : publishes
+    TransportEventProducer --> Trip : publishes
+
+    TransportEventConsumer --> RouteService : uses
+    TransportEventConsumer --> StationService : uses
+
+    Route ||--o{ RouteStation : has
+    Route ||--o{ Trip : has
+    Route ||--o{ Train : assigned
+    Station ||--o{ RouteStation : belongs
+    Station ||--o{ Stop : stops
+    Train ||--o{ Trip : operates
+    Trip ||--o{ Stop : has
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

@@ -31,7 +31,309 @@ sequenceDiagram
   Ticket Service->>Client: Trả về vé và URL thanh toán
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class TicketService {
+        +createShortTermTicket(ticketData, idempotencyKey)
+        +createLongTermTicket(ticketData, idempotencyKey)
+        +getAllTickets(filters)
+        +getTicketById(ticketId)
+        +getTicketsByPassenger(passengerId, filters)
+        +getActiveTicketsByPassenger(passengerId)
+        +updateTicket(ticketId, updateData)
+        +updateTicketStatus(ticketId, newStatus, reason, updatedBy)
+        +deleteTicket(ticketId)
+        +cancelTicket(ticketId, reason, passengerId)
+        +validateTicket(ticketId)
+        +validateTicketAtGate(ticketId, stationId, action)
+        +sendTicketToPhone(ticketId, phoneNumber, passengerId)
+        +sendTicketToEmail(ticketId, email, passengerId)
+        +getTicketWithQR(ticketId, passengerId)
+        +getTicketByPaymentId(paymentId)
+        +getTicketStatistics(filters)
+        +activateTicket(ticketId, passengerId, idempotencyKey)
+        +expireTickets()
+        +useTicket(ticketId, passengerId, idempotencyKey)
+        +useTicketByQRCode(qrCode, staffId, idempotencyKey)
+    }
+
+    class TicketRepository {
+        +create(data)
+        +findById(id)
+        +findAll(filters)
+        +findByPassengerId(passengerId, filters)
+        +findByPaymentId(paymentId)
+        +update(id, data)
+        +delete(id)
+        +getStatistics(filters)
+    }
+
+    class TicketValidatorService {
+        +validateTicket(ticketId)
+        +validateTicketAtGate(ticketId, stationId, action)
+        +validateTicketStatus(ticket)
+        +validateTicketOwnership(ticket, passengerId)
+    }
+
+    class TicketCommunicationService {
+        +sendTicketToPhone(ticketId, phoneNumber, passengerId)
+        +sendTicketToEmail(ticketId, email, passengerId)
+        +getTicketWithQR(ticketId, passengerId)
+    }
+
+    class TicketPaymentService {
+        +processTicketPayment(ticket, ticketType, paymentOptions)
+        +waitForPaymentResponse(paymentId, timeout)
+        +handlePaymentCompletion(ticket, paymentId, paymentData)
+    }
+
+    class TicketPriceCalculator {
+        +calculateTotalPriceForPassengers(fromStation, toStation, tripType, passengerCounts, promotion)
+        +calculateJourneyFareForMultiplePassengers(fromStation, toStation, tripType, passengerCounts)
+        +calculateDirectRouteFare(fromStation, toStation, tripType, passengerCounts)
+    }
+
+    class TicketStatusService {
+        +updateTicketStatus(ticketId, newStatus, reason, updatedBy)
+        +validateStatusTransition(currentStatus, newStatus)
+        +getStatusHistory(ticketId)
+    }
+
+    class StationBasedFareCalculator {
+        +calculateFare(fromStation, toStation, passengerCounts)
+        +getStationCount(fromStation, toStation)
+        +applyStationMultiplier(stationCount)
+    }
+
+    class MultiRouteFareCalculator {
+        +calculateJourneyFare(fromStation, toStation, passengerCounts)
+        +findRouteSegments(fromStation, toStation)
+        +calculateSegmentFares(segments, passengerCounts)
+    }
+
+    class PassBasedFareCalculator {
+        +calculatePassFare(passType, passengerCounts)
+        +getPassPrice(passType)
+        +applyPassengerDiscounts(price, passengerCounts)
+    }
+
+    class FareService {
+        +calculateFare(fromStation, toStation, tripType, passengerCounts)
+        +getFareByRouteId(routeId)
+        +getActiveFares()
+    }
+
+    class FareServiceFactory {
+        +createFareCalculator(tripType)
+        +getCalculatorType(tripType)
+    }
+
+    class PromotionService {
+        +validatePromotion(promotionCode)
+        +applyPromotion(promotion, price)
+        +incrementPromotionUsage(promotionId)
+        +getPromotionByCode(promotionCode)
+    }
+
+    class PassengerDiscountService {
+        +getDiscountByPassengerType(passengerType)
+        +applyPassengerDiscount(price, passengerType)
+        +getActiveDiscounts()
+    }
+
+    class TransitPassService {
+        +getTransitPassByType(passType)
+        +calculatePassPrice(passType, passengerType)
+        +getActiveTransitPasses()
+    }
+
+    class IdempotencyHelper {
+        +executeWithIdempotency(operation, data, callback, userId, ttl)
+        +generateIdempotencyKey(operation, data)
+        +checkIdempotency(operation, data, userId)
+    }
+
+    class PaymentCompletionHandler {
+        +processPaymentCompletion(ticket, paymentId, paymentData)
+        +handlePaymentSuccess(ticket, paymentData)
+        +handlePaymentFailure(ticket, paymentData)
+    }
+
+    class TicketActivationService {
+        +activateLongTermTicket(ticketId)
+        +calculateValidityPeriod(ticketType)
+        +startCountDown(ticketId)
+    }
+
+    class TicketValidityService {
+        +validateTicketValidity(ticket)
+        +calculateValidityPeriod(ticketType)
+        +isTicketExpired(ticket)
+    }
+
+    class Ticket {
+        +ticketId: UUID
+        +passengerId: UUID
+        +tripId: UUID
+        +fareId: UUID
+        +promotionId: UUID
+        +originStationId: String
+        +destinationStationId: String
+        +originalPrice: Decimal
+        +discountAmount: Decimal
+        +finalPrice: Decimal
+        +totalPrice: Decimal
+        +validFrom: Date
+        +validUntil: Date
+        +activatedAt: Date
+        +ticketType: Enum
+        +usedList: Array
+        +status: Enum
+        +stationCount: Integer
+        +fareBreakdown: JSON
+        +paymentMethod: String
+        +paymentId: String
+        +qrCode: String
+        +isActive: Boolean
+        +startCountDown()
+        +isCurrentlyValid()
+        +canBeUsed()
+    }
+
+    class Fare {
+        +fareId: UUID
+        +routeId: String
+        +basePrice: Decimal
+        +currency: Enum
+        +isActive: Boolean
+    }
+
+    class Promotion {
+        +promotionId: UUID
+        +promotionCode: String
+        +name: String
+        +type: Enum
+        +value: Decimal
+        +applicableTicketTypes: Array
+        +applicablePassengerTypes: Array
+        +usageLimit: Integer
+        +usageCount: Integer
+        +validFrom: Date
+        +validUntil: Date
+        +isActive: Boolean
+        +isCurrentlyValid()
+        +calculateDiscount(price)
+        +incrementUsage()
+    }
+
+    class TransitPass {
+        +transitPassId: UUID
+        +transitPassType: Enum
+        +price: Decimal
+        +currency: Enum
+        +isActive: Boolean
+    }
+
+    class PassengerDiscount {
+        +discountId: UUID
+        +passengerType: Enum
+        +discountType: Enum
+        +discountValue: Decimal
+        +description: String
+        +validFrom: Date
+        +validUntil: Date
+        +isActive: Boolean
+        +isCurrentlyValid()
+        +getFinalPrice(originalPrice)
+    }
+
+    class TicketController {
+        +calculatePrice(req, res)
+        +createShortTermTicket(req, res)
+        +createLongTermTicket(req, res)
+        +getMyTickets(req, res)
+        +getTicketById(req, res)
+        +useTicket(req, res)
+        +useTicketByQR(req, res)
+        +validateTicket(req, res)
+        +cancelTicket(req, res)
+        +getAllTickets(req, res)
+        +getTicketStatistics(req, res)
+    }
+
+    class FareController {
+        +calculateFare(req, res)
+        +getFares(req, res)
+        +getFareById(req, res)
+    }
+
+    class PromotionController {
+        +getPromotions(req, res)
+        +getPromotionByCode(req, res)
+        +createPromotion(req, res)
+        +updatePromotion(req, res)
+        +deletePromotion(req, res)
+    }
+
+    class PassengerDiscountController {
+        +getDiscounts(req, res)
+        +getDiscountByType(req, res)
+        +createDiscount(req, res)
+        +updateDiscount(req, res)
+        +deleteDiscount(req, res)
+    }
+
+    class TransitPassController {
+        +getTransitPasses(req, res)
+        +getTransitPassByType(req, res)
+        +createTransitPass(req, res)
+        +updateTransitPass(req, res)
+        +deleteTransitPass(req, res)
+    }
+
+    TicketService --> TicketRepository : uses
+    TicketService --> TicketValidatorService : uses
+    TicketService --> TicketCommunicationService : uses
+    TicketService --> TicketPaymentService : uses
+    TicketService --> TicketPriceCalculator : uses
+    TicketService --> TicketStatusService : uses
+    TicketService --> IdempotencyHelper : uses
+    TicketService --> PaymentCompletionHandler : uses
+    TicketService --> TicketActivationService : uses
+    TicketService --> TicketValidityService : uses
+    TicketService --> FareService : uses
+    TicketService --> PromotionService : uses
+    TicketService --> PassengerDiscountService : uses
+    TicketService --> TransitPassService : uses
+
+    TicketRepository --> Ticket : manages
+    FareService --> Fare : manages
+    PromotionService --> Promotion : manages
+    PassengerDiscountService --> PassengerDiscount : manages
+    TransitPassService --> TransitPass : manages
+
+    TicketPriceCalculator --> StationBasedFareCalculator : uses
+    TicketPriceCalculator --> MultiRouteFareCalculator : uses
+    TicketPriceCalculator --> PassBasedFareCalculator : uses
+    FareServiceFactory --> StationBasedFareCalculator : creates
+    FareServiceFactory --> MultiRouteFareCalculator : creates
+    FareServiceFactory --> PassBasedFareCalculator : creates
+
+    TicketController --> TicketService : uses
+    FareController --> FareService : uses
+    PromotionController --> PromotionService : uses
+    PassengerDiscountController --> PassengerDiscountService : uses
+    TransitPassController --> TransitPassService : uses
+
+    Ticket ||--o{ Fare : references
+    Ticket ||--o{ Promotion : references
+    Ticket ||--o{ TransitPass : references
+    Ticket ||--o{ PassengerDiscount : applies
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ### 2.1 Kiến trúc tổng quan
 

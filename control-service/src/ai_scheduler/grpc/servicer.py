@@ -58,12 +58,24 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
             return control_pb2.RescheduleResponse(tripsAdjusted=0)
 
     def GetPlan(self, request, context):
-        """Get generated plan for a route and date - placeholder"""
+        """Get generated plan for a route and date - with demo analytics"""
         try:
-            # TODO: Implement plan retrieval from cache/database
+            # For demo purposes, return schedule summary
+            summary = self.planning.get_schedule_summary(
+                date=request.date,
+                day_of_week=request.dayOfWeek if hasattr(request, 'dayOfWeek') else 'Monday',
+                route_ids=[request.routeId] if request.routeId else None
+            )
+            
+            # Convert to demo-friendly response (placeholder structure)
+            print(f"Schedule Summary for {request.routeId} on {request.date}:")
+            print(f"AI Optimizations: {len(summary.get('ai_optimizations', []))}")
+            print(f"Time bands configured: {len(summary.get('time_bands', {}))}")
+            
             return control_pb2.GetPlanResponse(items=[])
         except Exception as e:
-            context.set_code(grpc.StatusCode.INTERNAL)
+            print(f"Error getting plan: {str(e)}")
+            context.set_code(grpc.StatusCode.INTERNAL)  
             context.set_details(str(e))
             return control_pb2.GetPlanResponse(items=[])
 

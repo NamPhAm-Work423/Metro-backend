@@ -92,32 +92,68 @@ class ReportEventConsumer:
             ticket_data = data.get('ticketData') or {}
             origin_station_id = ticket_data.get('originStationId')
             destination_station_id = ticket_data.get('destinationStationId')
-            route_key = f"{origin_station_id}-{destination_station_id}" if origin_station_id and destination_station_id else None
+            route_id = ticket_data.get('routeId')
+            route_name = ticket_data.get('routeName')
+            
+            # Parse timestamp
+            from datetime import datetime
+            if isinstance(created_at, str):
+                try:
+                    timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                except:
+                    timestamp = datetime.now()
+            else:
+                timestamp = datetime.now()
 
+            from ..models.report_model import EventLog, MetricSnapshot, TicketEventView
+            
+            # Create structured event log
+            event_log = EventLog(
+                event_type='ticket.created',
+                event_category='ticket',
+                entity_id=ticket_id,
+                entity_type='ticket',
+                event_timestamp=timestamp,
+                event_data={
+                    'passenger_id': passenger_id,
+                    'origin_station_id': origin_station_id,
+                    'route_id': route_id,
+                    'route_name': route_name,
+                    'amount': amount,
+                    **data
+                },
+                source_service='ticket-service'
+            )
+            self.db.add(event_log)
+            
+            # Also create legacy metric
             metric_data = {
                 'metric_name': 'ticket_created',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'timestamp': timestamp,
+                'dimensions': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'amount': amount,
                     'origin_station_id': origin_station_id,
                     'destination_station_id': destination_station_id,
-                    'route_key': route_key,
+                    'route_id': route_id,
+                    'route_name': route_name,
                     'created_at': created_at
                 }
             }
-
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
+            
             self.db.commit()
 
-            logger.info("Ticket created event processed", ticket_id=ticket_id)
+            logger.info("Ticket created event processed", ticket_id=ticket_id, amount=amount)
 
         except Exception as e:
             logger.error("Error handling ticket created event", error=str(e))
+            self.db.rollback()
             raise
     
     async def handle_payment_completed(self, data: Dict[str, Any]):
@@ -148,9 +184,10 @@ class ReportEventConsumer:
 
             metric_data = {
                 'metric_name': 'user_login',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'dimensions': {
                     'user_id': user_id,
                     'username': username,
                     'roles': roles,
@@ -158,8 +195,8 @@ class ReportEventConsumer:
                 }
             }
 
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
 
@@ -178,17 +215,18 @@ class ReportEventConsumer:
 
             metric_data = {
                 'metric_name': 'ticket_activated',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'dimensions': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'activated_at': activated_at
                 }
             }
 
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
 
@@ -208,9 +246,10 @@ class ReportEventConsumer:
 
             metric_data = {
                 'metric_name': 'ticket_cancelled',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'dimensions': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'reason': reason,
@@ -218,8 +257,8 @@ class ReportEventConsumer:
                 }
             }
 
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
 
@@ -235,29 +274,89 @@ class ReportEventConsumer:
             ticket_id = data.get('ticketId') or data.get('ticket_id')
             passenger_id = data.get('passengerId') or data.get('passenger_id')
             used_at = data.get('usedAt') or data.get('used_at')
-            station_id = (data.get('usageData') or {}).get('stationId')
+            usage_data = data.get('usageData') or {}
+            station_id = usage_data.get('stationId')
+            station_name = usage_data.get('stationName')
+            route_id = usage_data.get('routeId')
+            route_name = usage_data.get('routeName')
+            usage_type = usage_data.get('usageType', 'entry')
+            
+            # Parse timestamp
+            from datetime import datetime
+            if isinstance(used_at, str):
+                try:
+                    timestamp = datetime.fromisoformat(used_at.replace('Z', '+00:00'))
+                except:
+                    timestamp = datetime.now()
+            else:
+                timestamp = datetime.now()
 
-            metric_data = {
-                'metric_name': 'ticket_used',
-                'metric_value': 1,
-                'metric_unit': 'count',
-                'metadata_json': {
-                    'ticket_id': ticket_id,
+            # Store structured event data
+            from ..models.report_model import EventLog, MetricSnapshot, TicketEventView
+            
+            # Create universal event log
+            event_log = EventLog(
+                event_type='ticket.used',
+                event_category='ticket',
+                entity_id=ticket_id,
+                entity_type='ticket',
+                event_data=data,
+                processed_data={
                     'passenger_id': passenger_id,
                     'station_id': station_id,
-                    'used_at': used_at
-                }
-            }
-
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
-            self.db.add(metric)
+                    'station_name': station_name,
+                    'route_id': route_id,
+                    'route_name': route_name,
+                    'usage_type': usage_type
+                },
+                event_timestamp=timestamp,
+                source_service='ticket-service'
+            )
+            self.db.add(event_log)
+            
+            # Create optimized ticket view for analytics
+            ticket_view = TicketEventView(
+                ticket_id=ticket_id,
+                passenger_id=passenger_id,
+                event_type='used',
+                event_timestamp=timestamp,
+                station_id=station_id,
+                station_name=station_name,
+                route_id=route_id,
+                route_name=route_name,
+                usage_type=usage_type,
+                date_partition=timestamp.strftime('%Y-%m-%d'),
+                hour_partition=timestamp.hour
+            )
+            self.db.add(ticket_view)
+            
+            # Create metric snapshot
+            metric_snapshot = MetricSnapshot(
+                metric_name='ticket_usage_count',
+                metric_category='usage',
+                metric_value=1.0,
+                metric_unit='count',
+                dimensions={
+                    'station_id': station_id,
+                    'station_name': station_name,
+                    'route_id': route_id,
+                    'route_name': route_name,
+                    'usage_type': usage_type
+                },
+                timestamp=timestamp,
+                period_type='realtime',
+                aggregation_type='count',
+                sample_count=1
+            )
+            self.db.add(metric_snapshot)
+            
             self.db.commit()
 
-            logger.debug("Ticket used metrics updated", ticket_id=ticket_id)
+            logger.info("Ticket used event processed", ticket_id=ticket_id, station_id=station_id)
 
         except Exception as e:
             logger.error("Error handling ticket used event", error=str(e))
+            self.db.rollback()
             raise
     
     async def handle_user_registered(self, data: Dict[str, Any]):
@@ -266,18 +365,62 @@ class ReportEventConsumer:
             user_id = data.get('userId') or data.get('user_id')
             username = data.get('username')
             email = data.get('email')
-            # roles could be list; pick primary
             roles = data.get('roles')
-            role = roles[0] if isinstance(roles, list) and roles else (data.get('role') or 'user')
             registered_at = data.get('registeredAt') or data.get('registered_at') or data.get('createdAt')
+            
+            # Parse timestamp
+            from datetime import datetime
+            if isinstance(registered_at, str):
+                try:
+                    timestamp = datetime.fromisoformat(registered_at.replace('Z', '+00:00'))
+                except:
+                    timestamp = datetime.now()
+            else:
+                timestamp = datetime.now()
 
-            # Update user metrics
-            await self.update_user_metrics(user_id, username, email, role, registered_at)
+            from ..models.report_model import EventLog, MetricSnapshot
+            
+            # Create structured user event
+            user_event = EventLog(
+                event_type='user.registered',
+                event_category='user',
+                entity_id=user_id,
+                entity_type='user',
+                event_timestamp=timestamp,
+                event_data={
+                    'username': username,
+                    'roles': roles,
+                    **data
+                },
+                source_service='user-service'
+            )
+            self.db.add(user_event)
+            
+            # Legacy metric
+            metric_data = {
+                'metric_name': 'user_registered',
+                'metric_category': 'usage',
+                'metric_value': 1,
+                'metric_unit': 'count',
+                'timestamp': timestamp,
+                'dimensions': {
+                    'user_id': user_id,
+                    'username': username,
+                    'email': email,
+                    'roles': roles,
+                    'registered_at': registered_at
+                }
+            }
+            metric = MetricSnapshot(**metric_data)
+            self.db.add(metric)
+            
+            self.db.commit()
 
-            logger.info("User registered event processed", user_id=user_id)
+            logger.info("User registered event processed", user_id=user_id, username=username)
 
         except Exception as e:
             logger.error("Error handling user registered event", error=str(e))
+            self.db.rollback()
             raise
     
     async def handle_route_updated(self, data: Dict[str, Any]):
@@ -303,9 +446,10 @@ class ReportEventConsumer:
             # Create or update ticket metrics
             metric_data = {
                 'metric_name': 'ticket_created',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'dimensions': {
                     'ticket_id': ticket_id,
                     'passenger_id': passenger_id,
                     'route_id': route_id,
@@ -315,8 +459,8 @@ class ReportEventConsumer:
             }
             
             # Store metric in database
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
             
@@ -332,9 +476,10 @@ class ReportEventConsumer:
             # Create or update payment metrics
             metric_data = {
                 'metric_name': 'payment_completed',
+                'metric_category': 'revenue',
                 'metric_value': amount,
                 'metric_unit': 'currency',
-                'metadata_json': {
+                'dimensions': {
                     'payment_id': payment_id,
                     'ticket_id': ticket_id,
                     'payment_method': payment_method,
@@ -343,8 +488,8 @@ class ReportEventConsumer:
             }
             
             # Store metric in database
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
             
@@ -360,9 +505,10 @@ class ReportEventConsumer:
             # Create or update user metrics
             metric_data = {
                 'metric_name': 'user_registered',
+                'metric_category': 'usage',
                 'metric_value': 1,
                 'metric_unit': 'count',
-                'metadata_json': {
+                'dimensions': {
                     'user_id': user_id,
                     'username': username,
                     'email': email,
@@ -372,8 +518,8 @@ class ReportEventConsumer:
             }
             
             # Store metric in database
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
             
@@ -389,9 +535,10 @@ class ReportEventConsumer:
             # Create or update route metrics
             metric_data = {
                 'metric_name': 'route_updated',
+                'metric_category': 'system',
                 'metric_value': len(stations),
                 'metric_unit': 'stations',
-                'metadata_json': {
+                'dimensions': {
                     'route_id': route_id,
                     'route_name': route_name,
                     'stations': stations,
@@ -400,8 +547,8 @@ class ReportEventConsumer:
             }
             
             # Store metric in database
-            from ..models.report_model import ReportMetric
-            metric = ReportMetric(**metric_data)
+            from ..models.report_model import MetricSnapshot
+            metric = MetricSnapshot(**metric_data)
             self.db.add(metric)
             self.db.commit()
             

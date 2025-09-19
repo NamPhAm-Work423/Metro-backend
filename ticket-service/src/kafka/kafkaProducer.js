@@ -18,6 +18,11 @@ let connected = false;
 const ensuredTopics = new Set();
 
 async function ensureTopicExists(topic) {
+    // In test environment, skip admin connections to avoid external network calls and logs
+    if (process.env.NODE_ENV === 'test') {
+        ensuredTopics.add(topic);
+        return;
+    }
     if (ensuredTopics.has(topic)) return;
     await admin.connect();
     const topics = await admin.listTopics();
@@ -33,6 +38,11 @@ async function ensureTopicExists(topic) {
 }
 
 async function connectIfNeeded() {
+    // Do not connect Kafka producer in tests; tests stub publish paths
+    if (process.env.NODE_ENV === 'test') {
+        connected = true;
+        return;
+    }
     if (!connected) {
         await producer.connect();
         connected = true;
@@ -90,6 +100,10 @@ async function publish(topic, key, message) {
  */
 async function disconnect() {
     try {
+        if (process.env.NODE_ENV === 'test') {
+            connected = false;
+            return;
+        }
         if (connected) {
             await producer.disconnect();
             connected = false;

@@ -9,7 +9,16 @@ datasources:
     type: prometheus
     access: proxy
     orgId: 1
+    uid: prometheus
     url: http://prometheus:9090
     isDefault: true
     editable: true
+    jsonData:
+      timeInterval: "5s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+      exemplarTraceIdDestinations:
+        - name: "Loki"
+          datasourceUid: "loki"
+          urlDisplayLabel: "View in Loki"
 

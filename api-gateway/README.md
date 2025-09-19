@@ -52,7 +52,145 @@ graph LR
   B -->|Events| N[(Kafka Cluster)]
 ```
 
-## 2.1 Sơ đồ thành phần (Component Diagram)
+## 2.1 Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class ServiceService {
+        +findServiceById(id)
+        +findServiceByName(name)
+        +findServiceByEndPoint(endPoint)
+        +findServiceInstanceEndPoint(endPoint)
+        +findInstancesByServiceId(serviceId)
+        +createService(name, endPoint)
+        +createBulkInstances(instances)
+        +deleteService(name)
+        +createNewService(name, endPoint, instances)
+        +createNewInstance(id, host, port)
+        +deleteInstance(id)
+        +getAllService()
+        +getServiceByName(name)
+    }
+
+    class LoadBalancerService {
+        +getNextInstance(endPoint)
+        +updateInstanceStatus(instanceId, status)
+        +getHealthyInstances(endPoint)
+        +updateAllInstancesStatus()
+        +deleteServiceFromRedis(endPoint)
+        +deleteInstanceFromRedis(endPoint, instanceId)
+    }
+
+    class RoutingService {
+        +routeRequest(req, res, next)
+        +validateRequest(req, res, next)
+        +forwardRequest(req, res, next)
+        +handleResponse(req, res, next)
+        +handleError(error, req, res, next)
+    }
+
+    class RouteCacheService {
+        +getCachedRoute(endPoint)
+        +setCachedRoute(endPoint, route)
+        +invalidateRoute(endPoint)
+        +clearAllRoutes()
+    }
+
+    class KeyService {
+        +validateApiKey(apiKey)
+        +generateApiKey(name, permissions)
+        +revokeApiKey(apiKey)
+        +getApiKeyInfo(apiKey)
+    }
+
+    class EmailService {
+        +sendEmail(to, subject, content)
+        +sendVerificationEmail(email, token)
+        +sendPasswordResetEmail(email, token)
+        +sendWelcomeEmail(email, name)
+    }
+
+    class Service {
+        +id: UUID
+        +name: String
+        +endPoint: String
+        +description: String
+        +version: String
+        +timeout: Integer
+        +retries: Integer
+        +circuitBreaker: JSONB
+        +loadBalancer: JSONB
+        +authentication: JSONB
+        +rateLimit: JSONB
+        +status: Enum
+    }
+
+    class ServiceInstance {
+        +id: UUID
+        +serviceId: UUID
+        +host: String
+        +port: Integer
+        +weight: Integer
+        +region: String
+        +status: Enum
+        +isHealthy: Boolean
+        +lastHealthCheck: Date
+        +metadata: JSONB
+    }
+
+    class APIKey {
+        +id: UUID
+        +keyHash: String
+        +name: String
+        +permissions: JSONB
+        +isActive: Boolean
+        +expiresAt: Date
+    }
+
+    class AuthController {
+        +login(req, res)
+        +logout(req, res)
+        +refreshToken(req, res)
+        +validateToken(req, res)
+    }
+
+    class ServiceController {
+        +getAllServices(req, res)
+        +getServiceById(req, res)
+        +createService(req, res)
+        +updateService(req, res)
+        +deleteService(req, res)
+        +getServiceInstances(req, res)
+        +addServiceInstance(req, res)
+        +removeServiceInstance(req, res)
+    }
+
+    class RoutingController {
+        +routeToService(req, res)
+        +handleServiceResponse(req, res)
+        +handleServiceError(error, req, res)
+    }
+
+    class ErrorController {
+        +globalErrorHandler(error, req, res, next)
+        +handleValidationError(error, req, res, next)
+        +handleAuthError(error, req, res, next)
+        +handleServiceError(error, req, res, next)
+    }
+
+    ServiceService --> Service : manages
+    ServiceService --> ServiceInstance : manages
+    LoadBalancerService --> ServiceInstance : balances
+    RoutingService --> LoadBalancerService : uses
+    RouteCacheService --> Service : caches
+    KeyService --> APIKey : manages
+    AuthController --> ServiceService : uses
+    ServiceController --> ServiceService : uses
+    RoutingController --> RoutingService : uses
+    Service ||--o{ ServiceInstance : has
+```
+
+## 2.2 Sơ đồ thành phần (Component Diagram)
 
 ```mermaid
 graph TD

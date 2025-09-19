@@ -61,7 +61,159 @@ sequenceDiagram
   Auth Service->>Kafka: Publish user.login event
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class UserService {
+        +createToken(userId, username, roles)
+        +signup(userData)
+        +resendVerification(email)
+        +login(email, password)
+        +logout(userId)
+        +refreshToken(refreshToken)
+        +forgotPassword(email)
+        +resetPassword(token, uid, newPassword)
+        +checkResetToken(userId)
+        +revokeResetToken(userId)
+        +deleteUserByUserId(userId)
+        +verifyEmailToken(token)
+        +unlockUserAccount(userId, adminId)
+    }
+
+    class TokensService {
+        +createTokens(userId, username, roles)
+        +refreshAccessToken(refreshToken, user)
+        +validateToken(token)
+        +revokeToken(token)
+    }
+
+    class EmailService {
+        +sendVerificationEmail(email, token)
+        +sendPasswordResetEmail(email, token, userId)
+        +sendWelcomeEmail(email, firstName)
+        +sendEmail(to, subject, content)
+    }
+
+    class KeyService {
+        +validateApiKey(apiKey)
+        +generateApiKey(name, permissions)
+        +revokeApiKey(apiKey)
+        +getApiKeyInfo(apiKey)
+    }
+
+    class UserRepository {
+        +findOne(where)
+        +findByPk(id)
+        +create(data)
+        +updateById(id, data)
+        +deleteById(id)
+    }
+
+    class KeyRepository {
+        +findOne(where)
+        +create(data)
+        +updateById(id, data)
+        +deleteById(id)
+    }
+
+    class ApiKeyCache {
+        +get(key)
+        +set(key, value, ttl)
+        +delete(key)
+        +clear()
+    }
+
+    class UserEventProducer {
+        +publishUserCreated(userData)
+        +publishUserLogin(userData)
+        +publishUserDeleted(userData)
+    }
+
+    class UserEventConsumer {
+        +start()
+        +stop()
+        +handleUserDeleted(event)
+        +handlePassengerDeleted(event)
+        +handleStaffDeleted(event)
+    }
+
+    class User {
+        +id: UUID
+        +email: String
+        +username: String
+        +password: String
+        +isVerified: Boolean
+        +accountLocked: Boolean
+        +emailToken: String
+        +emailTokenExpiry: Date
+        +roles: Array
+        +lastLoginAt: Date
+        +passwordResetToken: String
+        +passwordResetExpiry: Date
+        +loginAttempts: Integer
+        +lockUntil: Date
+        +isLocked()
+        +incLoginAttempts()
+        +resetLoginAttempts()
+    }
+
+    class Key {
+        +id: UUID
+        +value: String
+        +status: Enum
+        +title: String
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class AuthController {
+        +register(req, res)
+        +login(req, res)
+        +logout(req, res)
+        +refreshToken(req, res)
+        +sessionRefresh(req, res)
+        +getStatus(req, res)
+        +forgotPassword(req, res)
+        +resetPassword(req, res)
+        +resendVerification(req, res)
+        +verifyEmail(req, res)
+        +getProfile(req, res)
+        +createApiKey(req, res)
+        +getApiKeys(req, res)
+        +deleteApiKey(req, res)
+    }
+
+    class UserController {
+        +getUserProfile(req, res)
+        +updateUserProfile(req, res)
+        +deleteUser(req, res)
+        +unlockUser(req, res)
+    }
+
+    class ErrorController {
+        +globalErrorHandler(error, req, res, next)
+        +handleValidationError(error, req, res, next)
+        +handleAuthError(error, req, res, next)
+    }
+
+    UserService --> TokensService : uses
+    UserService --> EmailService : uses
+    UserService --> UserRepository : uses
+    UserService --> UserEventProducer : uses
+    UserService --> UserEventConsumer : uses
+    KeyService --> KeyRepository : uses
+    KeyService --> ApiKeyCache : uses
+    AuthController --> UserService : uses
+    AuthController --> KeyService : uses
+    UserController --> UserService : uses
+    UserRepository --> User : manages
+    KeyRepository --> Key : manages
+    UserEventProducer --> User : publishes
+    UserEventConsumer --> User : consumes
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

@@ -36,7 +36,254 @@ sequenceDiagram
   Cache-->>Client: routes_response
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class PublicService {
+        +getHealth()
+        +getDetailedHealth()
+        +getMetrics()
+        +getCacheStatus()
+        +refreshCache()
+        +clearCache()
+    }
+
+    class CacheService {
+        +cacheAllData()
+        +getCachedData(key)
+        +setCachedData(key, data, ttl)
+        +clearCache()
+        +getCacheStats()
+        +isCacheHealthy()
+        +getLastUpdateTime()
+    }
+
+    class SchedulerService {
+        +start()
+        +stop()
+        +isRunning()
+        +getStatus()
+        +getNextRunTime()
+        +executeScheduledTask()
+        +setCronSchedule(schedule)
+    }
+
+    class TransportGrpcService {
+        +fetchAllTransportData()
+        +getRoutes()
+        +getRouteById(routeId)
+        +getStations()
+        +getStationById(stationId)
+        +getRouteStations(routeId)
+        +searchRoutes(originId, destinationId)
+    }
+
+    class FareGrpcService {
+        +fetchAllTicketData()
+        +getFares()
+        +getFaresByRoute(routeId)
+        +searchFares(criteria)
+        +calculateFare(routeId, stations, tripType)
+        +getTransitPasses()
+        +getTransitPassByType(type)
+        +getPassengerDiscounts()
+        +getPassengerDiscountByType(type)
+    }
+
+    class QrService {
+        +storeQrImage(ticketId, imageData)
+        +getQrImage(ticketId)
+        +deleteQrImage(ticketId)
+        +getQrImagePath(ticketId)
+        +isQrImageExists(ticketId)
+    }
+
+    class QrEventConsumer {
+        +start()
+        +stop()
+        +handleQrStorageEvent(event)
+        +processQrImage(ticketId, imageData)
+        +saveQrImage(ticketId, imageData)
+    }
+
+    class HealthService {
+        +checkBasicHealth()
+        +checkDetailedHealth()
+        +checkReadiness()
+        +checkLiveness()
+        +checkTransportServiceHealth()
+        +checkTicketServiceHealth()
+        +checkDataAvailability()
+        +getHealthSummary()
+    }
+
+    class MetricsService {
+        +getPrometheusMetrics()
+        +recordRequestCount(endpoint)
+        +recordRequestLatency(endpoint, duration)
+        +recordCacheHit()
+        +recordCacheMiss()
+        +recordGrpcCall(service, duration)
+        +getMetricsSummary()
+    }
+
+    class TransportController {
+        +getRoutes(req, res)
+        +getRouteById(req, res)
+        +searchRoutes(req, res)
+        +getStations(req, res)
+        +getStationById(req, res)
+        +getRouteStations(req, res)
+    }
+
+    class TicketController {
+        +getFares(req, res)
+        +getFaresByRoute(req, res)
+        +searchFares(req, res)
+        +calculateFare(req, res)
+        +getTransitPasses(req, res)
+        +getTransitPassByType(req, res)
+        +getPassengerDiscounts(req, res)
+        +getPassengerDiscountByType(req, res)
+    }
+
+    class CacheController {
+        +getCacheStatus(req, res)
+        +getCacheStats(req, res)
+        +refreshCache(req, res)
+        +clearCache(req, res)
+        +getCacheHealth(req, res)
+        +getCacheMetadata(req, res)
+        +getSchedulerStatus(req, res)
+        +controlScheduler(req, res)
+        +resetStats(req, res)
+    }
+
+    class QrController {
+        +getQrImage(req, res)
+        +serveQrImage(ticketId, res)
+    }
+
+    class HealthController {
+        +getHealth(req, res)
+        +getDetailedHealth(req, res)
+        +getReadiness(req, res)
+        +getLiveness(req, res)
+        +getMetrics(req, res)
+    }
+
+    class Route {
+        +routeId: String
+        +name: String
+        +originId: String
+        +destinationId: String
+        +numberOfStations: Integer
+        +distance: Float
+        +duration: Float
+        +isActive: Boolean
+    }
+
+    class Station {
+        +stationId: String
+        +name: String
+        +location: String
+        +latitude: Float
+        +longitude: Float
+        +openTime: Time
+        +closeTime: Time
+        +facilities: JSON
+        +connections: JSON
+        +isActive: Boolean
+    }
+
+    class Fare {
+        +fareId: String
+        +routeId: String
+        +basePrice: Decimal
+        +currency: String
+        +isActive: Boolean
+    }
+
+    class TransitPass {
+        +transitPassId: String
+        +transitPassType: String
+        +price: Decimal
+        +currency: String
+        +isActive: Boolean
+    }
+
+    class PassengerDiscount {
+        +discountId: String
+        +passengerType: String
+        +discountType: String
+        +discountValue: Decimal
+        +description: String
+        +validFrom: Date
+        +validUntil: Date
+        +isActive: Boolean
+    }
+
+    class QrImage {
+        +ticketId: String
+        +imagePath: String
+        +mimeType: String
+        +createdAt: Date
+        +fileSize: Integer
+    }
+
+    class CacheData {
+        +key: String
+        +value: JSON
+        +ttl: Integer
+        +createdAt: Date
+        +expiresAt: Date
+        +hitCount: Integer
+        +lastAccessed: Date
+    }
+
+    PublicService --> CacheService : uses
+    PublicService --> SchedulerService : uses
+    PublicService --> HealthService : uses
+    PublicService --> MetricsService : uses
+
+    CacheService --> TransportGrpcService : uses
+    CacheService --> FareGrpcService : uses
+    CacheService --> CacheData : manages
+
+    SchedulerService --> CacheService : triggers
+    SchedulerService --> TransportGrpcService : uses
+    SchedulerService --> FareGrpcService : uses
+
+    TransportController --> CacheService : uses
+    TransportController --> TransportGrpcService : uses
+    TransportController --> MetricsService : uses
+
+    TicketController --> CacheService : uses
+    TicketController --> FareGrpcService : uses
+    TicketController --> MetricsService : uses
+
+    CacheController --> CacheService : uses
+    CacheController --> SchedulerService : uses
+    CacheController --> MetricsService : uses
+
+    QrController --> QrService : uses
+    QrController --> QrImage : serves
+
+    HealthController --> HealthService : uses
+    HealthController --> MetricsService : uses
+
+    QrEventConsumer --> QrService : uses
+    QrEventConsumer --> QrImage : creates
+
+    TransportGrpcService --> Route : fetches
+    TransportGrpcService --> Station : fetches
+    FareGrpcService --> Fare : fetches
+    FareGrpcService --> TransitPass : fetches
+    FareGrpcService --> PassengerDiscount : fetches
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

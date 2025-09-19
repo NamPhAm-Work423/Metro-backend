@@ -1,3 +1,6 @@
+// IMPORTANT: Tracing must be initialized FIRST before any other imports
+require('./tracing');
+
 require('dotenv').config();
 const { logger } = require('./config/logger');
 const { startGrpcServer } = require('./grpc/schedulerServer');

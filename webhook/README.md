@@ -31,7 +31,222 @@ sequenceDiagram
   Webhook-->>PayPal: 200 OK response
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class WebhookService {
+        +processPaypalWebhook(payload)
+        +processSepayWebhook(payload)
+        +getHealthStatus()
+        +getStatistics(startDate, endDate)
+        +retryFailedWebhooks(provider, limit)
+    }
+
+    class PaypalWebhookHandler {
+        +processWebhook(payload)
+        +validateSignature(payload, signature)
+        +extractBusinessData(payload)
+        +publishEvent(eventData)
+        +saveWebhookLog(webhookData)
+        +checkIdempotency(idempotencyKey)
+    }
+
+    class SepayWebhookHandler {
+        +processWebhook(payload)
+        +validateSignature(payload, signature)
+        +extractBusinessData(payload)
+        +publishEvent(eventData)
+        +saveWebhookLog(webhookData)
+        +checkIdempotency(idempotencyKey)
+    }
+
+    class WebhookValidator {
+        +validatePaypalPayload(payload)
+        +validateSepayPayload(payload)
+        +validateEventStructure(event)
+        +validateRequiredFields(data, fields)
+        +sanitizeInput(data)
+    }
+
+    class IdempotencyService {
+        +checkIdempotency(key)
+        +markAsProcessed(key, ttl)
+        +generateIdempotencyKey(payload)
+        +isDuplicate(key)
+        +cleanupExpiredKeys()
+    }
+
+    class EventPublisher {
+        +publishPaypalEvent(eventData)
+        +publishSepayEvent(eventData)
+        +publishPaymentCompletedEvent(eventData)
+        +publishPaymentFailedEvent(eventData)
+        +publishRefundEvent(eventData)
+        +getPublishingStatus()
+    }
+
+    class WebhookRepository {
+        +savePaypalWebhook(webhookData)
+        +saveSepayWebhook(webhookData)
+        +getWebhookById(webhookId)
+        +getWebhooksByStatus(status)
+        +getWebhooksByDateRange(startDate, endDate)
+        +updateWebhookStatus(webhookId, status)
+        +getFailedWebhooks(limit)
+    }
+
+    class StatisticsService {
+        +getPaypalStatistics(startDate, endDate)
+        +getSepayStatistics(startDate, endDate)
+        +getCombinedStatistics(startDate, endDate)
+        +calculateSuccessRate(webhooks)
+        +calculateProcessingTime(webhooks)
+        +getEventTypeDistribution(webhooks)
+    }
+
+    class RetryService {
+        +retryFailedPaypalWebhooks(limit)
+        +retryFailedSepayWebhooks(limit)
+        +retryWebhook(webhookId)
+        +getRetryableWebhooks(limit)
+        +updateRetryCount(webhookId)
+        +isRetryable(webhook)
+    }
+
+    class WebhookController {
+        +handlePaypalWebhook(req, res)
+        +handleSepayWebhook(req, res)
+        +getHealth(req, res)
+        +getStatistics(req, res)
+        +getPaypalStatistics(req, res)
+        +getSepayStatistics(req, res)
+        +retryPaypalWebhooks(req, res)
+        +retrySepayWebhooks(req, res)
+    }
+
+    class HealthController {
+        +getHealth(req, res)
+        +getMetrics(req, res)
+        +getServiceStatus(req, res)
+    }
+
+    class PaypalWebhook {
+        +webhookId: String
+        +eventType: String
+        +resourceType: String
+        +resourceId: String
+        +rawPayload: Object
+        +status: String
+        +paypalData: Object
+        +eventsPublished: Array
+        +idempotencyKey: String
+        +signatureVerified: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class SepayWebhook {
+        +webhookId: String
+        +eventType: String
+        +resourceType: String
+        +resourceId: String
+        +rawPayload: Object
+        +status: String
+        +sepayData: Object
+        +eventsPublished: Array
+        +idempotencyKey: String
+        +signatureVerified: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class WebhookEvent {
+        +eventId: String
+        +provider: String
+        +eventType: String
+        +resourceId: String
+        +eventData: Object
+        +publishedAt: Date
+        +messageId: String
+        +success: Boolean
+        +errorMessage: String
+    }
+
+    class WebhookStatistics {
+        +provider: String
+        +totalWebhooks: Integer
+        +successfulWebhooks: Integer
+        +failedWebhooks: Integer
+        +successRate: Float
+        +averageProcessingTime: Float
+        +eventTypeDistribution: Object
+        +dateRange: Object
+    }
+
+    class DatabaseService {
+        +connect()
+        +disconnect()
+        +getConnectionStatus()
+        +getCollection(collectionName)
+        +createIndex(collection, index)
+        +getDatabaseStats()
+    }
+
+    class RedisService {
+        +connect()
+        +disconnect()
+        +get(key)
+        +set(key, value, ttl)
+        +delete(key)
+        +exists(key)
+        +getConnectionStatus()
+    }
+
+    class KafkaService {
+        +connect()
+        +disconnect()
+        +publish(topic, message)
+        +getProducerStatus()
+        +getConnectionStatus()
+    }
+
+    WebhookService --> PaypalWebhookHandler : uses
+    WebhookService --> SepayWebhookHandler : uses
+    WebhookService --> StatisticsService : uses
+    WebhookService --> RetryService : uses
+
+    PaypalWebhookHandler --> WebhookValidator : uses
+    PaypalWebhookHandler --> IdempotencyService : uses
+    PaypalWebhookHandler --> EventPublisher : uses
+    PaypalWebhookHandler --> WebhookRepository : uses
+
+    SepayWebhookHandler --> WebhookValidator : uses
+    SepayWebhookHandler --> IdempotencyService : uses
+    SepayWebhookHandler --> EventPublisher : uses
+    SepayWebhookHandler --> WebhookRepository : uses
+
+    WebhookController --> WebhookService : uses
+    HealthController --> WebhookService : uses
+
+    WebhookRepository --> PaypalWebhook : manages
+    WebhookRepository --> SepayWebhook : manages
+    WebhookRepository --> DatabaseService : uses
+
+    EventPublisher --> WebhookEvent : creates
+    EventPublisher --> KafkaService : uses
+
+    IdempotencyService --> RedisService : uses
+
+    StatisticsService --> WebhookStatistics : creates
+    StatisticsService --> WebhookRepository : uses
+
+    RetryService --> WebhookRepository : uses
+    RetryService --> PaypalWebhookHandler : uses
+    RetryService --> SepayWebhookHandler : uses
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR
@@ -306,3 +521,85 @@ erDiagram
 | RETRY_ERROR | 500 | Retry operation failed | `{success: false, error: "RETRY_ERROR", message: "..."}` |
 
 * **License & 3rd-party:** MIT License, dependencies listed in package.json
+
+---
+
+## 14. Cập nhật 2025-09-17 (Chuẩn hoá theo code hiện tại)
+
+- Endpoints thực tế:
+  - PayPal: `POST /webhook/paypal`, `GET /webhook/health`, `GET /webhook/statistics`, `POST /webhook/retry`
+  - Sepay: `POST /webhook/sepay`, `GET /webhook/health`, `GET /webhook/statistics`, `POST /webhook/retry`
+  - Generic: `GET /health`, `GET /statistics`, `GET /metrics`
+- Security/operational:
+  - Rate limiting bật cho POST webhook
+  - CORS dev cho PayPal domains và `API_GATEWAY_ORIGIN`; prod do Nginx xử lý
+  - Signature validation middleware có sẵn nhưng tắt trong dev; bật ở prod
+- Kafka topics:
+  - Chính: `paypal.webhook.event`, `sepay.webhook.event`
+  - Legacy (giữ tương thích, không dùng cho tích hợp mới):
+    `paypal.payment.completed`, `paypal.payment.failed`, `sepay.payment.completed`, `sepay.payment.failed`, `sepay.payment.pending`, `paypal.refund.completed`, `sepay.refund.completed`
+
+### 14.1 Luồng tổng quan (Mermaid)
+```mermaid
+sequenceDiagram
+  participant GW as Provider (PayPal/Sepay)
+  participant WH as Webhook Service
+  participant RD as Redis (Idempotency)
+  participant DB as MongoDB (Audit)
+  participant KF as Kafka
+
+  GW->>WH: POST /webhook/(paypal|sepay)
+  WH->>RD: Check idempotency
+  alt Duplicate
+    RD-->>WH: exists
+    WH-->>GW: 200 duplicate
+  else New
+    RD-->>WH: not found
+    WH->>DB: Save raw payload
+    WH->>KF: Publish *.webhook.event
+    WH->>RD: Mark processed (TTL)
+    WH-->>GW: 200 OK
+  end
+```
+
+### 14.2 Kafka topology (Mermaid)
+```mermaid
+graph TB
+  subgraph Providers
+    PPL["PayPal"]
+    SPY["Sepay"]
+  end
+  subgraph Webhook Service
+    WH["webhook-service"]
+  end
+  subgraph Topics
+    PWE[paypal.webhook.event]
+    SWE[sepay.webhook.event]
+    PPC[paypal.payment.completed]:::legacy
+    PPF[paypal.payment.failed]:::legacy
+    SPC[sepay.payment.completed]:::legacy
+    SPF[sepay.payment.failed]:::legacy
+    SPP[sepay.payment.pending]:::legacy
+    PRC[paypal.refund.completed]:::legacy
+    SRC[sepay.refund.completed]:::legacy
+  end
+  subgraph Consumers
+    PS["payment-service"]
+  end
+
+  PPL --> WH
+  SPY --> WH
+  WH --> PWE
+  WH --> SWE
+  WH -. legacy .-> PPC
+  WH -. legacy .-> PPF
+  WH -. legacy .-> SPC
+  WH -. legacy .-> SPF
+  WH -. legacy .-> SPP
+  WH -. legacy .-> PRC
+  WH -. legacy .-> SRC
+  PS --> PWE
+  PS --> SWE
+
+  classDef legacy fill:#fff5,stroke:#bbb,color:#666;
+```

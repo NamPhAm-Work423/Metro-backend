@@ -1,47 +1,168 @@
 const fareService = require('../services/fare.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const { logger } = require('../config/logger');
+const { addCustomSpan } = require('../tracing');
 
 class FareController {
     // POST /v1/fares
     createFare = asyncErrorHandler(async (req, res, next) => {
-        try {
+        await addCustomSpan('fare.create', async (span) => {
             const fareData = req.body;
-            const fare = await fareService.createFare(fareData);
+            
+            span.setAttributes({
+                'operation.type': 'create',
+                'operation.entity': 'fare',
+                'fare.type': fareData.fareType || 'unknown',
+                'fare.start_station': fareData.startStationId,
+                'fare.end_station': fareData.endStationId,
+                'fare.price': fareData.price || 0,
+                'request.authenticated': !!req.user,
+                'user.id': req.user?.id || 'unknown'
+            });
 
-            return res.status(201).json({
-            success: true,
-                message: 'Fare created successfully',
-                data: fare
-            });
-        } catch (error) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-                error: 'INTERNAL_ERROR_CREATE_FARE'
-            });
-        }
+            try {
+                logger.traceInfo('Creating fare', {
+                    fareData: {
+                        fareType: fareData.fareType,
+                        startStationId: fareData.startStationId,
+                        endStationId: fareData.endStationId,
+                        price: fareData.price
+                    },
+                    requestedBy: req.user?.id
+                });
+
+                const fare = await addCustomSpan('fare.service.create', async (serviceSpan) => {
+                    serviceSpan.setAttributes({
+                        'service.operation': 'create_fare',
+                        'fare.type': fareData.fareType,
+                        'fare.price': fareData.price
+                    });
+                    
+                    const result = await fareService.createFare(fareData);
+                    
+                    serviceSpan.setAttributes({
+                        'service.success': !!result,
+                        'fare.created_id': result?.fareId || 'unknown'
+                    });
+                    
+                    return result;
+                });
+
+                span.setAttributes({
+                    'operation.success': true,
+                    'fare.created_id': fare.fareId,
+                    'http.status_code': 201
+                });
+
+                logger.traceInfo('Fare created successfully', {
+                    fareId: fare.fareId,
+                    fareType: fare.fareType,
+                    price: fare.price
+                });
+
+                return res.status(201).json({
+                success: true,
+                    message: 'Fare created successfully',
+                    data: fare
+                });
+            } catch (error) {
+                span.recordException(error);
+                span.setAttributes({
+                    'operation.success': false,
+                    'error.type': error.constructor.name,
+                    'error.message': error.message,
+                    'http.status_code': 400
+                });
+
+                logger.traceError('Failed to create fare', error, {
+                    fareData,
+                    requestedBy: req.user?.id
+                });
+
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INTERNAL_ERROR_CREATE_FARE'
+                });
+            }
+        });
     });
 
     // GET /v1/fares
     getAllFares = asyncErrorHandler(async (req, res, next) => {
-        try {
-            const filters = req.query;
-            const fares = await fareService.getAllFares(filters);
-        
-            return res.status(200).json({
-                success: true,
-                message: 'Fares retrieved successfully',
-                data: fares,
-                    count: fares.length
+        await addCustomSpan('fare.get-all', async (span) => {
+            span.setAttributes({
+                'operation.type': 'read',
+                'operation.entity': 'fare',
+                'operation.scope': 'all',
+                'query.has_filters': Object.keys(req.query || {}).length > 0,
+                'request.authenticated': !!req.user,
+                'user.id': req.user?.id || 'unknown'
             });
-        } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: error.message,
-                error: 'INTERNAL_ERROR_GET_ALL_FARES'
-            });
-        }
+
+            try {
+                const filters = req.query;
+                
+                logger.traceInfo('Fetching all fares', {
+                    filters,
+                    requestedBy: req.user?.id
+                });
+
+                const fares = await addCustomSpan('fare.service.get-all', async (serviceSpan) => {
+                    serviceSpan.setAttributes({
+                        'service.operation': 'get_all_fares',
+                        'query.filters': JSON.stringify(filters || {})
+                    });
+                    
+                    const result = await fareService.getAllFares(filters);
+                    
+                    serviceSpan.setAttributes({
+                        'service.success': true,
+                        'fares.count': result.length,
+                        'fares.found': result.length > 0
+                    });
+                    
+                    return result;
+                });
+
+                span.setAttributes({
+                    'operation.success': true,
+                    'response.fares_count': fares.length,
+                    'http.status_code': 200
+                });
+
+                logger.traceInfo('Fares retrieved successfully', {
+                    faresCount: fares.length,
+                    filters
+                });
+            
+                return res.status(200).json({
+                    success: true,
+                    message: 'Fares retrieved successfully',
+                    data: fares,
+                        count: fares.length
+                });
+            } catch (error) {
+                span.recordException(error);
+                span.setAttributes({
+                    'operation.success': false,
+                    'error.type': error.constructor.name,
+                    'error.message': error.message,
+                    'http.status_code': 500
+                });
+
+                logger.traceError('Failed to retrieve fares', error, {
+                    filters: req.query,
+                    requestedBy: req.user?.id
+                });
+
+                return res.status(500).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INTERNAL_ERROR_GET_ALL_FARES'
+                });
+            }
+        });
     });
 
     // GET /v1/fares/getAllActiveFares

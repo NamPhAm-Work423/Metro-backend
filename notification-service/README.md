@@ -36,7 +36,221 @@ sequenceDiagram
   NS->>DB: log notification
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class NotificationService {
+        +sendEmail(params)
+        +sendSms(params)
+        +logNotification(notificationData)
+        +extractCountryCode(phoneNumber)
+    }
+
+    class EmailProvider {
+        <<interface>>
+        +sendEmail(emailData)
+        +validateEmail(email)
+        +getProviderStatus()
+    }
+
+    class SmsProvider {
+        <<interface>>
+        +sendSms(smsData)
+        +validatePhoneNumber(phone)
+        +getProviderStatus()
+    }
+
+    class ResendEmailProvider {
+        +sendEmail(emailData)
+        +validateEmail(email)
+        +getProviderStatus()
+        +retryEmail(emailId)
+    }
+
+    class VonageSmsProvider {
+        +sendSms(smsData)
+        +validatePhoneNumber(phone)
+        +getProviderStatus()
+        +retrySms(smsId)
+    }
+
+    class TemplateService {
+        +renderTemplate(templateName, variables)
+        +getTemplate(templateName)
+        +validateTemplate(templateName)
+        +compileTemplate(templateContent)
+    }
+
+    class NotificationEventConsumer {
+        +start()
+        +stop()
+        +handleNotificationEvent(event)
+        +handleAuthWelcomeEmail(event)
+        +handleAuthVerificationEmail(event)
+        +handleAuthPasswordResetEmail(event)
+        +handleTicketActivated(event)
+        +handleTicketCreated(event)
+        +handleTicketCancelled(event)
+        +handleTicketExpired(event)
+        +handleTicketUsed(event)
+        +handleTicketExpiringSoon(event)
+        +handleStationEvent(event)
+    }
+
+    class QrStorageProducer {
+        +publishQrImage(ticketId, qrImageData)
+        +publishQrUrl(ticketId, qrUrl)
+        +publishQrError(ticketId, error)
+    }
+
+    class PassengerSyncProducer {
+        +publishSyncRequest(userId, email)
+        +publishSyncComplete(userId, success)
+    }
+
+    class TicketGrpcClient {
+        +getTicketsByRoutes(routeIds, statuses)
+        +getTicketsByPassengerIds(passengerIds)
+        +getTicketById(ticketId)
+    }
+
+    class UserGrpcClient {
+        +getPassengersByIds(passengerIds)
+        +getPassengerPhoneNumbers(passengerIds)
+        +getPassengerById(passengerId)
+        +updatePassengerPreferences(passengerId, preferences)
+    }
+
+    class EmailController {
+        +getAllEmails(req, res)
+        +getEmailStats(req, res)
+        +getEmailById(req, res)
+        +getEmailTimeline(req, res)
+        +getEmailByRecipient(req, res)
+        +retryEmail(req, res)
+    }
+
+    class SmsController {
+        +getAllSMS(req, res)
+        +getSMSStats(req, res)
+        +getSMSCosts(req, res)
+        +getSMSById(req, res)
+        +getSMSTimeline(req, res)
+        +getSMSByRecipient(req, res)
+        +retrySMS(req, res)
+    }
+
+    class NotificationController {
+        +getHealth(req, res)
+        +getMetrics(req, res)
+        +getServiceHealth(req, res)
+    }
+
+    class Email {
+        +id: UUID
+        +provider: String
+        +providerMessageId: String
+        +toEmail: String
+        +fromEmail: String
+        +subject: String
+        +htmlContent: Text
+        +textContent: Text
+        +template: String
+        +variables: JSON
+        +status: Enum
+        +errorMessage: Text
+        +providerResponse: JSON
+        +userId: UUID
+        +category: String
+        +priority: Enum
+        +hasAttachments: Boolean
+        +attachmentCount: Integer
+        +scheduledAt: Date
+        +sentAt: Date
+        +deliveredAt: Date
+        +openedAt: Date
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Sms {
+        +id: UUID
+        +provider: String
+        +providerMessageId: String
+        +toPhoneNumber: String
+        +fromSenderId: String
+        +textContent: Text
+        +messageLength: Integer
+        +segmentCount: Integer
+        +template: String
+        +variables: JSON
+        +status: Enum
+        +errorMessage: Text
+        +providerResponse: JSON
+        +cost: Decimal
+        +currency: String
+        +userId: UUID
+        +category: String
+        +priority: Enum
+        +countryCode: String
+        +scheduledAt: Date
+        +sentAt: Date
+        +deliveredAt: Date
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class QrCodeGenerator {
+        +generateQrCode(ticketId, qrData)
+        +generateQrImage(qrCode)
+        +saveQrImage(ticketId, qrImage)
+        +getQrUrl(ticketId)
+    }
+
+    class NotificationMetrics {
+        +incrementNotificationsSent(channel, status)
+        +incrementNotificationsFailed(channel, error)
+        +recordNotificationLatency(channel, duration)
+        +getMetrics()
+    }
+
+    class CacheService {
+        +get(key)
+        +set(key, value, ttl)
+        +delete(key)
+        +clear()
+        +getPassengerCache(userId)
+        +setPassengerCache(userId, data)
+    }
+
+    NotificationService --> EmailProvider : uses
+    NotificationService --> SmsProvider : uses
+    NotificationService --> TemplateService : uses
+    NotificationService --> QrCodeGenerator : uses
+    NotificationService --> NotificationMetrics : uses
+
+    ResendEmailProvider ..|> EmailProvider : implements
+    VonageSmsProvider ..|> SmsProvider : implements
+
+    NotificationEventConsumer --> NotificationService : uses
+    NotificationEventConsumer --> TicketGrpcClient : uses
+    NotificationEventConsumer --> UserGrpcClient : uses
+    NotificationEventConsumer --> QrStorageProducer : uses
+    NotificationEventConsumer --> PassengerSyncProducer : uses
+
+    EmailController --> NotificationService : uses
+    SmsController --> NotificationService : uses
+    NotificationController --> NotificationMetrics : uses
+
+    NotificationService --> Email : manages
+    NotificationService --> Sms : manages
+
+    QrCodeGenerator --> QrStorageProducer : uses
+    CacheService --> UserGrpcClient : uses
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

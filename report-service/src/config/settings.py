@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     HOST: str = Field(default="0.0.0.0")
     PORT: int = Field(default=8007)
 
+    # Seed
+    SEED_ON_STARTUP: bool = Field(default=False, description="Run seed data generation on service startup")
+
     # Database
     DATABASE_URL: str = Field(default="postgresql://postgres:password@localhost:5432/metro_report")
 

@@ -1,4 +1,5 @@
 const ITransitPassService = require('../interfaces/ITransitPassService');
+const { logger } = require('../../../config/logger');
 const TransitPassRepository = require('../repositories/TransitPassRepository');
 const {
   publishTransitPassCreated,

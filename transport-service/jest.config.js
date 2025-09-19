@@ -5,7 +5,9 @@ module.exports = {
   moduleFileExtensions: ['js', 'json'],
   collectCoverage: true,
   collectCoverageFrom: [
-    'src/services/**/*.js'
+    'src/services/**/*.js',
+    'src/controllers/**/*.js',
+    'src/routes/**/*.js'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
@@ -25,10 +27,13 @@ module.exports = {
     '^\.{1,2}/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
     '^.+/src/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
     '^src/models/index\\.model$': '<rootDir>/test/mocks/models.mock.js',
+    // Mock kafka producer to silence KafkaJS warnings and external connections
+    '^src/kafka/kafkaProducer$': '<rootDir>/test/mocks/kafkaProducer.mock.js',
     // Bypass auth middleware for route tests
     '^\\.{1,2}/middlewares/authorization$': '<rootDir>/test/mocks/authorization.mock.js',
     '^src/middlewares/authorization$': '<rootDir>/test/mocks/authorization.mock.js',
   },
+  setupFilesAfterEnv: ['<rootDir>/test/setupEnv.js'],
 };
 
 

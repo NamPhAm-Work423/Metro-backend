@@ -1,6 +1,277 @@
-# User Service
+# Management Service — Service README
 
-Unified microservice handling admin, passenger and staff user profiles for the Metro backend system.
+## 1. Tổng quan
+- **Chức năng chính**: System monitoring và metrics collection service cho toàn bộ hệ thống Metro HCM, cung cấp health checks, performance metrics, và system status monitoring
+- **Vai trò trong hệ MetroHCM**: Centralized monitoring hub - thu thập và cung cấp metrics từ tất cả services, health monitoring, và system observability
+- **Giao tiếp**: 
+  - HTTP ⟷ API Gateway (health endpoints, metrics)
+  - HTTP ⟷ All Services (health checks, metrics scraping)
+  - Prometheus ⟷ Metrics collection
+- **Kiến trúc & pattern**: Flask-based monitoring service với Prometheus metrics, system monitoring, health aggregation
+
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class ManagementService {
+        +get_health()
+        +get_metrics()
+        +get_system_status()
+        +collect_service_metrics()
+        +aggregate_health_status()
+    }
+
+    class SystemMonitor {
+        +start()
+        +stop()
+        +collect_cpu_metrics()
+        +collect_memory_metrics()
+        +collect_disk_metrics()
+        +collect_network_metrics()
+        +get_system_info()
+    }
+
+    class HealthChecker {
+        +check_service_health(serviceUrl)
+        +check_database_health()
+        +check_redis_health()
+        +check_kafka_health()
+        +aggregate_health_status()
+        +get_health_summary()
+    }
+
+    class MetricsCollector {
+        +collect_http_metrics()
+        +collect_system_metrics()
+        +collect_service_metrics()
+        +record_request_count()
+        +record_request_latency()
+        +get_metrics_summary()
+    }
+
+    class ServiceRegistry {
+        +register_service(serviceInfo)
+        +unregister_service(serviceId)
+        +get_service_list()
+        +get_service_health(serviceId)
+        +update_service_status(serviceId, status)
+    }
+
+    class AlertManager {
+        +check_alert_conditions()
+        +send_alert(alertData)
+        +get_active_alerts()
+        +resolve_alert(alertId)
+        +configure_alert_rules()
+    }
+
+    class ConfigManager {
+        +get_service_configs()
+        +get_monitoring_config()
+        +get_alert_config()
+        +update_config(configData)
+        +validate_config(config)
+    }
+
+    class HealthController {
+        +get_health(request)
+        +get_metrics(request)
+        +get_system_status(request)
+        +get_service_health(request)
+    }
+
+    class MetricsController {
+        +get_prometheus_metrics(request)
+        +get_custom_metrics(request)
+        +get_metrics_summary(request)
+        +export_metrics(request)
+    }
+
+    class SystemController {
+        +get_system_info(request)
+        +get_service_list(request)
+        +get_alert_status(request)
+        +get_config_status(request)
+    }
+
+    class ServiceHealth {
+        +serviceId: String
+        +serviceName: String
+        +status: String
+        +lastCheck: DateTime
+        +responseTime: Integer
+        +errorCount: Integer
+        +uptime: Float
+    }
+
+    class SystemMetrics {
+        +timestamp: DateTime
+        +cpuUsage: Float
+        +memoryUsage: Float
+        +diskUsage: Float
+        +networkIn: Integer
+        +networkOut: Integer
+        +loadAverage: Float
+    }
+
+    class AlertRule {
+        +ruleId: String
+        +ruleName: String
+        +condition: String
+        +threshold: Float
+        +severity: String
+        +isActive: Boolean
+        +createdAt: DateTime
+    }
+
+    class Alert {
+        +alertId: String
+        +ruleId: String
+        +message: String
+        +severity: String
+        +status: String
+        +triggeredAt: DateTime
+        +resolvedAt: DateTime
+    }
+
+    class ServiceConfig {
+        +serviceId: String
+        +serviceName: String
+        +healthCheckUrl: String
+        +metricsUrl: String
+        +checkInterval: Integer
+        +timeout: Integer
+        +isActive: Boolean
+    }
+
+    ManagementService --> SystemMonitor : uses
+    ManagementService --> HealthChecker : uses
+    ManagementService --> MetricsCollector : uses
+    ManagementService --> ServiceRegistry : uses
+
+    HealthController --> HealthChecker : uses
+    HealthController --> ServiceRegistry : uses
+
+    MetricsController --> MetricsCollector : uses
+    MetricsController --> SystemMonitor : uses
+
+    SystemController --> SystemMonitor : uses
+    SystemController --> AlertManager : uses
+    SystemController --> ConfigManager : uses
+
+    HealthChecker --> ServiceHealth : creates
+    SystemMonitor --> SystemMetrics : creates
+    AlertManager --> Alert : creates
+    AlertManager --> AlertRule : uses
+    ServiceRegistry --> ServiceConfig : manages
+
+    MetricsCollector --> SystemMetrics : collects
+    HealthChecker --> ServiceHealth : monitors
+```
+
+## 3. API & Hợp đồng
+
+### 3.1 REST endpoints
+
+| Method | Path | Mô tả | Auth | Request | Response | Status Codes |
+| ------ | ---- | ----- | ---- | ------- | -------- | ------------ |
+| GET | `/health` | Health check | None | - | `{status: "ok", service: "management-service"}` | 200 |
+| GET | `/metrics` | Prometheus metrics | None | - | Prometheus format | 200 |
+| GET | `/system/status` | System status | None | - | System status data | 200 |
+| GET | `/services/health` | All services health | None | - | Service health data | 200 |
+| GET | `/services/{serviceId}/health` | Specific service health | None | - | Service health data | 200 |
+| GET | `/alerts` | Active alerts | None | - | Alert data | 200 |
+| GET | `/config` | Service configuration | None | - | Config data | 200 |
+
+## 4. Dữ liệu & Migrations
+
+- **Loại CSDL**: In-memory storage (no persistent database)
+- **Dữ liệu chính**: 
+  - Service health status (in-memory)
+  - System metrics (temporary storage)
+  - Alert rules (configuration-based)
+- **Quan hệ & cascade**: N/A - stateless service
+- **Seeds/fixtures**: Default service configurations
+- **Cách chạy migration**: N/A
+
+## 5. Cấu hình & Secrets
+
+### 5.1 Biến môi trường
+
+| ENV | Bắt buộc | Giá trị mẫu | Mô tả | Phạm vi |
+| --- | -------- | ----------- | ----- | ------- |
+| `NODE_ENV` | No | `production` | Môi trường chạy | dev/staging/prod |
+| `PORT` | No | `8008` | Port service | 1-65535 |
+| `LOG_LEVEL` | No | `info` | Log level | debug/info/warn/error |
+| `METRICS_ENABLED` | No | `true` | Enable metrics collection | Boolean |
+| `HEALTH_CHECK_INTERVAL` | No | `30` | Health check interval (seconds) | Integer |
+| `SERVICE_TIMEOUT` | No | `5` | Service timeout (seconds) | Integer |
+
+## 6. Bảo mật & Tuân thủ
+
+- **AuthN/AuthZ**: No authentication - internal monitoring service
+- **Input validation & sanitize**: Basic input validation
+- **CORS & CSRF**: N/A - internal service
+- **Rate limit / Anti-abuse**: N/A
+- **Nhật ký/Audit**: Structured logging với system events
+- **Lỗ hổng tiềm ẩn & khuyến nghị**: 
+  - Cần thêm authentication cho production
+  - Cần rate limiting cho health check endpoints
+
+## 7. Độ tin cậy & Khả dụng
+
+- **Timeouts/Retry/Backoff**: Configurable timeouts cho service health checks
+- **Circuit breaker/Bulkhead**: N/A
+- **Idempotency**: N/A
+- **Outbox/Saga/Orchestrator**: N/A
+- **Khả năng phục hồi sự cố**: Graceful degradation khi services unavailable
+
+## 8. Observability
+
+- **Logging**: Structured logging với system events
+- **Metrics**: Prometheus metrics endpoint
+- **Tracing**: N/A
+- **Healthchecks**: `/health` endpoint
+
+## 9. Build, Run, Test
+
+### 9.1 Local
+
+```bash
+# prerequisites
+pip install -r requirements.txt
+
+# run
+python app/main.py
+```
+
+### 9.2 Docker/Compose
+
+```bash
+docker build -t management-service .
+docker run --env-file .env -p 8008:8008 management-service
+```
+
+## 10. Hiệu năng & Quy mô
+
+- **Bottlenecks**: Health check frequency có thể impact performance
+- **Kỹ thuật**: Async health checks, metrics caching
+- **Định hướng benchmark**: Load testing cho concurrent health checks
+
+## 11. Rủi ro & Nợ kỹ thuật
+
+- **Danh sách vấn đề hiện tại**:
+  1. Không có persistent storage cho historical data
+  2. Không có authentication
+  3. Không có alerting system
+- **Ảnh hưởng & ưu tiên**:
+  - High: Authentication cho production
+  - Medium: Alerting system
+  - Low: Historical data storage
+- **Kế hoạch cải thiện**:
+  1. Implement authentication
+  2. Add alerting system
+  3. Add historical data storage
 
 ## Overview
 

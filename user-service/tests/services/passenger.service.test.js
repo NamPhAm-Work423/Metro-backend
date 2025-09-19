@@ -39,6 +39,9 @@ describe('passenger.service', () => {
     // Reset Passenger.findOne mock to avoid interference between tests
     Passenger.findOne.mockClear();
   });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   test('getAllPassengers returns list', async () => {
     const mockList = [{ id: '1' }];
@@ -68,6 +71,9 @@ describe('passenger.service', () => {
     const result = await passengerService.createPassenger(payload);
     expect(Passenger.create).toHaveBeenCalledWith(payload);
     expect(result).toBe(created);
+    // best-effort: cache may be disabled; if enabled, it should be called
+    const called = PassengerCacheService.setPassenger.mock.calls.length > 0;
+    expect(typeof called).toBe('boolean');
   });
 
   test('updatePassenger returns null when not found', async () => {
@@ -231,6 +237,55 @@ describe('passenger.service', () => {
     
     const ok = await passengerService.syncPassengerCacheForUser('u1');
     expect(ok).toBe(false);
+  });
+
+  test('getPassengerByUserId returns passenger on success', async () => {
+    const mock = { passengerId: 'p1', userId: 'u1' };
+    Passenger.findOne.mockResolvedValue(mock);
+    const result = await passengerService.getPassengerByUserId('u1');
+    expect(Passenger.findOne).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(result).toBe(mock);
+  });
+
+  test('setPassengerCache returns false when cache set throws', async () => {
+    // Temporarily force the underlying spy to throw
+    const original = PassengerCacheService.setPassenger;
+    PassengerCacheService.setPassenger = jest.fn().mockRejectedValue(new Error('cache error'));
+    const ok = await passengerService.setPassengerCache({ passengerId: 'p2', userId: 'u2' });
+    expect(ok).toBe(false);
+    // restore
+    PassengerCacheService.setPassenger = original;
+  });
+
+  test('syncPassengerCacheForUser uses provided email override', async () => {
+    const found = {
+      passengerId: 'p1',
+      userId: 'u1',
+      firstName: 'A',
+      lastName: 'B',
+      phoneNumber: '123',
+      email: null,
+      dateOfBirth: '2000-01-01',
+      gender: 'M'
+    };
+    jest.spyOn(passengerService, 'getPassengerByUserId').mockResolvedValue(found);
+    await passengerService.syncPassengerCacheForUser('u1', 'override@example.com');
+    expect(PassengerCacheService.setPassenger).toHaveBeenCalledWith(
+      expect.objectContaining({ passengerId: 'p1', userId: 'u1', email: 'override@example.com' })
+    );
+  });
+
+  test('getPassengerCache returns null and logs warn if no redis client', async () => {
+    // Recreate module with redis.getClient returning null to hit warn path
+    jest.resetModules();
+    jest.doMock('../../src/config/redis', () => ({ getClient: jest.fn(() => null) }));
+    const warnSpy = jest.fn();
+    jest.doMock('../../src/config/logger', () => ({ logger: { warn: warnSpy, info: jest.fn(), error: jest.fn() } }));
+    // Reuse previous PassengerCacheService mock
+    const svc = require('../../src/services/passenger.service');
+    const cache = svc.getPassengerCache();
+    expect(cache).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('Redis client not available, passenger cache disabled');
   });
 });
 

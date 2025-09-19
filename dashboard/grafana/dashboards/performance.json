@@ -1,0 +1,291 @@
+{
+  "uid": "performance",
+  "title": "Metro Performance & SLA Dashboard",
+  "tags": ["metro", "performance", "sla", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 37,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Overall Uptime %",
+      "gridPos": {"w": 6, "h": 4, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "percent",
+          "min": 95,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 95},
+              {"color": "yellow", "value": 99},
+              {"color": "green", "value": 99.5}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(up{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}) * 100",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Average Response Time",
+      "gridPos": {"w": 6, "h": 4, "x": 6, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 300},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(http_request_duration_seconds{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}) * 1000",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Requests per Second",
+      "gridPos": {"w": 6, "h": 4, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "blue"},
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Error Budget Remaining",
+      "gridPos": {"w": 6, "h": 4, "x": 18, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "yellow", "value": 50},
+              {"color": "green", "value": 80}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "100 - (rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\",status=~\"5..\"}[24h]) / rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[24h]) * 100 / 0.1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "SLA Compliance - Response Time < 500ms",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 4},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "percent",
+          "min": 90,
+          "max": 100
+        }
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(http_request_duration_seconds_bucket{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\",le=\"0.5\"}[5m])) / sum(rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[5m]))) * 100",
+          "refId": "A",
+          "legendFormat": "Response Time SLA"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Error Rate by Service",
+      "gridPos": {"w": 12, "h": 8, "x": 12, "y": 4},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "percent",
+          "max": 10
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\",status=~\"5..\"}[5m]) / rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[5m]) * 100",
+          "refId": "A",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "heatmap",
+      "title": "Response Time Distribution",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 12},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_bucket{job=\"api-gateway\"}[5m])) by (le)",
+          "refId": "A",
+          "format": "heatmap",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Throughput vs Response Time",
+      "gridPos": {"w": 12, "h": 8, "x": 12, "y": 12},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Response Time"},
+            "properties": [
+              {"id": "unit", "value": "ms"},
+              {"id": "custom.axisPlacement", "value": "right"}
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"api-gateway\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "Throughput (req/s)"
+        },
+        {
+          "expr": "avg(http_request_duration_seconds{job=\"api-gateway\"}) * 1000",
+          "refId": "B",
+          "legendFormat": "Response Time"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Service Performance Summary",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 20},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (up{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"})",
+          "refId": "A",
+          "legendFormat": "{{job}}",
+          "format": "table"
+        },
+        {
+          "expr": "avg by (job) (http_request_duration_seconds{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}) * 1000",
+          "refId": "B",
+          "legendFormat": "{{job}}",
+          "format": "table"
+        },
+        {
+          "expr": "sum by (job) (rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[5m]))",
+          "refId": "C",
+          "legendFormat": "{{job}}",
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "job"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true},
+            "renameByName": {
+              "Value #A": "Status",
+              "Value #B": "Avg Response Time (ms)",
+              "Value #C": "Request Rate (req/s)",
+              "job": "Service"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "piechart",
+      "title": "Traffic Distribution by Service",
+      "gridPos": {"w": 12, "h": 8, "x": 12, "y": 20},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (rate(http_requests_total{job=~\"api-gateway|auth-service|user-service|transport-service|ticket-service|public-service|payment-service\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    }
+  ]
+}
+
+
+
+

@@ -1,6 +1,6 @@
 const { logger } = require('../../../config/logger');
 const IFareCalculator = require('../interfaces/IFareCalculator');
-const { PassengerDiscount } = require('../../../models/index.model');
+const { PassengerDiscount, Ticket } = require('../../../models/index.model');
 
 /**
  * Station-Based Fare Calculator - Single Responsibility: Calculate fares based on station count
@@ -372,7 +372,6 @@ class StationBasedFareCalculator extends IFareCalculator {
      */
     async validateExitStation(ticketId, exitStationId) {
         try {
-            const { Ticket } = require('../../models/index.model');
             const ticket = await Ticket.findByPk(ticketId);
             if (!ticket) {
                 throw new Error('Ticket not found');

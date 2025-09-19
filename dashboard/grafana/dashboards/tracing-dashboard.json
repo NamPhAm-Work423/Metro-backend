@@ -1,0 +1,240 @@
+{
+  "uid": "tracing-dashboard",
+  "title": "Metro Distributed Tracing Dashboard",
+  "tags": ["metro", "tracing", "jaeger", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 37,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Traces",
+      "gridPos": {"w": 6, "h": 4, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "blue"}
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(jaeger_collector_spans_received_total)",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Spans Per Second",
+      "gridPos": {"w": 6, "h": 4, "x": 6, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "green"},
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(jaeger_collector_spans_received_total[5m]))",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Active Services",
+      "gridPos": {"w": 6, "h": 4, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "purple"}
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(count by (service_name) (traces{}))",
+          "refId": "A",
+          "datasource": {
+            "type": "jaeger",
+            "uid": "jaeger"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg Trace Duration",
+      "gridPos": {"w": 6, "h": 4, "x": 18, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 500},
+              {"color": "red", "value": 2000}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(histogram_quantile(0.50, sum by (le) (rate(jaeger_query_trace_duration_seconds_bucket[5m])))) * 1000",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "jaeger",
+      "title": "Traces Search",
+      "gridPos": {"w": 24, "h": 12, "x": 0, "y": 4},
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "targets": [
+        {
+          "query": "{\"service\": \"api-gateway\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Request Rate by Service",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 16},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(traces{}[5m]))",
+          "refId": "A",
+          "datasource": {
+            "type": "jaeger",
+            "uid": "jaeger"
+          },
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Response Time Percentiles",
+      "gridPos": {"w": 12, "h": 8, "x": 12, "y": 16},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, service_name) (rate(traces_duration_seconds_bucket{}[5m]))) * 1000",
+          "refId": "A",
+          "legendFormat": "P50 {{service_name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(traces_duration_seconds_bucket{}[5m]))) * 1000",
+          "refId": "B", 
+          "legendFormat": "P95 {{service_name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(traces_duration_seconds_bucket{}[5m]))) * 1000",
+          "refId": "C",
+          "legendFormat": "P99 {{service_name}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "nodeGraph",
+      "title": "Service Dependency Graph",
+      "gridPos": {"w": 24, "h": 10, "x": 0, "y": 24},
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "targets": [
+        {
+          "query": "",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Top Slowest Operations",
+      "gridPos": {"w": 12, "h": 8, "x": 0, "y": 34},
+      "datasource": {
+        "type": "jaeger", 
+        "uid": "jaeger"
+      },
+      "targets": [
+        {
+          "query": "{\"operation\": \"\", \"limit\": 20}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Error Traces",
+      "gridPos": {"w": 12, "h": 8, "x": 12, "y": 34},
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "targets": [
+        {
+          "query": "{\"tags\": {\"error\": \"true\"}, \"limit\": 20}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    }
+  ]
+}

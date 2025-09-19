@@ -42,7 +42,204 @@ sequenceDiagram
   Note over USER: Admin profiles NOT auto-created (security)
 ```
 
-## 2. Sơ đồ hệ thống (Mermaid)
+## 2. Sơ đồ Class (Class Diagram)
+
+```mermaid
+classDiagram
+    class PassengerService {
+        +getAllPassengers()
+        +getPassengerById(id)
+        +getPassengersByIds(passengerIds)
+        +getPassengerByUserId(userId)
+        +createPassenger(passengerData)
+        +updatePassenger(userId, updateData)
+        +updatePassengerById(id, updateData)
+        +deletePassengerById(id)
+        +deletePassengerByUserId(userId)
+        +syncPassengerCacheForUser(userId, email)
+        +setPassengerCache(passengerData)
+        +getPassengerCache()
+    }
+
+    class AdminService {
+        +getAllAdmins()
+        +getAdminById(id)
+        +getAdminByUserId(userId)
+        +updateAdmin(id, updateData)
+        +createAdmin(adminData)
+        +deleteAdmin(id)
+    }
+
+    class StaffService {
+        +getAllStaff()
+        +getStaffById(id)
+        +getStaffByUserId(userId)
+        +createStaff(staffData)
+        +updateStaff(id, updateData)
+        +updateStaffStatus(id, isActive)
+        +deleteStaff(id)
+    }
+
+    class PassengerCacheService {
+        +getPassengerCache(userId)
+        +setPassengerCache(userId, data)
+        +deletePassengerCache(userId)
+        +clearAllCache()
+        +getCacheStats()
+    }
+
+    class UserEventConsumer {
+        +start()
+        +stop()
+        +handleUserCreated(event)
+        +handleUserLogin(event)
+        +handleUserDeleted(event)
+        +handlePassengerSyncRequest(event)
+    }
+
+    class UserEventProducer {
+        +publishPassengerDeleted(passengerData)
+        +publishStaffDeleted(staffData)
+        +publishPassengerCacheSync(passengerData)
+    }
+
+    class UserGrpcService {
+        +getPassengersByIds(request)
+        +getPassengerPhoneNumbers(request)
+        +getPassengerById(request)
+        +updatePassengerPreferences(request)
+    }
+
+    class AdminController {
+        +getAllAdmins(req, res)
+        +getAdminById(req, res)
+        +updateAdmin(req, res)
+        +getMe(req, res)
+    }
+
+    class PassengerController {
+        +getAllPassengers(req, res)
+        +getPassengerById(req, res)
+        +createPassenger(req, res)
+        +updatePassenger(req, res)
+        +deletePassenger(req, res)
+        +getMe(req, res)
+        +updateMe(req, res)
+        +deleteMe(req, res)
+    }
+
+    class StaffController {
+        +getAllStaff(req, res)
+        +getStaffById(req, res)
+        +createStaff(req, res)
+        +updateStaff(req, res)
+        +deleteStaff(req, res)
+        +updateStaffStatus(req, res)
+        +getMe(req, res)
+        +updateMe(req, res)
+        +deleteMe(req, res)
+    }
+
+    class HealthController {
+        +getHealth(req, res)
+        +getMetrics(req, res)
+    }
+
+    class Admin {
+        +adminId: UUID
+        +userId: UUID
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Passenger {
+        +passengerId: UUID
+        +userId: UUID
+        +username: String
+        +email: String
+        +firstName: String
+        +lastName: String
+        +phoneNumber: String
+        +dateOfBirth: Date
+        +gender: Enum
+        +address: Text
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Staff {
+        +staffId: UUID
+        +userId: UUID
+        +username: String
+        +email: String
+        +firstName: String
+        +lastName: String
+        +phoneNumber: String
+        +dateOfBirth: Date
+        +isActive: Boolean
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class UserMetrics {
+        +incrementUserCreated(userType)
+        +incrementUserDeleted(userType)
+        +incrementCacheHit()
+        +incrementCacheMiss()
+        +recordGrpcLatency(service, duration)
+        +getMetrics()
+    }
+
+    class DatabaseService {
+        +connect()
+        +disconnect()
+        +sync(force)
+        +getConnectionStatus()
+    }
+
+    class RedisService {
+        +connect()
+        +disconnect()
+        +get(key)
+        +set(key, value, ttl)
+        +delete(key)
+        +clear()
+        +getConnectionStatus()
+    }
+
+    PassengerService --> Passenger : manages
+    AdminService --> Admin : manages
+    StaffService --> Staff : manages
+
+    AdminController --> AdminService : uses
+    PassengerController --> PassengerService : uses
+    StaffController --> StaffService : uses
+    HealthController --> UserMetrics : uses
+
+    UserGrpcService --> PassengerService : uses
+    UserGrpcService --> UserMetrics : uses
+
+    UserEventConsumer --> PassengerService : uses
+    UserEventConsumer --> StaffService : uses
+    UserEventConsumer --> UserEventProducer : uses
+
+    UserEventProducer --> UserMetrics : uses
+
+    PassengerService --> PassengerCacheService : uses
+    PassengerService --> UserEventProducer : uses
+    PassengerService --> UserMetrics : uses
+
+    AdminService --> UserMetrics : uses
+    StaffService --> UserMetrics : uses
+
+    PassengerCacheService --> RedisService : uses
+    DatabaseService --> Admin : manages
+    DatabaseService --> Passenger : manages
+    DatabaseService --> Staff : manages
+```
+
+## 2.1 Sơ đồ hệ thống (Mermaid)
 
 ```mermaid
 graph LR

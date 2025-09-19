@@ -1,3 +1,7 @@
+# IMPORTANT: Tracing must be initialized FIRST before any other imports
+from tracing import setup_tracing
+setup_tracing()
+
 import uvicorn
 import os
 import asyncio

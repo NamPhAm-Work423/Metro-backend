@@ -100,6 +100,12 @@ describe('route.controller', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  test('getRoutesByStation handles 500', async () => {
+    routeService.getRoutesByStation.mockRejectedValue(new Error('db'));
+    await routeController.getRoutesByStation(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   test('findRoutesBetweenStations returns 200', async () => {
     routeService.findRoutesBetweenStations.mockResolvedValue([]);
     req.query = { originId: 'a', destinationId: 'b' };
@@ -107,11 +113,23 @@ describe('route.controller', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  test('findRoutesBetweenStations handles 500', async () => {
+    routeService.findRoutesBetweenStations.mockRejectedValue(new Error('db'));
+    await routeController.findRoutesBetweenStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   test('calculateRouteDistance returns 200', async () => {
     routeService.calculateRouteDistance.mockResolvedValue({ distance: 1 });
     req.params.id = 'r1';
     await routeController.calculateRouteDistance(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('calculateRouteDistance handles 500', async () => {
+    routeService.calculateRouteDistance.mockRejectedValue(new Error('db'));
+    await routeController.calculateRouteDistance(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });
 

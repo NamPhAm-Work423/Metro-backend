@@ -12,7 +12,7 @@ import asyncio
 import json
 
 from ..config.logger import logger
-from ..models.report_model import Report, ReportItem, ReportTemplate, ReportSchedule, ReportMetric
+from ..models.report_model import Report, ReportItem, ReportTemplate, ReportSchedule, EventLog, MetricSnapshot, TicketEventView
 from ..schemas.report_schema import (
     ReportCreate, ReportTemplateCreate, ReportScheduleCreate,
     ReportStatus, ItemType
@@ -31,7 +31,7 @@ class ReportService:
                 title=report_data.title,
                 description=report_data.description,
                 report_type=report_data.report_type.value,
-                metadata_json=report_data.metadata or {},
+                report_metadata=report_data.metadata or {},
                 status=ReportStatus.PENDING.value
             )
             
@@ -207,7 +207,7 @@ class ReportService:
     async def _generate_custom_report(self, report: Report):
         """Generate custom report based on metadata"""
         # Use metadata to determine report content
-        metadata = report.metadata_json or {}
+        metadata = report.report_metadata or {}
         data = {
             'custom_data': metadata.get('data', {}),
             'filters': metadata.get('filters', {}),
@@ -365,37 +365,37 @@ class ReportService:
             today = datetime.now().date()
 
             # Core KPIs from metrics
-            total_logins = self.db.query(func.count(ReportMetric.id)).filter(
-                ReportMetric.metric_name == 'user_login',
-                func.date(ReportMetric.timestamp) == today
+            total_logins = self.db.query(func.count(MetricSnapshot.id)).filter(
+                MetricSnapshot.metric_name == 'user_login',
+                func.date(MetricSnapshot.timestamp) == today
             ).scalar() or 0
-
-            total_registrations = self.db.query(func.count(ReportMetric.id)).filter(
-                ReportMetric.metric_name == 'user_registered',
-                func.date(ReportMetric.timestamp) == today
+            
+            total_registrations = self.db.query(func.count(MetricSnapshot.id)).filter(
+                MetricSnapshot.metric_name == 'user_registered',
+                func.date(MetricSnapshot.timestamp) == today
             ).scalar() or 0
-
-            tickets_activated = self.db.query(func.count(ReportMetric.id)).filter(
-                ReportMetric.metric_name == 'ticket_activated',
-                func.date(ReportMetric.timestamp) == today
+            
+            tickets_activated = self.db.query(func.count(MetricSnapshot.id)).filter(
+                MetricSnapshot.metric_name == 'ticket_activated',
+                func.date(MetricSnapshot.timestamp) == today
             ).scalar() or 0
-
-            tickets_used = self.db.query(func.count(ReportMetric.id)).filter(
-                ReportMetric.metric_name == 'ticket_used',
-                func.date(ReportMetric.timestamp) == today
+            
+            tickets_used = self.db.query(func.count(MetricSnapshot.id)).filter(
+                MetricSnapshot.metric_name == 'ticket_used',
+                func.date(MetricSnapshot.timestamp) == today
             ).scalar() or 0
 
             # Top stations by usage today
             top_stations = (
                 self.db.query(
-                    (ReportMetric.metadata_json['station_id'].astext).label('station_id'),
-                    func.count(ReportMetric.id).label('uses')
+                    (MetricSnapshot.event_data['station_id'].astext).label('station_id'),
+                    func.count(MetricSnapshot.id).label('uses')
                 )
                 .filter(
-                    ReportMetric.metric_name == 'ticket_used',
-                    func.date(ReportMetric.timestamp) == today
+                    MetricSnapshot.metric_name == 'ticket_used',
+                    func.date(MetricSnapshot.timestamp) == today
                 )
-                .group_by(ReportMetric.metadata_json['station_id'].astext)
+                .group_by(MetricSnapshot.event_data['station_id'].astext)
                 .order_by(desc('uses'))
                 .limit(5)
                 .all()
@@ -431,17 +431,17 @@ class ReportService:
             daily_series = []
             for i in range(7):
                 day = start_date + timedelta(days=i)
-                logins = self.db.query(func.count(ReportMetric.id)).filter(
-                    ReportMetric.metric_name == 'user_login',
-                    func.date(ReportMetric.timestamp) == day
+                logins = self.db.query(func.count(MetricSnapshot.id)).filter(
+                    MetricSnapshot.metric_name == 'user_login',
+                    func.date(MetricSnapshot.timestamp) == day
                 ).scalar() or 0
-                activations = self.db.query(func.count(ReportMetric.id)).filter(
-                    ReportMetric.metric_name == 'ticket_activated',
-                    func.date(ReportMetric.timestamp) == day
+                activations = self.db.query(func.count(MetricSnapshot.id)).filter(
+                    MetricSnapshot.metric_name == 'ticket_activated',
+                    func.date(MetricSnapshot.timestamp) == day
                 ).scalar() or 0
-                purchases = self.db.query(func.count(ReportMetric.id)).filter(
-                    ReportMetric.metric_name == 'ticket_created',
-                    func.date(ReportMetric.timestamp) == day
+                purchases = self.db.query(func.count(MetricSnapshot.id)).filter(
+                    MetricSnapshot.metric_name == 'ticket_created',
+                    func.date(MetricSnapshot.timestamp) == day
                 ).scalar() or 0
                 daily_series.append({
                     'date': day.strftime('%Y-%m-%d'),
@@ -471,24 +471,24 @@ class ReportService:
             # Top routes by purchases this month (from ticket_created)
             top_routes = (
                 self.db.query(
-                    (ReportMetric.metadata_json['route_id'].astext).label('route_id'),
-                    func.count(ReportMetric.id).label('tickets')
+                    (MetricSnapshot.event_data['route_id'].astext).label('route_id'),
+                    func.count(MetricSnapshot.id).label('tickets')
                 )
                 .filter(
-                    ReportMetric.metric_name == 'ticket_created',
-                    func.extract('month', ReportMetric.timestamp) == current_month,
-                    func.extract('year', ReportMetric.timestamp) == current_year
+                    MetricSnapshot.metric_name == 'ticket_created',
+                    func.extract('month', MetricSnapshot.timestamp) == current_month,
+                    func.extract('year', MetricSnapshot.timestamp) == current_year
                 )
-                .group_by(ReportMetric.metadata_json['route_id'].astext)
+                .group_by(MetricSnapshot.event_data['route_id'].astext)
                 .order_by(desc('tickets'))
                 .limit(10)
                 .all()
             )
 
-            total_purchases = self.db.query(func.count(ReportMetric.id)).filter(
-                ReportMetric.metric_name == 'ticket_created',
-                func.extract('month', ReportMetric.timestamp) == current_month,
-                func.extract('year', ReportMetric.timestamp) == current_year
+            total_purchases = self.db.query(func.count(MetricSnapshot.id)).filter(
+                MetricSnapshot.metric_name == 'ticket_created',
+                func.extract('month', MetricSnapshot.timestamp) == current_month,
+                func.extract('year', MetricSnapshot.timestamp) == current_year
             ).scalar() or 0
 
             return {

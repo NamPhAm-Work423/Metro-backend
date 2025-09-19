@@ -11,6 +11,45 @@ describe('station.controller', () => {
     jest.clearAllMocks();
   });
 
+  test('getActiveStations returns 200', async () => {
+    stationService.getActiveStations.mockResolvedValue([]);
+    await stationController.getActiveStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getActiveStations handles 500', async () => {
+    stationService.getActiveStations.mockRejectedValue(new Error('db'));
+    await stationController.getActiveStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('getStationsByOperatingHours returns 200', async () => {
+    stationService.getStationsByOperatingHours.mockResolvedValue([]);
+    req.query.currentTime = '12:00';
+    await stationController.getStationsByOperatingHours(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getStationsByOperatingHours handles 500', async () => {
+    stationService.getStationsByOperatingHours.mockRejectedValue(new Error('db'));
+    await stationController.getStationsByOperatingHours(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('updateStationFacilities returns 200', async () => {
+    stationService.updateStationFacilities.mockResolvedValue({});
+    req.params.id = 's1';
+    req.body.facilities = { wifi: true };
+    await stationController.updateStationFacilities(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('updateStationFacilities handles 400', async () => {
+    stationService.updateStationFacilities.mockRejectedValue(new Error('bad'));
+    await stationController.updateStationFacilities(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   test('getAllStations returns 200', async () => {
     stationService.getAllStations.mockResolvedValue([]);
     await stationController.getAllStations(req, res);

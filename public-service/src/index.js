@@ -1,3 +1,6 @@
+// IMPORTANT: Tracing must be initialized FIRST before any other imports
+require('./tracing');
+
 const { logger } = require('./config/logger');
 const App = require('./app');
 const SchedulerService = require('./services/scheduler.service');
