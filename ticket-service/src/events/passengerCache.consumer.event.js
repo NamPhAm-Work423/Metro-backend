@@ -1,7 +1,6 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
-const { getClient } = require('../config/redis');
-const PassengerCacheService = require('../services/cache/PassengerCacheService');
+const ticketController = require('../controllers/ticket.controller');
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
 const USER_CACHE_PREFIX = process.env.REDIS_USER_CACHE_KEY_PREFIX || 'metrohcm:';
 
@@ -20,22 +19,17 @@ class PassengerCacheConsumer {
      * @param {Object} eventData - The event data
      */
     async handlePassengerCacheSync(eventData) {
-        // Support both old format (eventData.passenger) and new format (eventData.data)
-        const passenger = eventData.passenger || eventData.data;
-        
-        if (!passenger || !passenger.passengerId) {
+        const res = await ticketController.syncPassengerCacheEvent(eventData);
+        if (res?.success) {
+            const passenger = eventData.passenger || eventData.data;
+            logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {
+                syncReason: eventData.syncReason || 'manual-sync',
+                source: eventData.source,
+                eventType: eventData.eventType
+            });
+        } else {
             logger.warn('Invalid passenger cache sync event data', eventData);
-            return;
         }
-        const redisClient = getClient();
-        const passengerCache = new PassengerCacheService(redisClient, logger, `${USER_CACHE_PREFIX}user-service:user:passenger:`);
-        await passengerCache.setPassenger(passenger);
-        
-        logger.info(`Passenger cache synced from user-service: ${passenger.passengerId}`, {
-            syncReason: eventData.syncReason || 'manual-sync',
-            source: eventData.source,
-            eventType: eventData.eventType
-        });
     }
 
     /**

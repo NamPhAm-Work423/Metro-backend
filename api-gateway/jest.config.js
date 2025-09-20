@@ -59,7 +59,10 @@ module.exports = {
   moduleNameMapper: {
     '^../config/logger$': '<rootDir>/tests/__mocks__/logger.js',
     '^../../config/logger$': '<rootDir>/tests/__mocks__/logger.js',
-    '^../../../config/logger$': '<rootDir>/tests/__mocks__/logger.js'
+    '^../../../config/logger$': '<rootDir>/tests/__mocks__/logger.js',
+    // Map tracing module to mock
+    '^\.{1,2}/tracing$': '<rootDir>/tests/__mocks__/tracing.js',
+    '^src/tracing$': '<rootDir>/tests/__mocks__/tracing.js',
   },
   modulePathIgnorePatterns: [
     '<rootDir>/tests/unit/redis.bak'

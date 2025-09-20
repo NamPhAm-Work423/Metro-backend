@@ -138,7 +138,8 @@ describe('Promotion Controller', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: 'Promotion created successfully',
-        data: mockPromotion
+        data: mockPromotion,
+        type: 'percentage'
       });
     });
   });

@@ -488,6 +488,33 @@ services:
       retries: 3
       start_period: 40s
 
+  healthcheck:
+    image: ${REGISTRY}/metro-healthcheck:${IMAGE_TAG}
+    container_name: healthcheck
+    env_file:
+      - /opt/env/healthcheck.env
+    environment:
+      - WEB_CONCURRENCY=2
+    expose:
+      - "3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      promtail:
+        condition: service_started
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3000'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    <<:
+      - *default-restart
+      - *default-deploy
+
   # MongoDB for production
   mongodb:
     image: mongo:6.0
@@ -500,6 +527,7 @@ services:
       - mongodb_data:/data/db
       - ./init_mongo.sh:/docker-entrypoint-initdb.d/init_mongo.sh:ro
     networks:
+      - database-network
       - backend-network
     healthcheck:
       test: ["CMD-SHELL", "mongosh --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 })' || exit 1"]
@@ -552,6 +580,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:ro
     networks:
+      - database-network
       - backend-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -566,6 +595,8 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging: *default-logging
+    <<: *default-restart
   # pgAdmin - DEVELOPMENT/STAGING ONLY - Remove in production
   pgadmin:
     image: dpage/pgadmin4
@@ -610,6 +641,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
+      - database-network
       - backend-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
@@ -637,6 +669,7 @@ services:
     expose:
       - "2181"
     networks:
+      - messaging-network
       - backend-network
     healthcheck:
       test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
@@ -651,6 +684,8 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    logging: *default-logging
+    <<: *default-restart
 
   kafka-1:
     image: confluentinc/cp-kafka:7.5.3
@@ -678,6 +713,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
+      - messaging-network
       - backend-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19092", "--list"]
@@ -693,6 +729,8 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging: *default-logging
+    <<: *default-restart
 
   kafka-2:
     image: confluentinc/cp-kafka:7.5.3
@@ -717,6 +755,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
+      - messaging-network
       - backend-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19093", "--list"]
@@ -732,6 +771,8 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging: *default-logging
+    <<: *default-restart
   kafka-3:
     image: confluentinc/cp-kafka:7.5.3
     container_name: kafka-3
@@ -758,6 +799,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
+      - messaging-network
       - backend-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19094", "--list"]
@@ -773,6 +815,8 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging: *default-logging
+    <<: *default-restart
           
   prometheus:
     image: prom/prometheus:latest
@@ -786,6 +830,7 @@ services:
     ports:
       - "9090:9090"
     networks:
+      - monitoring-network
       - backend-network
     logging: *default-logging
     <<: *default-restart
@@ -814,6 +859,8 @@ services:
         condition: service_healthy
       management-service:
         condition: service_healthy
+      healthcheck:
+        condition: service_healthy
 
   alertmanager:
     image: prom/alertmanager:latest
@@ -823,6 +870,7 @@ services:
     ports:
       - "9093:9093"
     networks:
+      - monitoring-network
       - backend-network
     logging: *default-logging
     <<: *default-restart
@@ -861,9 +909,10 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
-      jaeger:
+      tempo:
         condition: service_healthy
     networks:
+      - monitoring-network
       - backend-network
     logging: *default-logging
     <<: *default-restart
@@ -884,6 +933,7 @@ services:
     depends_on:
       - loki
     networks:
+      - monitoring-network
       - backend-network
     <<: *default-restart
 
@@ -934,6 +984,7 @@ services:
       - ./management-service/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     networks:
+      - monitoring-network
       - backend-network
     logging: *default-logging
     healthcheck:
@@ -946,32 +997,28 @@ services:
       - *default-restart
       - *default-deploy
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.50
-    container_name: jaeger
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
     expose:
-      - "16686"
-      - "14268"
-      - "14250"
-      - "6831"
-      - "6832"
-      - "5778"
+      - "3200"    # Tempo HTTP
+      - "4317"    # OTLP gRPC receiver
+      - "4318"    # OTLP HTTP receiver
+      - "9411"    # Zipkin receiver
+      - "14250"   # Jaeger gRPC receiver (for compatibility)
     ports:
-      - "127.0.0.1:16686:16686"  # Jaeger UI (internal access only)
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - COLLECTOR_ZIPKIN_HOST_PORT=9411
-      - SPAN_STORAGE_TYPE=badger
-      - BADGER_EPHEMERAL=false
-      - BADGER_DIRECTORY_VALUE=/badger/data
-      - BADGER_DIRECTORY_KEY=/badger/key
+      - "127.0.0.1:3200:3200"   # Tempo UI (internal access only)
+    command:
+      - -config.file=/etc/tempo/tempo.yml
     volumes:
-      - jaeger_data:/badger
+      - ./management-service/monitoring/tempo/tempo-config.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
     networks:
+      - monitoring-network
       - backend-network
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3200/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -994,12 +1041,28 @@ volumes:
     driver: local
   loki_data:
     driver: local
-  jaeger_data:
+  tempo_data:
     driver: local
   qr_images:
     driver: local
     
 networks:
+  # Main application network
   backend-network:
+    driver: bridge
+    external: false
+  
+  # Database network for better isolation
+  database-network:
+    driver: bridge
+    external: false
+  
+  # Monitoring network for observability stack
+  monitoring-network:
+    driver: bridge
+    external: false
+  
+  # Message queue network for Kafka cluster
+  messaging-network:
     driver: bridge
     external: false

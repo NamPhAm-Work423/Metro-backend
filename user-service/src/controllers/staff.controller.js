@@ -1,5 +1,6 @@
 const staffService = require('../services/staff.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
+const { addCustomSpan } = require('../tracing');
 const { logger } = require('../config/logger');
 
 /**

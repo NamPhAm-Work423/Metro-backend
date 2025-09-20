@@ -1,5 +1,10 @@
 const controller = require('../../../src/controllers/transitPass.controller');
 
+// Mock async error handler to bypass error handling wrapper
+jest.mock('../../../src/helpers/errorHandler.helper', () => {
+  return jest.fn().mockImplementation((fn) => fn);
+});
+
 jest.mock('../../../src/services/transitPass.service', () => ({
   getAllTransitPasses: jest.fn().mockRejectedValue(new Error('db')),
   getActiveTransitPasses: jest.fn().mockRejectedValue(new Error('db')),
@@ -13,6 +18,21 @@ jest.mock('../../../src/services/transitPass.service', () => ({
   createTransitPass: jest.fn().mockRejectedValue(new Error('db')),
 }));
 
+// Mock tracing functions
+jest.mock('../../../src/tracing', () => ({
+    addCustomSpan: jest.fn((name, fn) => {
+        if (typeof fn === 'function') {
+            return fn({ 
+                setAttributes: jest.fn(),
+                recordException: jest.fn(),
+                setStatus: jest.fn(),
+                end: jest.fn()
+            });
+        }
+        return Promise.resolve();
+    })
+}));
+
 const mockRes = () => {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
@@ -21,63 +41,64 @@ const mockRes = () => {
 };
 
 describe('TransitPassController branches', () => {
+  const next = jest.fn();
   test('createTransitPass returns 500 on service error', async () => {
     const req = { body: {} }; const res = mockRes();
-    await controller.createTransitPass(req, res);
+    await controller.createTransitPass(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('getAllTransitPasses returns 500 on service error', async () => {
     const req = {}; const res = mockRes();
-    await controller.getAllTransitPasses(req, res);
+    await controller.getAllTransitPasses(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('getActiveTransitPasses returns 500 on service error', async () => {
     const req = {}; const res = mockRes();
-    await controller.getActiveTransitPasses(req, res);
+    await controller.getActiveTransitPasses(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('getTransitPassById returns 404 when not found', async () => {
     const req = { params: { id: 'uuid' } }; const res = mockRes();
-    await controller.getTransitPassById(req, res);
+    await controller.getTransitPassById(req, res, next);
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
   test('getTransitPassByType returns 404 when not found', async () => {
     const req = { params: { transitPassType: 'monthly_pass' } }; const res = mockRes();
-    await controller.getTransitPassByType(req, res);
+    await controller.getTransitPassByType(req, res, next);
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
   test('getTransitPassesByCurrency returns 500 on service error', async () => {
     const req = { params: { currency: 'VND' } }; const res = mockRes();
-    await controller.getTransitPassesByCurrency(req, res);
+    await controller.getTransitPassesByCurrency(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('updateTransitPass returns 500 on service error', async () => {
     const req = { params: { id: 'uuid' }, body: {} }; const res = mockRes();
-    await controller.updateTransitPass(req, res);
+    await controller.updateTransitPass(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('deleteTransitPass returns 500 on service error', async () => {
     const req = { params: { id: 'uuid' } }; const res = mockRes();
-    await controller.deleteTransitPass(req, res);
+    await controller.deleteTransitPass(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('setTransitPassActive returns 500 on service error', async () => {
     const req = { params: { id: 'uuid' }, body: { isActive: true } }; const res = mockRes();
-    await controller.setTransitPassActive(req, res);
+    await controller.setTransitPassActive(req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('bulkUpdateTransitPasses returns 400 when missing body', async () => {
     const req = { body: {} }; const res = mockRes();
-    await controller.bulkUpdateTransitPasses(req, res);
+    await controller.bulkUpdateTransitPasses(req, res, next);
     expect(res.status).toHaveBeenCalledWith(400);
   });
 });

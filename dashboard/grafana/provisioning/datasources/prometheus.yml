@@ -18,6 +18,9 @@ datasources:
       queryTimeout: "60s"
       httpMethod: "POST"
       exemplarTraceIdDestinations:
+        - name: "Tempo"
+          datasourceUid: "tempo"
+          urlDisplayLabel: "View in Tempo"
         - name: "Loki"
           datasourceUid: "loki"
           urlDisplayLabel: "View in Loki"

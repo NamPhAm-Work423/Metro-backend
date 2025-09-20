@@ -1,4 +1,5 @@
 const { logger } = require('../config/logger');
+const { addCustomSpan  } = require('../tracing');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const userService = require('../services/user.service');
 const userProducer = require('../events/user.producer.event');
@@ -13,7 +14,8 @@ const userController = {
    * @returns {Object} - User registration response
    */
   signup: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.signup', async (span) => {
+      try {
       const { firstName, lastName, email, password, username, phoneNumber, dateOfBirth, gender, address, roles, isVerified } = req.body;
 
       const { user } = await userService.signup({
@@ -50,38 +52,40 @@ const userController = {
           user: userResponse
         }
       });
-    } catch (error) {
-      if (error.message === 'Email already exists') {
-        return res.status(409).json({
-            success: false,
-            message: 'Email already exists',
-            error: 'DUPLICATE_EMAIL'
-        });
-      }
-      
-      if (error.message === 'Username already exists') {
+      } catch (error) {
+        span.recordException(error);
+        if (error.message === 'Email already exists') {
           return res.status(409).json({
               success: false,
-              message: 'Username already exists',
-              error: 'DUPLICATE_USERNAME'
+              message: 'Email already exists',
+              error: 'DUPLICATE_EMAIL'
           });
+        }
+        
+        if (error.message === 'Username already exists') {
+            return res.status(409).json({
+                success: false,
+                message: 'Username already exists',
+                error: 'DUPLICATE_USERNAME'
+            });
+        }
+        
+        if (error.message === 'Admin role is not allowed to be created') {
+            return res.status(400).json({
+                success: false,
+                message: 'Admin role is not allowed to be created',
+                error: 'ADMIN_ROLE_NOT_ALLOWED'
+            });
+        }
+        
+        logger.traceError('Registration system error', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: 'INTERNAL_ERROR_SIGNUP'
+        });
       }
-      
-      if (error.message === 'Admin role is not allowed to be created') {
-          return res.status(400).json({
-              success: false,
-              message: 'Admin role is not allowed to be created',
-              error: 'ADMIN_ROLE_NOT_ALLOWED'
-          });
-      }
-      
-      logger.error('Registration system error:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Internal server error',
-          error: 'INTERNAL_ERROR_SIGNUP'
-      });
-    }
+    });
   }),
 
   /**
@@ -91,7 +95,8 @@ const userController = {
    * @returns {Object} - User login response
    */
   login: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.login', async (span) => {
+      try {
       const { email, password } = req.body;
 
       const { user, tokens } = await userService.login(email, password);
@@ -103,10 +108,10 @@ const userController = {
         roles: user.roles
       };
 
-      logger.info('User logged in successfully', { userId: user.id, email });
+      logger.traceInfo('User logged in successfully', { userId: user.id, email });
 
       // Create session for user (in addition to JWT)
-      logger.debug('About to create user session', {
+      logger.traceDebug('About to create user session', {
         hasSession: !!req.session,
         sessionId: req.sessionID,
         userId: user.id,
@@ -116,7 +121,7 @@ const userController = {
       createUserSession(req, user);
       
       // Verify session was created
-      logger.debug('Session creation verification', {
+      logger.traceDebug('Session creation verification', {
         hasSession: !!req.session,
         sessionId: req.sessionID,
         sessionKeys: req.session ? Object.keys(req.session) : [],
@@ -152,7 +157,8 @@ const userController = {
           accessToken: process.env.SEND_ACCESS_TOKEN_TO_CLIENT === 'true' ? tokens.accessToken : null
         }
       });
-    } catch (error) {
+      } catch (error) {
+      span.recordException(error);
       // Clear any existing cookies on login failure
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
@@ -198,13 +204,14 @@ const userController = {
         });
       }
 
-      logger.error('Login system error:', error);
+      logger.traceError('Login system error', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
         error: 'INTERNAL_ERROR_LOGIN'
       });
     }
+    });
   }),
 
   /**
@@ -214,8 +221,9 @@ const userController = {
    * @returns {Object} - User logout response
    */
   logout: asyncErrorHandler(async (req, res, next) => {
-    try {
-      logger.info('User logged out', { userId: req.user.id });
+    await addCustomSpan ('auth.logout', async (span) => {
+      try {
+      logger.traceInfo('User logged out', { userId: req.user.id });
 
       // Destroy session (in addition to clearing JWT cookies)
       destroyUserSession(req);
@@ -238,9 +246,11 @@ const userController = {
         success: true,
         message: 'Logout successful'
       });
-    } catch (error) {
-      next(error);
-    }
+      } catch (error) {
+        span.recordException(error);
+        next(error);
+      }
+    });
   }),
 
   /**
@@ -250,12 +260,13 @@ const userController = {
    * @returns {Object} - Refresh token response
    */
   refreshToken: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.refresh-token', async (span) => {
+      try {
         //check in cookie if refresh token is present
         const refreshToken = req.cookies.refreshToken;
 
         // Debug logging
-        logger.debug('Refresh token request debug', {
+        logger.traceDebug('Refresh token request debug', {
           hasCookies: !!req.cookies,
           cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
           hasRefreshToken: !!refreshToken,
@@ -273,7 +284,7 @@ const userController = {
 
         const { accessToken, user } = await userService.refreshToken(refreshToken);
 
-        logger.info('Token refreshed successfully', { userId: user.id });
+        logger.traceInfo('Token refreshed successfully', { userId: user.id });
 
         const userResponse = {
           email: user.email,
@@ -301,7 +312,8 @@ const userController = {
             expiresIn: '1h'
           }
         });
-    } catch (error) {
+      } catch (error) {
+      span.recordException(error);
       // Clear potentially invalid tokens
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
@@ -330,13 +342,14 @@ const userController = {
         });
       }
 
-      logger.error('Refresh token system error:', error);
+      logger.traceError('Refresh token system error', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
         error: 'INTERNAL_ERROR_REFRESH_TOKEN'
       });
     }
+    });
   }),
 
   /**
@@ -346,7 +359,8 @@ const userController = {
    * @returns {Object} - Request password reset response
    */
   forgotPassword: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.forgot-password', async (span) => {
+      try {
         const { email } = req.body;
 
         if (!email) {
@@ -363,7 +377,8 @@ const userController = {
           success: true,
           message: 'If an account exists with this email, you will receive a password reset link'
         });
-    } catch (error) {
+      } catch (error) {
+      span.recordException(error);
       if (error.message === 'Failed to generate password reset token - Redis unavailable') {
         return res.status(503).json({
           success: false,
@@ -372,13 +387,14 @@ const userController = {
         });
       }
 
-      logger.error('Forgot password system error:', error);
+      logger.traceError('Forgot password system error', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
         error: 'INTERNAL_ERROR_FORGOT_PASSWORD'
       });
     }
+    });
   }),
 
   /**
@@ -388,7 +404,8 @@ const userController = {
    * @returns {Object} - Reset password response
    */
   resetPassword: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.reset-password', async (span) => {
+      try {
         const { token, uid, newPassword } = req.body;
 
         if (!token || !uid || !newPassword) {
@@ -405,7 +422,8 @@ const userController = {
           success: true,
           message: 'Password reset successful'
         });
-    } catch (error) {
+      } catch (error) {
+      span.recordException(error);
       if (error.message === 'Password must be at least 6 characters') {
         return res.status(400).json({
           success: false,
@@ -438,13 +456,14 @@ const userController = {
         });
       }
 
-      logger.error('Reset password system error:', error);
+      logger.traceError('Reset password system error', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
         error: 'INTERNAL_ERROR_RESET_PASSWORD'
       });
     }
+    });
   }),
 
   /**
@@ -454,7 +473,8 @@ const userController = {
    * @returns {Object} - Verify email response
    */
   verifyEmailFromQuery: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.verify-email-from-query', async (span) => {
+      try {
         const token = req.query?.token || req.body?.token;
 
         if (!token) {
@@ -479,9 +499,11 @@ const userController = {
           success: true,
           message: 'Email verified successfully'
         });
-    } catch (error) {
-      next(error);
-    }
+      } catch (error) {
+        span.recordException(error);
+        next(error);
+      }
+    });
   }),
 
 
@@ -492,7 +514,8 @@ const userController = {
    * @returns {Object} - Unlock account response
    */
   unlockAccount: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.unlock-account', async (span) => {
+      try {
         const { userId } = req.params;
 
         if (!userId) {
@@ -518,13 +541,16 @@ const userController = {
           message: 'Account unlocked successfully',
           data: result.data
     });
-    } catch (error) {
-      next(error);
-    }
+      } catch (error) {
+        span.recordException(error);
+        next(error);
+      }
+    });
   }),
 
   resendVerification: asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.resend-verification', async (span) => {
+      try {
       const { email } = req.body;
 
       // Validate email
@@ -552,34 +578,35 @@ const userController = {
         success: true,
         message: 'Verification email sent successfully'
       });
-    } catch (error) {
-      logger.error('Error resending verification email', { error: error.message, email: req.body?.email });
-      
-      // Handle specific error cases
-      if (error.message === 'User not found') {
-        return res.status(404).json({
+      } catch (error) {
+        span.recordException(error);
+        logger.traceError('Error resending verification email', error, { email: req.body?.email });
+        
+        // Handle specific error cases
+        if (error.message === 'User not found') {
+          return res.status(404).json({
+            success: false,
+            message: 'User not found',
+            error: 'USER_NOT_FOUND'
+          });
+        }
+
+        if (error.message === 'User is already verified') {
+          return res.status(400).json({
+            success: false,
+            message: 'User is already verified',
+            error: 'USER_ALREADY_VERIFIED'
+          });
+        }
+
+        return res.status(500).json({
           success: false,
-          message: 'User not found',
-          error: 'USER_NOT_FOUND'
+          message: 'Error resending verification email',
+          error: 'INTERNAL_SERVER_ERROR_RESEND_VERIFICATION'
         });
+
       }
-
-      if (error.message === 'User is already verified') {
-        return res.status(400).json({
-          success: false,
-          message: 'User is already verified',
-          error: 'USER_ALREADY_VERIFIED'
-        });
-      }
-
-      return res.status(500).json({
-        success: false,
-        message: 'Error resending verification email',
-        error: 'INTERNAL_SERVER_ERROR_RESEND_VERIFICATION'
-      });
-
-      next(error);
-    }
+    });
   })
 };
 

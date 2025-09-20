@@ -40,5 +40,16 @@ scrape_configs:
 			  target_label: container_ip
 		pipeline_stages:
 			- docker: {}
+			- json:
+				expressions:
+					traceId: traceId
+					spanId: spanId
+					level: level
+					service: service
+			- labels:
+				traceId:
+				spanId:
+				level:
+				service:
 
 

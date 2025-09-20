@@ -11,13 +11,20 @@ process.env.JWT_SECRET = 'test_secret';
 process.env.JWT_REFRESH_SECRET = 'test_refresh_secret';
 process.env.FRONTEND_URL = 'http://localhost:3000';
 
+// Disable tracing in test environment
+process.env.OTEL_SDK_DISABLED = 'true';
+process.env.OTEL_WRAP_EXPORT = 'false';
+process.env.DIAG_LEVEL = 'ERROR';
+
 // Mock logger early (this file exists)
 jest.mock('../src/config/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
+    traceInfo: jest.fn(),
+    traceError: jest.fn()
   },
   requestLogger: jest.fn((req, res, next) => next())
 }));
@@ -77,4 +84,31 @@ jest.mock('../src/services/email.service', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue(),
   sendPasswordResetEmail: jest.fn().mockResolvedValue(),
   verifyConnection: jest.fn().mockResolvedValue()
-}), { virtual: true }); 
+}), { virtual: true });
+
+// Mock tracing module
+jest.mock('../src/tracing', () => {
+  const mockSpan = {
+    setAttributes: jest.fn(),
+    setStatus: jest.fn(),
+    recordException: jest.fn(),
+    end: jest.fn(),
+  };
+
+  const addCustomSpan = jest.fn().mockImplementation(async (name, fn) => {
+    return await fn(mockSpan);
+  });
+
+  return {
+    addCustomSpan,
+    createCustomSpan: addCustomSpan,
+    sdk: {
+      start: jest.fn().mockResolvedValue(),
+      shutdown: jest.fn().mockResolvedValue(),
+    },
+    SpanStatusCode: {
+      OK: 1,
+      ERROR: 2,
+    },
+  };
+}); 

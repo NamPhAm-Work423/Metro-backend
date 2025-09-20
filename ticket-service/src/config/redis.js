@@ -4,6 +4,10 @@ const { logger } = require('./logger');
 let client = null;
 
 async function setupRedisClient() {
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+        return;
+    }
+
     const host = process.env.REDIS_HOST || '127.0.0.1';
     const port = process.env.REDIS_PORT || '6379';
     const user = process.env.REDIS_USER;

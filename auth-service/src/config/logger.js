@@ -1,10 +1,23 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const { trace } = require('@opentelemetry/api');
+
+// Custom format to include trace information
+const tracingFormat = winston.format((info) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    info.traceId = spanContext.traceId;
+    info.spanId = spanContext.spanId;
+  }
+  return info;
+});
 
 const logformat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
+  tracingFormat(),
   winston.format.json()
 );
 
@@ -55,11 +68,71 @@ const requestLogger = (req, res, next) => {
       duration: duration,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
-      responseTime: `${duration}ms`
+      responseTime: `${duration}ms`,
+      service: 'auth-service'
     });
   });
   next();
 };
 
-  
+// Helper functions for structured logging with traces
+logger.traceInfo = (message, data = {}) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    logger.info(message, {
+      ...data,
+      traceId: spanContext.traceId,
+      spanId: spanContext.spanId
+    });
+  } else {
+    logger.info(message, data);
+  }
+};
+
+logger.traceError = (message, error, data = {}) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    span.recordException(error);
+    logger.error(message, {
+      ...data,
+      error: error.message,
+      stack: error.stack,
+      traceId: spanContext.traceId,
+      spanId: spanContext.spanId
+    });
+  } else {
+    logger.error(message, { ...data, error: error.message, stack: error.stack });
+  }
+};
+
+logger.traceWarn = (message, data = {}) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    logger.warn(message, {
+      ...data,
+      traceId: spanContext.traceId,
+      spanId: spanContext.spanId
+    });
+  } else {
+    logger.warn(message, data);
+  }
+};
+
+logger.traceDebug = (message, data = {}) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    logger.debug(message, {
+      ...data,
+      traceId: spanContext.traceId,
+      spanId: spanContext.spanId
+    });
+  } else {
+    logger.debug(message, data);
+  }
+};
+
 module.exports = { logger, requestLogger };

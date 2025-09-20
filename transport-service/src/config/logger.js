@@ -1,10 +1,24 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const { trace, context } = require('@opentelemetry/api');
+
+// Add tracing information to logs
+const addTraceInfo = winston.format((info) => {
+  const span = trace.getActiveSpan();
+  if (span) {
+    const spanContext = span.spanContext();
+    info.traceId = spanContext.traceId;
+    info.spanId = spanContext.spanId;
+  }
+  info.service = 'transport-service';
+  return info;
+});
 
 const logformat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
+  addTraceInfo(),
   winston.format.json()
 );
 

@@ -2,14 +2,14 @@ const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const CustomError = require('../utils/customError');
 const routingService = require('../services/routing.service');
 const { logger } = require('../config/logger');
-const { addCustomSpan } = require('../tracing');
+const { addCustomSpan  } = require('../tracing');
 
 const routingController = {
     /**
      * Route request to appropriate service
      */
     useService: asyncErrorHandler(async (req, res, next) => {
-        await addCustomSpan('api-gateway.route-request', async (span) => {
+        await addCustomSpan ('api-gateway.route-request', async (span) => {
             // Decode URL-encoded endpoint parameter
             let endPoint = decodeURIComponent(req.params.endPoint);
             let proxyEndpoint = req.params[0];
@@ -58,7 +58,7 @@ const routingController = {
                 });
 
                 // Route request with tracing
-                await addCustomSpan('api-gateway.proxy-to-service', async (proxySpan) => {
+                await addCustomSpan ('api-gateway.proxy-to-service', async (proxySpan) => {
                     proxySpan.setAttributes({
                         'gateway.target_service': endPoint,
                         'gateway.target_path': proxyEndpoint || '/',
@@ -132,7 +132,7 @@ const routingController = {
      * Check service health
      */
     checkServiceHealth: asyncErrorHandler(async (req, res, next) => {
-        await addCustomSpan('api-gateway.check-service-health', async (span) => {
+        await addCustomSpan ('api-gateway.check-service-health', async (span) => {
             const endPoint = req.params.endPoint;
 
             // Add initial span attributes

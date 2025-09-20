@@ -5,7 +5,7 @@ import os
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -17,8 +17,7 @@ def setup_tracing():
     
     service_name = os.getenv('SERVICE_NAME', 'report-service')
     service_version = os.getenv('SERVICE_VERSION', '1.0.0')
-    jaeger_agent_host = os.getenv('JAEGER_AGENT_HOST', 'jaeger')
-    jaeger_agent_port = int(os.getenv('JAEGER_AGENT_PORT', '6831'))
+    otlp_endpoint = os.getenv('OTLP_ENDPOINT', 'http://tempo:4318/v1/traces')
     
     # Create a resource with service information
     resource = Resource(attributes={
@@ -31,14 +30,13 @@ def setup_tracing():
     trace.set_tracer_provider(TracerProvider(resource=resource))
     tracer = trace.get_tracer(__name__)
     
-    # Configure Jaeger exporter
-    jaeger_exporter = JaegerExporter(
-        agent_host_name=jaeger_agent_host,
-        agent_port=jaeger_agent_port,
+    # Configure OTLP exporter for Tempo
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=otlp_endpoint,
     )
     
     # Add span processor
-    span_processor = BatchSpanProcessor(jaeger_exporter)
+    span_processor = BatchSpanProcessor(otlp_exporter)
     trace.get_tracer_provider().add_span_processor(span_processor)
     
     # Auto-instrument common libraries
@@ -46,7 +44,7 @@ def setup_tracing():
     SQLAlchemyInstrumentor().instrument()
     Psycopg2Instrumentor().instrument()
     
-    print(f"OpenTelemetry tracing initialized for {service_name}")
+    print(f"✅ OpenTelemetry tracing initialized for {service_name} with OTLP endpoint: {otlp_endpoint}")
     return tracer
 
 def instrument_flask_app(app):
@@ -107,6 +105,7 @@ def trace_function(operation_name=None):
         
         return wrapper
     return decorator
+
 
 
 

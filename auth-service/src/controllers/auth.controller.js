@@ -2,9 +2,11 @@ const asyncErrorHandler = require('../helpers/errorHandler.helper');
 const CustomError = require('../utils/customError');
 const keyService = require('../services/key.service');
 const { logger } = require('../config/logger');
+const { addCustomSpan  } = require('../tracing');
 
 const generateAPIToken = asyncErrorHandler(async (req, res, next) => {
-    try {
+    await addCustomSpan ('auth.generate-api-token', async (span) => {
+        try {
         const userId = req.params.id;
 
         const { token, keyId } = await keyService.generateAPIKeyForUser(userId);
@@ -20,6 +22,7 @@ const generateAPIToken = asyncErrorHandler(async (req, res, next) => {
             data: { token, keyId }
         });
     } catch (error) {
+        span.recordException(error);
         logger.error('Error generating API token:', {
             error: error.message,
             stack: error.stack,
@@ -31,6 +34,7 @@ const generateAPIToken = asyncErrorHandler(async (req, res, next) => {
             error: 'INTERNAL_ERROR'
         });
     }
+    });
 });
 
 const getAPIKeyByUser = asyncErrorHandler(async (req, res, next) => {
@@ -45,6 +49,7 @@ const getAPIKeyByUser = asyncErrorHandler(async (req, res, next) => {
     }
 
     try {
+        await addCustomSpan ('auth.get-api-keys-by-user', async (span) => {
         logger.info('Getting API keys for user', { userId });
 
         const keys = await keyService.getAPIKeysByUserId(userId);
@@ -57,6 +62,7 @@ const getAPIKeyByUser = asyncErrorHandler(async (req, res, next) => {
         return res.status(200).json({ 
             success: true,
             data: { keys }
+        });
         });
     } catch (error) {
         logger.error('Error getting API keys for user:', {
@@ -76,6 +82,7 @@ const deleteKeyById = asyncErrorHandler(async (req, res, next) => {
     const id = req.params.id;
 
     try {
+        await addCustomSpan ('auth.delete-api-key', async (span) => {
         logger.info('Deleting API key', { keyId: id });
 
         const deleted = await keyService.deleteAPIKeyById(id);
@@ -94,6 +101,7 @@ const deleteKeyById = asyncErrorHandler(async (req, res, next) => {
         return res.status(200).json({ 
             success: true,
             message: 'API key deleted successfully'
+        });
         });
     } catch (error) {
         logger.error('Error deleting API key:', {

@@ -1,13 +1,53 @@
-const fareController = require('../../../src/controllers/fare.controller');
-const fareService = require('../../../src/services/fare.service');
-
-// Mock fare service
-jest.mock('../../../src/services/fare.service');
-
-// Mock async error handler
+// Mock dependencies first
+jest.mock('../../../src/services/fare.service', () => ({
+  getAllFares: jest.fn(),
+  getFareById: jest.fn(),
+  createFare: jest.fn(),
+  updateFare: jest.fn(),
+  deleteFare: jest.fn(),
+  calculateFarePrice: jest.fn(),
+  getFaresByRoute: jest.fn(),
+  getActiveFares: jest.fn(),
+  getFareStatistics: jest.fn()
+}));
 jest.mock('../../../src/helpers/errorHandler.helper', () => {
   return jest.fn().mockImplementation((fn) => fn);
 });
+
+// Mock the FareRepository to avoid constructor issues
+jest.mock('../../../src/services/fare/repositories/FareRepository', () => {
+  return jest.fn().mockImplementation(() => ({
+    create: jest.fn(),
+    findById: jest.fn(),
+    findAll: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn()
+  }));
+});
+
+// Mock other fare service dependencies
+jest.mock('../../../src/services/fare/services/StationService', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+jest.mock('../../../src/services/fare/calculators/StationBasedFareCalculator', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+jest.mock('../../../src/services/fare/calculators/PassBasedFareCalculator', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+jest.mock('../../../src/services/fare/calculators/MultiRouteFareCalculator', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+jest.mock('../../../src/services/fare/FareService', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+const fareController = require('../../../src/controllers/fare.controller');
+const fareService = require('../../../src/services/fare.service');
 
 describe('Fare Controller', () => {
   let req, res, next;

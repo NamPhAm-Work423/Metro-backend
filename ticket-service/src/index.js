@@ -77,6 +77,12 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Start the application
 async function startApplication() {
     try {
+        // Skip service initialization during tests
+        if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+            logger.info('Test environment detected, skipping service initialization');
+            return;
+        }
+
         // Sync database first
         await syncDatabase();
 

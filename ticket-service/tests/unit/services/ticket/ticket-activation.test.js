@@ -15,6 +15,14 @@ jest.mock('../../../../src/services/ticket/services/TicketCommunicationService')
 jest.mock('../../../../src/services/ticket/services/TicketPaymentService');
 jest.mock('../../../../src/services/ticket/calculators/TicketPriceCalculator');
 
+// Mock the Ticket model properly
+jest.mock('../../../../src/models/index.model', () => ({
+    Ticket: {
+        findByPk: jest.fn(),
+        startCountDown: jest.fn()
+    }
+}));
+
 describe('Ticket Activation Tests', () => {
     let ticketService;
 

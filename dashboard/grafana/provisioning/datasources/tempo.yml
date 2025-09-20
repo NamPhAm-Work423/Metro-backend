@@ -1,0 +1,47 @@
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    uid: tempo
+    isDefault: false
+    editable: true
+    jsonData:
+      httpMethod: GET
+      timeout: 60000
+      search:
+        hide: false
+        queryLanguage: traceql     # Enable TraceQL as the default query language
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '-1h'
+      # TraceQL is enabled by default in latest Grafana versions
+
+      serviceMap:
+        datasourceUid: prometheus
+      spanMetrics:
+        datasourceUid: prometheus  # <—
+
+      # Node graph
+      nodeGraph:
+        enabled: true
+
+      # Logs correlation
+      lokiSearch:
+        datasourceUid: loki
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ['service_name', 'service.name', 'container']
+        mappedTags: [
+          { key: 'service.name', value: 'service_name' },
+          { key: 'service', value: 'service_name' }
+        ]
+        mapTagNamesEnabled: true
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: true
+    secureJsonData: {}

@@ -12,9 +12,13 @@ datasources:
       maxLines: 5000
       timeout: 60
       derivedFields:
-        - datasourceUid: prometheus
-          matcherRegex: "traceID=(\\w+)"
+        - datasourceUid: tempo
+          matcherRegex: "traceId[\"=\\s]*([a-f0-9]{32})"
           name: TraceID
+          url: "$${__value.raw}"
+        - datasourceUid: tempo
+          matcherRegex: "\"traceId\":\\s*\"([a-f0-9]{32})\""
+          name: TraceID_JSON
           url: "$${__value.raw}"
       httpHeaderName1: "X-Scope-OrgID"
     secureJsonData:

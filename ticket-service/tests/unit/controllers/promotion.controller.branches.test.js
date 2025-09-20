@@ -3,6 +3,26 @@ const promotionService = require('../../../src/services/promotion.service');
 
 jest.mock('../../../src/services/promotion.service');
 
+// Mock async error handler to bypass error handling wrapper
+jest.mock('../../../src/helpers/errorHandler.helper', () => {
+  return jest.fn().mockImplementation((fn) => fn);
+});
+
+// Mock tracing functions - let the built-in test mode handle it
+jest.mock('../../../src/tracing', () => ({
+    addCustomSpan: jest.fn((name, fn) => {
+        if (typeof fn === 'function') {
+            return fn({ 
+                setAttributes: jest.fn(),
+                recordException: jest.fn(),
+                setStatus: jest.fn(),
+                end: jest.fn()
+            });
+        }
+        return Promise.resolve();
+    })
+}));
+
 const buildRes = () => {
 	const res = {};
 	res.status = jest.fn().mockReturnValue(res);

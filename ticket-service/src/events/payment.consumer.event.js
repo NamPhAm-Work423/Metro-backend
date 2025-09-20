@@ -1,8 +1,7 @@
 const { KafkaEventConsumer } = require('../kafka/kafkaConsumer');
 const { logger } = require('../config/logger');
-const { Ticket } = require('../models/index.model');
+const ticketController = require('../controllers/ticket.controller');
 const { paymentCache } = require('../cache/paymentCache');
-const PaymentCompletionHandler = require('../services/ticket/handlers/PaymentCompletionHandler');
 
 /**
  * Payment consumer event for ticket service
@@ -22,77 +21,9 @@ class PaymentConsumer {
      */
     async handlePaymentCompleted(eventData) {
         try {
-            const { 
-                paymentId, 
-                ticketId, 
-                passengerId,
-                status,
-                paymentData = {}
-            } = eventData;
-
-            logger.info('Processing payment completed event', {
-                ticketId,
-                paymentId,
-                passengerId,
-                status,
-                paymentMethod: paymentData.paymentMethod
-            });
-
-            // Find ticket
-            const ticket = await Ticket.findByPk(ticketId);
-            if (!ticket) {
-                logger.error('Ticket not found for payment completed event', { ticketId });
-                return;
-            }
-
-            // Process payment completion using dedicated handler
-            const result = await PaymentCompletionHandler.processPaymentCompletion(
-                ticket, 
-                paymentId, 
-                paymentData
-            );
-
-            if (!result.success) {
-                logger.warn('Payment completion processing failed', {
-                    ticketId,
-                    paymentId,
-                    reason: result.reason
-                });
-                return;
-            }
-
-            // Store payment completion data in cache for reference
-            this.paymentCache.set(`completed_${paymentId}`, {
-                ticketId,
-                paymentId,
-                status: 'COMPLETED',
-                ticketType: result.ticketType,
-                activatedAt: result.updateData.activatedAt,
-                paymentData
-            });
-
-            // Ensure purchaseDate is recorded on successful payment
-            try {
-                const purchaseDate = new Date();
-                await ticket.update({ purchaseDate, updatedAt: purchaseDate });
-                logger.info('Ticket purchaseDate set after payment completion', {
-                    ticketId,
-                    paymentId,
-                    purchaseDate
-                });
-            } catch (pdError) {
-                logger.error('Failed to set purchaseDate after payment completion', {
-                    ticketId,
-                    paymentId,
-                    error: pdError.message
-                });
-            }
-
+            await ticketController.processPaymentCompletedEvent(eventData);
         } catch (error) {
-            logger.error('Error processing payment completed event', {
-                error: error.message,
-                eventData
-            });
+            logger.error('Error processing payment completed event', { error: error.message, eventData });
             throw error;
         }
     }
@@ -103,38 +34,9 @@ class PaymentConsumer {
      */
     async handlePaymentFailed(eventData) {
         try {
-            const { paymentId, ticketId, error: failureReason } = eventData;
-
-            logger.info('Processing payment failed event', {
-                ticketId,
-                paymentId,
-                failureReason
-            });
-
-            // Find and update ticket
-            const ticket = await Ticket.findByPk(ticketId);
-            if (!ticket) {
-                logger.error('Ticket not found for payment failed event', { ticketId });
-                return;
-            }
-
-            // Update ticket to a valid status; keep as pending to allow retry
-            await ticket.update({
-                status: 'pending_payment',
-                updatedAt: new Date()
-            });
-
-            logger.info('Ticket marked as payment failed', {
-                ticketId,
-                paymentId,
-                failureReason
-            });
-
+            await ticketController.processPaymentFailedEvent(eventData);
         } catch (error) {
-            logger.error('Error processing payment failed event', {
-                error: error.message,
-                eventData
-            });
+            logger.error('Error processing payment failed event', { error: error.message, eventData });
         }
     }
 
@@ -144,38 +46,9 @@ class PaymentConsumer {
      */
     async handlePaymentCancelled(eventData) {
         try {
-            const { paymentId, ticketId, reason } = eventData;
-
-            logger.info('Processing payment cancelled event', {
-                ticketId,
-                paymentId,
-                reason
-            });
-
-            // Find and update ticket
-            const ticket = await Ticket.findByPk(ticketId);
-            if (!ticket) {
-                logger.error('Ticket not found for payment cancelled event', { ticketId });
-                return;
-            }
-
-            // Update ticket to cancelled status
-            await ticket.update({
-                status: 'cancelled',
-                updatedAt: new Date()
-            });
-
-            logger.info('Ticket marked as cancelled', {
-                ticketId,
-                paymentId,
-                reason
-            });
-
+            await ticketController.processPaymentCancelledEvent(eventData);
         } catch (error) {
-            logger.error('Error processing payment cancelled event', {
-                error: error.message,
-                eventData
-            });
+            logger.error('Error processing payment cancelled event', { error: error.message, eventData });
         }
     }
 
@@ -185,99 +58,9 @@ class PaymentConsumer {
      */
     async handlePaymentReady(eventData) {
         try {
-            const { 
-                ticketId, 
-                paymentId, 
-                paymentUrl, 
-                paymentMethod, 
-                paypalOrderId = null,
-                status,
-                redirectUrls = {}
-            } = eventData;
-
-            logger.info('Processing payment ready event', {
-                ticketId,
-                paymentId,
-                paymentMethod,
-                hasPaymentUrl: !!paymentUrl,
-                paymentUrl: paymentUrl
-            });
-
-            // Store payment data in cache for immediate access
-            this.paymentCache.set(paymentId, {
-                ticketId,
-                paymentId,
-                paymentUrl,
-                paymentMethod,
-                paypalOrderId,
-                status,
-                redirectUrls
-            });
-
-            // Also store by ticket ID for fallback
-            this.paymentCache.set(ticketId, {
-                ticketId,
-                paymentId,
-                paymentUrl,
-                paymentMethod,
-                paypalOrderId,
-                status,
-                redirectUrls
-            });
-
-            // Update ticket with payment information
-            const ticket = await Ticket.findByPk(ticketId);
-            if (!ticket) {
-                logger.error('Ticket not found for payment ready event', { ticketId });
-                return;
-            }
-
-            // Update ticket status to indicate payment is ready
-            const updateData = {
-                status: 'pending_payment',
-                updatedAt: new Date()
-            };
-
-            logger.info('Updating ticket with payment ready status', {
-                ticketId,
-                paymentId,
-                paymentMethod,
-                updateData,
-                originalStatus: ticket.status,
-                paymentUrl: paymentUrl,
-                paypalOrderId: paypalOrderId
-            });
-
-            try {
-                await ticket.update(updateData);
-                logger.info('Ticket update completed successfully', { 
-                    ticketId, 
-                    paymentId,
-                    paymentUrl: paymentUrl,
-                    paypalOrderId: paypalOrderId
-                });
-            } catch (updateError) {
-                logger.error('Failed to update ticket with payment information', {
-                    ticketId,
-                    paymentId,
-                    error: updateError.message,
-                    updateData
-                });
-                throw updateError;
-            }
-
-            logger.info('Payment ready event processed successfully', {
-                ticketId,
-                paymentId,
-                paymentUrl: paymentUrl,
-                paypalOrderId: paypalOrderId
-            });
-
+            await ticketController.processPaymentReadyEvent(eventData);
         } catch (error) {
-            logger.error('Error processing payment ready event', {
-                error: error.message,
-                eventData
-            });
+            logger.error('Error processing payment ready event', { error: error.message, eventData });
         }
     }
 

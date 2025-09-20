@@ -55,7 +55,7 @@ async function connectWithRetry() {
     const baseDelay = 1000; // 1 second
     
     // Skip actual DB connection attempts during tests to avoid noisy logs
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
         return;
     }
 
@@ -80,7 +80,9 @@ async function connectWithRetry() {
     }
 }
 
-// Start connection attempts
-connectWithRetry();
+// Start connection attempts only if not in test environment
+if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+    connectWithRetry();
+}
 
 module.exports = sequelize; 

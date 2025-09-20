@@ -1,5 +1,6 @@
 const adminService = require('../services/admin.service');
 const asyncErrorHandler = require('../helpers/errorHandler.helper');
+const { addCustomSpan } = require('../tracing');
 const { logger } = require('../config/logger');
 
 // GET /v1/admins/getAllAdmins
