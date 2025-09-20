@@ -7,7 +7,8 @@ module.exports = {
   collectCoverageFrom: [
     'src/services/**/*.js',
     'src/controllers/**/*.js',
-    'src/routes/**/*.js'
+    'src/routes/**/*.js',
+    '!src/tracing.js'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],

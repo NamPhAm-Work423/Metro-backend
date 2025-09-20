@@ -94,6 +94,16 @@ describe('train.service', () => {
     expect(result.totalTrips).toBe(2);
     expect(result.activeDays).toBe(2);
   });
+
+  test('createTrain throws on error', async () => {
+    Train.create.mockRejectedValue(new Error('Database error'));
+    await expect(trainService.createTrain({})).rejects.toThrow('Database error');
+  });
+
+  test('getAllTrains throws on error', async () => {
+    Train.findAll.mockRejectedValue(new Error('Database error'));
+    await expect(trainService.getAllTrains()).rejects.toThrow('Database error');
+  });
 });
 
 

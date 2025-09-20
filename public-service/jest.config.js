@@ -9,6 +9,7 @@ module.exports = {
     'src/**/*.js',
     '!src/index.js',
     '!src/app.js',
+    '!src/tracing.js',
     '!src/config/**',
     '!src/grpc/**',
     '!src/proto/**',

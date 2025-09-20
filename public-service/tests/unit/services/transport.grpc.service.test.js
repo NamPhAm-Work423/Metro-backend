@@ -144,6 +144,13 @@ describe('Transport gRPC Service', () => {
 
       expect(result).toEqual([...mockRouteStations1, ...mockRouteStations2]);
     });
+
+    it('should handle errors when fetching all route stations', async () => {
+      const error = new Error('Service unavailable');
+      callTransport.mockRejectedValue(error);
+
+      await expect(transportService.fetchAllRouteStations()).rejects.toThrow('Failed to fetch route stations: Failed to fetch routes: Service unavailable');
+    });
   });
 
   describe('getRoute', () => {

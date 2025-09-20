@@ -98,6 +98,11 @@ describe('trip.service', () => {
     expect(result.totalDistance).toBe(10);
     expect(result.trainCapacity).toBe(100);
   });
+
+  test('createTrip throws on error', async () => {
+    Trip.create.mockRejectedValue(new Error('Database error'));
+    await expect(tripService.createTrip({})).rejects.toThrow('Database error');
+  });
 });
 
 // Error paths (merged from extra2 file)

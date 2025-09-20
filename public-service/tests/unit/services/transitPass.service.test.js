@@ -69,6 +69,11 @@ describe('TransitPassService', () => {
       const yearly = await service.fetchTransitPassByType('YEARLY');
       expect(yearly).toBeNull();
     });
+
+    it('throws on error', async () => {
+      callTransitPass.mockRejectedValue(new Error('service down'));
+      await expect(service.fetchTransitPassByType('DAILY')).rejects.toThrow('service down');
+    });
   });
 });
 

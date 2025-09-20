@@ -208,4 +208,30 @@ describe('routeStation.service error paths', () => {
     await expect(routeStationService.reorderRouteStations('r1', [{ routeStationId: 'a', sequence: 1 }, { routeStationId: 'b', sequence: 2 }]))
       .rejects.toThrow('Number of sequences must match existing route stations');
   });
+
+  test('validateRouteSequence throws on error', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('Database error'));
+    await expect(routeStationService.validateRouteSequence('r1')).rejects.toThrow('Database error');
+  });
+
+  test('reorderRouteStations throws on error', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('Database error'));
+    await expect(routeStationService.reorderRouteStations('r1', [])).rejects.toThrow('Database error');
+  });
+
+  test('findShortestPathWithTransfers throws on missing parameters', async () => {
+    await expect(routeStationService.findShortestPathWithTransfers('', 's2')).rejects.toThrow('originStationId and destinationStationId are required');
+    await expect(routeStationService.findShortestPathWithTransfers('s1', '')).rejects.toThrow('originStationId and destinationStationId are required');
+  });
+
+  test('findShortestPathWithTransfers returns empty path when no data', async () => {
+    RouteStation.findAll.mockResolvedValue([]);
+    const result = await routeStationService.findShortestPathWithTransfers('s1', 's2');
+    expect(result).toEqual({ path: [], totalCost: Infinity, transfers: 0, segments: [] });
+  });
+
+  test('findShortestPathWithTransfers throws on error', async () => {
+    RouteStation.findAll.mockRejectedValue(new Error('Database error'));
+    await expect(routeStationService.findShortestPathWithTransfers('s1', 's2')).rejects.toThrow('Database error');
+  });
 });
