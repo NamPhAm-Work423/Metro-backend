@@ -45,6 +45,7 @@ jobs:
           - { name: scheduler-service,   path: scheduler-service,   dockerfile: Dockerfile, runtime: node }
           - { name: management-service,  path: management-service,  dockerfile: Dockerfile, runtime: python }
           - { name: webhook,             path: webhook,             dockerfile: Dockerfile, runtime: node }
+          - { name: healthcheck,         path: deploy/healthcheck,  dockerfile: Dockerfile, runtime: python }
 
     steps:
       - name: Checkout
