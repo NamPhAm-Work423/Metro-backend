@@ -93,6 +93,12 @@ describe('route.controller', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  test('getActiveRoutes handles 500 error', async () => {
+    routeService.getActiveRoutes.mockRejectedValue(new Error('Database error'));
+    await routeController.getActiveRoutes(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   test('getRoutesByStation returns 200', async () => {
     routeService.getRoutesByStation.mockResolvedValue([]);
     req.params.stationId = 's1';

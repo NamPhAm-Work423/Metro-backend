@@ -153,4 +153,17 @@ describe('stop.controller', () => {
     await stopController.deleteStop(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
+  test('getStopsByTrip returns 200', async () => {
+    stopService.getStopsByTrip.mockResolvedValue([]);
+    req.params.tripId = 't1';
+    await stopController.getStopsByTrip(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getStopsByTrip handles 500 error', async () => {
+    stopService.getStopsByTrip.mockRejectedValue(new Error('Database error'));
+    await stopController.getStopsByTrip(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
 });

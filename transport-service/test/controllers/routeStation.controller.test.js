@@ -157,4 +157,20 @@ describe('routeStation.controller', () => {
     await routeStationController.validateRouteSequence(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  test('reorderRouteStations returns 200', async () => {
+    routeStationService.reorderRouteStations.mockResolvedValue({ message: 'ok', validation: {} });
+    req.params.routeId = 'r1';
+    req.body.newSequences = [{ routeStationId: 'rs1', sequence: 1 }];
+    await routeStationController.reorderRouteStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('reorderRouteStations handles 400 error', async () => {
+    routeStationService.reorderRouteStations.mockRejectedValue(new Error('Invalid sequences'));
+    req.params.routeId = 'r1';
+    req.body.newSequences = [];
+    await routeStationController.reorderRouteStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
 });

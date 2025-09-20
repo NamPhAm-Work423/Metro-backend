@@ -112,4 +112,16 @@ describe('station.controller', () => {
     await stationController.deleteStation(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
+  test('getActiveStations returns 200', async () => {
+    stationService.getActiveStations.mockResolvedValue([]);
+    await stationController.getActiveStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('getActiveStations handles 500 error', async () => {
+    stationService.getActiveStations.mockRejectedValue(new Error('Database error'));
+    await stationController.getActiveStations(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
 });
