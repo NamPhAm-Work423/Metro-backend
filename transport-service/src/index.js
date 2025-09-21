@@ -65,8 +65,18 @@ async function startApplication() {
         // Sync database first
         await syncDatabase();
         
-        // Seed initial data
-        await runAllSeeds();
+        // Seed initial data with timeout (skip in production if disabled)
+        if (process.env.SKIP_SEEDING !== 'true') {
+            const seedTimeout = 300000; // 5 minutes timeout
+            await Promise.race([
+                runAllSeeds(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Seeding timeout after 5 minutes')), seedTimeout)
+                )
+            ]);
+        } else {
+            logger.info('Seeding skipped due to SKIP_SEEDING environment variable');
+        }
         
         // Start HTTP server
         app.listen(PORT, () => {

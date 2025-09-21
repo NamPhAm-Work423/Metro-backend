@@ -1233,6 +1233,14 @@ const seedStations = async () => {
   try {
     console.log('Bắt đầu seed dữ liệu ga Metro TPHCM...');
     
+    // Check if stations already exist
+    const existingStations = await Station.count();
+    if (existingStations > 0) {
+      console.log(`Đã có ${existingStations} ga Metro, bỏ qua việc seed...`);
+      const stations = await Station.findAll();
+      return stations;
+    }
+    
     // Xóa dữ liệu cũ nếu có
     await Station.destroy({ where: {} });
     
@@ -1242,14 +1250,37 @@ const seedStations = async () => {
       stationId: createStationId(station.name)
     }));
     
-    // Thêm dữ liệu mới
-    const stations = await Station.bulkCreate(stationsWithIds);
+    console.log(`Đang tạo ${stationsWithIds.length} ga Metro...`);
+    
+    // Batch create to avoid memory issues
+    const BATCH_SIZE = 50;
+    const stations = [];
+    
+    for (let i = 0; i < stationsWithIds.length; i += BATCH_SIZE) {
+      const batch = stationsWithIds.slice(i, i + BATCH_SIZE);
+      console.log(`Tạo batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(stationsWithIds.length / BATCH_SIZE)} (${batch.length} ga)...`);
+      
+      const batchStations = await Station.bulkCreate(batch, {
+        validate: true,
+        individualHooks: false
+      });
+      
+      stations.push(...batchStations);
+      
+      // Small delay to prevent overwhelming the database
+      if (i + BATCH_SIZE < stationsWithIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
     console.log(`Đã tạo thành công ${stations.length} ga Metro TPHCM`);
     console.log('Các ga đã tạo với simple IDs:');
-    stations.forEach((station, index) => {
+    stations.slice(0, 10).forEach((station, index) => {
       console.log(`   ${index + 1}. ${station.stationId} -> ${station.name}`);
     });
+    if (stations.length > 10) {
+      console.log(`   ... và ${stations.length - 10} ga khác`);
+    }
     
     return stations;
   } catch (error) {
