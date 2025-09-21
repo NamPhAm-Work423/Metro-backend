@@ -389,15 +389,23 @@ services:
     networks:
       - backend-network
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     <<:
       - *default-restart
       - *default-deploy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','8008'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=10)"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
 
   notification-service:
     image: ${REGISTRY}/metro-notification-service:${IMAGE_TAG}
@@ -568,12 +576,6 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 
@@ -971,12 +973,6 @@ services:
       - backend-network
     logging: *default-logging
     <<: *default-restart
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 

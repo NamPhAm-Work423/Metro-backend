@@ -4,8 +4,8 @@ const tripController = require('../controllers/trip.controller');
 const stopController = require('../controllers/stop.controller');
 const { authorizeRoles } = require('../middlewares/authorization');
 
-// Get all trips (staff and admin)
-router.get('/', ...authorizeRoles('staff', 'admin'), tripController.getAllTrips);
+// Get trips with filters (staff and admin)
+router.get('/', ...authorizeRoles('staff', 'admin'), tripController.getTripsWithFilters);
 
 // Get active trips (all roles)
 router.get('/active', ...authorizeRoles('passenger', 'staff', 'admin'), tripController.getActiveTrips);

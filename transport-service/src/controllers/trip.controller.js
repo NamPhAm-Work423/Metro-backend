@@ -36,6 +36,32 @@ class TripController {
         }
     }
 
+    async getTripsWithFilters(req, res, next) {
+        try {
+            const filters = req.query;
+            
+            // If no date specified, default to today
+            if (!filters.serviceDate) {
+                filters.serviceDate = new Date().toISOString().split('T')[0];
+            }
+            
+            const trips = await tripService.getTripsByDate(filters.serviceDate, filters);
+            return res.status(200).json({
+                success: true,
+                data: trips,
+                message: `Trips for ${filters.serviceDate}`,
+                filters: filters
+            });
+        } catch (error) {
+            if (typeof next === 'function') { next(error); }
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+                error: 'INTERNAL_ERROR_GET_TRIPS_WITH_FILTERS'
+            });
+        }
+    }
+
     async getTripById(req, res, next) {
         try {
             const trip = await tripService.getTripById(req.params.id);

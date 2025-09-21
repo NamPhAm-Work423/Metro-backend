@@ -30,62 +30,66 @@ def main() -> None:
     server.start()
     print(f'Control gRPC server running on {settings.control_grpc_host}:{settings.control_grpc_port}')
 
-    # One-time yearly initialization using MTA Prophet model
-    if settings.init_seed_on_start:
-        try:
-            # Prevent duplicate runs for the same year
-            marker_dir = '/tmp'
-            os.makedirs(marker_dir, exist_ok=True)
-            stub = _make_internal_stub()
-            current_year = datetime.now().year
-            
-            # Check if yearly schedule already generated for current year
-            yearly_marker = os.path.join(marker_dir, f'control-yearly-seed-{current_year}.done')
-            if not os.path.exists(yearly_marker):
-                print(f"🚀 InitSeed: Generating yearly schedules for {current_year} using MTA Prophet model...")
-                
-                # Import and use yearly planning service directly
-                from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
-                from ai_scheduler.grpc.servicer import _make_transport_channel
-                from ai_scheduler.proto import transport_pb2_grpc
-                
-                # Create transport connection and yearly planner
-                transport_channel = _make_transport_channel()
-                transport_stub = transport_pb2_grpc.TransportServiceStub(transport_channel)
-                yearly_planner = YearlyPlanningService(transport_stub)
-                
-                # Generate yearly schedule (this will take some time but generates everything at once)
-                total_trips = yearly_planner.generate_yearly_schedule_simple(current_year)
-                
-                print(f"✅ InitSeed: Generated {total_trips} trips for year {current_year}")
-                
-                # Mark as done
-                try:
-                    with open(yearly_marker, 'w', encoding='utf-8') as _f:
-                        _f.write(f'Generated {total_trips} trips for {current_year}')
-                except Exception:
-                    pass
-                    
-                # Close transport connection
-                transport_channel.close()
-            else:
-                print(f"✅ Yearly schedule for {current_year} already exists, skipping generation")
-                
-        except Exception as e:
-            print(f"❌ InitSeed: Failed to generate yearly schedules: {e}")
-            print("   Falling back to daily schedule generation...")
-            # Fallback to original daily generation
+    # One-time yearly initialization using MTA Prophet model (run in background)
+    def init_seed_background():
+        if settings.init_seed_on_start:
             try:
+                # Prevent duplicate runs for the same year
+                marker_dir = '/tmp'
+                os.makedirs(marker_dir, exist_ok=True)
                 stub = _make_internal_stub()
-                today = datetime.now()
-                for d in range(settings.init_seed_days):
-                    day = today + timedelta(days=d)
-                    target = day.strftime('%Y-%m-%d')
-                    dow = day.strftime('%A')
-                    print(f"Fallback: generating daily schedule for {target} ({dow})")
-                    stub.GenerateDailySchedules(control_pb2.GenerateDailyRequest(date=target, dayOfWeek=dow))
-            except Exception as fallback_e:
-                print(f"❌ Fallback also failed: {fallback_e}")
+                current_year = datetime.now().year
+                
+                # Check if yearly schedule already generated for current year
+                yearly_marker = os.path.join(marker_dir, f'control-yearly-seed-{current_year}.done')
+                if not os.path.exists(yearly_marker):
+                    print(f"🚀 InitSeed: Generating yearly schedules for {current_year} using MTA Prophet model...")
+                    
+                    # Import and use yearly planning service directly
+                    from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
+                    from ai_scheduler.grpc.servicer import _make_transport_channel
+                    from ai_scheduler.proto import transport_pb2_grpc
+                    
+                    # Create transport connection and yearly planner
+                    transport_channel = _make_transport_channel()
+                    transport_stub = transport_pb2_grpc.TransportServiceStub(transport_channel)
+                    yearly_planner = YearlyPlanningService(transport_stub)
+                    
+                    # Generate yearly schedule (this will take some time but generates everything at once)
+                    total_trips = yearly_planner.generate_yearly_schedule_simple(current_year)
+                    
+                    print(f"✅ InitSeed: Generated {total_trips} trips for year {current_year}")
+                    
+                    # Mark as done
+                    try:
+                        with open(yearly_marker, 'w', encoding='utf-8') as _f:
+                            _f.write(f'Generated {total_trips} trips for {current_year}')
+                    except Exception:
+                        pass
+                        
+                    # Close transport connection
+                    transport_channel.close()
+                else:
+                    print(f"✅ Yearly schedule for {current_year} already exists, skipping generation")
+                    
+            except Exception as e:
+                print(f"❌ InitSeed: Failed to generate yearly schedules: {e}")
+                print("   Falling back to daily schedule generation...")
+                # Fallback to original daily generation
+                try:
+                    stub = _make_internal_stub()
+                    today = datetime.now()
+                    for d in range(settings.init_seed_days):
+                        day = today + timedelta(days=d)
+                        target = day.strftime('%Y-%m-%d')
+                        dow = day.strftime('%A')
+                        print(f"Fallback: generating daily schedule for {target} ({dow})")
+                        stub.GenerateDailySchedules(control_pb2.GenerateDailyRequest(date=target, dayOfWeek=dow))
+                except Exception as fallback_e:
+                    print(f"❌ Fallback also failed: {fallback_e}")
+
+    # Start initialization in background thread to avoid blocking health checks
+    threading.Thread(target=init_seed_background, daemon=True).start()
 
     # Yearly schedule maintenance job - runs on January 1st at 03:00
     def yearly_maintenance_job():

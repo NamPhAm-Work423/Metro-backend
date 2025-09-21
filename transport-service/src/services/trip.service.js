@@ -72,6 +72,69 @@ class TripService {
         }
     }
 
+    async getTripsByDate(date, filters = {}) {
+        try {
+            const where = {
+                serviceDate: date
+            };
+            
+            if (filters.isActive !== undefined) {
+                where.isActive = filters.isActive;
+            }
+            
+            if (filters.routeId) {
+                where.routeId = filters.routeId;
+            }
+            
+            if (filters.trainId) {
+                where.trainId = filters.trainId;
+            }
+            
+            if (filters.dayOfWeek) {
+                where.dayOfWeek = filters.dayOfWeek;
+            }
+            
+            if (filters.departureTimeFrom && filters.departureTimeTo) {
+                where.departureTime = {
+                    [Op.between]: [filters.departureTimeFrom, filters.departureTimeTo]
+                };
+            }
+
+            const trips = await Trip.findAll({
+                where,
+                include: [
+                    {
+                        model: Route,
+                        as: 'route',
+                        attributes: ['routeId', 'name', 'originId', 'destinationId', 'distance', 'duration']
+                    },
+                    {
+                        model: Train,
+                        as: 'train',
+                        attributes: ['trainId', 'name', 'type', 'capacity', 'status']
+                    },
+                    {
+                        model: Stop,
+                        as: 'stops',
+                        include: [
+                            {
+                                model: Station,
+                                as: 'station',
+                                attributes: ['stationId', 'name', 'location']
+                            }
+                        ],
+                        order: [['sequence', 'ASC']]
+                    }
+                ],
+                order: [['departureTime', 'ASC']]
+            });
+            
+            return trips;
+        } catch (error) {
+            throw error;
+        }
+    }
+
     async getTripById(tripId) {
         try {
             const trip = await Trip.findByPk(tripId, {
