@@ -8,6 +8,9 @@ service ControlService {
   // ===============================
   rpc GenerateSchedule(GenerateScheduleRequest) returns (GenerateScheduleResponse);
   rpc GenerateDailySchedules(GenerateDailyRequest) returns (GenerateScheduleResponse);
+  rpc GenerateYearlySchedules(GenerateYearlyRequest) returns (GenerateYearlyResponse);
+  rpc GenerateQuarterlySchedules(GenerateQuarterlyRequest) returns (GenerateYearlyResponse);
+  rpc GetYearlyScheduleSummary(GetYearlyScheduleSummaryRequest) returns (GetYearlyScheduleSummaryResponse);
   rpc Reschedule(RescheduleRequest) returns (RescheduleResponse);
   rpc GetPlan(GetPlanRequest) returns (GetPlanResponse);
 }
@@ -69,6 +72,67 @@ message GenerateDailyRequest {
   string date = 1;        // YYYY-MM-DD
   string dayOfWeek = 2;   // Monday..Sunday
   repeated string routeIds = 3; // optional; empty => all active routes
+}
+
+// ===============================
+// YEARLY SCHEDULING MESSAGES
+// ===============================
+
+message GenerateYearlyRequest {
+  int32 year = 1;
+  repeated string routeIds = 2; // optional; empty => all active routes
+  string serviceStart = 3;      // HH:MM:SS, default: 05:00:00
+  string serviceEnd = 4;        // HH:MM:SS, default: 23:00:00
+}
+
+message GenerateQuarterlyRequest {
+  int32 year = 1;
+  int32 quarter = 2;           // 1-4
+  repeated string routeIds = 3; // optional; empty => all active routes
+  string serviceStart = 4;      // HH:MM:SS, default: 05:00:00
+  string serviceEnd = 5;        // HH:MM:SS, default: 23:00:00
+}
+
+message RouteYearlyStats {
+  string routeId = 1;
+  int32 tripsGenerated = 2;
+  int32 daysProcessed = 3;
+  map<string, int32> monthlyBreakdown = 4;  // month_name -> trips
+  map<string, int32> demandDistribution = 5; // high/low/standard -> count
+}
+
+message GenerateYearlyResponse {
+  int32 year = 1;
+  int32 quarter = 2;           // 0 for full year, 1-4 for quarters
+  int32 routesProcessed = 3;
+  int32 daysProcessed = 4;
+  int32 tripsGenerated = 5;
+  int32 highDemandDays = 6;
+  int32 lowDemandDays = 7;
+  int32 standardDemandDays = 8;
+  repeated RouteYearlyStats routeStats = 9;
+  bool success = 10;
+  string message = 11;
+}
+
+message GetYearlyScheduleSummaryRequest {
+  int32 year = 1;
+  string routeId = 2; // optional; empty => all routes
+}
+
+message MTAModelInsights {
+  repeated string highDemandDays = 1;
+  repeated string lowDemandDays = 2;
+  map<string, string> scheduleIntervals = 3; // period -> interval (e.g., "high_frequency" -> "2-3 minutes")
+}
+
+message GetYearlyScheduleSummaryResponse {
+  int32 year = 1;
+  MTAModelInsights mtaInsights = 2;
+  repeated string optimizationRecommendations = 3;
+  map<string, int32> seasonalPatterns = 4; // season -> expected_trips
+  bool success = 5;
+  string message = 6;
 }
 
 

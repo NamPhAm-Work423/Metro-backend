@@ -9,6 +9,7 @@ coverage-to-csv.js
 Latex
 vps_handlers.md
 artifacts
+notebook
 # Logs
 logs
 logs/*

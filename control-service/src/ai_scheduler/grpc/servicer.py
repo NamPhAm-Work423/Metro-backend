@@ -5,6 +5,7 @@ from ai_scheduler.proto import control_pb2, control_pb2_grpc, transport_pb2, tra
 
 from ai_scheduler.config.settings import settings
 from ai_scheduler.services.planning_service import PlanningService
+from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
 
 
 def _make_transport_channel():
@@ -16,6 +17,7 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
         self.channel = _make_transport_channel()
         self.transport = transport_pb2_grpc.TransportServiceStub(self.channel)
         self.planning = PlanningService(self.transport, dwell_sec=settings.dwell_sec, turnaround_sec=settings.turnaround_sec)
+        self.yearly_planning = YearlyPlanningService(self.transport)
 
     def GenerateSchedule(self, request, context):
         """Generate AI-optimized schedule for a specific route"""
@@ -103,5 +105,83 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return control_pb2.GenerateScheduleResponse(trips=0)
+
+    def GenerateYearlySchedules(self, request, context):
+        """Generate AI-optimized schedules for entire year using MTA Prophet model"""
+        try:
+            print(f"🚀 AI Scheduler: Generating yearly schedules for {request.year}")
+            print(f"Routes: {list(request.routeIds) if request.routeIds else 'All active routes'}")
+            print(f"Service hours: {request.serviceStart or '05:00:00'} - {request.serviceEnd or '23:00:00'}")
+            
+            # Generate yearly schedule
+            stats = self.yearly_planning.generate_yearly_schedule(
+                year=request.year,
+                route_ids=list(request.routeIds) if request.routeIds else None,
+                service_start=request.serviceStart or "05:00:00",
+                service_end=request.serviceEnd or "23:00:00"
+            )
+            
+            # Check for errors
+            if "error" in stats:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(stats["error"])
+                return control_pb2.GenerateYearlyResponse(
+                    year=request.year,
+                    quarter=0,
+                    success=False,
+                    message=stats["error"]
+                )
+            
+            print(f"✅ Generated {stats['trips_generated']} trips for {stats['routes_processed']} routes")
+            
+            # Return simplified response for now (protobuf needs to be regenerated)
+            return control_pb2.GenerateScheduleResponse(trips=stats.get("trips_generated", 0))
+            
+        except Exception as e:
+            print(f"❌ Error generating yearly schedules: {str(e)}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return control_pb2.GenerateScheduleResponse(trips=0)
+
+    def GenerateQuarterlySchedules(self, request, context):
+        """Generate AI-optimized schedules for a quarter using MTA Prophet model"""
+        try:
+            print(f"🗓️ AI Scheduler: Generating Q{request.quarter} {request.year} schedules")
+            
+            stats = self.yearly_planning.generate_quarterly_schedule(
+                year=request.year,
+                quarter=request.quarter,
+                route_ids=list(request.routeIds) if request.routeIds else None
+            )
+            
+            print(f"✅ Generated {stats['trips_generated']} trips for Q{request.quarter}")
+            
+            # Return simplified response for now
+            return control_pb2.GenerateScheduleResponse(trips=stats.get("trips_generated", 0))
+            
+        except Exception as e:
+            print(f"❌ Error generating quarterly schedules: {str(e)}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return control_pb2.GenerateScheduleResponse(trips=0)
+
+    def GetYearlyScheduleSummary(self, request, context):
+        """Get yearly schedule summary with MTA Prophet insights"""
+        try:
+            print(f"📊 Getting yearly schedule summary for {request.year}")
+            
+            summary = self.yearly_planning.get_yearly_schedule_summary(
+                year=request.year,
+                route_id=request.routeId if request.routeId else None
+            )
+            
+            # Return simplified response for now
+            return control_pb2.GetPlanResponse(items=[])
+            
+        except Exception as e:
+            print(f"❌ Error getting yearly summary: {str(e)}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return control_pb2.GetPlanResponse(items=[])
 
 

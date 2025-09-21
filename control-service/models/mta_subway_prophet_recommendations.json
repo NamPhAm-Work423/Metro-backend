@@ -1,0 +1,46 @@
+{
+  "weekly_patterns": {
+    "high_demand_days": [
+      "Wednesday",
+      "Thursday",
+      "Tuesday"
+    ],
+    "low_demand_days": [
+      "Sunday",
+      "Saturday"
+    ],
+    "peak_frequency_days": [
+      "Wednesday",
+      "Thursday",
+      "Tuesday"
+    ]
+  },
+  "schedule_suggestions": {
+    "high_frequency_periods": {
+      "days": [
+        "Wednesday",
+        "Thursday",
+        "Tuesday"
+      ],
+      "suggested_interval": "2-3 minutes",
+      "additional_trains": "+30-50%"
+    },
+    "standard_frequency_periods": {
+      "days": [
+        "Tuesday",
+        "Wednesday",
+        "Thursday"
+      ],
+      "suggested_interval": "4-5 minutes",
+      "additional_trains": "baseline"
+    },
+    "reduced_frequency_periods": {
+      "days": [
+        "Sunday",
+        "Saturday"
+      ],
+      "suggested_interval": "6-8 minutes",
+      "additional_trains": "-20-30%"
+    }
+  }
+}
