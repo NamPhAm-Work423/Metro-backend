@@ -943,6 +943,8 @@ services:
     container_name: redis-commander
     env_file:
       - /opt/env/init_db.env
+    environment:
+      - NODE_ENV=development
     command:
       - sh
       - -c
@@ -952,17 +954,18 @@ services:
           exit 1
         fi
         echo "Starting Redis Commander with authentication..."
-        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD"
+        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD" --port 8082
     expose:
-      - "8081"  # Internal only - access via nginx /redis-commander/
+      - "8082"  # Internal only - access via nginx /redis-commander/
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - backend-network
     logging: *default-logging
     <<: *default-restart
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082"]
       interval: 30s
       timeout: 10s
       retries: 3
