@@ -113,6 +113,32 @@ describe('trip.controller', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
+  test('getTripsWithFilters returns 200 with default today date', async () => {
+    tripService.getTripsByDate.mockResolvedValue([]);
+    await tripController.getTripsWithFilters(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(tripService.getTripsByDate).toHaveBeenCalledWith(
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), // Today's date format
+      expect.objectContaining({
+        serviceDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
+      })
+    );
+  });
+
+  test('getTripsWithFilters returns 200 with custom date', async () => {
+    tripService.getTripsByDate.mockResolvedValue([]);
+    req.query = { serviceDate: '2025-09-21', routeId: 'r1' };
+    await tripController.getTripsWithFilters(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(tripService.getTripsByDate).toHaveBeenCalledWith('2025-09-21', req.query);
+  });
+
+  test('getTripsWithFilters handles 500', async () => {
+    tripService.getTripsByDate.mockRejectedValue(new Error('db'));
+    await tripController.getTripsWithFilters(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   test('getTripById returns 200', async () => {
     tripService.getTripById.mockResolvedValue({});
     req.params.id = 'tr1';
