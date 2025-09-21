@@ -131,13 +131,40 @@ app.use((req, res, next) => {
 // Routes
 app.use('/v1', routes);
 
-// Health check endpoint (bypass network validation)
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        service: 'transport-service',
-        timestamp: new Date().toISOString()
-    });
+// Health check endpoint with dependency validation
+app.get('/health', async (req, res) => {
+    try {
+        const health = {
+            status: 'OK',
+            service: 'transport-service',
+            timestamp: new Date().toISOString(),
+            checks: {
+                database: 'OK',
+                uptime: process.uptime()
+            }
+        };
+
+        // Test database connection
+        try {
+            const sequelize = require('./config/database');
+            await sequelize.authenticate();
+            health.checks.database = 'OK';
+        } catch (dbError) {
+            health.status = 'UNHEALTHY';
+            health.checks.database = 'FAILED';
+            health.error = dbError.message;
+            return res.status(503).json(health);
+        }
+
+        res.status(200).json(health);
+    } catch (error) {
+        res.status(503).json({
+            status: 'UNHEALTHY',
+            service: 'transport-service',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
 });
 
 // Metrics endpoint for API Gateway
