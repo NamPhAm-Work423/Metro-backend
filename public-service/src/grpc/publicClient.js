@@ -38,9 +38,14 @@ function initTransportClient() {
         });
         
         const transportProto = grpc.loadPackageDefinition(packageDefinition).transport;
+        const options = {
+            'grpc.max_send_message_length': 20 * 1024 * 1024,
+            'grpc.max_receive_message_length': 20 * 1024 * 1024
+        };
         transportClient = new transportProto.TransportService(
             config.transport.url,
-            grpc.credentials.createInsecure()
+            grpc.credentials.createInsecure(),
+            options
         );
         
         logger.info('Transport gRPC client initialized', { url: config.transport.url });
@@ -193,6 +198,20 @@ async function callTransport(method, request) {
     }
 }
 
+// Cached wrapper specifically for ListTripsNext7Days
+async function getTripsNext7DaysCached(params) {
+    const ttl = config.redis.ttl || 3600;
+    const key = _cacheKey('ListTripsNext7Days', params || {});
+    const cached = _getFromCache(key);
+    if (cached) {
+        logger.debug('Returning cached ListTripsNext7Days result', { key });
+        return cached;
+    }
+    const response = await callTransport('ListTripsNext7Days', params || {});
+    _setCache(key, response, ttl);
+    return response;
+}
+
 // Ticket gRPC call with retry
 async function callTicket(method, request) {
     const client = getTicketClient();
@@ -302,5 +321,6 @@ module.exports = {
     initTransportClient,
     initTicketClient,
     initPassengerDiscountClient,
-    initTransitPassClient
+    initTransitPassClient,
+    getTripsNext7DaysCached
 };

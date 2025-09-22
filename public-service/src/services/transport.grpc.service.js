@@ -154,6 +154,21 @@ class TransportGrpcService {
             throw new Error(`Failed to calculate station count: ${error.message}`);
         }
     }
+
+    /**
+     * Fetch trips for the next N days (default 7) via gRPC
+     */
+    async fetchTripsNextDays({ startDate, days = 7, routeId } = {}) {
+        try {
+            const req = { startDate: startDate || '', days, routeId: routeId || '' };
+            logger.info('Fetching trips for next days via gRPC', req);
+            const response = await callTransport('ListTripsNext7Days', req);
+            return response?.items || [];
+        } catch (error) {
+            logger.error('Failed to fetch trips next days via gRPC', { error: error.message });
+            throw new Error(`Failed to fetch trips next days: ${error.message}`);
+        }
+    }
 }
 
 module.exports = TransportGrpcService; 

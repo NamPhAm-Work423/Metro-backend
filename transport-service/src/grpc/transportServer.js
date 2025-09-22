@@ -2,6 +2,7 @@ const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
 const { logger } = require('../config/logger');
+const { Op } = require('sequelize');
 
 // Import models
 const { Route, Station, Trip, RouteStation, Train, Stop } = require('../models/index.model');
@@ -469,12 +470,100 @@ const transportService = {
             callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
         }
     }
+    ,
+
+    async ListTripsNext7Days(call, callback) {
+        try {
+            const { startDate, days, routeId } = call.request;
+            const baseDate = startDate && startDate.length > 0 ? new Date(startDate) : new Date();
+            const numDays = days && days > 0 ? Math.min(days, 14) : 7; // safety cap
+
+            // Build date list YYYY-MM-DD
+            const dates = Array.from({ length: numDays }, (_, i) => {
+                const d = new Date(baseDate);
+                d.setDate(d.getDate() + i);
+                return d.toISOString().slice(0, 10);
+            });
+
+            // Query all trips in range
+            const where = { serviceDate: { [Op.in]: dates } };
+            if (routeId) { where.routeId = routeId; }
+
+            const trips = await Trip.findAll({
+                where,
+                include: [
+                    { 
+                        model: Route, as: 'route',
+                        include: [
+                            { model: Station, as: 'origin' },
+                            { model: Station, as: 'destination' }
+                        ]
+                    }
+                ],
+                order: [['serviceDate', 'ASC'], ['departureTime', 'ASC']]
+            });
+
+            // Group by date
+            const grouped = new Map();
+            for (const date of dates) grouped.set(date, []);
+            for (const trip of trips) {
+                const key = typeof trip.serviceDate === 'string'
+                    ? trip.serviceDate
+                    : (trip.serviceDate ? trip.serviceDate.toISOString().slice(0,10) : '');
+                if (!grouped.has(key)) grouped.set(key, []);
+                grouped.get(key).push({
+                    tripId: trip.tripId,
+                    routeId: trip.routeId,
+                    trainId: trip.trainId,
+                    departureTime: trip.departureTime || '',
+                    arrivalTime: trip.arrivalTime || '',
+                    dayOfWeek: trip.dayOfWeek || '',
+                    isActive: trip.isActive,
+                    serviceDate: key,
+                    route: trip.route ? {
+                        routeId: trip.route.routeId,
+                        name: trip.route.name,
+                        originId: trip.route.originId,
+                        destinationId: trip.route.destinationId,
+                        distance: trip.route.distance,
+                        duration: trip.route.duration,
+                        isActive: trip.route.isActive,
+                        origin: trip.route.origin ? {
+                            stationId: trip.route.origin.stationId,
+                            name: trip.route.origin.name,
+                            location: trip.route.origin.location,
+                            latitude: trip.route.origin.latitude,
+                            longitude: trip.route.origin.longitude,
+                            isActive: trip.route.origin.isActive
+                        } : null,
+                        destination: trip.route.destination ? {
+                            stationId: trip.route.destination.stationId,
+                            name: trip.route.destination.name,
+                            location: trip.route.destination.location,
+                            latitude: trip.route.destination.latitude,
+                            longitude: trip.route.destination.longitude,
+                            isActive: trip.route.destination.isActive
+                        } : null
+                    } : null
+                });
+            }
+
+            const items = dates.map(d => ({ date: d, trips: grouped.get(d) || [] }));
+            callback(null, { items });
+        } catch (error) {
+            logger.error('ListTripsNext7Days error:', error);
+            callback({ code: grpc.status.INTERNAL, message: 'Internal server error' });
+        }
+    }
 };
 
 function startGrpcServer() {
     try {
         logger.info('Creating gRPC server...');
-        const server = new grpc.Server();
+        const server = new grpc.Server({
+            'grpc.max_send_message_length': 20 * 1024 * 1024,
+            'grpc.max_receive_message_length': 20 * 1024 * 1024
+        });
         
         logger.info('Adding service to gRPC server...');
         server.addService(transportProto.TransportService.service, transportService);

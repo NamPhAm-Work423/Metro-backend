@@ -10,6 +10,7 @@ service TransportService {
   rpc GetRouteStations(GetRouteStationsRequest) returns (RouteStationsResponse);
   rpc CalculateStationCount(CalculateStationCountRequest) returns (StationCountResponse);
   rpc ListRoutes(ListRoutesRequest) returns (RoutesResponse);
+  rpc ListTripsNext7Days(ListTripsNext7DaysRequest) returns (TripsByDateResponse);
 }
 
 message GetRouteRequest {
@@ -84,6 +85,7 @@ message TripResponse {
   string dayOfWeek = 6;
   bool isActive = 7;
   RouteResponse route = 8;
+  string serviceDate = 9;
 }
 
 message Station {
@@ -104,3 +106,18 @@ message RouteStation {
 }
 
 message ListRoutesRequest {} 
+
+message ListTripsNext7DaysRequest {
+  string startDate = 1; // YYYY-MM-DD; defaults to today if empty
+  int32 days = 2; // number of days forward; defaults to 7
+  string routeId = 3; // optional route filter
+}
+
+message TripsByDate {
+  string date = 1; // YYYY-MM-DD
+  repeated TripResponse trips = 2;
+}
+
+message TripsByDateResponse {
+  repeated TripsByDate items = 1;
+}

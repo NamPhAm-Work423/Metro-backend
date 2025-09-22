@@ -17,6 +17,7 @@ class CacheService {
             FARE_DATA: `${this.keyPrefix}fare:all`,
             ROUTES: `${this.keyPrefix}transport:routes`,
             ROUTE_STATIONS: `${this.keyPrefix}transport:route_stations`,
+            TRIPS_NEXT_DAYS: `${this.keyPrefix}transport:trips_next_days`,
             FARES: `${this.keyPrefix}fare:fares`,
             TRANSIT_PASSES: `${this.keyPrefix}fare:transit_passes`,
             PASSENGER_DISCOUNTS: `${this.keyPrefix}fare:passenger_discounts`,
@@ -338,6 +339,56 @@ class CacheService {
     }
 
     /**
+     * Get trips for next N days from cache (fallback to gRPC) and cache result
+     */
+    async getTripsNextDays({ startDate, days = 7, routeId } = {}) {
+        try {
+            const effectiveStart = startDate || new Date().toISOString().slice(0,10);
+            const key = `${this.cacheKeys.TRIPS_NEXT_DAYS}:${effectiveStart}:${days}:${routeId || ''}`;
+
+            const t0 = Date.now();
+            let tGetStart = Date.now();
+            const { cached, getMs, cachedSize } = await withRedisClient(async (client) => {
+                if (!client) return { cached: null, getMs: 0, cachedSize: 0 };
+                const g0 = Date.now();
+                const raw = await client.get(key);
+                const g1 = Date.now();
+                return { cached: raw ? JSON.parse(raw) : null, getMs: g1 - g0, cachedSize: raw ? raw.length : 0 };
+            });
+
+            if (cached) {
+                const totalMs = Date.now() - t0;
+                logger.info('Retrieved trips next days from Redis cache', { key, getMs, totalMs, cachedSizeBytes: cachedSize });
+                return cached;
+            }
+
+            logger.info('Trips next days not in cache, fetching via gRPC', { startDate: effectiveStart, days, routeId });
+            const gRpcStart = Date.now();
+            const items = await this.transportService.fetchTripsNextDays({ startDate: effectiveStart, days, routeId });
+            const gRpcMs = Date.now() - gRpcStart;
+
+            const serialized = JSON.stringify(items);
+            const setStart = Date.now();
+            await setWithExpiry(key, serialized, this.cacheTTL);
+            const setMs = Date.now() - setStart;
+            const totalMs = Date.now() - t0;
+
+            logger.info('Cached trips next days after gRPC fetch', {
+                key,
+                gRpcMs,
+                setMs,
+                totalMs,
+                payloadSizeBytes: serialized.length,
+                itemsCount: Array.isArray(items) ? items.length : 0
+            });
+            return items;
+        } catch (error) {
+            logger.error('Failed to get trips next days', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * Get cache status and statistics
      */
     async getCacheStatus() {
@@ -348,7 +399,8 @@ class CacheService {
                         keys: [],
                         lastUpdate: null,
                         cacheTTL: this.cacheTTL,
-                        connected: false
+                        connected: false,
+                        tripsNextDays: { count: 0, keysSample: [] }
                     };
                 }
 
@@ -361,6 +413,7 @@ class CacheService {
                 ));
                 
                 const lastUpdate = await client.get(this.cacheKeys.LAST_UPDATE).catch(() => null);
+                const tripsKeys = await client.keys(`${this.cacheKeys.TRIPS_NEXT_DAYS}:*`).catch(() => []);
                 
                 return {
                     keys: keys.map((key, index) => ({
@@ -370,7 +423,8 @@ class CacheService {
                     })),
                     lastUpdate: lastUpdate || null,
                     cacheTTL: this.cacheTTL,
-                    connected: true
+                    connected: true,
+                    tripsNextDays: { count: tripsKeys.length, keysSample: tripsKeys.slice(0, 10) }
                 };
             });
 

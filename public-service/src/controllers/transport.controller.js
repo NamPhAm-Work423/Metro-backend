@@ -329,6 +329,53 @@ class TransportController {
             });
         }
     }
+
+    /**
+     * Get trips for next N days (default 7), optionally filtered by routeId
+     * GET /v1/trips/next-days?startDate=YYYY-MM-DD&days=7&routeId=... 
+     */
+    async getTripsNextDays(req, res) {
+        try {
+            const { startDate, days, routeId } = req.query;
+
+            const parsedDays = days ? parseInt(days, 10) : undefined;
+            if (days && (isNaN(parsedDays) || parsedDays <= 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid days parameter; must be a positive integer'
+                });
+            }
+
+            logger.info('Request for trips next days', {
+                startDate,
+                days: parsedDays || 7,
+                routeId,
+                ip: req.ip,
+                userAgent: req.get('User-Agent')
+            });
+
+            const items = await this.cacheService.getTripsNextDays({ startDate, days: parsedDays, routeId });
+
+            return res.json({
+                success: true,
+                data: items,
+                params: { startDate: startDate || new Date().toISOString().slice(0,10), days: parsedDays || 7, routeId: routeId || null },
+                cached: true,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            logger.error('Error fetching trips next days', {
+                error: error.message,
+                stack: error.stack,
+                ip: req.ip
+            });
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error while fetching trips next days',
+                error: error.message
+            });
+        }
+    }
 }
 
 module.exports = TransportController; 

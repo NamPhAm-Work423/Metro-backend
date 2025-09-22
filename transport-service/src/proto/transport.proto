@@ -13,6 +13,7 @@ service TransportService {
   rpc ListTrains(ListTrainsRequest) returns (TrainsResponse);
   rpc BulkUpsertTrips(BulkUpsertTripsRequest) returns (BulkUpsertTripsResponse);
   rpc BulkUpsertStops(BulkUpsertStopsRequest) returns (BulkUpsertStopsResponse);
+  rpc ListTripsNext7Days(ListTripsNext7DaysRequest) returns (TripsByDateResponse);
 }
 
 message GetRouteRequest {
@@ -157,4 +158,19 @@ message BulkUpsertStopsRequest {
 
 message BulkUpsertStopsResponse {
   int32 created = 1;
+}
+
+message ListTripsNext7DaysRequest {
+  string startDate = 1; // YYYY-MM-DD; defaults to today if empty
+  int32 days = 2; // number of days forward; defaults to 7
+  string routeId = 3; // optional route filter
+}
+
+message TripsByDate {
+  string date = 1; // YYYY-MM-DD
+  repeated TripResponse trips = 2;
+}
+
+message TripsByDateResponse {
+  repeated TripsByDate items = 1;
 }

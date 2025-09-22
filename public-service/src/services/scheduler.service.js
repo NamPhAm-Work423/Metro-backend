@@ -10,6 +10,8 @@ class SchedulerService {
         this.enabled = process.env.SCHEDULER_ENABLED === 'true' || process.env.SCHEDULER_ENABLED === undefined;
         this.interval = process.env.SCHEDULER_CRON || '0 * * * *'; // Every hour
         this.initialDelayMs = parseInt(process.env.SCHEDULER_INITIAL_DELAY_MS) || 10000; // 10 seconds
+        this.prewarmTrips = process.env.SCHEDULER_PREWARM_TRIPS === 'false' ? false : true; // default true
+        this.prewarmMaxRoutes = parseInt(process.env.SCHEDULER_PREWARM_MAX_ROUTES) || 20;
         
         // Track scheduler statistics
         this.stats = {
@@ -36,7 +38,9 @@ class SchedulerService {
             env: {
                 SCHEDULER_ENABLED: process.env.SCHEDULER_ENABLED,
                 SCHEDULER_CRON: process.env.SCHEDULER_CRON,
-                SCHEDULER_INITIAL_DELAY_MS: process.env.SCHEDULER_INITIAL_DELAY_MS
+                SCHEDULER_INITIAL_DELAY_MS: process.env.SCHEDULER_INITIAL_DELAY_MS,
+                SCHEDULER_PREWARM_TRIPS: process.env.SCHEDULER_PREWARM_TRIPS,
+                SCHEDULER_PREWARM_MAX_ROUTES: process.env.SCHEDULER_PREWARM_MAX_ROUTES
             }
         });
 
@@ -112,9 +116,9 @@ class SchedulerService {
             this.stats.totalRuns++;
             this.stats.lastRun = new Date().toISOString();
 
-            // Run the cache refresh
-            const results = await this.cacheService.cacheAllData();
-            const duration = Date.now() - startTime;
+      // Run the cache refresh
+      const results = await this.cacheService.cacheAllData();
+      const duration = Date.now() - startTime;
 
             // Update duration statistics
             this.stats.durations.push(duration);
@@ -126,12 +130,25 @@ class SchedulerService {
             // Check if refresh was successful
             const success = results.transport && results.ticket && !results.error;
 
-            if (success) {
+      if (success) {
                 this.stats.successfulRuns++;
                 this.stats.lastSuccess = new Date().toISOString();
                 this.stats.lastError = null;
 
-                logger.info('Cache refresh completed successfully', {
+          // Optionally prewarm trips next-days cache
+          if (this.prewarmTrips) {
+            try {
+              const today = new Date().toISOString().slice(0,10);
+              const routes = await this.cacheService.getRoutes();
+              const limitedRoutes = (routes || []).slice(0, this.prewarmMaxRoutes);
+              logger.info('Prewarming trips next-days cache', { count: limitedRoutes.length, day: today });
+              await Promise.all(limitedRoutes.map(r => this.cacheService.getTripsNextDays({ startDate: today, days: 7, routeId: r.routeId || r.id })));
+            } catch (preErr) {
+              logger.warn('Prewarm trips next-days failed', { error: preErr.message });
+            }
+          }
+
+          logger.info('Cache refresh completed successfully', {
                     trigger,
                     duration: `${duration}ms`,
                     results,

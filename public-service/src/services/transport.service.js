@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { logger } = require('../config/logger');
+const CacheService = require('./cache.service');
 
 class TransportService {
     constructor() {
@@ -19,6 +20,7 @@ class TransportService {
         });
 
         this.setupInterceptors();
+        this.cacheService = new CacheService();
     }
 
     /**
@@ -297,6 +299,18 @@ class TransportService {
                 error: error.message,
                 timestamp: new Date().toISOString()
             };
+        }
+    }
+
+    /**
+     * Convenience: get trips for next N days via cached gRPC
+     */
+    async getTripsNextDays({ startDate, days = 7, routeId } = {}) {
+        try {
+            return await this.cacheService.getTripsNextDays({ startDate, days, routeId });
+        } catch (error) {
+            logger.error('Failed to get trips next days (cached)', { error: error.message });
+            throw error;
         }
     }
 }
