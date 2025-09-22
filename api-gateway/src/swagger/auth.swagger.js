@@ -117,6 +117,50 @@
 
 /**
  * @swagger
+ * /v1/auth/auth/status:
+ *   get:
+ *     summary: Check current session/JWT status
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Status details
+ */
+
+/**
+ * @swagger
+ * /v1/auth/auth/session-refresh:
+ *   post:
+ *     summary: Refresh session (session-based alternative)
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Session refreshed
+ */
+
+/**
+ * @swagger
+ * /v1/auth/auth/profile:
+ *   get:
+ *     summary: Get profile via session
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Profile data
+ */
+
+/**
+ * @swagger
+ * /v1/auth/auth/verify-email:
+ *   post:
+ *     summary: Verify email using query token (legacy)
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Email verified
+ */
+
+/**
+ * @swagger
  * /v1/auth/auth/login:
  *   post:
  *     summary: Login user

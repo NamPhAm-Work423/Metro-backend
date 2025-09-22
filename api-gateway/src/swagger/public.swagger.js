@@ -7,6 +7,45 @@
 
 /**
  * @swagger
+ * /v1/guest/public/transport/trips/next-days:
+ *   get:
+ *     summary: Get upcoming trips for next days
+ *     tags: [Public Transport]
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 14
+ *         required: false
+ *         description: Number of days ahead (default service value)
+ *     responses:
+ *       200:
+ *         description: Upcoming trips
+ *
+ */
+
+/**
+ * @swagger
+ * /v1/guest/public/qr/{ticketId}:
+ *   get:
+ *     summary: Get QR code for ticket
+ *     tags: [Public Ticket]
+ *     parameters:
+ *       - in: path
+ *         name: ticketId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Ticket ID
+ *     responses:
+ *       200:
+ *         description: QR image or data
+ */
+
+/** 
+ * @swagger
  * tags:
  *   name: Public Ticket
  *   description: Public fares, transit passes and passenger discounts (guest access)

@@ -7,6 +7,17 @@
 
 /**
  * @swagger
+ * /v1/route/notification/metrics:
+ *   get:
+ *     summary: Notification service metrics
+ *     tags: [Notification Service]
+ *     responses:
+ *       200:
+ *         description: Metrics payload
+ */
+
+/**
+ * @swagger
  * tags:
  *   name: Notification SMS
  *   description: SMS notifications management (admin only)

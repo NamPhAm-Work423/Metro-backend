@@ -7,6 +7,49 @@
 
 /**
  * @swagger
+ * /v1/route/report/reports/event-logs:
+ *   get:
+ *     summary: Get event logs
+ *     tags: [Reports]
+ *     parameters:
+ *       - in: query
+ *         name: entity
+ *         schema: { type: string }
+ *       - in: query
+ *         name: startDate
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: endDate
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Event logs
+ */
+
+/**
+ * @swagger
+ * /v1/route/report/reports/ticket-events:
+ *   get:
+ *     summary: Get ticket events
+ *     tags: [Reports]
+ *     responses:
+ *       200:
+ *         description: Ticket events
+ */
+
+/**
+ * @swagger
+ * /v1/route/report/reports/ticket-usage-stats:
+ *   get:
+ *     summary: Get ticket usage statistics
+ *     tags: [Reports]
+ *     responses:
+ *       200:
+ *         description: Ticket usage statistics
+ */
+
+/**
+ * @swagger
  * /v1/route/report/reports/create-report:
  *   post:
  *     summary: Create a report

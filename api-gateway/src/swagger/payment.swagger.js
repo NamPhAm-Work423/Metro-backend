@@ -8,6 +8,126 @@
 /**
  * @swagger
  * tags:
+ *   name: Payment - VNPay
+ *   description: VNPay payment operations
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/vnpay:
+ *   post:
+ *     summary: Initiate VNPay payment
+ *     tags: [Payment - VNPay]
+ *     responses:
+ *       200:
+ *         description: VNPay payment initiated
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/vnpay/return:
+ *   get:
+ *     summary: VNPay return URL handler
+ *     tags: [Payment - VNPay]
+ *     responses:
+ *       200:
+ *         description: VNPay return processed
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/vnpay/ipn:
+ *   post:
+ *     summary: VNPay IPN webhook
+ *     tags: [Payment - VNPay]
+ *     responses:
+ *       200:
+ *         description: IPN processed
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   name: Payment - Sepay
+ *   description: Sepay payment operations
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/sepay/create-order:
+ *   post:
+ *     summary: Create a Sepay order
+ *     tags: [Payment - Sepay]
+ *     responses:
+ *       200:
+ *         description: Sepay order created
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/sepay/capture/{orderId}:
+ *   post:
+ *     summary: Capture a Sepay payment
+ *     tags: [Payment - Sepay]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment captured
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/sepay/order/{orderId}:
+ *   get:
+ *     summary: Get Sepay order details
+ *     tags: [Payment - Sepay]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order details
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/sepay/check-status/{orderId}:
+ *   get:
+ *     summary: Check Sepay order status
+ *     tags: [Payment - Sepay]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Status details
+ */
+
+/**
+ * @swagger
+ * /v1/route/payment/sepay/webhook:
+ *   post:
+ *     summary: Handle Sepay webhook events
+ *     tags: [Payment - Sepay]
+ *     responses:
+ *       200:
+ *         description: Webhook processed
+ */
+
+/**
+ * @swagger
+ * tags:
  *   name: Payment - PayPal
  *   description: PayPal payment operations
  */

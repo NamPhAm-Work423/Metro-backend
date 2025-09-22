@@ -674,3 +674,67 @@
  *                     data:
  *                       $ref: '#/components/schemas/Staff'
  */ 
+
+/**
+ * @swagger
+ * /v1/route/user/staff/me:
+ *   put:
+ *     summary: Update current staff profile
+ *     tags: [Staff Management]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *               position:
+ *                 type: string
+ *               department:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Staff profile updated successfully
+ *
+ *   delete:
+ *     summary: Delete current staff profile
+ *     tags: [Staff Management]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Staff profile deleted successfully
+ */
+
+/**
+ * @swagger
+ * /v1/route/user/staff/updateStaffStatus/{id}:
+ *   put:
+ *     summary: Update staff status (admin)
+ *     tags: [Staff Management]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, on_leave]
+ *     responses:
+ *       200:
+ *         description: Staff status updated
+ */ 

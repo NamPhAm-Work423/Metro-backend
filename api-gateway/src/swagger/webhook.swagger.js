@@ -7,6 +7,17 @@
 
 /**
  * @swagger
+ * /v1/route/webhook/webhook/paypal/retry:
+ *   post:
+ *     summary: Retry failed PayPal webhooks (alias)
+ *     tags: [Webhook - PayPal]
+ *     responses:
+ *       200:
+ *         description: Retry scheduled
+ */
+
+/**
+ * @swagger
  * tags:
  *   name: Webhook - PayPal
  *   description: PayPal webhook endpoints

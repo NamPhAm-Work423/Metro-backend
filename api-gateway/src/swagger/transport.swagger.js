@@ -244,6 +244,248 @@
 
 /**
  * @swagger
+ * /v1/route/transport/route/{routeId}/stations:
+ *   get:
+ *     summary: Get stations for a route
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Stations on the route
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Station'
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/route/{routeId}/path:
+ *   get:
+ *     summary: Get route path with details
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Route path
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/route/{routeId}/validate:
+ *   get:
+ *     summary: Validate route sequence
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Validation result
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/route/{routeId}/reorder:
+ *   put:
+ *     summary: Reorder route stations (Admin only)
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               stations:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Reordered
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/trip/route/{routeId}:
+ *   get:
+ *     summary: Get trips by route
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trips for route
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/trip/train/{trainId}:
+ *   get:
+ *     summary: Get trips by train
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: trainId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trips for train
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/trip/day/{dayOfWeek}:
+ *   get:
+ *     summary: Get trips by day of week
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: dayOfWeek
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+ *     responses:
+ *       200:
+ *         description: Trips for day
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/trip/{tripId}/schedule:
+ *   get:
+ *     summary: Get trip schedule with stops
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trip schedule
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/trip/{tripId}/stops/validate:
+ *   post:
+ *     summary: Validate stop sequence
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Validation result
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/route/{id}/distance:
+ *   get:
+ *     summary: Calculate route distance
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Distance
+ */
+
+/**
+ * @swagger
+ * /v1/route/transport/train/{id}/utilization:
+ *   get:
+ *     summary: Get train utilization
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Utilization metrics
+ */
+
+/**
+ * @swagger
  * tags:
  *   - name: Stations
  *     description: Station management endpoints
