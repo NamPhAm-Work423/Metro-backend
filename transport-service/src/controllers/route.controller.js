@@ -21,12 +21,16 @@ class RouteController {
 
     async getAllRoutes(req, res, next) {
         try {
+            console.log('[RouteController.getAllRoutes] incoming query:', req.query);
             const routes = await routeService.getAllRoutes(req.query);
+            console.log('[RouteController.getAllRoutes] result count:', Array.isArray(routes) ? routes.length : 0,
+                Array.isArray(routes) ? { sampleIds: routes.slice(0, 5).map(r => r.routeId) } : {});
             return res.status(200).json({
                 success: true,
                 data: routes
             });
         } catch (error) {
+            console.error('[RouteController.getAllRoutes] error:', error && error.stack ? error.stack : error);
             if (typeof next === 'function') { next(error); }
             return res.status(500).json({
                 success: false,
@@ -91,13 +95,17 @@ class RouteController {
 
     async getActiveRoutes(req, res, next) {
         try {
+            console.log('[RouteController.getActiveRoutes] fetching active routes');
             const routes = await routeService.getActiveRoutes();
+            console.log('[RouteController.getActiveRoutes] result count:', Array.isArray(routes) ? routes.length : 0,
+                Array.isArray(routes) ? { sampleIds: routes.slice(0, 5).map(r => r.routeId) } : {});
             return res.status(200).json({
                 success: true,
                 message: 'Active routes fetched successfully',
                 data: routes
             });
         } catch (error) {
+            console.error('[RouteController.getActiveRoutes] error:', error && error.stack ? error.stack : error);
             if (typeof next === 'function') { next(error); }
             return res.status(500).json({
                 success: false,

@@ -5,45 +5,45 @@ const routeStationController = require('../controllers/routeStation.controller')
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Get all routes (all roles)
-router.get('/', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getAllRoutes);
+router.get('/getRoutes', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getAllRoutes);
 
 // Get active routes (all roles)
-router.get('/active', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getActiveRoutes);
+router.get('/getActiveRoutes', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getActiveRoutes);
 
 // Search routes between stations (all roles)
-router.get('/search/between-stations', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.findRoutesBetweenStations);
+router.get('/findRoutesBetweenStations', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.findRoutesBetweenStations);
 
 // Get routes by station (all roles)
-router.get('/station/:stationId', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getRoutesByStation);
+router.get('/getRoutesByStation/:stationId', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getRoutesByStation);
 
 // Get route by ID (all roles)
-router.get('/:id', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getRouteById);
+router.get('/getRouteById/:id', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.getRouteById);
 
 // Calculate route distance (all roles)
-router.get('/:id/distance', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.calculateRouteDistance);
+router.get('/getRouteDistance/:id', ...authorizeRoles('passenger', 'staff', 'admin'), routeController.calculateRouteDistance);
 
 // Get stations by route (all roles)
-router.get('/:routeId/stations', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getStationsByRoute);
+router.get('/getStationsByRoute/:routeId', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getStationsByRoute);
 
 // Get route path with details (all roles)
-router.get('/:routeId/path', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getRoutePathWithDetails);
+router.get('/getRoutePathWithDetails/:routeId', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getRoutePathWithDetails);
 
 // Setup complete route (admin only)
-router.post('/:routeId/setup', ...authorizeRoles('admin'), routeStationController.setupCompleteRoute);
+router.post('/setupCompleteRoute/:routeId', ...authorizeRoles('admin'), routeStationController.setupCompleteRoute);
 
 // Validate route sequence (staff and admin)
-router.get('/:routeId/validate', ...authorizeRoles('staff', 'admin'), routeStationController.validateRouteSequence);
+router.get('/validateRouteSequence/:routeId', ...authorizeRoles('staff', 'admin'), routeStationController.validateRouteSequence);
 
 // Reorder route stations (admin only)
-router.put('/:routeId/reorder', ...authorizeRoles('admin'), routeStationController.reorderRouteStations);
+router.put('/reorderRouteStations/:routeId', ...authorizeRoles('admin'), routeStationController.reorderRouteStations);
 
 // Create route (admin only)
-router.post('/', ...authorizeRoles('admin'), routeController.createRoute);
+router.post('/createRoute', ...authorizeRoles('admin'), routeController.createRoute);
 
 // Update route (admin only)
-router.put('/:id', ...authorizeRoles('admin'), routeController.updateRoute);
+router.put('/updateRoute/:id', ...authorizeRoles('admin'), routeController.updateRoute);
 
 // Delete route (admin only)
-router.delete('/:id', ...authorizeRoles('admin'), routeController.deleteRoute);
+router.delete('/deleteRoute/:id', ...authorizeRoles('admin'), routeController.deleteRoute);
 
 module.exports = router;

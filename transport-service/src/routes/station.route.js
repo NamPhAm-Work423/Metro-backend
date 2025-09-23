@@ -6,33 +6,33 @@ const routeStationController = require('../controllers/routeStation.controller')
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Get all stations (all roles)
-router.get('/', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getAllStations);
+router.get('/getAllStations', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getAllStations);
 
 // Get active stations (all roles)
-router.get('/active', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getActiveStations);
+router.get('/getActiveStations', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getActiveStations);
 
 // Get stations by operating hours (all roles)
-router.get('/operating/current', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getStationsByOperatingHours);
+router.get('/getStationsByOperatingHours', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getStationsByOperatingHours);
 
 // Get next stops at station (all roles)
-router.get('/:stationId/next-stops', ...authorizeRoles('passenger', 'staff', 'admin'), stopController.getNextStopsAtStation);
+router.get('/getNextStopsAtStation/:stationId', ...authorizeRoles('passenger', 'staff', 'admin'), stopController.getNextStopsAtStation);
 
 // Get routes by station (all roles)
-router.get('/:stationId/routes', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getRoutesByStation);
+router.get('/getRoutesByStation/:stationId', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.getRoutesByStation);
 
 // Get station by ID (all roles)
-router.get('/:id', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getStationById);
+router.get('/getStationById/:id', ...authorizeRoles('passenger', 'staff', 'admin'), stationController.getStationById);
 
 // Create station (admin only)
-router.post('/', ...authorizeRoles('admin'), stationController.createStation);
+router.post('/createStation', ...authorizeRoles('admin'), stationController.createStation);
 
 // Update station (admin only)
-router.put('/:id', ...authorizeRoles('admin'), stationController.updateStation);
+router.put('/updateStation/:id', ...authorizeRoles('admin'), stationController.updateStation);
 
 // Update station facilities (admin only)
-router.put('/:id/facilities', ...authorizeRoles('admin'), stationController.updateStationFacilities);
+router.put('/updateStationFacilities/:id', ...authorizeRoles('admin'), stationController.updateStationFacilities);
 
 // Delete station (admin only)
-router.delete('/:id', ...authorizeRoles('admin'), stationController.deleteStation);
+router.delete('/deleteStation/:id', ...authorizeRoles('admin'), stationController.deleteStation);
 
 module.exports = router;

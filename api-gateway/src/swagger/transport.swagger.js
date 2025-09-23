@@ -244,7 +244,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{routeId}/stations:
+ * /v1/transport/route/getStationsByRoute/{routeId}:
  *   get:
  *     summary: Get stations for a route
  *     tags: [Routes]
@@ -275,7 +275,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{routeId}/path:
+ * /v1/transport/route/getRoutePathWithDetails/{routeId}:
  *   get:
  *     summary: Get route path with details
  *     tags: [Routes]
@@ -295,7 +295,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{routeId}/validate:
+ * /v1/transport/route/validateRouteSequence/{routeId}:
  *   get:
  *     summary: Validate route sequence
  *     tags: [Routes]
@@ -315,7 +315,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{routeId}/reorder:
+ * /v1/transport/route/reorderRouteStations/{routeId}:
  *   put:
  *     summary: Reorder route stations (Admin only)
  *     tags: [Routes]
@@ -446,7 +446,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{id}/distance:
+ * /v1/transport/route/getRouteDistance/{id}:
  *   get:
  *     summary: Calculate route distance
  *     tags: [Routes]
@@ -504,7 +504,7 @@
 // STATION ENDPOINTS
 /**
  * @swagger
- * /v1/route/transport/station:
+ * /v1/transport/station/getAllStations:
  *   get:
  *     summary: Get all stations
  *     tags: [Stations]
@@ -608,7 +608,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/active:
+ * /v1/transport/station/getActiveStations:
  *   get:
  *     summary: Get all active stations
  *     tags: [Stations]
@@ -632,7 +632,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/operating/current:
+ * /v1/transport/station/getStationsByOperatingHours:
  *   get:
  *     summary: Get stations currently operating (within operating hours)
  *     tags: [Stations]
@@ -656,7 +656,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/{id}:
+ * /v1/transport/station/getStationById/{id}:
  *   get:
  *     summary: Get station by ID
  *     tags: [Stations]
@@ -771,7 +771,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/{id}/facilities:
+ * /v1/transport/station/updateStationFacilities/{id}:
  *   put:
  *     summary: Update station facilities (Admin only)
  *     tags: [Stations]
@@ -805,7 +805,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/{stationId}/next-stops:
+ * /v1/transport/station/getNextStopsAtStation/{stationId}:
  *   get:
  *     summary: Get next stops at a station
  *     tags: [Stations]
@@ -836,7 +836,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/station/{stationId}/routes:
+ * /v1/transport/station/getRoutesByStation/{stationId}:
  *   get:
  *     summary: Get routes by station
  *     tags: [Stations]
@@ -868,7 +868,7 @@
 // ROUTE ENDPOINTS
 /**
  * @swagger
- * /v1/route/transport/route:
+ * /v1/transport/route/getRoutes:
  *   get:
  *     summary: Get all routes
  *     tags: [Routes]
@@ -888,7 +888,11 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Route'
- * 
+ */
+
+/**
+ * @swagger
+ * /v1/transport/route/createRoute:
  *   post:
  *     summary: Create a new route (Admin only)
  *     tags: [Routes]
@@ -934,7 +938,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/active:
+ * /v1/transport/route/getActiveRoutes:
  *   get:
  *     summary: Get all active routes
  *     tags: [Routes]
@@ -958,7 +962,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/search/between-stations:
+ * /v1/transport/route/findRoutesBetweenStations:
  *   get:
  *     summary: Search routes between two stations
  *     tags: [Routes]
@@ -995,7 +999,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route/{id}:
+ * /v1/transport/route/getRouteById/{id}:
  *   get:
  *     summary: Get route by ID
  *     tags: [Routes]
@@ -1020,7 +1024,11 @@
  *                   type: boolean
  *                 data:
  *                   $ref: '#/components/schemas/Route'
- * 
+ */
+
+/**
+ * @swagger
+ * /v1/transport/route/updateRoute/{id}:
  *   put:
  *     summary: Update route (Admin only)
  *     tags: [Routes]
@@ -1044,7 +1052,11 @@
  *         description: Route updated successfully
  *       403:
  *         description: Forbidden (Admin only)
- * 
+ */
+
+/**
+ * @swagger
+ * /v1/transport/route/deleteRoute/{id}:
  *   delete:
  *     summary: Delete route (Admin only)
  *     tags: [Routes]
@@ -1082,7 +1094,7 @@
 // TRAIN ENDPOINTS
 /**
  * @swagger
- * /v1/route/transport/train:
+ * /v1/transport/train/getAllTrains:
  *   get:
  *     summary: Get all trains (Staff/Admin only)
  *     tags: [Trains]
@@ -1148,7 +1160,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/train/active:
+ * /v1/transport/train/getActiveTrains:
  *   get:
  *     summary: Get all active trains
  *     tags: [Trains]
@@ -1172,7 +1184,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/train/type/{type}:
+ * /v1/transport/train/getTrainsByType/{type}:
  *   get:
  *     summary: Get trains by type
  *     tags: [Trains]
@@ -1203,7 +1215,40 @@
 
 /**
  * @swagger
- * /v1/route/transport/train/{id}:
+ * /v1/transport/train/getTrainsByStatus/{status}:
+ *   get:
+ *     summary: Get trains by status (Staff/Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [active, maintenance, out-of-service]
+ *     responses:
+ *       200:
+ *         description: List of trains by status
+ */
+
+/**
+ * @swagger
+ * /v1/transport/train/getTrainsNeedingMaintenance:
+ *   get:
+ *     summary: Get trains needing maintenance (Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trains needing maintenance
+ */
+
+/**
+ * @swagger
+ * /v1/transport/train/getTrainById/{id}:
  *   get:
  *     summary: Get train by ID (Staff/Admin only)
  *     tags: [Trains]
@@ -1312,30 +1357,68 @@
  *         description: Internal server error
  */
 
+/**
+ * @swagger
+ * /v1/transport/train/updateTrainStatus/{id}:
+ *   put:
+ *     summary: Update train status (Staff/Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, maintenance, out-of-service]
+ *     responses:
+ *       200:
+ *         description: Train status updated
+ */
+
+/**
+ * @swagger
+ * /v1/transport/train/scheduleTrainMaintenance/{id}:
+ *   post:
+ *     summary: Schedule maintenance (Admin only)
+ *     tags: [Trains]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Maintenance scheduled
+ */
+
 // TRIP ENDPOINTS  
 /**
  * @swagger
- * /v1/route/transport/trip:
+ * /v1/transport/trip/getTripsWithFilters:
  *   get:
- *     summary: Get all trips (Staff/Admin only)
+ *     summary: Get trips with filters (Staff/Admin only)
  *     tags: [Trips]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of trips
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Trip'
- * 
  *   post:
  *     summary: Create a new trip (Admin only)
  *     tags: [Trips]
@@ -1353,35 +1436,14 @@
  *               - departureTime
  *               - arrivalTime
  *               - dayOfWeek
- *             properties:
- *               routeId:
- *                 type: string
- *                 format: uuid
- *               trainId:
- *                 type: string
- *                 format: uuid
- *               departureTime:
- *                 type: string
- *                 format: time
- *               arrivalTime:
- *                 type: string
- *                 format: time
- *               dayOfWeek:
- *                 type: string
- *                 enum: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
- *               isActive:
- *                 type: boolean
- *                 default: true
  *     responses:
  *       201:
  *         description: Trip created successfully
- *       403:
- *         description: Forbidden (Admin only)
  */
 
 /**
  * @swagger
- * /v1/route/transport/trip/active:
+ * /v1/transport/trip/getActiveTrips:
  *   get:
  *     summary: Get all active trips
  *     tags: [Trips]
@@ -1405,7 +1467,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/upcoming:
+ * /v1/transport/trip/getUpcomingTrips:
  *   get:
  *     summary: Get upcoming trips
  *     tags: [Trips]
@@ -1429,7 +1491,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/search/between-stations:
+ * /v1/transport/trip/findTripsBetweenStations:
  *   get:
  *     summary: Search trips between stations
  *     tags: [Trips]
@@ -1471,7 +1533,67 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/{id}:
+ * /v1/transport/trip/getTripsByRoute/{routeId}:
+ *   get:
+ *     summary: Get trips by route
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trips for route
+ */
+
+/**
+ * @swagger
+ * /v1/transport/trip/getTripsByTrain/{trainId}:
+ *   get:
+ *     summary: Get trips by train
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: trainId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trips for train
+ */
+
+/**
+ * @swagger
+ * /v1/transport/trip/getTripsByDayOfWeek/{dayOfWeek}:
+ *   get:
+ *     summary: Get trips by day of week
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: dayOfWeek
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+ *     responses:
+ *       200:
+ *         description: Trips for day
+ */
+
+/**
+ * @swagger
+ * /v1/transport/trip/getTripById/{id}:
  *   get:
  *     summary: Get trip by ID (All roles)
  *     tags: [Trips]
@@ -1579,10 +1701,70 @@
  *         description: Internal server error
  */
 
+/**
+ * @swagger
+ * /v1/transport/trip/getTripStatistics/{id}:
+ *   get:
+ *     summary: Get trip statistics (Staff/Admin only)
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trip statistics
+ */
+
+/**
+ * @swagger
+ * /v1/transport/trip/getTripScheduleWithStops/{tripId}:
+ *   get:
+ *     summary: Get trip schedule with stops
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Trip schedule
+ */
+
+/**
+ * @swagger
+ * /v1/transport/trip/validateStopSequence/{tripId}:
+ *   post:
+ *     summary: Validate stop sequence
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Validation result
+ */
+
 // STOP ENDPOINTS
 /**
  * @swagger
- * /v1/route/transport/stop:
+ * /v1/transport/stop/getAllStops:
  *   get:
  *     summary: Get all stops (Staff/Admin only)
  *     tags: [Stops]
@@ -1602,7 +1784,11 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Stop'
- * 
+ */
+
+/**
+ * @swagger
+ * /v1/transport/stop/createStop:
  *   post:
  *     summary: Create a new stop (Admin only)
  *     tags: [Stops]
@@ -1636,13 +1822,11 @@
  *     responses:
  *       201:
  *         description: Stop created successfully
- *       403:
- *         description: Forbidden (Admin only)
  */
 
 /**
  * @swagger
- * /v1/route/transport/stop/multiple:
+ * /v1/transport/stop/createMultipleStops:
  *   post:
  *     summary: Create multiple stops (Admin only)
  *     tags: [Stops]
@@ -1662,13 +1846,11 @@
  *     responses:
  *       201:
  *         description: Multiple stops created successfully
- *       403:
- *         description: Forbidden (Admin only)
  */
 
 /**
  * @swagger
- * /v1/route/transport/stop/trip/{tripId}:
+ * /v1/transport/stop/getStopsByTrip/{tripId}:
  *   get:
  *     summary: Get stops by trip
  *     tags: [Stops]
@@ -1699,7 +1881,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/stop/station/{stationId}:
+ * /v1/transport/stop/getStopsByStation/{stationId}:
  *   get:
  *     summary: Get stops by station
  *     tags: [Stops]
@@ -1730,7 +1912,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/stop/{id}:
+ * /v1/transport/stop/getStopById/{id}:
  *   get:
  *     summary: Get stop by ID (Staff/Admin only)
  *     tags: [Stops]
@@ -1840,7 +2022,7 @@
 // ROUTE STATION ENDPOINTS
 /**
  * @swagger
- * /v1/route/transport/route-station:
+ * /v1/transport/route-station/getAllRouteStations:
  *   get:
  *     summary: Get all route-stations (Staff/Admin only)
  *     tags: [Route Stations]
@@ -1860,7 +2042,11 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/RouteStation'
- * 
+ */
+
+/**
+ * @swagger
+ * /v1/transport/route-station/createRouteStation:
  *   post:
  *     summary: Create a new route-station (Admin only)
  *     tags: [Route Stations]
@@ -1888,13 +2074,11 @@
  *     responses:
  *       201:
  *         description: Route-station created successfully
- *       403:
- *         description: Forbidden (Admin only)
  */
 
 /**
  * @swagger
- * /v1/route/transport/route-station/{id}:
+ * /v1/transport/route-station/getRouteStationById/{id}:
  *   get:
  *     summary: Get route-station by ID (Staff/Admin only)
  *     tags: [Route Stations]
@@ -1947,10 +2131,8 @@
  *             properties:
  *               routeId:
  *                 type: string
- *                 format: uuid
  *               stationId:
  *                 type: string
- *                 format: uuid
  *               sequence:
  *                 type: integer
  *     responses:
@@ -1997,7 +2179,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/route-station/search/between-stations:
+ * /v1/transport/route-station/findRoutesBetweenTwoStations:
  *   get:
  *     summary: Find routes between two stations
  *     tags: [Route Stations]
@@ -2030,6 +2212,32 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/RouteStation'
+ */
+
+/**
+ * @swagger
+ * /v1/transport/route-station/findShortestPath:
+ *   get:
+ *     summary: Find shortest path between two stations (with transfers)
+ *     tags: [Route Stations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: originId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: destinationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Shortest path
  */
 
 module.exports = {};

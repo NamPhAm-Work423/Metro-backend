@@ -4,24 +4,24 @@ const routeStationController = require('../controllers/routeStation.controller')
 const { authorizeRoles } = require('../middlewares/authorization');
 
 // Get all route-stations (staff and admin)
-router.get('/', ...authorizeRoles('staff', 'admin'), routeStationController.getAllRouteStations);
+router.get('/getAllRouteStations', ...authorizeRoles('staff', 'admin'), routeStationController.getAllRouteStations);
 
 // Search routes between stations (all roles)
-router.get('/search/between-stations', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findRoutesBetweenTwoStations);
+router.get('/findRoutesBetweenTwoStations', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findRoutesBetweenTwoStations);
 
 // Shortest path between two stations with transfers (all roles)
-router.get('/shortest-path', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findShortestPath);
+router.get('/findShortestPath', ...authorizeRoles('passenger', 'staff', 'admin'), routeStationController.findShortestPath);
 
 // Get route-station by ID (staff and admin)
-router.get('/:id', ...authorizeRoles('staff', 'admin'), routeStationController.getRouteStationById);
+router.get('/getRouteStationById/:id', ...authorizeRoles('staff', 'admin'), routeStationController.getRouteStationById);
 
 // Create route-station (admin only)
-router.post('/', ...authorizeRoles('admin'), routeStationController.createRouteStation);
+router.post('/createRouteStation', ...authorizeRoles('admin'), routeStationController.createRouteStation);
 
 // Update route-station (admin only)
-router.put('/:id', ...authorizeRoles('admin'), routeStationController.updateRouteStation);
+router.put('/updateRouteStation/:id', ...authorizeRoles('admin'), routeStationController.updateRouteStation);
 
 // Delete route-station (admin only)
-router.delete('/:id', ...authorizeRoles('admin'), routeStationController.deleteRouteStation);
+router.delete('/deleteRouteStation/:id', ...authorizeRoles('admin'), routeStationController.deleteRouteStation);
 
 module.exports = router;

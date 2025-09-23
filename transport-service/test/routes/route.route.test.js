@@ -11,19 +11,19 @@ describe('route.routes integration', () => {
 
   test('GET /v1/transport/route returns 200', async () => {
     routeService.getAllRoutes.mockResolvedValue([]);
-    const res = await request(app).get('/v1/transport/route');
+    const res = await request(app).get('/v1/transport/route/getRoutes');
     expect(res.status).toBe(200);
   });
 
   test('GET /v1/transport/route/:id returns 200', async () => {
     routeService.getRouteById.mockResolvedValue({ routeId: 'r1' });
-    const res = await request(app).get('/v1/transport/route/r1');
+    const res = await request(app).get('/v1/transport/route/getRouteById/r1');
     expect(res.status).toBe(200);
   });
 
   test('POST /v1/transport/route returns 201', async () => {
     routeService.createRoute.mockResolvedValue({ routeId: 'r1' });
-    const res = await request(app).post('/v1/transport/route').send({ name: 'A' });
+    const res = await request(app).post('/v1/transport/route/createRoute').send({ name: 'A' });
     expect(res.status).toBe(201);
   });
 });

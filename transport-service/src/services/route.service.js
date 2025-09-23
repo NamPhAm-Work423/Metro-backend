@@ -44,11 +44,6 @@ class RouteService {
                             }
                         ],
                         order: [['sequence', 'ASC']]
-                    },
-                    {
-                        model: Trip,
-                        as: 'trips',
-                        attributes: ['tripId', 'trainId', 'departureTime', 'arrivalTime', 'dayOfWeek']
                     }
                 ],
                 order: [['name', 'ASC']]
@@ -56,6 +51,7 @@ class RouteService {
             
             return routes;
         } catch (error) {
+            console.error('[RouteService.getAllRoutes] error:', error);
             throw error;
         }
     }
