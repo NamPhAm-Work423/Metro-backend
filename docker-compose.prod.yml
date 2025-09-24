@@ -46,7 +46,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
 
@@ -78,11 +78,17 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   auth-service:
     image: ${REGISTRY}/metro-auth-service:${IMAGE_TAG}
@@ -117,11 +123,17 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   user-service:
     image: ${REGISTRY}/metro-user-service:${IMAGE_TAG}
@@ -147,11 +159,17 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -185,18 +203,18 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<:
       - *default-restart
     deploy:
       resources:
         limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
           cpus: '1.0'
           memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
       interval: 30s
@@ -228,11 +246,17 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     volumes:
       - ./libs:/libs:ro
     healthcheck:
@@ -269,11 +293,17 @@ services:
     volumes:
       - qr_images:/app/src/public/qr 
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8005/health"]
       interval: 30s
@@ -295,7 +325,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<:
       - *default-restart
@@ -322,9 +352,17 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 384M
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8006/health"]
       interval: 30s
@@ -353,7 +391,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
     healthcheck:
@@ -387,16 +425,16 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     deploy:
       resources:
         limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
           cpus: '1.0'
           memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
     <<:
       - *default-restart
       - *default-deploy
@@ -432,11 +470,17 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
-    <<:
-      - *default-restart
-      - *default-deploy
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 384M
 
   # Webhook Service - External port for PayPal and other webhook providers
   webhook:
@@ -460,7 +504,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
       interval: 30s
@@ -491,7 +535,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<:
       - *default-restart
@@ -518,7 +562,7 @@ services:
       promtail:
         condition: service_started
     networks:
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3000'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
       interval: 30s
@@ -542,8 +586,7 @@ services:
       - mongodb_data:/data/db
       - ./init_mongo.sh:/docker-entrypoint-initdb.d/init_mongo.sh:ro
     networks:
-      - database-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD-SHELL", "mongosh --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
@@ -573,7 +616,7 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
     profiles:
@@ -589,8 +632,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:ro
     networks:
-      - database-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -617,7 +659,7 @@ services:
     depends_on:
       - postgres
     networks:
-      - backend-network
+      - metro-network
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json:ro
@@ -650,8 +692,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - database-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -678,8 +719,7 @@ services:
     expose:
       - "2181"
     networks:
-      - messaging-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
       interval: 10s
@@ -722,8 +762,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
-      - messaging-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19092", "--list"]
       interval: 15s
@@ -764,8 +803,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
-      - messaging-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19093", "--list"]
       interval: 15s
@@ -808,8 +846,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
-      - messaging-network
-      - backend-network
+      - metro-network
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:19094", "--list"]
       interval: 15s
@@ -839,8 +876,7 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
     healthcheck:
@@ -879,8 +915,7 @@ services:
     ports:
       - "9093:9093"
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
     healthcheck:
@@ -921,8 +956,7 @@ services:
       tempo:
         condition: service_healthy
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
 
@@ -942,8 +976,7 @@ services:
     depends_on:
       - loki
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     <<: *default-restart
 
   # Redis management interface - DEVELOPMENT/STAGING ONLY  
@@ -970,7 +1003,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - backend-network
+      - metro-network
     logging: *default-logging
     <<: *default-restart
     profiles:
@@ -990,8 +1023,7 @@ services:
       - ./management-service/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
@@ -1020,8 +1052,7 @@ services:
       - ./management-service/monitoring/tempo/tempo-config.yml:/etc/tempo/tempo.yml:ro
       - tempo_data:/var/tempo
     networks:
-      - monitoring-network
-      - backend-network
+      - metro-network
     logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3200/ready"]
@@ -1053,22 +1084,8 @@ volumes:
     driver: local
     
 networks:
-  # Main application network
-  backend-network:
+  # Unified network for all services - simplified for better observability
+  metro-network:
     driver: bridge
     external: false
-  
-  # Database network for better isolation
-  database-network:
-    driver: bridge
-    external: false
-  
-  # Monitoring network for observability stack
-  monitoring-network:
-    driver: bridge
-    external: false
-  
-  # Message queue network for Kafka cluster
-  messaging-network:
-    driver: bridge
-    external: false
+    name: metro-network

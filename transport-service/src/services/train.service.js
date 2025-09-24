@@ -33,22 +33,17 @@ class TrainService {
             if (filters.routeId) {
                 where.routeId = filters.routeId;
             }
-            const trains = await Train.findAll({
-                where,
-                include: [
-                    {
-                        model: Trip,
-                        as: 'trips',
-                        attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek']
-                    },
-                    {
-                        model: Route,
-                        as: 'route',
-                        attributes: ['routeId', 'name', 'originId', 'destinationId', 'distance']
-                    }
-                ],
-                order: [['name', 'ASC']]
-            });
+        const trains = await Train.findAll({
+            where,
+            include: [
+                {
+                    model: Route,
+                    as: 'route',
+                    attributes: ['routeId', 'name', 'originId', 'destinationId', 'distance']
+                }
+            ],
+            order: [['name', 'ASC']]
+        });
             
             return trains;
         } catch (error) {
