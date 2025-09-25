@@ -610,6 +610,10 @@ services:
     container_name: mongo-express
     env_file:
       - /opt/env/init_db.env
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_SITE_BASEURL=/mongo-express/
     expose:
       - "8081"  # Internal only - access via nginx /mongo-express/
     depends_on:
@@ -973,6 +977,9 @@ services:
       - -config.expand-env=true
     volumes:
       - ./management-service/monitoring/promtail/promtail-prod-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
     networks:
@@ -987,6 +994,7 @@ services:
       - /opt/env/init_db.env
     environment:
       - NODE_ENV=development
+      - URL_PREFIX=/redis-commander
     command:
       - sh
       - -c
@@ -996,7 +1004,7 @@ services:
           exit 1
         fi
         echo "Starting Redis Commander with authentication..."
-        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD" --port 8082
+        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD" --port 8082 --url-prefix /redis-commander
     expose:
       - "8082"  # Internal only - access via nginx /redis-commander/
     depends_on:
@@ -1005,7 +1013,7 @@ services:
     networks:
       - metro-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/redis-commander/"]
       interval: 30s
       timeout: 10s
       retries: 3
