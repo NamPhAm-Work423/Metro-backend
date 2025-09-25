@@ -611,9 +611,9 @@ services:
     env_file:
       - /opt/env/init_db.env
     environment:
-      - ME_CONFIG_MONGODB_SERVER=mongodb
-      - ME_CONFIG_MONGODB_PORT=27017
       - ME_CONFIG_SITE_BASEURL=/mongo-express/
+      - ME_CONFIG_MONGODB_URL=mongodb://$$MONGO_INITDB_ROOT_USERNAME:$$MONGO_INITDB_ROOT_PASSWORD@mongodb:27017/
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
     expose:
       - "8081"  # Internal only - access via nginx /mongo-express/
     depends_on:
@@ -674,11 +674,7 @@ services:
       - pgadmin_data:/var/lib/pgadmin
       - ./management-service/servers.json:/pgadmin4/servers.json:ro
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/misc/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      disable: true
     profiles:
       - admin-tools  # Only start with --profile admin-tools
 
