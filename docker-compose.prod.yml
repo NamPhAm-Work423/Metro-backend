@@ -654,10 +654,16 @@ services:
     <<: *default-restart
   # pgAdmin - DEVELOPMENT/STAGING ONLY - Remove in production
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:8.11
     container_name: pgadmin
     env_file:
       - /opt/env/init_db.env
+    environment:
+      - GUNICORN_TIMEOUT=120
+      - GUNICORN_WORKERS=2
+      - LOGIN_BANNER="Metro Backend - Authorized Access Only"
+      - PGADMIN_DISABLE_POSTFIX=true
+      - SCRIPT_NAME=/pgadmin
     expose:
       - "5050"  # Internal only - access via nginx /pgadmin/
     depends_on:
@@ -993,7 +999,9 @@ services:
     env_file:
       - /opt/env/init_db.env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin123
       - URL_PREFIX=/redis-commander
     command:
       - sh
@@ -1004,7 +1012,7 @@ services:
           exit 1
         fi
         echo "Starting Redis Commander with authentication..."
-        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD" --port 8082 --url-prefix /redis-commander
+        exec node ./bin/redis-commander --redis-port 6379 --redis-host redis --redis-password "$$REDIS_PASSWORD" --port 8082 --url-prefix /redis-commander --http-auth-username admin --http-auth-password admin123
     expose:
       - "8082"  # Internal only - access via nginx /redis-commander/
     depends_on:
@@ -1013,7 +1021,7 @@ services:
     networks:
       - metro-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/redis-commander/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--http-user=admin", "--http-password=admin123", "http://localhost:8082/"]
       interval: 30s
       timeout: 10s
       retries: 3
