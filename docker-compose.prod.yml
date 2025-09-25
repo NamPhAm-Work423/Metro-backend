@@ -536,16 +536,16 @@ services:
         condition: service_started
     networks:
       - metro-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     logging: *default-logging
     <<:
       - *default-restart
       - *default-deploy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import os,urllib.request; port=os.getenv('PORT','3001'); urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   healthcheck:
     image: ${REGISTRY}/metro-healthcheck:${IMAGE_TAG}
@@ -662,7 +662,7 @@ services:
       - metro-network
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-      - ./servers.json:/pgadmin4/servers.json:ro
+      - ./management-service/servers.json:/pgadmin4/servers.json:ro
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/misc/ping"]
       interval: 30s
@@ -1004,6 +1004,12 @@ services:
         condition: service_healthy
     networks:
       - metro-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     logging: *default-logging
     <<: *default-restart
     profiles:

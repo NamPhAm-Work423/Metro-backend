@@ -8,7 +8,7 @@
       "MaintenanceDB": "gateway_db",
       "Username": "gateway_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${GATEWAY_DB_PASSWORD}",
       "SavePassword": true
     },
     "2": {
@@ -19,7 +19,7 @@
       "MaintenanceDB": "auth_db",
       "Username": "auth_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${AUTH_DB_PASSWORD}",
       "SavePassword": true
     },
     "3": {
@@ -30,7 +30,7 @@
       "MaintenanceDB": "user_db",
       "Username": "user_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${USER_DB_PASSWORD}",
       "SavePassword": true
     },
     "4": {
@@ -41,7 +41,7 @@
       "MaintenanceDB": "transport_db",
       "Username": "transport_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${TRANSPORT_DB_PASSWORD}",
       "SavePassword": true
     },
     "5": {
@@ -52,7 +52,7 @@
       "MaintenanceDB": "ticket_db",
       "Username": "ticket_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${TICKET_DB_PASSWORD}",
       "SavePassword": true
     },
     "6": {
@@ -63,7 +63,7 @@
       "MaintenanceDB": "customer_support_db",
       "Username": "customer_support_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${CUSTOMER_SUPPORT_DB_PASSWORD}",
       "SavePassword": true
     },
     "7": {
@@ -74,7 +74,7 @@
       "MaintenanceDB": "payment_db",
       "Username": "payment_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${PAYMENT_DB_PASSWORD}",
       "SavePassword": true
     },
     "8": {
@@ -85,7 +85,7 @@
       "MaintenanceDB": "report_db",
       "Username": "report_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${REPORT_DB_PASSWORD}",
       "SavePassword": true
     },
     "9": {
@@ -96,7 +96,7 @@
       "MaintenanceDB": "control_db",
       "Username": "control_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${CONTROL_DB_PASSWORD}",
       "SavePassword": true
     },
     "10": {
@@ -107,7 +107,7 @@
       "MaintenanceDB": "management_db",
       "Username": "management_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${MANAGEMENT_DB_PASSWORD}",
       "SavePassword": true
     },
     "11": {
@@ -118,8 +118,8 @@
       "MaintenanceDB": "notification_db",
       "Username": "notification_service",
       "SSLMode": "prefer",
-      "Password": "1",
+      "Password": "${NOTIFICATION_DB_PASSWORD}",
       "SavePassword": true
     }
   }
-} 
+}
