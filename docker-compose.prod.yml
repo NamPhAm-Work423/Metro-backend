@@ -654,16 +654,16 @@ services:
     <<: *default-restart
   # pgAdmin - DEVELOPMENT/STAGING ONLY - Remove in production
   pgadmin:
-    image: dpage/pgadmin4:8.11
+    image: dpage/pgadmin4:8.12
     container_name: pgadmin
     env_file:
       - /opt/env/init_db.env
     environment:
+      - PGADMIN_DISABLE_POSTFIX=1
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_CONFIG_LOGIN_BANNER=""
       - GUNICORN_TIMEOUT=120
-      - GUNICORN_WORKERS=2
-      - PGADMIN_DISABLE_POSTFIX=true
-      - PGADMIN_CONFIG_SERVER_MODE=True
-      - PGADMIN_CONFIG_WTF_CSRF_ENABLED=False
     expose:
       - "5050"  # Internal only - access via nginx /pgadmin/
     depends_on:
@@ -1019,11 +1019,7 @@ services:
     networks:
       - metro-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/redis-commander/"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 90s
+      disable: true
     logging: *default-logging
     <<: *default-restart
     profiles:
