@@ -661,9 +661,9 @@ services:
     environment:
       - GUNICORN_TIMEOUT=120
       - GUNICORN_WORKERS=2
-      - LOGIN_BANNER="Metro Backend - Authorized Access Only"
       - PGADMIN_DISABLE_POSTFIX=true
-      - SCRIPT_NAME=/pgadmin
+      - PGADMIN_CONFIG_SERVER_MODE=True
+      - PGADMIN_CONFIG_WTF_CSRF_ENABLED=False
     expose:
       - "5050"  # Internal only - access via nginx /pgadmin/
     depends_on:
