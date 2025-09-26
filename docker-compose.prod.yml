@@ -668,7 +668,7 @@ services:
       - PGADMIN_CONFIG_LOGIN_BANNER=""
       - GUNICORN_TIMEOUT=120
     expose:
-      - "5050"  # Internal only - access via nginx /pgadmin/
+      - "80"  # Internal only - access via nginx /pgadmin/
     depends_on:
       - postgres
     networks:

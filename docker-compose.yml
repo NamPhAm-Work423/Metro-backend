@@ -863,8 +863,8 @@ services:
       - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
       - PGADMIN_CONFIG_LOGIN_BANNER=""
       - GUNICORN_TIMEOUT=120
-    ports:
-      - "5050:80"  # External cho dev
+    expose:
+      - "5050"  
     depends_on:
       postgres:
         condition: service_healthy
