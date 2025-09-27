@@ -663,10 +663,11 @@ services:
       - /opt/env/init_db.env
     environment:
       - PGADMIN_DISABLE_POSTFIX=1
-      - PGADMIN_CONFIG_SERVER_MODE=False
-      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_CONFIG_SERVER_MODE=True
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=True
       - PGADMIN_CONFIG_LOGIN_BANNER=""
       - GUNICORN_TIMEOUT=120
+      - PGADMIN_CONFIG_PROXY_X_FORWARDED_COUNT=1
     expose:
       - "80"  # Internal only - access via nginx /pgadmin/
     depends_on:

@@ -31,6 +31,71 @@ sequenceDiagram
 
 ```mermaid
 classDiagram
+    %% Core Models
+    class Route {
+        +STRING routeId
+        +STRING name
+        +STRING originId
+        +STRING destinationId
+        +INTEGER numberOfStations
+        +FLOAT distance
+        +FLOAT duration
+        +BOOLEAN isActive
+        +updateStationCount()
+    }
+
+    class Station {
+        +STRING stationId
+        +STRING name
+        +STRING location
+        +FLOAT latitude
+        +FLOAT longitude
+        +TIME openTime
+        +TIME closeTime
+        +JSON facilities
+        +JSON connections
+        +BOOLEAN isActive
+    }
+
+    class Train {
+        +UUID trainId
+        +STRING name
+        +ENUM type
+        +INTEGER capacity
+        +STRING routeId
+        +ENUM status
+        +DATE lastMaintenance
+        +BOOLEAN isActive
+    }
+
+    class Trip {
+        +UUID tripId
+        +DATE serviceDate
+        +STRING routeId
+        +UUID trainId
+        +TIME departureTime
+        +TIME arrivalTime
+        +STRING dayOfWeek
+        +BOOLEAN isActive
+    }
+
+    class Stop {
+        +UUID stopId
+        +UUID tripId
+        +STRING stationId
+        +TIME arrivalTime
+        +TIME departureTime
+        +INTEGER sequence
+    }
+
+    class RouteStation {
+        +STRING routeStationId
+        +STRING routeId
+        +STRING stationId
+        +INTEGER sequence
+    }
+
+    %% Service Layer
     class RouteService {
         +createRoute(routeData)
         +getAllRoutes(filters)
@@ -47,13 +112,14 @@ classDiagram
         +createStation(stationData)
         +getAllStations(filters)
         +getStationById(stationId)
-        +updateStation(stationId, updateData)
+        +updateStation(stationId, updateData, updatedBy)
         +deleteStation(stationId)
         +getActiveStations()
         +getStationsByOperatingTime(currentTime)
         +getNextStops(stationId, currentTime, dayOfWeek, limit)
         +getRoutesByStation(stationId)
         +updateStationFacilities(stationId, facilities)
+        +publishStationDeactivationEvent(station, updatedBy)
     }
 
     class TrainService {
@@ -82,6 +148,7 @@ classDiagram
         +getTripsByRoute(routeId)
         +getTripsByTrain(trainId)
         +getTripsByDay(dayOfWeek)
+        +getTripsByDate(date, filters)
         +getTripStatistics(tripId)
     }
 
@@ -94,21 +161,132 @@ classDiagram
         +updateStop(stopId, updateData)
         +deleteStop(stopId)
         +validateStopSequence(tripId, stops)
+        +getNextStopsAtStation(stationId, currentTime, dayOfWeek, limit)
     }
 
     class RouteStationService {
         +createRouteStation(routeStationData)
+        +getAllRouteStations()
         +getRouteStationsByRoute(routeId)
         +getRouteStationsByStation(stationId)
-        +updateRouteStationSequence(routeStationId, sequence)
+        +updateRouteStation(routeStationId, updateData)
         +deleteRouteStation(routeStationId)
-        +findRoutesBetweenTwoStations(originStationId, destinationStationId)
-        +findShortestPathWithTransfers(originStationId, destinationStationId, transferPenalty)
-        +validateRouteStationSequence(routeId)
-        +setupRouteStations(routeId, stationSequences)
-        +reorderRouteStations(routeId, newSequences)
+        +validateRouteSequence(routeId)
+        +reorderRouteStations(routeId, newOrder)
+        +setupCompleteRoute(routeId, stationsData)
+        +getRoutePathWithDetails(routeId)
     }
 
+    %% Controller Layer
+    class RouteController {
+        +createRoute(req, res, next)
+        +getAllRoutes(req, res, next)
+        +getRouteById(req, res, next)
+        +updateRoute(req, res, next)
+        +deleteRoute(req, res, next)
+        +getActiveRoutes(req, res, next)
+        +getRoutesByStation(req, res, next)
+        +findRoutesBetweenStations(req, res, next)
+        +calculateRouteDistance(req, res, next)
+    }
+
+    class StationController {
+        +createStation(req, res, next)
+        +getAllStations(req, res, next)
+        +getStationById(req, res, next)
+        +updateStation(req, res, next)
+        +deleteStation(req, res, next)
+        +getActiveStations(req, res, next)
+        +getStationsByOperatingHours(req, res, next)
+        +getNextStopsAtStation(req, res, next)
+        +getRoutesByStation(req, res, next)
+        +updateStationFacilities(req, res, next)
+    }
+
+    class TrainController {
+        +createTrain(req, res, next)
+        +getAllTrains(req, res, next)
+        +getTrainById(req, res, next)
+        +updateTrain(req, res, next)
+        +deleteTrain(req, res, next)
+        +getActiveTrains(req, res, next)
+        +getTrainsByType(req, res, next)
+        +getTrainsByStatus(req, res, next)
+        +updateTrainStatus(req, res, next)
+        +scheduleMaintenance(req, res, next)
+        +getTrainUtilization(req, res, next)
+    }
+
+    class TripController {
+        +createTrip(req, res, next)
+        +getAllTrips(req, res, next)
+        +getTripsWithFilters(req, res, next)
+        +getTripById(req, res, next)
+        +updateTrip(req, res, next)
+        +deleteTrip(req, res, next)
+        +getActiveTrips(req, res, next)
+        +getUpcomingTrips(req, res, next)
+        +findTripsBetweenStations(req, res, next)
+        +getTripsByRoute(req, res, next)
+        +getTripsByTrain(req, res, next)
+        +getTripsByDay(req, res, next)
+        +getTripStatistics(req, res, next)
+    }
+
+    class StopController {
+        +createStop(req, res, next)
+        +createMultipleStops(req, res, next)
+        +getAllStops(req, res, next)
+        +getStopsByTrip(req, res, next)
+        +getStopsByStation(req, res, next)
+        +updateStop(req, res, next)
+        +deleteStop(req, res, next)
+        +validateStopSequence(req, res, next)
+        +getNextStopsAtStation(req, res, next)
+    }
+
+    class RouteStationController {
+        +createRouteStation(req, res, next)
+        +getAllRouteStations(req, res, next)
+        +getRouteStationsByRoute(req, res, next)
+        +getRouteStationsByStation(req, res, next)
+        +updateRouteStation(req, res, next)
+        +deleteRouteStation(req, res, next)
+        +validateRouteSequence(req, res, next)
+        +reorderRouteStations(req, res, next)
+        +setupCompleteRoute(req, res, next)
+        +getRoutePathWithDetails(req, res, next)
+    }
+
+    %% Event Producers
+    class RouteEventProducer {
+        +publishRouteCreated(route)
+        +publishRouteUpdated(route)
+        +publishRouteDeleted(route)
+    }
+
+    class StationEventProducer {
+        +publishStationCreated(station)
+        +publishStationUpdated(station)
+        +publishStationDeleted(station)
+        +publishStationDeactivated(station)
+    }
+
+    class TrainEventProducer {
+        +publishTrainCreated(train)
+        +publishTrainUpdated(train)
+        +publishTrainDeleted(train)
+        +publishTrainStatusChanged(train, oldStatus, newStatus)
+    }
+
+    class TripEventProducer {
+        +publishTripCreated(trip)
+        +publishTripUpdated(trip)
+        +publishTripDeleted(trip)
+        +publishTripCompleted(trip)
+    }
+
+    %% gRPC Service
     class TransportGrpcService {
         +getRoute(request)
         +getStation(request)
@@ -122,193 +300,70 @@ classDiagram
         +bulkUpsertStops(request)
     }
 
-    class TransportEventProducer {
-        +publishStationStatusChanged(stationData)
-        +publishStationDeactivated(stationData)
-        +publishRouteUpdated(routeData)
-        +publishTripScheduled(tripData)
+    %% Middleware
+    class AuthorizationMiddleware {
+        +authorizeRoles(roles)
+        +checkPermission(permission)
     }
 
-    class TransportEventConsumer {
-        +start()
-        +stop()
-        +handleControlServiceEvent(event)
-        +handlePublicServiceEvent(event)
+    class MetricsMiddleware {
+        +recordRequestMetrics(req, res, next)
+        +recordResponseTime(req, res, next)
     }
 
-    class RouteController {
-        +getAllRoutes(req, res)
-        +getActiveRoutes(req, res)
-        +searchRoutesBetweenStations(req, res)
-        +getRouteById(req, res)
-        +getRouteStations(req, res)
-        +getRoutePath(req, res)
-        +validateRoute(req, res)
-        +reorderRouteStations(req, res)
-        +setupRoute(req, res)
-        +createRoute(req, res)
-        +updateRoute(req, res)
-        +deleteRoute(req, res)
-    }
+    %% Relationships - Service to Controller
+    RouteService --> RouteController
+    StationService --> StationController
+    TrainService --> TrainController
+    TripService --> TripController
+    StopService --> StopController
+    RouteStationService --> RouteStationController
 
-    class StationController {
-        +getAllStations(req, res)
-        +getActiveStations(req, res)
-        +getStationsByOperatingTime(req, res)
-        +getNextStops(req, res)
-        +getRoutesByStation(req, res)
-        +getStationById(req, res)
-        +createStation(req, res)
-        +updateStation(req, res)
-        +updateStationFacilities(req, res)
-        +deleteStation(req, res)
-    }
+    %% Relationships - Controller to Service
+    RouteController --> RouteService
+    StationController --> StationService
+    TrainController --> TrainService
+    TripController --> TripService
+    StopController --> StopService
+    RouteStationController --> RouteStationService
 
-    class TrainController {
-        +getAllTrains(req, res)
-        +getActiveTrains(req, res)
-        +getTrainsByType(req, res)
-        +getTrainsByStatus(req, res)
-        +getTrainById(req, res)
-        +getTrainUtilization(req, res)
-        +createTrain(req, res)
-        +updateTrain(req, res)
-        +updateTrainStatus(req, res)
-        +scheduleMaintenance(req, res)
-    }
+    %% Relationships - Service to Model
+    RouteService --> Route
+    StationService --> Station
+    TrainService --> Train
+    TripService --> Trip
+    StopService --> Stop
+    RouteStationService --> RouteStation
 
-    class TripController {
-        +getAllTrips(req, res)
-        +getActiveTrips(req, res)
-        +getUpcomingTrips(req, res)
-        +searchTripsBetweenStations(req, res)
-        +getTripsByRoute(req, res)
-        +getTripsByTrain(req, res)
-        +getTripsByDay(req, res)
-        +getTripById(req, res)
-        +getTripStatistics(req, res)
-        +createTrip(req, res)
-        +updateTrip(req, res)
-        +deleteTrip(req, res)
-    }
+    %% Relationships - Service to Event Producer
+    StationService --> StationEventProducer
+    RouteService --> RouteEventProducer
+    TrainService --> TrainEventProducer
+    TripService --> TripEventProducer
 
-    class StopController {
-        +getAllStops(req, res)
-        +getStopsByTrip(req, res)
-        +getStopsByStation(req, res)
-        +createStop(req, res)
-        +createMultipleStops(req, res)
-        +updateStop(req, res)
-        +deleteStop(req, res)
-        +validateStopSequence(req, res)
-    }
+    %% Model Relationships
+    Route --> RouteStation
+    RouteStation --> Station
+    Route --> Trip
+    Trip --> Train
+    Trip --> Stop
+    Stop --> Station
+    Route --> Train
 
-    class Route {
-        +routeId: String
-        +name: String
-        +originId: String
-        +destinationId: String
-        +numberOfStations: Integer
-        +distance: Float
-        +duration: Float
-        +isActive: Boolean
-        +createdAt: Date
-        +updatedAt: Date
-    }
+    %% Middleware Relationships
+    RouteController --> AuthorizationMiddleware
+    StationController --> AuthorizationMiddleware
+    TrainController --> AuthorizationMiddleware
+    TripController --> AuthorizationMiddleware
+    StopController --> AuthorizationMiddleware
+    RouteStationController --> AuthorizationMiddleware
 
-    class Station {
-        +stationId: String
-        +name: String
-        +location: String
-        +latitude: Float
-        +longitude: Float
-        +openTime: Time
-        +closeTime: Time
-        +facilities: JSON
-        +connections: JSON
-        +isActive: Boolean
-        +createdAt: Date
-        +updatedAt: Date
-    }
-
-    class RouteStation {
-        +routeStationId: String
-        +routeId: String
-        +stationId: String
-        +sequence: Integer
-        +createdAt: Date
-        +updatedAt: Date
-    }
-
-    class Train {
-        +trainId: String
-        +name: String
-        +type: String
-        +capacity: Integer
-        +status: String
-        +routeId: String
-        +lastMaintenance: Date
-        +isActive: Boolean
-        +createdAt: Date
-        +updatedAt: Date
-    }
-
-    class Trip {
-        +tripId: String
-        +routeId: String
-        +trainId: String
-        +departureTime: Time
-        +arrivalTime: Time
-        +dayOfWeek: String
-        +serviceDate: Date
-        +isActive: Boolean
-        +createdAt: Date
-        +updatedAt: Date
-    }
-
-    class Stop {
-        +stopId: String
-        +tripId: String
-        +stationId: String
-        +arrivalTime: Time
-        +departureTime: Time
-        +sequence: Integer
-        +createdAt: Date
-        +updatedAt: Date
-    }
-
-    RouteService --> Route : manages
-    StationService --> Station : manages
-    TrainService --> Train : manages
-    TripService --> Trip : manages
-    StopService --> Stop : manages
-    RouteStationService --> RouteStation : manages
-
-    RouteController --> RouteService : uses
-    StationController --> StationService : uses
-    TrainController --> TrainService : uses
-    TripController --> TripService : uses
-    StopController --> StopService : uses
-
-    TransportGrpcService --> RouteService : uses
-    TransportGrpcService --> StationService : uses
-    TransportGrpcService --> TripService : uses
-    TransportGrpcService --> StopService : uses
-
-    TransportEventProducer --> Route : publishes
-    TransportEventProducer --> Station : publishes
-    TransportEventProducer --> Trip : publishes
-
-    TransportEventConsumer --> RouteService : uses
-    TransportEventConsumer --> StationService : uses
-
-    Route ||--o{ RouteStation : has
-    Route ||--o{ Trip : has
-    Route ||--o{ Train : assigned
-    Station ||--o{ RouteStation : belongs
-    Station ||--o{ Stop : stops
-    Train ||--o{ Trip : operates
-    Trip ||--o{ Stop : has
+    RouteController --> MetricsMiddleware
+    StationController --> MetricsMiddleware
+    TrainController --> MetricsMiddleware
+    TripController --> MetricsMiddleware
+    StopController --> MetricsMiddleware
+    RouteStationController --> MetricsMiddleware
 ```
 
 ## 2.1 Sơ đồ hệ thống (Mermaid)
