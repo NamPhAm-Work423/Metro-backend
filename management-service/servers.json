@@ -56,17 +56,6 @@
       "SavePassword": true
     },
     "6": {
-      "Name": "Customer Support DB",
-      "Group": "Servers",
-      "Host": "postgres",
-      "Port": 5432,
-      "MaintenanceDB": "customer_support_db",
-      "Username": "customer_support_service",
-      "SSLMode": "prefer",
-      "Password": "${CUSTOMER_SUPPORT_DB_PASSWORD}",
-      "SavePassword": true
-    },
-    "7": {
       "Name": "Payment DB",
       "Group": "Servers",
       "Host": "postgres",
@@ -77,7 +66,7 @@
       "Password": "${PAYMENT_DB_PASSWORD}",
       "SavePassword": true
     },
-    "8": {
+    "7": {
       "Name": "Report DB",
       "Group": "Servers",
       "Host": "postgres",
@@ -88,7 +77,7 @@
       "Password": "${REPORT_DB_PASSWORD}",
       "SavePassword": true
     },
-    "9": {
+    "8": {
       "Name": "Control DB",
       "Group": "Servers",
       "Host": "postgres",
@@ -99,7 +88,7 @@
       "Password": "${CONTROL_DB_PASSWORD}",
       "SavePassword": true
     },
-    "10": {
+    "9": {
       "Name": "Management DB",
       "Group": "Servers",
       "Host": "postgres",
@@ -110,7 +99,7 @@
       "Password": "${MANAGEMENT_DB_PASSWORD}",
       "SavePassword": true
     },
-    "11": {
+    "10": {
       "Name": "Notification DB",
       "Group": "Servers",
       "Host": "postgres",
