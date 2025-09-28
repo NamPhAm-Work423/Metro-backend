@@ -43,7 +43,7 @@ def main() -> None:
                 # Check if yearly schedule already generated for current year
                 yearly_marker = os.path.join(marker_dir, f'control-yearly-seed-{current_year}.done')
                 if not os.path.exists(yearly_marker):
-                    print(f"🚀 InitSeed: Generating yearly schedules for {current_year} using MTA Prophet model...")
+                    print(f"Generating yearly schedules for {current_year} using MTA Prophet model...")
                     
                     # Import and use yearly planning service directly
                     from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
@@ -58,7 +58,7 @@ def main() -> None:
                     # Generate yearly schedule (this will take some time but generates everything at once)
                     total_trips = yearly_planner.generate_yearly_schedule_simple(current_year)
                     
-                    print(f"✅ InitSeed: Generated {total_trips} trips for year {current_year}")
+                    print(f"Generated {total_trips} trips for year {current_year}")
                     
                     # Mark as done
                     try:
@@ -70,10 +70,10 @@ def main() -> None:
                     # Close transport connection
                     transport_channel.close()
                 else:
-                    print(f"✅ Yearly schedule for {current_year} already exists, skipping generation")
+                    print(f"Yearly schedule for {current_year} already exists, skipping generation")
                     
             except Exception as e:
-                print(f"❌ InitSeed: Failed to generate yearly schedules: {e}")
+                print(f"Failed to generate yearly schedules: {e}")
                 print("   Falling back to daily schedule generation...")
                 # Fallback to original daily generation
                 try:
@@ -86,7 +86,7 @@ def main() -> None:
                         print(f"Fallback: generating daily schedule for {target} ({dow})")
                         stub.GenerateDailySchedules(control_pb2.GenerateDailyRequest(date=target, dayOfWeek=dow))
                 except Exception as fallback_e:
-                    print(f"❌ Fallback also failed: {fallback_e}")
+                    print(f"Fallback also failed: {fallback_e}")
 
     # Start initialization in background thread to avoid blocking health checks
     threading.Thread(target=init_seed_background, daemon=True).start()
@@ -107,14 +107,14 @@ def main() -> None:
                 next_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
             
             wait_seconds = (next_run - now).total_seconds()
-            print(f"📅 Next yearly schedule generation: {next_run.strftime('%Y-%m-%d %H:%M:%S')} ({wait_seconds/3600:.1f} hours)")
+            print(f"Next yearly schedule generation: {next_run.strftime('%Y-%m-%d %H:%M:%S')} ({wait_seconds/3600:.1f} hours)")
             
             try:
                 threading.Event().wait(wait_seconds)
                 
                 # Generate yearly schedule for the new year
                 target_year = datetime.now().year
-                print(f"🗓️ Auto-generating yearly schedule for {target_year} using MTA Prophet model...")
+                print(f"Auto-generating yearly schedule for {target_year} using MTA Prophet model...")
                 
                 # Use yearly planning service directly
                 from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
@@ -127,11 +127,11 @@ def main() -> None:
                 
                 total_trips = yearly_planner.generate_yearly_schedule_simple(target_year)
                 
-                print(f"✅ Auto-generated {total_trips} trips for year {target_year}")
+                print(f"Auto-generated {total_trips} trips for year {target_year}")
                 transport_channel.close()
                 
             except Exception as e:
-                print(f"❌ Yearly maintenance job failed: {e}")
+                print(f"Yearly maintenance job failed: {e}")
                 # Continue the loop to try again next year
 
     threading.Thread(target=yearly_maintenance_job, daemon=True).start()
@@ -171,7 +171,7 @@ def main() -> None:
                 
                 # Generate quarterly updates (lighter than full yearly)
                 quarter = ((next_quarter.month - 1) // 3) + 1
-                print(f"📊 Auto-updating Q{quarter} {next_quarter.year} schedules...")
+                print(f"Auto-updating Q{quarter} {next_quarter.year} schedules...")
                 
                 response = stub.GenerateQuarterlySchedules(control_pb2.GenerateQuarterlyRequest(
                     year=next_quarter.year,
@@ -181,10 +181,10 @@ def main() -> None:
                     serviceEnd="23:00:00"
                 ))
                 
-                print(f"✅ Updated Q{quarter} with {response.trips} trips")
+                print(f"Updated Q{quarter} with {response.trips} trips")
                 
             except Exception as e:
-                print(f"⚠️ Quarterly update job failed: {e}")
+                print(f"Quarterly update job failed: {e}")
 
     # Enable quarterly updates (optional - can be disabled if not needed)
     threading.Thread(target=quarterly_update_job, daemon=True).start()

@@ -56,12 +56,16 @@ describe('stop.service', () => {
   });
 
   test('getStopsByTrip returns list', async () => {
+    // Ensure Trip exists so service proceeds to Stop.findAll
+    Trip.findByPk = jest.fn().mockResolvedValue({ tripId: 't1' });
     Stop.findAll.mockResolvedValue([]);
     await stopService.getStopsByTrip('t1');
     expect(Stop.findAll).toHaveBeenCalled();
   });
 
   test('getStopsByStation returns list', async () => {
+    // Ensure Station exists so service proceeds to Stop.findAll
+    Station.findByPk = jest.fn().mockResolvedValue({ stationId: 's1' });
     Stop.findAll.mockResolvedValue([]);
     await stopService.getStopsByStation('s1');
     expect(Stop.findAll).toHaveBeenCalled();
@@ -158,11 +162,15 @@ describe('stop.service error paths', () => {
   });
 
   test('getStopsByTrip rejects', async () => {
+    // Ensure Trip exists so rejection comes from Stop.findAll
+    Trip.findByPk = jest.fn().mockResolvedValue({ tripId: 't1' });
     Stop.findAll.mockRejectedValue(new Error('db'));
     await expect(stopService.getStopsByTrip('t1')).rejects.toThrow('db');
   });
 
   test('getStopsByStation rejects', async () => {
+    // Ensure Station exists so rejection comes from Stop.findAll
+    Station.findByPk = jest.fn().mockResolvedValue({ stationId: 's1' });
     Stop.findAll.mockRejectedValue(new Error('db'));
     await expect(stopService.getStopsByStation('s1')).rejects.toThrow('db');
   });

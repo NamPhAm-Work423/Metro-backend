@@ -22,10 +22,10 @@ class ForecastService:
         """
         try:
             timebands = self.enhanced_service.forecast_headways(route_id, date, day_of_week)
-            print(f"✅ Using MTA Prophet-enhanced forecasting for route {route_id} on {day_of_week}")
+            print(f"Using MTA Prophet-enhanced forecasting for route {route_id} on {day_of_week}")
             return timebands
         except Exception as e:
-            print(f"⚠️ Enhanced forecasting failed, using fallback: {e}")
+            print(f"Enhanced forecasting failed, using fallback: {e}")
             return self._generate_basic_timebands(day_of_week)
 
     def _generate_basic_timebands(self, day_of_week: str) -> List[TimeBandHeadway]:

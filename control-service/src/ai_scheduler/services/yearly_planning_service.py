@@ -27,19 +27,19 @@ class YearlyPlanningService:
         Generate complete yearly schedule for all routes using MTA Prophet model
         Simple version - just returns total trips generated
         """
-        print(f"🚀 Generating yearly schedule for {year} using MTA Prophet model...")
+        print(f"Generating yearly schedule for {year} using MTA Prophet model...")
         
         # Get all active routes
         route_ids = self._get_all_active_routes()
         if not route_ids:
-            print("❌ No active routes found")
+            print("No active routes found")
             return 0
         
         total_trips = 0
         start_date = date(year, 1, 1)
         end_date = date(year, 12, 31)
         
-        print(f"📅 Processing {len(route_ids)} routes for 365 days...")
+        print(f"Processing {len(route_ids)} routes for 365 days...")
         
         # Generate for each day of the year
         current_date = start_date
@@ -61,19 +61,19 @@ class YearlyPlanningService:
                     )
                     total_trips += trips
                 except Exception as e:
-                    print(f"❌ Error on {date_str} for route {route_id}: {e}")
+                    print(f"Error on {date_str} for route {route_id}: {e}")
                     continue
             
             day_count += 1
             
             # Progress update every week
             if day_count % 7 == 0:
-                print(f"📈 Day {day_count}/365: {total_trips} trips generated so far")
+                print(f"Day {day_count}/365: {total_trips} trips generated so far")
             
             current_date += timedelta(days=1)
         
-        print(f"✅ Yearly schedule completed!")
-        print(f"📊 Generated {total_trips} trips for {len(route_ids)} routes across 365 days")
+        print(f"Yearly schedule completed!")
+        print(f"Generated {total_trips} trips for {len(route_ids)} routes across 365 days")
         
         return total_trips
     
@@ -93,7 +93,7 @@ class YearlyPlanningService:
         # Process each month
         for month in range(1, 13):
             month_name = calendar.month_name[month]
-            print(f"  📅 Processing {month_name} {year}")
+            print(f"Processing {month_name} {year}")
             
             month_stats = self._generate_monthly_schedule(
                 route_id, year, month, service_start, service_end
@@ -149,10 +149,10 @@ class YearlyPlanningService:
                 
                 # Progress indicator for long operations
                 if day % 7 == 0:  # Every week
-                    print(f"    📈 Week {day//7 + 1}: {trips_generated} trips on {day_of_week}")
+                    print(f"Week {day//7 + 1}: {trips_generated} trips on {day_of_week}")
                     
             except Exception as e:
-                print(f"    ❌ Error generating schedule for {date_str}: {e}")
+                print(f"Error generating schedule for {date_str}: {e}")
                 continue
         
         return month_stats
@@ -165,7 +165,7 @@ class YearlyPlanningService:
             response = self.transport.ListRoutes(transport_pb2.ListRoutesRequest())
             return [route.routeId for route in response.routes if route.isActive]
         except Exception as e:
-            print(f"❌ Error fetching active routes: {e}")
+            print(f"Error fetching active routes: {e}")
             return []
     
     def _calculate_yearly_demand_stats(self, year: int) -> Dict:
@@ -228,7 +228,7 @@ class YearlyPlanningService:
             4: [10, 11, 12]  # Q4: Oct, Nov, Dec
         }
         
-        print(f"🗓️ Generating Q{quarter} {year} schedule")
+        print(f"Generating Q{quarter} {year} schedule")
         
         if not route_ids:
             route_ids = self._get_all_active_routes()
@@ -253,7 +253,7 @@ class YearlyPlanningService:
             stats["trips_generated"] += route_trips
             stats["routes_processed"] += 1
         
-        print(f"✅ Q{quarter} {year} generation completed: {stats['trips_generated']} trips")
+        print(f"Q{quarter} {year} generation completed: {stats['trips_generated']} trips")
         return stats
     
     def get_yearly_schedule_summary(self, year: int, route_id: Optional[str] = None) -> Dict:

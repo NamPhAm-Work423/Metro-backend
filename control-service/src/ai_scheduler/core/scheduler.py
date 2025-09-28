@@ -39,11 +39,11 @@ class HeuristicScheduler:
                     headway_sec=tb.headway_sec
                 ))
             
-            print(f"✅ Using Prophet-enhanced time bands for route {route_id}")
+            print(f"Using Prophet-enhanced time bands for route {route_id}")
             return timebands
             
         except Exception as e:
-            print(f"⚠️ Prophet forecasting failed, using fallback: {e}")
+            print(f"Prophet forecasting failed, using fallback: {e}")
             # Fallback to simple MVP
             return [TimeBand(start=service_start, end=service_end, headway_sec=offpeak_headway_sec)]
 

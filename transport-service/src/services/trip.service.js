@@ -60,10 +60,12 @@ class TripService {
                                 attributes: ['stationId', 'name', 'location']
                             }
                         ],
-                        order: [['sequence', 'ASC']]
                     }
                 ],
-                order: [['departureTime', 'ASC']]
+                order: [
+                    ['departureTime', 'ASC'],
+                    ['stops', 'sequence', 'ASC']
+                ]
             });
             
             return trips;
@@ -123,10 +125,12 @@ class TripService {
                                 attributes: ['stationId', 'name', 'location']
                             }
                         ],
-                        order: [['sequence', 'ASC']]
                     }
                 ],
-                order: [['departureTime', 'ASC']]
+                order: [
+                    ['departureTime', 'ASC'],
+                    ['stops', 'sequence', 'ASC']
+                ]
             });
             
             return trips;
@@ -155,10 +159,10 @@ class TripService {
                                 model: Station,
                                 attributes: ['stationId', 'name', 'location', 'facilities']
                             }
-                        ],
-                        order: [['sequence', 'ASC']]
+                        ]
                     }
-                ]
+                ],
+                order: [['stops', 'sequence', 'ASC']]
             });
             
             if (!trip) {
@@ -242,10 +246,12 @@ class TripService {
                                 attributes: ['stationId', 'name', 'location']
                             }
                         ],
-                        order: [['sequence', 'ASC']]
                     }
                 ],
-                order: [['departureTime', 'ASC']]
+                order: [
+                    ['departureTime', 'ASC'],
+                    ['stops', 'sequence', 'ASC']
+                ]
             });
         } catch (error) {
             throw error;
@@ -347,7 +353,10 @@ class TripService {
                         ]
                     }
                 ],
-                order: [['departureTime', 'ASC']]
+                order: [
+                    ['departureTime', 'ASC'],
+                    ['stops', 'sequence', 'ASC']
+                ]
             });
 
             // Filter trips that visit both stations in correct order

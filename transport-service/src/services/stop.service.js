@@ -23,6 +23,21 @@ class StopService {
     async getAllStops(filters = {}) {
         try {
             const where = {};
+            const tripWhere = {};
+            
+            // Default to today if no date filter provided
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            if (filters.date) {
+                tripWhere.serviceDate = filters.date;
+            } else if (filters.dateFrom && filters.dateTo) {
+                tripWhere.serviceDate = {
+                    [Op.between]: [filters.dateFrom, filters.dateTo]
+                };
+            } else {
+                // Default to today to prevent massive queries
+                tripWhere.serviceDate = today;
+            }
             
             if (filters.tripId) {
                 where.tripId = filters.tripId;
@@ -32,25 +47,36 @@ class StopService {
                 where.stationId = filters.stationId;
             }
 
+            console.log('[StopService.getAllStops] filters:', { where, tripWhere });
+
             const stops = await Stop.findAll({
                 where,
                 include: [
                     {
                         model: Trip,
                         as: 'trip',
-                        attributes: ['tripId', 'routeId', 'trainId', 'departureTime', 'arrivalTime', 'dayOfWeek']
+                        where: tripWhere,
+                        attributes: ['tripId', 'serviceDate', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek'],
+                        required: true // INNER JOIN - only stops with trips on specified date
                     },
                     {
                         model: Station,
                         as: 'station',
-                        attributes: ['stationId', 'name', 'location', 'openTime', 'closeTime']
+                        required: false,
+                        attributes: ['stationId', 'name', 'location']
                     }
                 ],
-                order: [['sequence', 'ASC']]
+                order: [
+                    [{ model: Trip, as: 'trip' }, 'departureTime', 'ASC'],
+                    ['sequence', 'ASC']
+                ],
+                limit: filters.limit || 1000 // Prevent massive queries
             });
             
+            console.log('[StopService.getAllStops] found stops:', stops.length);
             return stops;
         } catch (error) {
+            console.error('[StopService.getAllStops] error:', error);
             throw error;
         }
     }
@@ -61,6 +87,8 @@ class StopService {
                 include: [
                     {
                         model: Trip,
+                        as: 'trip',
+                        required: false,
                         include: [
                             {
                                 model: Route,
@@ -74,6 +102,7 @@ class StopService {
                     },
                     {
                         model: Station,
+                        as: 'station',
                         attributes: ['stationId', 'name', 'location', 'facilities']
                     }
                 ]
@@ -121,11 +150,18 @@ class StopService {
 
     async getStopsByTrip(tripId) {
         try {
+            const trip = await Trip.findByPk(tripId);
+            
+            if (!trip) {
+                throw new Error('Trip not found');
+            }
+
             const stops = await Stop.findAll({
                 where: { tripId },
                 include: [
                     {
                         model: Station,
+                        as: 'station',
                         attributes: ['stationId', 'name', 'location', 'facilities']
                     }
                 ],
@@ -140,26 +176,30 @@ class StopService {
 
     async getStopsByStation(stationId) {
         try {
+            const station = await Station.findByPk(stationId);
+            
+            if (!station) {
+                throw new Error('Station not found');
+            }
+
+            // Only return stops for today to prevent massive queries
+            const today = new Date().toISOString().split('T')[0];
+
             const stops = await Stop.findAll({
                 where: { stationId },
                 include: [
                     {
                         model: Trip,
-                        include: [
-                            {
-                                model: Route,
-                                as: 'route',
-                                attributes: ['routeId', 'name', 'originId', 'destinationId']
-                            },
-                            {
-                                model: Train,
-                                as: 'train',
-                                attributes: ['trainId', 'name', 'type', 'capacity']
-                            }
-                        ]
+                        as: 'trip',
+                        where: { serviceDate: today, isActive: true },
+                        attributes: ['tripId', 'serviceDate', 'routeId', 'trainId', 'departureTime', 'arrivalTime', 'dayOfWeek'],
+                        required: true // Only stops with active trips today
                     }
                 ],
-                order: [['sequence', 'ASC']]
+                order: [
+                    [{ model: Trip, as: 'trip' }, 'departureTime', 'ASC'],
+                    ['sequence', 'ASC']
+                ]
             });
             
             return stops;
@@ -188,6 +228,8 @@ class StopService {
                 include: [
                     {
                         model: Trip,
+                        as: 'trip',
+                        required: false,
                         where: { dayOfWeek },
                         include: [
                             {
@@ -202,6 +244,7 @@ class StopService {
                     },
                     {
                         model: Station,
+                        as: 'station',
                         attributes: ['stationId', 'name', 'location']
                     }
                 ],
@@ -232,6 +275,7 @@ class StopService {
                         include: [
                             {
                                 model: Station,
+                                as: 'station',
                                 attributes: ['stationId', 'name', 'location', 'facilities']
                             }
                         ],
@@ -287,6 +331,8 @@ class StopService {
                 include: [
                     {
                         model: Trip,
+                        as: 'trip',
+                        required: false,
                         where: { dayOfWeek, isActive: true },
                         include: [
                             {
@@ -302,11 +348,12 @@ class StopService {
                     },
                     {
                         model: Station,
+                        as: 'station',
                         attributes: ['stationId', 'name', 'location']
                     }
                 ],
                 order: [
-                    [{ model: Trip, as: 'Trip' }, 'departureTime', 'ASC'],
+                    [{ model: Trip, as: 'trip' }, 'departureTime', 'ASC'],
                     ['arrivalTime', 'ASC']
                 ],
                 limit

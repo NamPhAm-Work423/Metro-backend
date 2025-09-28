@@ -74,6 +74,7 @@ class RouteService {
                     {
                         model: Trip,
                         as: 'trips',
+                        required: false,
                         attributes: ['tripId', 'trainId', 'departureTime', 'arrivalTime', 'dayOfWeek', 'isActive']
                     }
                 ]

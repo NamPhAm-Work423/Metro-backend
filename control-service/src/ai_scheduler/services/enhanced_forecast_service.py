@@ -26,11 +26,11 @@ class EnhancedForecastService:
             if os.path.exists(recommendations_path):
                 with open(recommendations_path, 'r', encoding='utf-8') as f:
                     self.recommendations = json.load(f)
-                print(f"✅ Loaded MTA recommendations from {recommendations_path}")
+                print(f"Loaded MTA recommendations from {recommendations_path}")
             else:
-                print(f"⚠️ MTA recommendations file not found at {recommendations_path}")
+                print(f"MTA recommendations file not found at {recommendations_path}")
         except Exception as e:
-            print(f"❌ Error loading MTA recommendations: {e}")
+            print(f"Error loading MTA recommendations: {e}")
 
     def forecast_headways(self, route_id: str, date: str, day_of_week: str) -> List[TimeBandHeadway]:
         """

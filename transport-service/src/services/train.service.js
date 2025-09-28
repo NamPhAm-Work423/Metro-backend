@@ -58,6 +58,7 @@ class TrainService {
                     {
                         model: Trip,
                         as: 'trips',
+                        required: false,
                         attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek', 'isActive']
                     },
                     {
@@ -134,13 +135,6 @@ class TrainService {
         try {
             return await Train.findAll({
                 where: { isActive: true, status },
-                include: [
-                    {
-                        model: Trip,
-                        as: 'trips',
-                        attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime']
-                    }
-                ],
                 order: [['name', 'ASC']]
             });
         } catch (error) {
@@ -216,6 +210,7 @@ class TrainService {
                     {
                         model: Trip,
                         as: 'trips',
+                        required: false,
                         where: { isActive: true },
                         attributes: ['tripId', 'routeId', 'departureTime', 'arrivalTime', 'dayOfWeek']
                     }
