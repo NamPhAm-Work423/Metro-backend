@@ -15,6 +15,20 @@ class TripService {
         try {
             const where = {};
             
+            // Default to today if no date filter provided (Performance optimization)
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (filters.date) {
+                where.serviceDate = filters.date;
+            } else if (filters.dateFrom && filters.dateTo) {
+                where.serviceDate = {
+                    [Op.between]: [filters.dateFrom, filters.dateTo]
+                };
+            } else {
+                // Default to today to prevent massive queries
+                where.serviceDate = today;
+            }
+            
             if (filters.isActive !== undefined) {
                 where.isActive = filters.isActive;
             }
@@ -49,23 +63,10 @@ class TripService {
                         model: Train,
                         as: 'train',
                         attributes: ['trainId', 'name', 'type', 'capacity', 'status']
-                    },
-                    {
-                        model: Stop,
-                        as: 'stops',
-                        include: [
-                            {
-                                model: Station,
-                                as: 'station',
-                                attributes: ['stationId', 'name', 'location']
-                            }
-                        ],
                     }
                 ],
-                order: [
-                    ['departureTime', 'ASC'],
-                    ['stops', 'sequence', 'ASC']
-                ]
+                order: [['departureTime', 'ASC']],
+                limit: filters.limit || 1000 // Prevent massive queries
             });
             
             return trips;
@@ -207,8 +208,14 @@ class TripService {
 
     async getActiveTrips() {
         try {
+            // Default to today to prevent massive queries
+            const today = new Date().toISOString().split('T')[0];
+            
             return await Trip.findAll({
-                where: { isActive: true },
+                where: { 
+                    isActive: true,
+                    serviceDate: today // Only today's active trips
+                },
                 include: [
                     {
                         model: Route,
@@ -221,7 +228,8 @@ class TripService {
                         attributes: ['trainId', 'name', 'type', 'capacity']
                     }
                 ],
-                order: [['departureTime', 'ASC']]
+                order: [['departureTime', 'ASC']],
+                limit: 1000 // Prevent massive queries
             });
         } catch (error) {
             throw error;
@@ -298,12 +306,22 @@ class TripService {
 
     async getUpcomingTrips(currentTime, dayOfWeek) {
         try {
+            const where = {
+                isActive: true,
+                departureTime: { [Op.gte]: currentTime || '00:00:00' }
+            };
+            
+            // Default to today if no date/dayOfWeek provided
+            const today = new Date().toISOString().split('T')[0];
+            where.serviceDate = today;
+            
+            // Only add dayOfWeek filter if provided and not undefined
+            if (dayOfWeek && dayOfWeek !== 'undefined') {
+                where.dayOfWeek = dayOfWeek;
+            }
+
             return await Trip.findAll({
-                where: {
-                    isActive: true,
-                    dayOfWeek,
-                    departureTime: { [Op.gte]: currentTime }
-                },
+                where,
                 include: [
                     {
                         model: Route,
@@ -314,7 +332,8 @@ class TripService {
                         model: Train,
                         as: 'train',
                         attributes: ['trainId', 'name', 'type', 'capacity', 'status'],
-                        where: { status: 'active' }
+                        where: { status: 'active' },
+                        required: false
                     }
                 ],
                 order: [['departureTime', 'ASC']],

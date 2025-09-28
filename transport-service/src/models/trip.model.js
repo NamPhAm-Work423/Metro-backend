@@ -88,6 +88,21 @@ const Trip = sequelize.define('Trip', {
         // Composite index for trainId + isActive (for active trains)
         {
             fields: ['trainId', 'isActive']
+        },
+        {
+            fields: ['serviceDate', 'departureTime', 'isActive'] // Today's active trips with time filtering
+        },
+        {
+            fields: ['routeId', 'serviceDate', 'isActive'] // Active trips by route on specific date
+        },
+        {
+            fields: ['trainId', 'serviceDate', 'isActive'] // Active trips by train on specific date
+        },
+        {
+            fields: ['dayOfWeek', 'serviceDate'] // Weekly schedule patterns
+        },
+        {
+            fields: ['isActive', 'serviceDate', 'departureTime'] // Most common query pattern
         }
     ]
 });
