@@ -124,8 +124,11 @@ jobs:
           echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
 
       - name: Pull image
+        env:
+          REGISTRY: ${{ needs.setup-deploy.outputs.registry }}
+          IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
         run: |
-          IMAGE="${{ needs.setup-deploy.outputs.registry }}/metro-${{ matrix.service }}:${{ needs.setup-deploy.outputs.deploy_tag }}"
+          IMAGE="$REGISTRY/metro-${{ matrix.service }}:$IMAGE_TAG"
           echo "Pulling $IMAGE"
           docker pull "$IMAGE" || {
             echo "Failed to pull $IMAGE" >&2
@@ -190,6 +193,7 @@ jobs:
         env:
           TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
           IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          REGISTRY: ${{ needs.setup-deploy.outputs.registry }}
         run: |
           echo "Pulling images for tag: $TAG"
           # Pull với timeout và retry
@@ -203,6 +207,7 @@ jobs:
         env:
           TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
           IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          REGISTRY: ${{ needs.setup-deploy.outputs.registry }}
           COMPOSE_PROFILES: nginx,admin-tools
         run: |
           echo "Deploying with tag: $TAG"
@@ -214,6 +219,10 @@ jobs:
 
       - name: Health check
         working-directory: ${{ steps.deploy_dir.outputs.dir }}
+        env:
+          TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          REGISTRY: ${{ needs.setup-deploy.outputs.registry }}
         run: |
           echo "Checking service health..."
           docker compose -f ${{ steps.compose.outputs.file }} ps
