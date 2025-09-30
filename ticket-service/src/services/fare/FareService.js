@@ -131,7 +131,7 @@ class FareService extends IFareService {
         );
     }
 
-    async calculateStationBasedFare(fromStation, toStation, numAdults = 0, numElder = 0, numTeenager = 0, numChild = 0, tripType = 'Oneway') {
+    async calculateStationBasedFare(fromStation, toStation, numAdults = 0, numElder = 0, numTeenager = 0, num = 0, tripType = 'Oneway') {
         return await this.fareCalculators.stationBased.calculateStationBasedFare(
             fromStation, toStation, numAdults, numElder, numTeenager, numChild, tripType
         );

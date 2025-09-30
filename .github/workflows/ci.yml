@@ -17,56 +17,82 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test-scan-push:
+  # Job 1: Setup và tính toán metadata
+  setup:
     runs-on: ubuntu-latest
-
     outputs:
-      short_tag: ${{ steps.vars.outputs.short_sha }}
+      short_sha: ${{ steps.vars.outputs.short_sha }}
       is_release: ${{ steps.vars.outputs.is_release }}
       release_tag: ${{ steps.vars.outputs.release_tag }}
-
-    env:
-      ENABLE_SARIF_UPLOAD: 'false'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { name: api-gateway,         path: api-gateway,         dockerfile: Dockerfile, runtime: node }
-          - { name: auth-service,        path: auth-service,        dockerfile: Dockerfile, runtime: node }
-          - { name: payment-service,     path: payment-service,     dockerfile: Dockerfile, runtime: node }
-          - { name: public-service,      path: public-service,      dockerfile: Dockerfile, runtime: node }
-          - { name: ticket-service,      path: ticket-service,      dockerfile: Dockerfile, runtime: node }
-          - { name: transport-service,   path: transport-service,   dockerfile: Dockerfile, runtime: node }
-          - { name: control-service,     path: control-service,     dockerfile: Dockerfile, runtime: python }
-          - { name: user-service,        path: user-service,        dockerfile: Dockerfile, runtime: node }
-          - { name: report-service,      path: report-service,      dockerfile: Dockerfile, runtime: python }
-          - { name: notification-service,path: notification-service, dockerfile: Dockerfile, runtime: node }
-          - { name: scheduler-service,   path: scheduler-service,   dockerfile: Dockerfile, runtime: node }
-          - { name: management-service,  path: management-service,  dockerfile: Dockerfile, runtime: python }
-          - { name: webhook,             path: webhook,             dockerfile: Dockerfile, runtime: node }
-          - { name: healthcheck,         path: deploy/healthcheck,  dockerfile: Dockerfile, runtime: python }
-
+      registry: ${{ steps.vars.outputs.registry }}
+      node_services: ${{ steps.services.outputs.node_services }}
+      python_services: ${{ steps.services.outputs.python_services }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # GHCR yêu cầu owner lowercase
-      - name: Normalize REGISTRY (lowercase owner)
-        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+      - name: Compute variables
+        id: vars
+        run: |
+          echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "release_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
 
-      # ---------- Setup runtimes & caches ----------
+      - name: Generate service matrices
+        id: services
+        run: |
+          # Node.js services
+          node_services='[
+            {"name":"api-gateway","path":"api-gateway"},
+            {"name":"auth-service","path":"auth-service"},
+            {"name":"payment-service","path":"payment-service"},
+            {"name":"public-service","path":"public-service"},
+            {"name":"ticket-service","path":"ticket-service"},
+            {"name":"transport-service","path":"transport-service"},
+            {"name":"user-service","path":"user-service"},
+            {"name":"notification-service","path":"notification-service"},
+            {"name":"scheduler-service","path":"scheduler-service"},
+            {"name":"webhook","path":"webhook"}
+          ]'
+          
+          # Python services
+          python_services='[
+            {"name":"control-service","path":"control-service"},
+            {"name":"report-service","path":"report-service"},
+            {"name":"management-service","path":"management-service"},
+            {"name":"healthcheck","path":"deploy/healthcheck"}
+          ]'
+          
+          echo "node_services=$(echo "$node_services" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "python_services=$(echo "$python_services" | jq -c .)" >> $GITHUB_OUTPUT
+
+  # Job 2: Test Node.js services song song
+  test-node:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: fromJson(needs.setup.outputs.node_services)[0] != null
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.setup.outputs.node_services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Use Node.js
-        if: matrix.runtime == 'node'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Detect npm lockfile
         id: detect_lockfile
-        if: matrix.runtime == 'node'
         run: |
-          if [ -f "${{ matrix.path }}/package-lock.json" ]; then
+          if [ -f "${{ matrix.service.path }}/package-lock.json" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -74,25 +100,24 @@ jobs:
 
       - name: Ensure npm cache directory
         id: ensure_npm_cache_dir
-        if: matrix.runtime == 'node'
         shell: bash
         run: |
           NPM_CACHE_DIR=$(npm config get cache)
           mkdir -p "$NPM_CACHE_DIR"
           echo "npm_cache_dir=$NPM_CACHE_DIR" >> $GITHUB_OUTPUT
 
-      - name: Cache npm (when lockfile exists)
-        if: ${{ matrix.runtime == 'node' && steps.detect_lockfile.outputs.exists == 'true' }}
+      - name: Cache npm
+        if: steps.detect_lockfile.outputs.exists == 'true'
         uses: actions/cache@v4
         with:
           path: ${{ steps.ensure_npm_cache_dir.outputs.npm_cache_dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles(format('{0}/package-lock.json', matrix.path)) }}
+          key: ${{ runner.os }}-node-${{ matrix.service.name }}-${{ hashFiles(format('{0}/package-lock.json', matrix.service.path)) }}
           restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.service.name }}-
             ${{ runner.os }}-node-
 
-      - name: Install deps (Node)
-        if: matrix.runtime == 'node'
-        working-directory: ${{ matrix.path }}
+      - name: Install dependencies
+        working-directory: ${{ matrix.service.path }}
         run: |
           npm ci --no-audit --no-fund || (
             echo "npm ci failed, syncing lockfile..." && \
@@ -101,7 +126,6 @@ jobs:
           )
 
       - name: Set ENFORCE_COVERAGE
-        if: matrix.runtime == 'node'
         run: |
           if [[ "${{ github.event_name }}" == 'push' && "${{ github.ref }}" == refs/heads/main ]]; then
             echo "ENFORCE_COVERAGE=true" >> $GITHUB_ENV
@@ -111,9 +135,8 @@ jobs:
             echo "ENFORCE_COVERAGE=false" >> $GITHUB_ENV
           fi
 
-      - name: Test (Node)
-        if: matrix.runtime == 'node'
-        working-directory: ${{ matrix.path }}
+      - name: Run tests
+        working-directory: ${{ matrix.service.path }}
         run: |
           if npm run | grep -q "test"; then
             npm test --if-present
@@ -122,46 +145,72 @@ jobs:
             npm run test:coverage
           fi
 
+  # Job 3: Test Python services song song
+  test-python:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: fromJson(needs.setup.outputs.python_services)[0] != null
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.setup.outputs.python_services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Use Python
-        if: matrix.runtime == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Cache pip
-        if: matrix.runtime == 'python'
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements.txt', matrix.path)) }}-${{ hashFiles(format('{0}/requirements-dev.txt', matrix.path)) }}
+          key: ${{ runner.os }}-pip-${{ matrix.service.name }}-${{ hashFiles(format('{0}/requirements*.txt', matrix.service.path)) }}
           restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.service.name }}-
             ${{ runner.os }}-pip-
 
-      - name: Install deps (Python)
-        if: matrix.runtime == 'python'
-        working-directory: ${{ matrix.path }}
+      - name: Install dependencies
+        working-directory: ${{ matrix.service.path }}
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Test (Python)
-        if: matrix.runtime == 'python'
-        working-directory: ${{ matrix.path }}
+      - name: Run tests
+        working-directory: ${{ matrix.service.path }}
         run: |
           if [ -d tests ]; then pytest -q || true; fi
 
-      # ---------- Build & Push ----------
-      - name: Compute tags
-        id: vars
-        run: |
-          echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "is_release=true" >> $GITHUB_OUTPUT
-            echo "release_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          else
-            echo "is_release=false" >> $GITHUB_OUTPUT
-          fi
+  # Job 4: Build và push images song song
+  build-push:
+    needs: [setup, test-node, test-python]
+    if: always() && needs.setup.result == 'success' && (needs.test-node.result == 'success' || needs.test-node.result == 'skipped') && (needs.test-python.result == 'success' || needs.test-python.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6  # Giới hạn số lượng build đồng thời để tránh quá tải
+      matrix:
+        include:
+          - { name: api-gateway,         path: api-gateway }
+          - { name: auth-service,        path: auth-service }
+          - { name: payment-service,     path: payment-service }
+          - { name: public-service,      path: public-service }
+          - { name: ticket-service,      path: ticket-service }
+          - { name: transport-service,   path: transport-service }
+          - { name: control-service,     path: control-service }
+          - { name: user-service,        path: user-service }
+          - { name: report-service,      path: report-service }
+          - { name: notification-service,path: notification-service }
+          - { name: scheduler-service,   path: scheduler-service }
+          - { name: management-service,  path: management-service }
+          - { name: webhook,             path: webhook }
+          - { name: healthcheck,         path: deploy/healthcheck }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -177,134 +226,120 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.path }}
-          file: ${{ matrix.path }}/${{ matrix.dockerfile }}
+          file: ${{ matrix.path }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
           cache-from: type=gha,scope=metro-${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=metro-${{ matrix.name }}
           tags: |
-            ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}
+            ${{ needs.setup.outputs.registry }}/metro-${{ matrix.name }}:${{ needs.setup.outputs.short_sha }}
           build-args: |
-            APP_VERSION=${{ steps.vars.outputs.short_sha }}
+            APP_VERSION=${{ needs.setup.outputs.short_sha }}
 
-      - name: Also push release semver tag when building a tag
-        if: steps.vars.outputs.is_release == 'true'
+      - name: Also push release semver tag
+        if: needs.setup.outputs.is_release == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.path }}
-          file: ${{ matrix.path }}/${{ matrix.dockerfile }}
+          file: ${{ matrix.path }}/Dockerfile
           push: true
           cache-from: type=gha,scope=metro-${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=metro-${{ matrix.name }}
           tags: |
-            ${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.release_tag }}
+            ${{ needs.setup.outputs.registry }}/metro-${{ matrix.name }}:${{ needs.setup.outputs.release_tag }}
           build-args: |
-            APP_VERSION=${{ steps.vars.outputs.release_tag }}
+            APP_VERSION=${{ needs.setup.outputs.release_tag }}
 
-      # ---------- Trivy (release only) ----------
-      - name: Prepare Trivy cache dir
-        if: steps.vars.outputs.is_release == 'true'
-        run: |
-          mkdir -p "$HOME/.cache/trivy"
-          echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
-
-      - name: Restore Trivy DB cache
-        if: steps.vars.outputs.is_release == 'true'
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.TRIVY_CACHE_DIR }}
-          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
-          restore-keys: |
-            ${{ runner.os }}-trivy-db-
-
-      - name: Pull image for scan (release only)
-        if: steps.vars.outputs.is_release == 'true'
-        run: docker pull "$REGISTRY/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
-
-      - name: Install Trivy CLI (v0.53.0)
-        if: steps.vars.outputs.is_release == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TRIVY_VER="v0.53.0"
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin "${TRIVY_VER}"
-          trivy --version
-
-      - name: Trivy image scan (SARIF)
-        if: steps.vars.outputs.is_release == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          IMG="${{ env.REGISTRY }}/metro-${{ matrix.name }}:${{ steps.vars.outputs.short_sha }}"
-          echo "Scanning $IMG"
-          trivy image \
-            --format sarif \
-            --output "trivy-${{ matrix.name }}.sarif" \
-            --vuln-type os,library \
-            --timeout 5m \
-            --cache-dir "${{ env.TRIVY_CACHE_DIR }}" \
-            "$IMG" || true
-
-      - name: Save Trivy DB cache
-        if: steps.vars.outputs.is_release == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.TRIVY_CACHE_DIR }}
-          key: ${{ runner.os }}-trivy-db-${{ matrix.name }}
-
-      - name: Upload SARIF
-        if: steps.vars.outputs.is_release == 'true' && env.ENABLE_SARIF_UPLOAD == 'true'
-        uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
-        with:
-          sarif_file: trivy-${{ matrix.name }}.sarif
-
-      - name: Cleanup Docker & caches
-        if: always()
-        run: |
-          docker system prune -af --volumes || true
-          rm -rf ~/.cache/npm/_cacache || true
-          rm -rf ~/.cache/pip || true
-
-  verify-images:
-    if: github.event_name == 'push'
+  # Job 5: Security scan song song (chỉ cho release)
+  security-scan:
+    needs: [setup, build-push]
+    if: needs.setup.outputs.is_release == 'true' && needs.build-push.result == 'success'
     runs-on: ubuntu-latest
-    needs: build-test-scan-push
     strategy:
       fail-fast: false
+      max-parallel: 4  # Giới hạn scan đồng thời
       matrix:
-        image:
-          - metro-api-gateway
-          - metro-auth-service
-          - metro-payment-service
-          - metro-public-service
-          - metro-ticket-service
-          - metro-transport-service
-          - metro-control-service
-          - metro-user-service
-          - metro-report-service
-          - metro-notification-service
-          - metro-scheduler-service
-          - metro-management-service
-          - metro-webhook
+        service: [
+          api-gateway, auth-service, payment-service, public-service,
+          ticket-service, transport-service, control-service, user-service,
+          report-service, notification-service, scheduler-service,
+          management-service, webhook, healthcheck
+        ]
+    env:
+      ENABLE_SARIF_UPLOAD: 'false'
     steps:
-      - name: Normalize REGISTRY (lowercase owner)
-        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Login GHCR (read)
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify image exists with short tag
-        shell: bash
+      - name: Prepare Trivy cache
         run: |
-          TAG="${{ needs.build-test-scan-push.outputs.short_tag }}"
-          REGISTRY_LC="$(echo "${{ env.REGISTRY }}" | tr '[:upper:]' '[:lower:]')"
-          REF="${REGISTRY_LC}/${{ matrix.image }}:${TAG}"
+          mkdir -p "$HOME/.cache/trivy"
+          echo "TRIVY_CACHE_DIR=$HOME/.cache/trivy" >> $GITHUB_ENV
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TRIVY_CACHE_DIR }}
+          key: ${{ runner.os }}-trivy-db-${{ matrix.service }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-trivy-db-${{ matrix.service }}-
+            ${{ runner.os }}-trivy-db-
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.53.0
+
+      - name: Pull and scan image
+        run: |
+          IMG="${{ needs.setup.outputs.registry }}/metro-${{ matrix.service }}:${{ needs.setup.outputs.short_sha }}"
+          docker pull "$IMG"
+          
+          trivy image \
+            --format sarif \
+            --output "trivy-${{ matrix.service }}.sarif" \
+            --vuln-type os,library \
+            --timeout 5m \
+            --cache-dir "${{ env.TRIVY_CACHE_DIR }}" \
+            "$IMG" || true
+
+      - name: Upload SARIF
+        if: env.ENABLE_SARIF_UPLOAD == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+  # Job 6: Verify images (song song theo nhóm)
+  verify-images:
+    if: github.event_name == 'push'
+    needs: [setup, build-push]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        service: [
+          api-gateway, auth-service, payment-service, public-service,
+          ticket-service, transport-service, control-service, user-service,
+          report-service, notification-service, scheduler-service,
+          management-service, webhook
+        ]
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists
+        run: |
+          REF="${{ needs.setup.outputs.registry }}/metro-${{ matrix.service }}:${{ needs.setup.outputs.short_sha }}"
           echo "Checking $REF"
           if ! docker manifest inspect "$REF" > /dev/null 2>&1; then
             echo "Missing image: $REF"

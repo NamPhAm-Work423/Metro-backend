@@ -11,6 +11,14 @@ on:
       tag:
         description: Image tag to deploy (semver vX.Y.Z or short SHA). Leave empty to use computed tag
         required: false
+      environment:
+        description: Target environment
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 permissions:
   contents: read
@@ -22,10 +30,10 @@ env:
   GHCR_HOST: ghcr.io
 
 jobs:
-  deploy-vps:
-    name: Local deploy on self-hosted runner
-    runs-on: [self-hosted]
-    timeout-minutes: 30
+  # Job 1: Setup và validation
+  setup-deploy:
+    name: Setup deployment
+    runs-on: ubuntu-latest
     if: >
       ${{
         github.event_name == 'workflow_dispatch' ||
@@ -35,17 +43,107 @@ jobs:
           github.event.workflow_run.event == 'push'
         )
       }}
+    outputs:
+      deploy_tag: ${{ steps.tag.outputs.value }}
+      registry: ${{ steps.vars.outputs.registry }}
+      services: ${{ steps.services.outputs.services }}
+    steps:
+      - name: Normalize REGISTRY
+        id: vars
+        run: echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
+      - name: Resolve deploy tag
+        id: tag
+        run: |
+          if [[ -n "${{ inputs.tag || '' }}" ]]; then
+            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "value=${SHA:0:7}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+          echo "Resolved tag: $(sed -n 's/^value=//p' $GITHUB_OUTPUT)"
+
+      - name: Generate services list
+        id: services
+        run: |
+          services='[
+            "api-gateway", "auth-service", "payment-service", "public-service",
+            "ticket-service", "transport-service", "user-service", "report-service",
+            "management-service", "control-service", "notification-service",
+            "webhook", "scheduler-service", "healthcheck"
+          ]'
+          echo "services=$(echo "$services" | jq -c .)" >> $GITHUB_OUTPUT
+
+  # Job 2: Verify images song song
+  verify-images:
+    name: Verify images
+    needs: setup-deploy
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      max-parallel: 8
+      matrix:
+        service: ${{ fromJson(needs.setup-deploy.outputs.services) }}
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists
+        run: |
+          REF="${{ needs.setup-deploy.outputs.registry }}/metro-${{ matrix.service }}:${{ needs.setup-deploy.outputs.deploy_tag }}"
+          echo "Checking $REF"
+          if ! docker manifest inspect "$REF" >/dev/null 2>&1; then
+            echo "Missing image: $REF" >&2
+            exit 1
+          fi
+          echo "✓ $REF exists"
+
+  # Job 3: Pre-pull images song song (tùy chọn, để tăng tốc deploy)
+  pre-pull-images:
+    name: Pre-pull images
+    needs: [setup-deploy, verify-images]
+    runs-on: [self-hosted]
+    if: inputs.environment != 'staging'  # Chỉ pre-pull cho production
+    strategy:
+      fail-fast: false
+      max-parallel: 4  # Giới hạn để tránh quá tải network
+      matrix:
+        service: ${{ fromJson(needs.setup-deploy.outputs.services) }}
+    steps:
+      - name: Login to GHCR
+        env:
+          REGISTRY_USER: ${{ secrets.GHCR_USERNAME || github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+
+      - name: Pull image
+        run: |
+          IMAGE="${{ needs.setup-deploy.outputs.registry }}/metro-${{ matrix.service }}:${{ needs.setup-deploy.outputs.deploy_tag }}"
+          echo "Pulling $IMAGE"
+          docker pull "$IMAGE" || {
+            echo "Failed to pull $IMAGE" >&2
+            exit 1
+          }
+          echo "✓ Pulled $IMAGE"
+
+  # Job 4: Deploy chính
+  deploy-vps:
+    name: Deploy to VPS
+    needs: [setup-deploy, verify-images]
+    runs-on: [self-hosted]
+    timeout-minutes: 30
     concurrency:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
-
     steps:
-      - name: Normalize REGISTRY (lowercase owner)
-        shell: bash
-        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-
-      - name: Clean workspace before checkout
-        shell: bash
+      - name: Clean workspace
         run: |
           chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           rm -rf "$GITHUB_WORKSPACE/nginx/certs/" "$GITHUB_WORKSPACE/.git/" 2>/dev/null || true
@@ -56,91 +154,114 @@ jobs:
         with:
           clean: false
 
-      - name: Resolve deploy tag
-        id: tag
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${{ inputs.tag || '' }}" ]]; then
-            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            SHA="${{ github.event.workflow_run.head_sha }}"
-            echo "value=${SHA:0:7}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Resolved tag: $(sed -n 's/^value=//p' "$GITHUB_OUTPUT")"
-
-      - name: Docker login GHCR
+      - name: Login to GHCR
         env:
-          GHCR_HOST: ${{ env.GHCR_HOST }}
           REGISTRY_USER: ${{ secrets.GHCR_USERNAME || github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
-          set -e
-          echo "$REGISTRY_TOKEN" | docker login "$GHCR_HOST" -u "$REGISTRY_USER" --password-stdin
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
 
-      - name: Verify images exist for tag
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          IMAGE_TAG: ${{ steps.tag.outputs.value }}
-        shell: bash
+      - name: Determine deploy directory
+        id: deploy_dir
         run: |
-          set -euo pipefail
-          REGISTRY_LC="$(echo "$REGISTRY" | tr '[:upper:]' '[:lower:]')"
-          services=(
-            api-gateway auth-service payment-service public-service ticket-service
-            transport-service user-service report-service management-service
-            control-service notification-service webhook scheduler-service healthcheck
-          )
-          missing=()
-          for s in "${services[@]}"; do
-            ref="$REGISTRY_LC/metro-$s:$IMAGE_TAG"
-            echo "Checking $ref"
-            if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
-              missing+=("$ref")
-            fi
-          done
-          if (( ${#missing[@]} > 0 )); then
-            echo "Missing images for tag '$IMAGE_TAG':" >&2
-            printf ' - %s\n' "${missing[@]}" >&2
-            exit 1
-          fi
-          echo "All images for '$IMAGE_TAG' are present."
-
-      - name: Compose pull & up
-        env:
-          TAG: ${{ steps.tag.outputs.value }}
-          IMAGE_TAG: ${{ steps.tag.outputs.value }}
-          VPS_PATH: ${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}
-          COMPOSE_PROFILES: nginx,admin-tools
-        shell: bash
-        run: |
-          set -euo pipefail
           DEPLOY_DIR="$GITHUB_WORKSPACE"
           if [ ! -f "$DEPLOY_DIR/docker-compose.prod.yml" ] \
              && [ ! -f "$DEPLOY_DIR/compose.prod.yml" ] \
              && [ ! -f "$DEPLOY_DIR/docker-compose.yml" ] \
              && [ ! -f "$DEPLOY_DIR/compose.yml" ]; then
-            DEPLOY_DIR="${VPS_PATH:-/opt/metro}"
+            DEPLOY_DIR="${{ secrets.VPS_PATH || env.DEFAULT_VPS_PATH }}"
           fi
+          echo "dir=$DEPLOY_DIR" >> $GITHUB_OUTPUT
           echo "Using deploy directory: $DEPLOY_DIR"
-          cd "$DEPLOY_DIR"
 
-          docker compose version >/dev/null
+      - name: Detect compose file
+        id: compose
+        working-directory: ${{ steps.deploy_dir.outputs.dir }}
+        run: |
+          if   [ -f docker-compose.prod.yml ]; then echo "file=docker-compose.prod.yml" >> $GITHUB_OUTPUT
+          elif [ -f compose.prod.yml ];        then echo "file=compose.prod.yml" >> $GITHUB_OUTPUT
+          elif [ -f docker-compose.yml ];      then echo "file=docker-compose.yml" >> $GITHUB_OUTPUT
+          elif [ -f compose.yml ];             then echo "file=compose.yml" >> $GITHUB_OUTPUT
+          else echo "No compose file found" >&2; exit 1; fi
+          echo "Using compose file: $(cat $GITHUB_OUTPUT | grep '^file=' | cut -d= -f2)"
 
-          if   [ -f docker-compose.prod.yml ]; then COMPOSE_FILES="-f docker-compose.prod.yml"
-          elif [ -f compose.prod.yml ];        then COMPOSE_FILES="-f compose.prod.yml"
-          elif [ -f docker-compose.yml ];      then COMPOSE_FILES="-f docker-compose.yml"
-          elif [ -f compose.yml ];             then COMPOSE_FILES="-f compose.yml"
-          else echo "No compose file found in $DEPLOY_DIR" >&2; exit 1; fi
+      - name: Pull images (parallel)
+        working-directory: ${{ steps.deploy_dir.outputs.dir }}
+        env:
+          TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+        run: |
+          echo "Pulling images for tag: $TAG"
+          # Pull với timeout và retry
+          timeout 300 docker compose -f ${{ steps.compose.outputs.file }} pull --parallel --quiet || {
+            echo "Parallel pull failed, retrying sequentially..."
+            docker compose -f ${{ steps.compose.outputs.file }} pull
+          }
 
-          echo "Using tag: $TAG"
-          echo "Using profiles: $COMPOSE_PROFILES"
+      - name: Deploy services
+        working-directory: ${{ steps.deploy_dir.outputs.dir }}
+        env:
+          TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          IMAGE_TAG: ${{ needs.setup-deploy.outputs.deploy_tag }}
+          COMPOSE_PROFILES: nginx,admin-tools
+        run: |
+          echo "Deploying with tag: $TAG"
+          
+          # Deploy với rolling update strategy
+          docker compose -f ${{ steps.compose.outputs.file }} \
+            --profile nginx --profile admin-tools \
+            up -d --remove-orphans --no-deps --force-recreate
 
-          docker compose $COMPOSE_FILES pull || true
-          docker compose $COMPOSE_FILES --profile nginx --profile admin-tools up -d --remove-orphans
+      - name: Health check
+        working-directory: ${{ steps.deploy_dir.outputs.dir }}
+        run: |
+          echo "Checking service health..."
+          docker compose -f ${{ steps.compose.outputs.file }} ps
+          
+          # Wait for services to be ready
+          for i in {1..30}; do
+            if docker compose -f ${{ steps.compose.outputs.file }} ps --services --filter "status=running" | wc -l | grep -q "^[1-9]"; then
+              echo "✓ Services are running"
+              break
+            fi
+            echo "Waiting for services... ($i/30)"
+            sleep 2
+          done
 
-          docker image prune -f || true
-          docker compose $COMPOSE_FILES ps
+      - name: Cleanup
+        if: always()
+        run: |
+          docker image prune -f --filter "dangling=true" || true
+          docker system df
+
+  # Job 5: Post-deploy validation (song song)
+  post-deploy-check:
+    name: Post-deploy validation
+    needs: [setup-deploy, deploy-vps]
+    runs-on: [self-hosted]
+    if: always() && needs.deploy-vps.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ['health', 'connectivity', 'logs']
+    steps:
+      - name: Health check
+        if: matrix.check == 'health'
+        run: |
+          echo "Running health checks..."
+          # Add your health check logic here
+          curl -f http://localhost/health || echo "Health check endpoint not available"
+
+      - name: Connectivity check  
+        if: matrix.check == 'connectivity'
+        run: |
+          echo "Testing service connectivity..."
+          # Add connectivity tests
+          docker network ls
+
+      - name: Check logs
+        if: matrix.check == 'logs'
+        run: |
+          echo "Checking recent logs for errors..."
+          # Check for recent error logs
+          docker compose logs --tail=50 | grep -i error | tail -10 || true
