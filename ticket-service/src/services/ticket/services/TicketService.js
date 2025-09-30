@@ -305,18 +305,6 @@ class TicketService extends ITicketService {
     }
 
     /**
-     * Private helper method to sanitize QR code for idempotency key generation
-     * @param {string} qrCode - QR code string
-     * @returns {string} Sanitized QR code hash for consistent idempotency
-     */
-    _sanitizeQRForIdempotency(qrCode) {
-        // Create a hash of the QR code for consistent idempotency keys
-        // while avoiding storing the full QR code in Redis
-        const crypto = require('crypto');
-        return crypto.createHash('sha256').update(qrCode).digest('hex').substring(0, 32);
-    }
-
-    /**
      * Create a short-term ticket (oneway or return) based on station count and fare calculation
      * @param {Object} ticketData - The ticket data
      * @param {string} idempotencyKey - Optional custom idempotency key
@@ -1313,32 +1301,12 @@ class TicketService extends ITicketService {
         }
     }
     /**
-     * Use ticket with idempotency protection
-     * @param {string} ticketId - Ticket ID
-     * @param {string} passengerId - Passenger ID
-     * @param {string} idempotencyKey - Optional custom idempotency key
-     * @returns {Promise<Object>} Used ticket
-     */
-    async useTicket(ticketId, passengerId, idempotencyKey = null) {
-        const operation = 'use_ticket';
-        const data = { ticketId, passengerId };
-        
-        return await this.idempotency.executeWithIdempotency(
-            operation,
-            idempotencyKey ? { customKey: idempotencyKey } : data,
-            async () => this._useTicketInternal(ticketId, passengerId),
-            passengerId,
-            300 // 5 minutes TTL (shorter for usage operations)
-        );
-    }
-
-    /**
-     * Internal method for using ticket (wrapped by idempotency)
+     * Use ticket - each usage is tracked separately
      * @param {string} ticketId - Ticket ID
      * @param {string} passengerId - Passenger ID
      * @returns {Promise<Object>} Used ticket
      */
-    async _useTicketInternal(ticketId, passengerId) {
+    async useTicket(ticketId, passengerId) {
         try {
             const ticket = await Ticket.findByPk(ticketId);
             if (!ticket) {
@@ -1376,32 +1344,12 @@ class TicketService extends ITicketService {
     }
 
     /**
-     * Use ticket by QR code (for staff/admin use) with idempotency protection
-     * @param {string} qrCode - QR code string
-     * @param {string} staffId - Staff/Admin ID who is using the ticket
-     * @param {string} idempotencyKey - Optional custom idempotency key
-     * @returns {Promise<Object>} Used ticket
-     */
-    async useTicketByQRCode(qrCode, staffId, idempotencyKey = null) {
-        const operation = 'use_ticket_by_qr';
-        const data = { qrCode: this._sanitizeQRForIdempotency(qrCode), staffId };
-        
-        return await this.idempotency.executeWithIdempotency(
-            operation,
-            idempotencyKey ? { customKey: idempotencyKey } : data,
-            async () => this._useTicketByQRCodeInternal(qrCode, staffId),
-            staffId,
-            300 // 5 minutes TTL
-        );
-    }
-
-    /**
-     * Internal method for using ticket by QR code (wrapped by idempotency)
+     * Use ticket by QR code (for staff/admin use) - each scan is tracked separately
      * @param {string} qrCode - QR code string
      * @param {string} staffId - Staff/Admin ID who is using the ticket
      * @returns {Promise<Object>} Used ticket
      */
-    async _useTicketByQRCodeInternal(qrCode, staffId) {
+    async useTicketByQRCode(qrCode, staffId) {
         try {
             // Find ticket by QR code
             const ticket = await Ticket.findOne({
