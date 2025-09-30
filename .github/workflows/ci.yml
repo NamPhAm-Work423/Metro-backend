@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Job 1: Setup và tính toán metadata
+  # Job 1: Setup and calculate metadata
   setup:
     runs-on: ubuntu-latest
     outputs:
@@ -71,7 +71,7 @@ jobs:
           echo "node_services=$(echo "$node_services" | jq -c .)" >> $GITHUB_OUTPUT
           echo "python_services=$(echo "$python_services" | jq -c .)" >> $GITHUB_OUTPUT
 
-  # Job 2: Test Node.js services song song
+  # Job 2: Test Node.js services parallel
   test-node:
     needs: setup
     runs-on: ubuntu-latest
@@ -145,7 +145,7 @@ jobs:
             npm run test:coverage
           fi
 
-  # Job 3: Test Python services song song
+  # Job 3: Test Python services parallel
   test-python:
     needs: setup
     runs-on: ubuntu-latest
@@ -184,14 +184,14 @@ jobs:
         run: |
           if [ -d tests ]; then pytest -q || true; fi
 
-  # Job 4: Build và push images song song
+  # Job 4: Build and push images parallel
   build-push:
     needs: [setup, test-node, test-python]
     if: always() && needs.setup.result == 'success' && (needs.test-node.result == 'success' || needs.test-node.result == 'skipped') && (needs.test-python.result == 'success' || needs.test-python.result == 'skipped')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 6  # Giới hạn số lượng build đồng thời để tránh quá tải
+      max-parallel: 6
       matrix:
         include:
           - { name: api-gateway,         path: api-gateway }
@@ -250,14 +250,14 @@ jobs:
           build-args: |
             APP_VERSION=${{ needs.setup.outputs.release_tag }}
 
-  # Job 5: Security scan song song (chỉ cho release)
+  # Job 5: Security scan parallel (only for release)
   security-scan:
     needs: [setup, build-push]
     if: needs.setup.outputs.is_release == 'true' && needs.build-push.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 4  # Giới hạn scan đồng thời
+      max-parallel: 4
       matrix:
         service: [
           api-gateway, auth-service, payment-service, public-service,
@@ -314,7 +314,7 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
 
-  # Job 6: Verify images (song song theo nhóm)
+  # Job 6: Verify images (parallel by group)
   verify-images:
     if: github.event_name == 'push'
     needs: [setup, build-push]

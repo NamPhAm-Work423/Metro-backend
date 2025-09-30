@@ -30,7 +30,7 @@ env:
   GHCR_HOST: ghcr.io
 
 jobs:
-  # Job 1: Setup và validation
+  # Job 1: Setup and validation
   setup-deploy:
     name: Setup deployment
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
           ]'
           echo "services=$(echo "$services" | jq -c .)" >> $GITHUB_OUTPUT
 
-  # Job 2: Verify images song song
+  # Job 2: Verify images parallel
   verify-images:
     name: Verify images
     needs: setup-deploy
@@ -104,15 +104,15 @@ jobs:
           fi
           echo "✓ $REF exists"
 
-  # Job 3: Pre-pull images song song (tùy chọn, để tăng tốc deploy)
+  # Job 3: Pre-pull images parallel
   pre-pull-images:
     name: Pre-pull images
     needs: [setup-deploy, verify-images]
     runs-on: [self-hosted]
-    if: inputs.environment != 'staging'  # Chỉ pre-pull cho production
+    if: inputs.environment != 'staging'
     strategy:
       fail-fast: false
-      max-parallel: 4  # Giới hạn để tránh quá tải network
+      max-parallel: 4
       matrix:
         service: ${{ fromJson(needs.setup-deploy.outputs.services) }}
     steps:
@@ -136,12 +136,13 @@ jobs:
           }
           echo "✓ Pulled $IMAGE"
 
-  # Job 4: Deploy chính
+  # Job 4: Deploy main
   deploy-vps:
     name: Deploy to VPS
-    needs: [setup-deploy, verify-images]
+    needs: [setup-deploy, verify-images, pre-pull-images]
     runs-on: [self-hosted]
     timeout-minutes: 30
+    if: always() && needs.setup-deploy.result == 'success' && needs.verify-images.result == 'success' && (needs.pre-pull-images.result == 'success' || needs.pre-pull-images.result == 'skipped')
     concurrency:
       group: deploy-selfhosted-${{ github.ref_name }}
       cancel-in-progress: false
@@ -196,7 +197,6 @@ jobs:
           REGISTRY: ${{ needs.setup-deploy.outputs.registry }}
         run: |
           echo "Pulling images for tag: $TAG"
-          # Pull với timeout và retry
           timeout 300 docker compose -f ${{ steps.compose.outputs.file }} pull --parallel --quiet || {
             echo "Parallel pull failed, retrying sequentially..."
             docker compose -f ${{ steps.compose.outputs.file }} pull
@@ -212,7 +212,6 @@ jobs:
         run: |
           echo "Deploying with tag: $TAG"
           
-          # Deploy với rolling update strategy
           docker compose -f ${{ steps.compose.outputs.file }} \
             --profile nginx --profile admin-tools \
             up -d --remove-orphans --no-deps --force-recreate
@@ -227,7 +226,6 @@ jobs:
           echo "Checking service health..."
           docker compose -f ${{ steps.compose.outputs.file }} ps
           
-          # Wait for services to be ready
           for i in {1..30}; do
             if docker compose -f ${{ steps.compose.outputs.file }} ps --services --filter "status=running" | wc -l | grep -q "^[1-9]"; then
               echo "✓ Services are running"
@@ -243,7 +241,7 @@ jobs:
           docker image prune -f --filter "dangling=true" || true
           docker system df
 
-  # Job 5: Post-deploy validation (song song)
+  # Job 5: Post-deploy validation (parallel)
   post-deploy-check:
     name: Post-deploy validation
     needs: [setup-deploy, deploy-vps]
@@ -258,19 +256,16 @@ jobs:
         if: matrix.check == 'health'
         run: |
           echo "Running health checks..."
-          # Add your health check logic here
           curl -f http://localhost/health || echo "Health check endpoint not available"
 
       - name: Connectivity check  
         if: matrix.check == 'connectivity'
         run: |
           echo "Testing service connectivity..."
-          # Add connectivity tests
           docker network ls
 
       - name: Check logs
         if: matrix.check == 'logs'
         run: |
           echo "Checking recent logs for errors..."
-          # Check for recent error logs
           docker compose logs --tail=50 | grep -i error | tail -10 || true
