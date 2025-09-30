@@ -26,10 +26,12 @@ describe('TicketService long-term additional branches', () => {
     process.env.TICKET_QR_SECRET = 'secret';
   });
 
-  test('_sanitizeQRForIdempotency returns 32-char hex', () => {
-    const hash = service._sanitizeQRForIdempotency('QR-DATA');
-    expect(typeof hash).toBe('string');
-    expect(hash).toMatch(/^[a-f0-9]{32}$/);
+  test('_generateQRCode returns base64 with 64-char HMAC signature', () => {
+    const qr = service._generateQRCode('QR-DATA');
+    expect(typeof qr).toBe('string');
+    const payload = JSON.parse(Buffer.from(qr, 'base64').toString());
+    expect(payload).toHaveProperty('ticketId', 'QR-DATA');
+    expect(payload.signature).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test('_createLongTermTicketInternal logs invalid pass type but continues', async () => {
