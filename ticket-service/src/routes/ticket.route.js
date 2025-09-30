@@ -22,6 +22,7 @@ router.get('/:id/getTicket', ...authorizeRoles('passenger', 'staff', 'admin'), t
 router.post('/:id/cancel', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.cancelTicket);
 router.post('/:id/phoneTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getPhoneTicket);
 router.post('/:id/mailTicket', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getMailTicket);
+router.get('/:id/abused-qr', ...authorizeRoles('passenger', 'staff', 'admin'), ticketController.getAbusedQR);
 
 //Ticket Using Route:
 router.post('/:id/use', ...authorizeRoles('staff', 'admin'), ticketController.useTicket);

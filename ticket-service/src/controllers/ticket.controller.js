@@ -8,6 +8,7 @@ const { paymentCache } = require('../cache/paymentCache');
 const PaymentCompletionHandler = require('../services/ticket/handlers/PaymentCompletionHandler');
 const { publish } = require('../kafka/kafkaProducer');
 const { addCustomSpan } = require('../tracing');
+// QR rotation handled in service layer
 
 
 const SERVICE_PREFIX = process.env.REDIS_KEY_PREFIX || 'service:';
@@ -652,6 +653,57 @@ class TicketController {
         });
     });
 
+    // GET /v1/tickets/:id/abused-qr
+    getAbusedQR = asyncErrorHandler(async (req, res, next) => {
+        await addCustomSpan('ticket.get-abused-qr', async (span) => {
+          const { id } = req.params;
+          span.setAttributes({
+            'operation.type': 'read',
+            'operation.entity': 'ticket',
+            'ticket.id': id,
+            'operation.scope': 'abused_qr'
+          });
+      
+          try {
+            const ticket = await addCustomSpan('ticket.service.get-by-id', async () => ticketService.getTicketById(id));
+      
+            if (!ticket) {
+              span.setAttributes({ 'operation.success': false, 'http.status_code': 404 });
+              return res.status(404).json({ success: false, message: 'Ticket not found' });
+            }
+      
+            // Enforce passenger ownership
+            if (req.user?.role === 'passenger') {
+              const { passengerId } = await this._getPassengerFromCache(req);
+              if (ticket.passengerId !== passengerId) {
+                return res.status(403).json({ success: false, message: 'Forbidden: Ticket does not belong to this passenger' });
+              }
+            }
+      
+            if (ticket.status !== 'abused') {
+              return res.status(400).json({ success: false, message: 'Ticket is not in abused status' });
+            }
+      
+            const qrData = await addCustomSpan('ticket.service.get-abused-qr', async () => ticketService.getAbusedQR(id));
+
+            span.setAttributes({ 'operation.success': true, 'http.status_code': 200 });
+            return res.status(200).json({ success: true, data: qrData });
+          } catch (error) {
+            span.recordException(error);
+            span.setAttributes({
+              'operation.success': false,
+              'error.message': error.message,
+              'http.status_code': 500
+            });
+            return res.status(500).json({
+              success: false,
+              message: error.message,
+              error: 'INTERNAL_ERROR_GET_ABUSED_QR'
+            });
+          }
+        });
+      });
+      
     // GET /v1/tickets/:id/detail
     getTicketDetail = asyncErrorHandler(async (req, res, next) => {
         await addCustomSpan('ticket.get-detail', async (span) => {
@@ -1044,6 +1096,27 @@ class TicketController {
                     success: false,
                     message: error.message,
                     error: 'TICKET_NOT_FOUND_WITH_PROVIDED_QR_CODE'
+                });
+            }
+            else if (error.message === 'Ticket abused, rotation code required') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'TICKET_ABUSED_ROTATION_CODE_REQUIRED'
+                });
+            }
+            else if (error.message === 'Invalid or expired rotation code') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INVALID_OR_EXPIRED_ROTATION_CODE'
+                });
+            }
+            else if (error.message === 'Invalid QR base') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    error: 'INVALID_QR_BASE'
                 });
             }
             else if (error.message === 'Ticket is already used') {

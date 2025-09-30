@@ -138,13 +138,18 @@ const Ticket = sequelize.define('Ticket', {
         comment: 'Payment reference ID - ticket create payment id then use this id to get payment detail'
     },
     status: {
-        type: DataTypes.ENUM('active', 'inactive', 'pending_payment', 'used', 'expired', 'cancelled'),
+        type: DataTypes.ENUM('active', 'inactive', 'pending_payment', 'used', 'expired', 'cancelled', 'abused'),
         allowNull: false,
         defaultValue: 'inactive',
     },
     qrCode: {
         type: DataTypes.TEXT,
         allowNull: true,
+    },
+    qrSecret: {
+        type: DataTypes.STRING(128),
+        allowNull: false,
+        defaultValue: () => require('crypto').randomBytes(32).toString('hex'),
     },
     stationCount: {
         type: DataTypes.INTEGER,
@@ -167,6 +172,9 @@ const Ticket = sequelize.define('Ticket', {
 }, {
     tableName: 'tickets',
     timestamps: true,
+    defaultScope: {
+        attributes: { exclude: ['qrSecret'] }
+    },
     indexes: [
         {
             fields: ['passengerId']
@@ -186,6 +194,7 @@ const Ticket = sequelize.define('Ticket', {
 // Instance methods
 Ticket.prototype.toJSON = function() {
     const values = { ...this.get() };
+    delete values.qrSecret;
     return values;
 };
 

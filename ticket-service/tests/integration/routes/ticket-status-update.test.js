@@ -31,6 +31,7 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
     useTicket: jest.fn(),
     useTicketByQRCode: jest.fn(),
     validateTicket: jest.fn(),
+    getAbusedQR: jest.fn(),
     getTicketDetail: jest.fn(),
     updateTicket: jest.fn(),
     deleteTicket: jest.fn(),

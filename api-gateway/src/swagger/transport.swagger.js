@@ -346,7 +346,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/route/{routeId}:
+ * /v1/transport/trip/getTripsByRoute/{routeId}:
  *   get:
  *     summary: Get trips by route
  *     tags: [Trips]
@@ -366,7 +366,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/train/{trainId}:
+ * /v1/transport/trip/getTripsByTrain/{trainId}:
  *   get:
  *     summary: Get trips by train
  *     tags: [Trips]
@@ -386,7 +386,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/day/{dayOfWeek}:
+ * /v1/transport/trip/getTripsByDayOfWeek/{dayOfWeek}:
  *   get:
  *     summary: Get trips by day of week
  *     tags: [Trips]
@@ -406,7 +406,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/{tripId}/schedule:
+ * /v1/transport/trip/getTripScheduleWithStops/{tripId}:
  *   get:
  *     summary: Get trip schedule with stops
  *     tags: [Trips]
@@ -426,7 +426,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/trip/{tripId}/stops/validate:
+ * /v1/transport/trip/validateStopSequence/{tripId}:
  *   post:
  *     summary: Validate stop sequence
  *     tags: [Trips]
@@ -466,7 +466,7 @@
 
 /**
  * @swagger
- * /v1/route/transport/train/{id}/utilization:
+ * /v1/transport/train/getTrainUtilization/{id}:
  *   get:
  *     summary: Get train utilization
  *     tags: [Trains]

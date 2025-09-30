@@ -78,6 +78,10 @@ jest.mock('../../../src/controllers/ticket.controller', () => {
       success: true, 
       data: { ticketId: req.params.id, isValid: true } 
     })),
+    getAbusedQR: jest.fn((req, res) => res.status(200).json({
+      success: true,
+      data: { ticketId: req.params.id, qr: 'abused-qr-data' }
+    })),
     getTicketDetail: jest.fn((req, res) => res.status(200).json({ 
       success: true, 
       data: { ticketId: req.params.id } 

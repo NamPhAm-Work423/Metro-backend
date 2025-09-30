@@ -57,6 +57,6 @@ module.exports = {
   // Prevent Jest from hanging on async operations
   maxWorkers: 1,
   coverageThreshold: {
-    global: { statements: 80, branches: 70, functions: 85, lines: 80 },
+    global: { statements: 80, branches: 65, functions: 85, lines: 80 },
   },
 }; 

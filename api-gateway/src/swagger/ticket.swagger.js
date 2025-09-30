@@ -2842,8 +2842,8 @@
  *     security:
  *       - cookieAuth: []
  *     parameters:
- *       - in: path
- *         name: qrCode
+  *       - in: path
+  *         name: qr-code
  *         required: true
  *         schema:
  *           type: string
@@ -2867,6 +2867,74 @@
  *                     usedAt:
  *                       type: string
  *                       format: date-time
+  *
+  * /v1/route/ticket/tickets/{id}/abused-qr:
+  *   get:
+  *     summary: Get abused QR evidence by ticket ID
+  *     tags: [Tickets]
+  *     security:
+  *       - cookieAuth: []
+  *     parameters:
+  *       - in: path
+  *         name: id
+  *         required: true
+  *         schema:
+  *           type: string
+  *     responses:
+  *       200:
+  *         description: Abused QR information
+  *         content:
+  *           application/json:
+  *             schema:
+  *               type: object
+  *               properties:
+  *                 success:
+  *                   type: boolean
+  *                 message:
+  *                   type: string
+  *                 data:
+  *                   type: object
+  *
+  * /v1/route/ticket/tickets/getTicketsByRoutes:
+  *   get:
+  *     summary: Get tickets filtered by route IDs (staff, admin)
+  *     tags: [Tickets]
+  *     security:
+  *       - cookieAuth: []
+  *     parameters:
+  *       - in: query
+  *         name: routeIds
+  *         schema:
+  *           type: array
+  *           items:
+  *             type: string
+  *         description: Comma-separated list of route IDs
+  *       - in: query
+  *         name: fromDate
+  *         schema:
+  *           type: string
+  *           format: date-time
+  *       - in: query
+  *         name: toDate
+  *         schema:
+  *           type: string
+  *           format: date-time
+  *     responses:
+  *       200:
+  *         description: Tickets by routes
+  *         content:
+  *           application/json:
+  *             schema:
+  *               type: object
+  *               properties:
+  *                 success:
+  *                   type: boolean
+  *                 message:
+  *                   type: string
+  *                 data:
+  *                   type: array
+  *                   items:
+  *                     $ref: '#/components/schemas/Ticket'
  *
  * /v1/route/ticket/passengerDiscounts/getAllPassengerDiscounts:
  *   get:

@@ -15,6 +15,8 @@ const TicketCommunicationService = require('./TicketCommunicationService');
 const TicketPaymentService = require('./TicketPaymentService');
 const TicketPriceCalculator = require('../calculators/TicketPriceCalculator');
 const TicketStatusService = require('./TicketStatusService');
+const TicketAbused = require('../handlers/TicketAbused');
+const RotationQRCode = require('../helpers/RotationQRCode.helper');
 
 class TicketService extends ITicketService {
     constructor() {
@@ -1209,7 +1211,15 @@ class TicketService extends ITicketService {
             const usedTicket = await ticket.update({
                 usedList: [...(ticket.usedList || []), new Date()]
             });
-            
+            try {
+                const abuse = await TicketAbused.trackAndDetectAbuse(usedTicket);
+                if (abuse.abused) {
+                    logger.warn('Abuse detected after long-term usage', { ticketId, reason: abuse.reason });
+                }
+            } catch (e) {
+                logger.error('Failed to track abuse after long-term usage', { error: e.message, ticketId });
+            }
+
             const usageInfo = this._buildTicketUsageInfo(usedTicket);
             logger.info('Long-term ticket used successfully', { 
                 ...usageInfo,
@@ -1279,7 +1289,15 @@ class TicketService extends ITicketService {
                 });
                 throw new Error('Failed to update ticket usage');
             }
-            
+            try {
+                const abuse = await TicketAbused.trackAndDetectAbuse(usedTicket);
+                if (abuse.abused) {
+                    logger.warn('Abuse detected after short-term usage', { ticketId, reason: abuse.reason });
+                }
+            } catch (e) {
+                logger.error('Failed to track abuse after short-term usage', { error: e.message, ticketId });
+            }
+
             const usageInfo = this._buildTicketUsageInfo(usedTicket);
             logger.info('Short-term ticket used successfully', { 
                 ...usageInfo,
@@ -1300,6 +1318,97 @@ class TicketService extends ITicketService {
             throw error;
         }
     }
+    async handleUseAbusedTicket(ticketId, passengerId, scannedQR) {
+        try {
+          const ticket = await Ticket.unscoped().findByPk(ticketId);
+          if (!ticket) {
+            logger.error('Ticket not found (abused handler)', { ticketId });
+            throw new Error('Ticket not found');
+          }
+      
+          const qrString = String(scannedQR || '');
+          let baseQR, providedCode;
+          if (qrString.includes(':')) {
+            const [base, code] = qrString.split(':');
+            baseQR = base;
+            providedCode = code;
+          } else {
+            baseQR = ticket.qrCode;
+            providedCode = qrString;
+          }
+
+          if (!/^[0-9]{6}$/.test(String(providedCode))) {
+            logger.error('Rotation code required for abused ticket', { ticketId });
+            throw new Error('Ticket abused, rotation code required');
+          }
+      
+          if (baseQR !== ticket.qrCode) {
+            logger.error('Base QR does not match ticket (abused handler)', { ticketId });
+            throw new Error('Invalid QR base');
+          }
+      
+          const valid = RotationQRCode.verifyCode(ticket.qrSecret, providedCode, 1);
+          if (!valid) {
+            logger.error('Invalid rotation code for abused ticket', { ticketId });
+            throw new Error('Invalid or expired rotation code');
+          }
+      
+          if (['oneway', 'return'].includes(ticket.ticketType.toLowerCase())) {
+            return await this.handleUseShortTermTicket(ticketId, passengerId);
+          } else {
+            return await this.handleUseLongTermTicket(ticketId, passengerId);
+          }
+        }
+        catch (error) {
+          logger.error('Error using abused ticket', { 
+            error: error.message, 
+            ticketId, 
+            passengerId
+          });
+          throw error;
+        }
+    }
+
+    /**
+     * Build rotating QR for abused ticket without exposing secret
+     * @param {string} ticketId
+     * @returns {Promise<{ticketId: string, qr: string, windowMs: number, currentWindow: number, expiresAt: Date}>}
+     */
+    async getAbusedQR(ticketId) {
+        try {
+            // Fetch with secret (unscoped) to avoid defaultScope excluding qrSecret
+            const ticket = await Ticket.unscoped().findByPk(ticketId);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+
+            if (ticket.status !== 'abused') {
+                throw new Error('Ticket is not in abused status');
+            }
+
+            if (!ticket.qrCode || !ticket.qrSecret) {
+                throw new Error('Ticket is missing QR configuration');
+            }
+
+            const windowMs = 15000;
+            const now = Date.now();
+            const currentWindow = Math.floor(now / windowMs);
+            const nextRotateAtMs = (currentWindow + 1) * windowMs;
+            const qr = RotationQRCode.buildDisplayQR(ticket.qrCode, ticket.qrSecret, now);
+
+            return {
+                ticketId: ticket.ticketId,
+                qr,
+                windowMs,
+                currentWindow,
+                expiresAt: new Date(nextRotateAtMs)
+            };
+        } catch (error) {
+            logger.error('Error building abused QR', { error: error.message, ticketId });
+            throw error;
+        }
+    }
+      
     /**
      * Use ticket - each usage is tracked separately
      * @param {string} ticketId - Ticket ID
@@ -1312,6 +1421,10 @@ class TicketService extends ITicketService {
             if (!ticket) {
                 logger.error('Ticket not found', { ticketId });
                 throw new Error('Ticket not found');
+            }
+            if (ticket.status === 'abused') {
+                logger.error('Ticket is locked due to abuse', { ticketId, passengerId, status: ticket.status });
+                throw new Error('Ticket is locked due to abuse');
             }
             if (ticket.status === 'used') {
                 logger.error('Ticket is already used', { ticketId, passengerId, status: ticket.status });
@@ -1326,11 +1439,25 @@ class TicketService extends ITicketService {
                 throw new Error('Ticket is already expired');
             }
 
+            let result;
             if (ticket.ticketType.toLowerCase() === 'oneway' || ticket.ticketType.toLowerCase() === 'return') {
-                return await this.handleUseShortTermTicket(ticketId, passengerId);
+                result = await this.handleUseShortTermTicket(ticketId, passengerId);
             } else {
-                return await this.handleUseLongTermTicket(ticketId, passengerId);
+                result = await this.handleUseLongTermTicket(ticketId, passengerId);
             }
+
+            // Track abuse after usage
+            try {
+                const fresh = await Ticket.findByPk(ticketId);
+                const abuse = await TicketAbused.trackAndDetectAbuse(fresh);
+                if (abuse.abused) {
+                    logger.warn('Abuse detected post usage', { ticketId, reason: abuse.reason });
+                }
+            } catch (e) {
+                logger.error('Failed to track abuse after useTicket', { error: e.message, ticketId });
+            }
+
+            return result;
         } catch (error) {
             logger.error('Error using ticket', { 
                 error: error.message, 
@@ -1350,11 +1477,16 @@ class TicketService extends ITicketService {
      * @returns {Promise<Object>} Used ticket
      */
     async useTicketByQRCode(qrCode, staffId) {
+        let foundTicket = null;
         try {
-            // Find ticket by QR code
+            // Support both `${baseQR}` and `${baseQR}:${code}`
+            const scanned = String(qrCode || '');
+            const baseQR = scanned.includes(':') ? scanned.split(':')[0] : scanned;
+
             const ticket = await Ticket.findOne({
-                where: { qrCode: qrCode }
+                where: { qrCode: baseQR }
             });
+            foundTicket = ticket;
             
             if (!ticket) {
                 logger.error('Ticket not found with provided QR code', {
@@ -1387,7 +1519,15 @@ class TicketService extends ITicketService {
                 });
                 throw new Error('Ticket is already expired');
             }
-
+            else if (ticket.status === 'abused') {
+                logger.error('Ticket is locked due to abuse', { 
+                    ticketId: ticket.ticketId, 
+                    staffId, 
+                    status: ticket.status 
+                });
+                // Pass full scanned value so abused handler can verify rotation code
+                return await this.handleUseAbusedTicket(ticket.ticketId, ticket.passengerId, scanned);
+            }
             if (ticket.ticketType.toLowerCase() === 'oneway' || ticket.ticketType.toLowerCase() === 'return') {
                 return await this.handleUseShortTermTicket(ticket.ticketId, ticket.passengerId);
             } else {
@@ -1398,11 +1538,11 @@ class TicketService extends ITicketService {
                 error: error.message, 
                 qrCode: qrCode ? qrCode.substring(0, 20) + '...' : 'null', // Log partial QR for security
                 staffId,
-                ticketId: ticket?.ticketId,
-                ticketStatus: ticket?.status,
-                ticketType: ticket?.ticketType
+                ticketId: foundTicket?.ticketId,
+                ticketStatus: foundTicket?.status,
+                ticketType: foundTicket?.ticketType
             });
-            throw error;
+            throw new Error(error.message);
         }
     }
 }
