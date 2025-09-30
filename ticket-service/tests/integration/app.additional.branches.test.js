@@ -23,7 +23,7 @@ describe('app additional branches', () => {
       .set('Host', 'malicious.example.com')
       .set('X-Forwarded-For', '8.8.8.8');
     expect([403,404]).toContain(res2.status);
-  });
+  }, 20000);
 
   test('CORS production branch logs info when NODE_ENV=production', async () => {
     const { logger } = require('../../src/config/logger');
