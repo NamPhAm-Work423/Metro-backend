@@ -12,10 +12,10 @@ plotly==5.24.1
 # LSTM Model dependencies (replacing Prophet)
 tensorflow==2.17.0
 
-# OpenTelemetry tracing dependencies
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-exporter-otlp-proto-http>=1.21.0
-opentelemetry-instrumentation-grpc>=0.42b0
-opentelemetry-instrumentation-requests>=0.42b0
+# OpenTelemetry tracing dependencies (pinned to avoid conflicts)
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-exporter-otlp-proto-http==1.21.0
+opentelemetry-instrumentation-grpc==0.42b0
+opentelemetry-instrumentation-requests==0.42b0
 
