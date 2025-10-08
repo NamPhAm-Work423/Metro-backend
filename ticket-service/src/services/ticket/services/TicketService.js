@@ -316,21 +316,50 @@ class TicketService extends ITicketService {
         // Use custom idempotency key or generate one from ticket data
         const operation = 'create_short_term_ticket';
         
-        return await this.idempotency.executeWithIdempotency(
+        // Add timestamp to make idempotency key unique for each request
+        const requestTimestamp = new Date().toISOString();
+        const uniqueTicketData = {
+            ...ticketData,
+            requestTimestamp
+        };
+        
+        const result = await this.idempotency.executeWithIdempotency(
             operation,
-            idempotencyKey ? { customKey: idempotencyKey } : ticketData,
-            async () => this._createShortTermTicketInternal(ticketData),
+            idempotencyKey ? { customKey: idempotencyKey } : uniqueTicketData,
+            async () => this._createShortTermTicketInternal(ticketData, requestTimestamp),
             ticketData.passengerId,
-            1800 // 30 minutes TTL
+            300 // 5 minutes TTL (reduced from 30 minutes)
         );
+
+        // Clear idempotency after successful operation
+        try {
+            const generatedKey = this.idempotency.generateKey(
+                operation,
+                idempotencyKey ? { customKey: idempotencyKey } : uniqueTicketData,
+                ticketData.passengerId
+            );
+            await this.idempotency.clearIdempotency(generatedKey);
+            logger.debug('Cleared idempotency key after short-term ticket creation', {
+                ticketId: result?.ticket?.ticketId,
+                tripType: ticketData.tripType
+            });
+        } catch (clearError) {
+            logger.warn('Failed to clear idempotency key after short-term ticket creation', {
+                error: clearError.message,
+                ticketId: result?.ticket?.ticketId
+            });
+        }
+
+        return result;
     }
 
     /**
      * Internal method for creating short-term ticket (wrapped by idempotency)
      * @param {Object} ticketData - The ticket data
+     * @param {string} requestTimestamp - Request timestamp for idempotency key generation
      * @returns {Promise<Object>} The created ticket with payment information
      */
-    async _createShortTermTicketInternal(ticketData) {
+    async _createShortTermTicketInternal(ticketData, requestTimestamp) {
         try {
             // Validate passenger counts (additional validation)
             const totalPassengers = this._validatePassengerCounts(ticketData);
@@ -635,21 +664,50 @@ class TicketService extends ITicketService {
         // Use custom idempotency key or generate one from ticket data
         const operation = 'create_long_term_ticket';
         
-        return await this.idempotency.executeWithIdempotency(
+        // Add timestamp to make idempotency key unique for each request
+        const requestTimestamp = new Date().toISOString();
+        const uniqueTicketData = {
+            ...ticketData,
+            requestTimestamp
+        };
+        
+        const result = await this.idempotency.executeWithIdempotency(
             operation,
-            idempotencyKey ? { customKey: idempotencyKey } : ticketData,
-            async () => this._createLongTermTicketInternal(ticketData),
+            idempotencyKey ? { customKey: idempotencyKey } : uniqueTicketData,
+            async () => this._createLongTermTicketInternal(ticketData, requestTimestamp),
             ticketData.passengerId,
-            1800 // 30 minutes TTL
+            300 // 5 minutes TTL (reduced from 30 minutes)
         );
+
+        // Clear idempotency after successful operation
+        try {
+            const generatedKey = this.idempotency.generateKey(
+                operation,
+                idempotencyKey ? { customKey: idempotencyKey } : uniqueTicketData,
+                ticketData.passengerId
+            );
+            await this.idempotency.clearIdempotency(generatedKey);
+            logger.debug('Cleared idempotency key after long-term ticket creation', {
+                ticketId: result?.ticket?.ticketId,
+                passType: ticketData.passType
+            });
+        } catch (clearError) {
+            logger.warn('Failed to clear idempotency key after long-term ticket creation', {
+                error: clearError.message,
+                ticketId: result?.ticket?.ticketId
+            });
+        }
+
+        return result;
     }
 
     /**
      * Internal method for creating long-term ticket (wrapped by idempotency)
      * @param {Object} ticketData - The ticket data
+     * @param {string} requestTimestamp - Request timestamp for idempotency key generation
      * @returns {Promise<Object>} The created ticket with payment information
      */
-    async _createLongTermTicketInternal(ticketData) {
+    async _createLongTermTicketInternal(ticketData, requestTimestamp) {
         try {
             const validPassTypes = TransitPass.transitPassType;
             if (!validPassTypes.includes(ticketData.passType.toLowerCase())) {
@@ -1390,7 +1448,7 @@ class TicketService extends ITicketService {
                 throw new Error('Ticket is missing QR configuration');
             }
 
-            const windowMs = 15000;
+            const windowMs = 30000;
             const now = Date.now();
             const currentWindow = Math.floor(now / windowMs);
             const nextRotateAtMs = (currentWindow + 1) * windowMs;

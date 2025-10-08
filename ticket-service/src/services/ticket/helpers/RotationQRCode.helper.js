@@ -2,11 +2,11 @@ const crypto = require('crypto');
 
 /**
  * RotationQRCode - Stateless time-based 6-digit code (TOTP-like) for QR rotation.
- * No timers, no DB writes. Code changes every 15s per secret.
+ * No timers, no DB writes. Code changes every 30s per secret.
  */
 class RotationQRCode {
     constructor() {
-        this.windowMs = 15 * 1000;
+        this.windowMs = 30 * 1000;
         this.modulus = 1_000_000; // 6 digits
     }
 

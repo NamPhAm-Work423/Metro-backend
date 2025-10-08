@@ -1,6 +1,7 @@
 # Mac
 .DS_Store
 qr
+locust-stress-test
 analysis
 reports
 docs

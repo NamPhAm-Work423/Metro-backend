@@ -1,5 +1,6 @@
 const { logger } = require('../../../config/logger');
 const { publishTicketActivated } = require('../../../events/ticket.producer');
+const IdempotencyHelper = require('../../../helpers/IdempotencyHelper');
 
 /**
  * Handler for payment completion logic following SOLID principles
@@ -175,6 +176,28 @@ class PaymentCompletionHandler {
             
             // Log completion
             this.logPaymentCompletion(ticket, paymentId, updateData, paymentData);
+            
+            // Clear idempotency key after successful payment completion
+            try {
+                const operation = ticket.fareId ? 'create_short_term_ticket' : 'create_long_term_ticket';
+                const idempotencyKey = IdempotencyHelper.generateKey(
+                    operation,
+                    { passengerId: ticket.passengerId, requestTimestamp: new Date().toISOString() },
+                    ticket.passengerId
+                );
+                await IdempotencyHelper.releaseLock(idempotencyKey);
+                logger.debug('Cleared idempotency key after payment completion', {
+                    ticketId: ticket.ticketId,
+                    paymentId,
+                    operation
+                });
+            } catch (clearError) {
+                logger.warn('Failed to clear idempotency key after payment completion', {
+                    error: clearError.message,
+                    ticketId: ticket.ticketId,
+                    paymentId
+                });
+            }
             
             // Publish ticket activated event only if ticket becomes active
             if (updateData.status === 'active') {

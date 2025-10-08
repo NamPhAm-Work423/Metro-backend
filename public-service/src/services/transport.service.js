@@ -4,7 +4,6 @@ const CacheService = require('./cache.service');
 
 class TransportService {
     constructor() {
-        this.baseURL = process.env.TRANSPORT_SERVICE_URL || 'http://transport-service:8000';
         this.timeout = parseInt(process.env.TRANSPORT_TIMEOUT) || 5000;
         this.retries = parseInt(process.env.TRANSPORT_RETRIES) || 3;
         this.retryDelayMs = parseInt(process.env.TRANSPORT_RETRY_DELAY) || 1000;

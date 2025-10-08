@@ -1,6 +1,6 @@
 """
-Forecast Service - Main interface for Prophet-enhanced forecasting
-Uses MTA subway demand patterns for improved route timing predictions
+Forecast Service - Main interface for LSTM-based forecasting
+Uses deep learning model trained on metro demand patterns for improved route timing predictions
 """
 from typing import List, Dict
 from ai_scheduler.models import TimeBandHeadway
@@ -10,22 +10,23 @@ from .enhanced_forecast_service import EnhancedForecastService
 
 class ForecastService:
     """
-    Main forecast service that uses Enhanced service with MTA Prophet recommendations
+    Main forecast service that uses LSTM deep learning model for accurate predictions
     """
     
     def __init__(self):
         self.enhanced_service = EnhancedForecastService()
+        print("✅ Forecast Service initialized with LSTM model")
 
     def forecast_headways(self, route_id: str, date: str, day_of_week: str) -> List[TimeBandHeadway]:
         """
-        Enhanced forecasting using trained Prophet model and MTA recommendations
+        Enhanced forecasting using trained LSTM deep learning model
         """
         try:
             timebands = self.enhanced_service.forecast_headways(route_id, date, day_of_week)
-            print(f"Using MTA Prophet-enhanced forecasting for route {route_id} on {day_of_week}")
+            print(f"✅ Using LSTM-enhanced forecasting for route {route_id} on {day_of_week}")
             return timebands
         except Exception as e:
-            print(f"Enhanced forecasting failed, using fallback: {e}")
+            print(f"⚠️ LSTM forecasting failed, using fallback: {e}")
             return self._generate_basic_timebands(day_of_week)
 
     def _generate_basic_timebands(self, day_of_week: str) -> List[TimeBandHeadway]:
@@ -50,12 +51,12 @@ class ForecastService:
 
     def get_demand_insights(self, route_id: str, date: str, day_of_week: str) -> Dict:
         """
-        Get demand insights using MTA Prophet recommendations
+        Get demand insights using LSTM predictions
         """
         return self.enhanced_service.get_demand_insights(route_id, date, day_of_week)
 
     def simulate_passenger_demand(self, route_id: str, date: str, day_of_week: str, scenario: str = "normal") -> List[Dict]:
         """
-        Simulate passenger demand using MTA Prophet insights
+        Simulate passenger demand using LSTM deep learning predictions
         """
         return self.enhanced_service.simulate_passenger_demand(route_id, date, day_of_week, scenario)

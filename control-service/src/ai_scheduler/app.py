@@ -30,7 +30,7 @@ def main() -> None:
     server.start()
     print(f'Control gRPC server running on {settings.control_grpc_host}:{settings.control_grpc_port}')
 
-    # One-time yearly initialization using MTA Prophet model (run in background)
+    # One-time yearly initialization using LSTM deep learning model (run in background)
     def init_seed_background():
         if settings.init_seed_on_start:
             try:
@@ -43,7 +43,7 @@ def main() -> None:
                 # Check if yearly schedule already generated for current year
                 yearly_marker = os.path.join(marker_dir, f'control-yearly-seed-{current_year}.done')
                 if not os.path.exists(yearly_marker):
-                    print(f"Generating yearly schedules for {current_year} using MTA Prophet model...")
+                    print(f"Generating yearly schedules for {current_year} using LSTM deep learning model...")
                     
                     # Import and use yearly planning service directly
                     from ai_scheduler.services.yearly_planning_service import YearlyPlanningService
@@ -114,7 +114,7 @@ def main() -> None:
                 
                 # Generate yearly schedule for the new year
                 target_year = datetime.now().year
-                print(f"Auto-generating yearly schedule for {target_year} using MTA Prophet model...")
+                print(f"Auto-generating yearly schedule for {target_year} using LSTM deep learning model...")
                 
                 # Use yearly planning service directly
                 from ai_scheduler.services.yearly_planning_service import YearlyPlanningService

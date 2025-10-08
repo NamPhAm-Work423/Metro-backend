@@ -239,6 +239,57 @@ class IdempotencyHelper {
     }
 
     /**
+     * Clear both lock and result keys (for completed operations)
+     * @param {string} key - Idempotency key
+     */
+    async clearIdempotency(key) {
+        const resultKey = key.replace(this.keyPrefix, this.resultPrefix);
+        
+        // Try Redis first
+        const redisSuccess = await withRedisClient(async (client) => {
+            try {
+                await client.del(key);
+                await client.del(resultKey);
+                return true;
+            } catch (error) {
+                logger.debug('Redis clearIdempotency failed', { 
+                    error: error.message, 
+                    key: this._sanitizeKey(key) 
+                });
+                return false;
+            }
+        });
+
+        if (redisSuccess) {
+            logger.debug('Cleared idempotency (lock + result) in Redis', { 
+                key: this._sanitizeKey(key),
+                resultKey: this._sanitizeKey(resultKey)
+            });
+            return;
+        }
+
+        // Fallback to memory cache
+        // Clear lock key
+        if (this.memoryCacheTimers.has(key)) {
+            clearTimeout(this.memoryCacheTimers.get(key));
+            this.memoryCacheTimers.delete(key);
+        }
+        this.memoryCache.delete(key);
+        
+        // Clear result key
+        if (this.memoryCacheTimers.has(resultKey)) {
+            clearTimeout(this.memoryCacheTimers.get(resultKey));
+            this.memoryCacheTimers.delete(resultKey);
+        }
+        this.memoryCache.delete(resultKey);
+
+        logger.debug('Cleared idempotency (lock + result) in memory cache', { 
+            key: this._sanitizeKey(key),
+            resultKey: this._sanitizeKey(resultKey)
+        });
+    }
+
+    /**
      * Execute operation with idempotency protection
      * @param {string} operation - Operation name
      * @param {Object} data - Request data
@@ -313,7 +364,8 @@ class IdempotencyHelper {
         // Remove dynamic fields that shouldn't affect idempotency
         const exclude = [
             'timestamp', 'requestId', 'sessionId', 
-            'createdAt', 'updatedAt', 'ip', 'userAgent'
+            'createdAt', 'updatedAt', 'ip', 'userAgent',
+            'requestTimestamp' // Exclude requestTimestamp to allow unique keys per request
         ];
         
         const normalized = {};
@@ -332,7 +384,7 @@ class IdempotencyHelper {
     }
 
     /**
-     * Sanitize key for logging (remove sensitive data)
+     * Sanitize key for logging 
      * @param {string} key - Idempotency key
      * @returns {string} Sanitized key
      */

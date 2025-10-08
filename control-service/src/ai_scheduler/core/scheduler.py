@@ -23,27 +23,27 @@ class HeuristicScheduler:
     def build_timebands(self, service_start: str, service_end: str, peak_headway_sec: int, offpeak_headway_sec: int, 
                        route_id: str = "default", date: str = "2024-01-01", day_of_week: str = "Monday") -> List[TimeBand]:
         """
-        Build time bands using Prophet-enhanced forecasting
+        Build time bands using LSTM deep learning forecasting
         Falls back to simple MVP if forecasting fails
         """
         try:
-            # Use Prophet-enhanced forecasting
-            prophet_timebands = self.forecast_service.forecast_headways(route_id, date, day_of_week)
+            # Use LSTM-enhanced forecasting
+            lstm_timebands = self.forecast_service.forecast_headways(route_id, date, day_of_week)
             
             # Convert TimeBandHeadway to TimeBand
             timebands = []
-            for tb in prophet_timebands:
+            for tb in lstm_timebands:
                 timebands.append(TimeBand(
                     start=tb.start,
                     end=tb.end,
                     headway_sec=tb.headway_sec
                 ))
             
-            print(f"Using Prophet-enhanced time bands for route {route_id}")
+            print(f"Using LSTM-enhanced time bands for route {route_id}")
             return timebands
             
         except Exception as e:
-            print(f"Prophet forecasting failed, using fallback: {e}")
+            print(f"LSTM forecasting failed, using fallback: {e}")
             # Fallback to simple MVP
             return [TimeBand(start=service_start, end=service_end, headway_sec=offpeak_headway_sec)]
 
@@ -64,13 +64,13 @@ class HeuristicScheduler:
     
     def get_demand_insights(self, route_id: str, date: str, day_of_week: str) -> Dict:
         """
-        Get demand insights using Prophet recommendations
+        Get demand insights using LSTM predictions
         """
         return self.forecast_service.get_demand_insights(route_id, date, day_of_week)
     
     def simulate_passenger_demand(self, route_id: str, date: str, day_of_week: str, scenario: str = "normal") -> List[Dict]:
         """
-        Simulate passenger demand using Prophet insights
+        Simulate passenger demand using LSTM predictions
         """
         return self.forecast_service.simulate_passenger_demand(route_id, date, day_of_week, scenario)
 

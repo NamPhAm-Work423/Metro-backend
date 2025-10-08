@@ -233,6 +233,21 @@ class TicketController {
                         paymentId: result.paymentId
                     });
                     
+                    //If ticket is free message is URL is ignored because it is free
+                    if (result.ticket.paymentMethod === 'free') {
+                        return res.status(201).json({
+                            success: true,
+                            message: 'Ticket created successfully. Payment URL is not available for free tickets.',
+                            data: {
+                                ticket: result.ticket,
+                                payment: {
+                                    paymentId: result.paymentId,
+                                    status: 'processing',
+                                    message: 'Payment URL is not available for free tickets.'
+                                }
+                            }
+                        });
+                    }
                     return res.status(201).json({
                         success: true,
                         message: 'Ticket created successfully. Payment URL will be available shortly.',
@@ -307,6 +322,21 @@ class TicketController {
 
                 if (result.paymentResponse) {
                     span.setAttributes({ 'ticket.creation_success': true, 'payment.url_generated': !!result.paymentResponse.paymentUrl, 'http.status_code': 201 });
+                    //If ticket is free message is URL is ignored because it is free
+                    if (result.ticket.paymentMethod === 'free') {
+                        return res.status(201).json({
+                            success: true,
+                            message: 'Ticket created successfully. Payment URL is not available for free tickets.',
+                            data: {
+                                ticket: result.ticket,
+                                payment: {
+                                    paymentId: result.paymentId,
+                                    status: 'processing',
+                                    message: 'Payment URL is not available for free tickets.'
+                                }
+                            }
+                        });
+                    }
                     return res.status(201).json({
                         success: true,
                         message: 'Ticket created and payment URL generated successfully',
@@ -1202,7 +1232,18 @@ class TicketController {
                 paymentCache.set(paymentId, { ticketId, paymentId, paymentUrl, paymentMethod, paypalOrderId, status, redirectUrls });
                 paymentCache.set(ticketId, { ticketId, paymentId, paymentUrl, paymentMethod, paypalOrderId, status, redirectUrls });
             }
-            await ticketService.updateTicketStatus(ticketId, 'pending_payment', null, 'system-event');
+            // Avoid invalid no-op transition if already pending_payment
+            try {
+                const ticket = await ticketService.getTicketById(ticketId);
+                if (ticket && ticket.status !== 'pending_payment') {
+                    await ticketService.updateTicketStatus(ticketId, 'pending_payment', null, 'system-event');
+                } else {
+                    logger.debug('Skipping status update: already pending_payment', { ticketId });
+                }
+            } catch (e) {
+                logger.error('Error processing payment_ready status update', { ticketId, error: e.message });
+                // Do not throw to keep event processing idempotent
+            }
             return { success: true };
         });
     };
@@ -1229,7 +1270,18 @@ class TicketController {
         return addCustomSpan('event.ticket.payment_failed', async (span) => {
             const { ticketId } = eventData || {};
             span.setAttributes({ 'event.type': 'payment_failed', 'ticket.id': ticketId });
-            await ticketService.updateTicketStatus(ticketId, 'pending_payment', 'payment_failed', 'system-event');
+            // Per business rules, payment.failed should cancel the ticket
+            try {
+                const ticket = await ticketService.getTicketById(ticketId);
+                if (ticket && ticket.status !== 'cancelled') {
+                    await ticketService.updateTicketStatus(ticketId, 'cancelled', 'payment_failed', 'system-event');
+                } else {
+                    logger.debug('Skipping status update: already cancelled', { ticketId });
+                }
+            } catch (e) {
+                logger.error('Error processing payment_failed status update', { ticketId, error: e.message });
+                // Do not throw to keep event processing idempotent
+            }
             return { success: true };
         });
     };

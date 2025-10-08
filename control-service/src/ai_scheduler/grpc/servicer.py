@@ -107,7 +107,7 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
             return control_pb2.GenerateScheduleResponse(trips=0)
 
     def GenerateYearlySchedules(self, request, context):
-        """Generate AI-optimized schedules for entire year using MTA Prophet model"""
+        """Generate AI-optimized schedules for entire year using LSTM deep learning model"""
         try:
             print(f"Generating yearly schedules for {request.year}")
             print(f"Routes: {list(request.routeIds) if request.routeIds else 'All active routes'}")
@@ -144,7 +144,7 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
             return control_pb2.GenerateScheduleResponse(trips=0)
 
     def GenerateQuarterlySchedules(self, request, context):
-        """Generate AI-optimized schedules for a quarter using MTA Prophet model"""
+        """Generate AI-optimized schedules for a quarter using LSTM deep learning model"""
         try:
             print(f"Generating Q{request.quarter} {request.year} schedules")
             
@@ -166,7 +166,7 @@ class ControlGrpcService(control_pb2_grpc.ControlServiceServicer):
             return control_pb2.GenerateScheduleResponse(trips=0)
 
     def GetYearlyScheduleSummary(self, request, context):
-        """Get yearly schedule summary with MTA Prophet insights"""
+        """Get yearly schedule summary with LSTM insights"""
         try:
             print(f"Getting yearly schedule summary for {request.year}")
             

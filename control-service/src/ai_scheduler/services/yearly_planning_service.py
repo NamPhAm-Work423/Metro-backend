@@ -1,5 +1,5 @@
 """
-Yearly Planning Service - Generate schedules for entire year using MTA Prophet model
+Yearly Planning Service - Generate schedules for entire year using LSTM deep learning model
 Optimizes metro operations based on seasonal patterns and demand forecasts
 """
 from typing import List, Dict, Optional
@@ -14,7 +14,7 @@ from ai_scheduler.config.settings import settings
 
 class YearlyPlanningService:
     """
-    Service for generating yearly schedules using MTA Prophet model insights
+    Service for generating yearly schedules using LSTM deep learning model insights
     """
     
     def __init__(self, transport: transport_pb2_grpc.TransportServiceStub):
@@ -24,10 +24,10 @@ class YearlyPlanningService:
     
     def generate_yearly_schedule_simple(self, year: int) -> int:
         """
-        Generate complete yearly schedule for all routes using MTA Prophet model
+        Generate complete yearly schedule for all routes using LSTM deep learning model
         Simple version - just returns total trips generated
         """
-        print(f"Generating yearly schedule for {year} using MTA Prophet model...")
+        print(f"✅ Generating yearly schedule for {year} using LSTM deep learning model...")
         
         # Get all active routes
         route_ids = self._get_all_active_routes()
@@ -258,7 +258,7 @@ class YearlyPlanningService:
     
     def get_yearly_schedule_summary(self, year: int, route_id: Optional[str] = None) -> Dict:
         """
-        Get summary of yearly schedule with MTA Prophet insights
+        Get summary of yearly schedule with LSTM insights
         """
         summary = {
             "year": year,
